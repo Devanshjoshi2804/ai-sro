@@ -3,7 +3,10 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 
+from sro.domain.chat.request import refusal
 from sro.domain.chat.thread import Message, Speaker
+from sro.domain.execution.field_classes import FieldLimits
+from sro.domain.skill.signing_in import Logins
 
 NEEDS = "needs_values"
 
@@ -298,13 +301,13 @@ def offered_job(messages: Sequence[Message], answering: str | None = None) -> Pe
     )
 
 
-def answered(pending: Pending, said: str) -> Pending:
+def answered(pending: Pending, said: str, logins: Logins = Logins()) -> Pending:
     value = said.strip()[:K_SAID]
     if not value or not pending.missing:
         return pending
-    if too_long_for(pending, said) is not None:
-        return pending
     asked = pending.missing[0]
+    if refusal(value, value, FieldLimits(max_length=pending.limits.get(asked)), logins):
+        return pending
     filled = {asked, *_twins(asked, pending.missing[1:])}
     return Pending(
         workflow_id=pending.workflow_id,

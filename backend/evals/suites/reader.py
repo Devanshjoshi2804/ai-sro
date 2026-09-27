@@ -3,25 +3,61 @@ from __future__ import annotations
 import hashlib
 import time
 from dataclasses import asdict
+from datetime import UTC, datetime
+from typing import Any
 
 from evals.model import Case, Scored
-from sro.application.chat.understand import understand
+from sro.application.chat.candidates import candidate_of, rank_jobs
+from sro.application.chat.understand import held_runs, shown, understand
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.skill.job_facts import job_facts
 from sro.container import Container
 from sro.domain.chat.asked_by import mails_behind, texts
+from sro.domain.chat.request import Candidate
 from sro.domain.execution.compose import normal
+from sro.domain.execution.field_classes import FieldClass, FieldLimits
 from sro.domain.prompts.read_request import READ_REQUEST
 from sro.domain.prompts.record import quoted_in
 from sro.domain.shared.identifiers import TenantId
-from sro.domain.skill.workflow import Step, Workflow
 
 
-def _job(raw: dict[str, object]) -> Workflow:
-    steps = [Step(**one) for one in raw.pop("steps", [])]  # type: ignore[attr-defined]
-    raw.pop("repeat", None)
-    raw.pop("same_as", None)
-    return Workflow(**raw, steps=steps)  # type: ignore[arg-type]
+def _case_form(candidate: Candidate) -> dict[str, object]:
+    kinds = {one.name: one for one in candidate.fields}
+    form = shown(candidate)
+    form["fields"] = [
+        {
+            **one,
+            "kind": kinds[str(one["name"])].kind,
+            "limits": asdict(kinds[str(one["name"])].limits),
+        }
+        for one in form["fields"]  # type: ignore[attr-defined]
+    ]
+    return form
+
+
+def _candidate(raw: dict[str, Any]) -> Candidate:
+    fields = raw["fields"]
+    return Candidate(
+        id=str(raw["id"]),
+        title=str(raw["title"]),
+        fields=tuple(
+            FieldClass(
+                one["name"],
+                one["kind"],
+                tuple(one["labels"]),
+                FieldLimits(
+                    one["limits"]["max_length"],
+                    None if one["limits"]["options"] is None else tuple(one["limits"]["options"]),
+                    one["limits"]["required_on_screen"],
+                ),
+            )
+            for one in fields
+        ),
+        aliases={alias: one["name"] for one in fields for alias in one["aliases"]},
+        seen={one["name"]: tuple(one["seen"]) for one in fields},
+        asked_by=tuple(raw.get("asked_by", ())),
+    )
 
 
 class Reader:
@@ -33,13 +69,15 @@ class Reader:
 
     async def cases(self, uow: UnitOfWork, tenant_id: TenantId) -> list[Case]:
         workflows = list(await uow.workflows.known(tenant_id))
-        cites = tuple(sorted({one for w in workflows for s in w.steps for one in s.cites}))
-        by_id = {one.id: one for one in await uow.gestures.gestures_for(tenant_id, ids=cites)}
-        asked_by = {w.id: texts(mails_behind(w, by_id)) for w in workflows}
+        facts = await job_facts(uow, tenant_id, workflows, now=datetime.now(tz=UTC))
+        held = await held_runs(uow, tenant_id)
         found = []
-        for workflow in workflows:
+        for one in facts:
+            workflow = one.workflow
+            if workflow.signs_in:
+                continue
             same = [w.id for w in workflows if normal(w.title) == normal(workflow.title)]
-            for mail in asked_by[workflow.id]:
+            for mail in texts(mails_behind(workflow, one.by_id)):
                 values = {
                     str(p["name"]): value
                     for p in workflow.parameters
@@ -51,11 +89,11 @@ class Reader:
                         id=f"{workflow.id}:{hashlib.sha256(mail.encode()).hexdigest()[:8]}",
                         suite=self.name,
                         input={
-                            "said": mail,
-                            "jobs": [asdict(w) | {"repeat": None} for w in workflows],
-                            "asked_by": {
-                                k: [m for m in v if m != mail] for k, v in asked_by.items()
-                            },
+                            "thread": mail,
+                            "candidates": [
+                                _case_form(candidate_of(ranked, leave_out=mail))
+                                for ranked in rank_jobs(mail, facts, held=held)
+                            ],
                         },
                         expected={"jobs": same, "values": values},
                     )
@@ -63,12 +101,9 @@ class Reader:
         return found
 
     async def run(self, case: Case, asker: Asker) -> Scored:
-        jobs = [_job(dict(one)) for one in case.input["jobs"]]  # type: ignore[attr-defined]
-        asked_by = case.input.get("asked_by")
+        candidates = [_candidate(dict(one)) for one in case.input["candidates"]]  # type: ignore[attr-defined]
         started = time.monotonic()
-        got = await understand(
-            str(case.input["said"]), jobs, asker, asked_by if isinstance(asked_by, dict) else {}
-        )
+        got = await understand(str(case.input["thread"]), candidates, asker)
         latency = time.monotonic() - started
         wanted = case.expected.get("values")
         right_job = got.workflow_id in (case.expected.get("jobs") or [])  # type: ignore[operator]

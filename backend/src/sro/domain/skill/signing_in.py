@@ -4,7 +4,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from urllib.parse import parse_qs, quote, urlsplit, urlunsplit
 
-from sro.domain.observation.gesture import Gesture, Target, passed_through
+from sro.domain.execution.compose import normal
+from sro.domain.observation.gesture import Action, Gesture, Target, passed_through
 from sro.domain.observation.trim import is_secret, path_shape
 from sro.domain.shared.hosts import origin_of, page_of
 from sro.domain.skill.checks import signs_in_to
@@ -199,6 +200,14 @@ class RecordedLogin:
     job_id: str
     origin: str
     username: str | None
+    label: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class Logins:
+    names: frozenset[str] = frozenset()
+    # (system, box): a box name counts only on the system its sign-in lands on.
+    labels: frozenset[tuple[str, str]] = frozenset()
 
 
 def recorded_login(
@@ -210,12 +219,46 @@ def recorded_login(
         for job in among
         if job.signs_in and (lands := signs_in_to(job, by_id)) is not None and lands[1] == system
     ]
-    job = landing[0] if len(landing) == 1 else None
-    credential = _credential(job, by_id) if job is not None else None
-    if job is None or credential is None:
+    typed = _typed_login(landing[0], by_id) if len(landing) == 1 else None
+    if typed is None:
         return None
+    credential, last = typed
     origin = origin_of(credential.url or credential.system or "")
     if not origin:
+        return None
+    return RecordedLogin(
+        job_id=landing[0].id,
+        origin=origin,
+        username=last.value if last else None,
+        label=last.target.name if last and last.target else None,
+    )
+
+
+def recorded_logins(among: Sequence[Workflow], by_id: Mapping[str, Gesture]) -> Logins:
+    found = [
+        (lands[1], last)
+        for job in among
+        if job.signs_in
+        and (lands := signs_in_to(job, by_id)) is not None
+        and (typed := _typed_login(job, by_id)) is not None
+        and (last := typed[1]) is not None
+    ]
+    return Logins(
+        names=frozenset(normal(last.value) for _, last in found if last.value),
+        labels=frozenset(
+            (system, normal(last.target.name))
+            for system, last in found
+            if last.target and last.target.name
+        ),
+    )
+
+
+def _typed_login(
+    job: Workflow, by_id: Mapping[str, Gesture]
+) -> tuple[Gesture, Action | None] | None:
+    """The job's credential, and the last thing it typed before it: the username."""
+    credential = _credential(job, by_id)
+    if credential is None:
         return None
     before = [
         gesture
@@ -225,9 +268,7 @@ def recorded_login(
         and not is_secret(gesture)
         and gesture.action.value
     ]
-    return RecordedLogin(
-        job_id=job.id, origin=origin, username=before[-1].action.value if before else None
-    )
+    return credential, before[-1].action if before else None
 
 
 def _credential(job: Workflow, by_id: Mapping[str, Gesture]) -> Gesture | None:
@@ -240,6 +281,7 @@ def _in_order(job: Workflow, by_id: Mapping[str, Gesture]) -> list[Gesture]:
 
 
 __all__ = [
+    "Logins",
     "PageSignals",
     "RecordedLogin",
     "a_navigation",
@@ -248,6 +290,7 @@ __all__ = [
     "asks_for_a_code",
     "expired",
     "recorded_login",
+    "recorded_logins",
     "sign_in_chain",
     "signs_in_at",
 ]

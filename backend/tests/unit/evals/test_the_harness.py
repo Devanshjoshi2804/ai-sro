@@ -1,5 +1,5 @@
 import json
-from dataclasses import asdict, replace
+from dataclasses import replace
 from pathlib import Path
 from tempfile import mkdtemp
 from types import SimpleNamespace
@@ -16,6 +16,9 @@ from evals.suites.reader import Reader
 from sro.domain.prompts.mine import MINE
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow
+from tests import factories as f
+from tests.unit.domain.rig.test_asked_by import _gesture, _job
+from tests.unit.fakes import FakeUnitOfWork
 
 
 def _report(accuracy: float, wrong: float, cost: float) -> Report:
@@ -173,21 +176,36 @@ def _workflow() -> Workflow:
 
 def _reader_case() -> Case:
     job = _workflow()
+    field = {
+        "labels": [],
+        "aliases": [],
+        "filled_before": True,
+        "kind": "sometimes",
+        "limits": {"max_length": None, "options": None, "required_on_screen": None},
+    }
     return Case(
         id=job.id,
         suite="reader",
         input={
-            "said": "please create customer type GT2 for testsro at " + URL,
-            "jobs": [asdict(job) | {"repeat": None}],
-            "asked_by": {job.id: ["create GT0 please"]},
+            "thread": "please create customer type GT2 for testsro at " + URL,
+            "candidates": [
+                {
+                    "id": job.id,
+                    "title": job.title,
+                    "fields": [
+                        {**field, "name": "Customer Type", "seen": ["GT0", "GT1"]},
+                        {**field, "name": "Owner", "seen": ["testsro"]},
+                    ],
+                    "asked_by": ["create GT0 please"],
+                }
+            ],
         },
         expected={"jobs": [job.id], "values": {"Customer Type": "GT2"}},
         answer={
-            "workflow_id": job.id,
+            "job": job.id,
             "sure": True,
             "also": [],
-            "values": [{"name": "Customer Type", "value": "GT2"}],
-            "missing": [],
+            "values": [{"field": "Customer Type", "value": "GT2", "quote": "customer type GT2"}],
             "items": [],
         },
     )
@@ -246,18 +264,21 @@ async def test_a_redacted_case_loads_and_scores_exactly_as_the_raw_one() -> None
         assert await _scores(suite, Case.load(out.save(Path(mkdtemp())))) == raw, suite.name
 
 
-async def test_a_reader_case_captured_before_same_as_went_still_scores() -> None:
-    case = _reader_case()
-    case.input["jobs"][0]["same_as"] = "wfl_" + "d" * 32
-
-    assert await _scores(Reader(), case) == (True, True)
-
-
 def test_schema_keys_are_never_renamed() -> None:
     out = redacted(_reader_case(), tenant="greyorange")
-    job = out.input["jobs"][0]
-    assert {"shape_key", "pass_id", "signs_in", "parameters"} <= set(job)
-    assert set(job["parameters"][0]) == {"name", "seen_values"}
+    candidates = out.input["candidates"]
+    assert isinstance(candidates, list)
+    (job,) = candidates
+    assert set(job) == {"id", "title", "fields", "asked_by"}
+    assert set(job["fields"][0]) == {
+        "name",
+        "labels",
+        "aliases",
+        "seen",
+        "filled_before",
+        "kind",
+        "limits",
+    }
 
 
 def test_values_hosts_and_paths_are_shaped_whatever_their_case() -> None:
@@ -393,3 +414,26 @@ def test_a_limit_is_at_least_one_and_never_a_baseline() -> None:
         with pytest.raises(SystemExit):
             arguments(argv)
     assert arguments(["run", "--suite", "mining", "--tenant", "t", "--limit", "3"]).limit == 3
+
+
+async def test_a_sign_in_job_s_mails_are_no_reader_case() -> None:
+    """A sign-in job is never a candidate, so a case expecting it scores as a
+    miss the reader could never avoid."""
+    uow = FakeUnitOfWork()
+    mails = {
+        one: replace(
+            _gesture(one, said=f"please {one}: customer type GGD for north", at=n), tenant="acme"
+        )
+        for n, one in enumerate(("m-work", "m-login"))
+    }
+    async with uow:
+        await uow.workflows.save(replace(_job(["m-work"]), id="wfl_work", tenant="acme"))
+        await uow.workflows.save(
+            replace(_job(["m-login"]), id="wfl_login", tenant="acme", title="Log in", signs_in=True)
+        )
+        await uow.gestures.add_gestures(tuple(mails.values()))
+        await uow.commit()
+
+    cases = await Reader().cases(uow, f.TENANT)
+
+    assert [one.id.split(":")[0] for one in cases] == ["wfl_work"]

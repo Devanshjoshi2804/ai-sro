@@ -60,6 +60,8 @@ from sro.interface.http.schemas import FromTheMailResponse
 from sro.whose import whose
 from tests import factories as f
 from tests.unit.application.rig.test_start_workflow_run import _starter
+from tests.unit.domain.test_the_recorded_login import _job as _login_job
+from tests.unit.domain.test_the_recorded_login import _sign_in
 from tests.unit.fakes import (
     FakeClock,
     FakeDurableExecution,
@@ -98,6 +100,9 @@ class _Mailbox:
         self.asked.append((principal_id.value, tool, dict(arguments)))
         if tool == "search_threads":
             return ToolResult(text=self._answers.get("search", json.dumps({"messages": []})))
+        if tool == "get_thread":
+            # A thread no test wrote out holds this mail alone.
+            return ToolResult(text=self._answers.get(arguments["id"], '{"messages": []}'))
         return ToolResult(text=self._answers.get(arguments.get("id", ""), "{}"))
 
 
@@ -113,15 +118,16 @@ class _Reads:
         self.saw.append(evidence)
         self.tenants.append(whose().get("tenant"))
         if not self._answers:
-            return Answer(data={"workflow_id": None, "values": [], "missing": [], "sure": True})
+            return Answer(data={"job": None, "values": [], "missing": [], "sure": True})
         return Answer(data=self._answers.pop(0), cost_usd=0.001)
 
 
 def _request(evidence: str) -> dict[str, Any]:
-    fence = evidence.split('<untrusted name="request">\n', 1)[1]
-    said = json.loads(fence.split("\n</untrusted>", 1)[0])
-    assert isinstance(said, dict)
-    return said
+    """The candidates and the thread the reader was handed."""
+    fence = evidence.split('<untrusted name="candidates">\n', 1)[1]
+    jobs = json.loads(fence.split("\n</untrusted>", 1)[0])
+    thread = evidence.split('<untrusted name="thread">\n', 1)[1].split("\n</untrusted>", 1)[0]
+    return {"jobs": jobs, "thread": thread}
 
 
 def _found(*ids: str) -> str:
@@ -159,14 +165,14 @@ def _reading(
     """
     if bare:
         return {
-            "workflow_id": workflow_id,
+            "job": workflow_id,
             "values": [],
             "missing": ["Customer Type", "Customer Type Description"],
             "sure": sure,
         }
     return {
-        "workflow_id": workflow_id,
-        "values": [{"name": "Customer Type", "value": "GPX"}],
+        "job": workflow_id,
+        "values": [{"field": "Customer Type", "value": "GPX", "quote": "GPX"}],
         "missing": ["Customer Type Description"],
         "sure": sure,
     }
@@ -279,12 +285,15 @@ async def mail_world(
     await save_job(uow, JOB)
     await uow.devices.add(f.device(principal_id=CTX.principal_id))
     mailbox = _Mailbox(
-        search=_found("m-1"), **{"m-1": _mail("please add customer type GT2", thread)}
+        search=_found("m-1"),
+        **{"m-1": _mail(" ".join(["please add customer type GT2", *values.values()]), thread)},
     )
     reads = _Reads(
         {
-            "workflow_id": JOB,
-            "values": [{"name": name, "value": value} for name, value in values.items()],
+            "job": JOB,
+            "values": [
+                {"field": name, "value": value, "quote": value} for name, value in values.items()
+            ],
             "missing": [name for name in ("Customer Type",) if name not in values],
             "sure": sure,
         }
@@ -372,8 +381,8 @@ async def test_a_quoted_reply_on_a_mail_run_s_thread_is_a_card_never_a_second_ru
     quoted = "thanks!\n\n> please create customer type GT2, description north"
     reply = _Mailbox(search=_found("m-2"), **{"m-2": _mail(quoted, "t-9")})
     sure = {
-        "workflow_id": JOB,
-        "values": [{"name": "Customer Type", "value": "GT2"}],
+        "job": JOB,
+        "values": [{"field": "Customer Type", "value": "GT2", "quote": "GT2"}],
         "missing": [],
         "sure": True,
     }
@@ -406,8 +415,8 @@ def _addressed(sender: str, to: str, cc: str = "") -> _Mailbox:
 def _sure() -> _Reads:
     return _Reads(
         {
-            "workflow_id": JOB,
-            "values": [{"name": "Customer Type", "value": "GT2"}],
+            "job": JOB,
+            "values": [{"field": "Customer Type", "value": "GT2", "quote": "GT2"}],
             "missing": [],
             "sure": True,
         }
@@ -495,8 +504,8 @@ async def test_a_shared_inbox_s_mail_starts_one_run_whoever_looks() -> None:
     colleague = RequestContext(tenant_id=f.TENANT, principal_id=PrincipalId("colleague"))
     same = _Mailbox(search=_found("m-1"), **{"m-1": _mail("please add customer type GT2")})
     reading = {
-        "workflow_id": JOB,
-        "values": [{"name": "Customer Type", "value": "GT2"}],
+        "job": JOB,
+        "values": [{"field": "Customer Type", "value": "GT2", "quote": "GT2"}],
         "missing": [],
         "sure": True,
     }
@@ -708,8 +717,8 @@ async def _two_questions() -> tuple[Converse, Any, str, str]:
     reads = _Reads(
         *(
             {
-                "workflow_id": job,
-                "values": [{"name": "Customer Type", "value": "GT2"}],
+                "job": job,
+                "values": [{"field": "Customer Type", "value": "GT2", "quote": "GT2"}],
                 "missing": [],
                 "sure": True,
             }
@@ -1074,14 +1083,23 @@ async def test_a_request_that_refers_to_an_earlier_mail_reads_the_conversation()
             ),
         },
     )
-    # The request alone says nothing; the conversation says both.
-    reads = _Reads(_reading(JOB, bare=True), _reading(JOB))
+    # The request alone says nothing; the conversation says both, and it is
+    # the conversation that is read, once.
+    reads = _Reads(
+        {
+            "job": JOB,
+            "sure": True,
+            "values": [{"field": "Customer Type", "value": "GU5", "quote": "the code is GU5"}],
+        }
+    )
 
     looked = await _look(uow, mailbox, reads).execute(CTX)
 
     (one,) = looked.offered
-    assert one.values == {"Customer Type": "GPX"}, one.values
+    assert one.values == {"Customer Type": "GU5"}, one.values
     assert one.missing == ["Customer Type Description"]
+    (seen,) = reads.saw
+    assert "the code is GU5" in _request(seen)["thread"]
     # The conversation was read, and by id rather than by searching for it.
     assert [one for one in mailbox.asked if one[1:] == ("get_thread", {"id": "t-1"})], mailbox.asked
 
@@ -1826,8 +1844,8 @@ async def test_the_reply_itself_answers_when_the_mailbox_search_finds_nothing() 
     gather = _Gathers()
     reads = _Reads(
         {
-            "workflow_id": JOB,
-            "values": [{"name": "Customer Type", "value": "QQI"}],
+            "job": JOB,
+            "values": [{"field": "Customer Type", "value": "QQI", "quote": "QQI"}],
             "missing": [],
             "sure": True,
         }
@@ -1874,8 +1892,8 @@ async def test_a_question_a_reply_answered_stops_standing() -> None:
     )
     reads = _Reads(
         {
-            "workflow_id": JOB,
-            "values": [{"name": "Customer Type", "value": "NGSL"}],
+            "job": JOB,
+            "values": [{"field": "Customer Type", "value": "NGSL", "quote": "NGSL"}],
             "missing": [],
             "sure": True,
         }
@@ -1921,8 +1939,8 @@ async def test_an_answer_that_completes_a_pressed_request_starts_one_run() -> No
     reply = _Mailbox(search=_found("m-1"), **{"m-1": _mail("customer type :- NGSL", "t-37")})
     reads = _Reads(
         {
-            "workflow_id": JOB,
-            "values": [{"name": "Customer Type", "value": "NGSL"}],
+            "job": JOB,
+            "values": [{"field": "Customer Type", "value": "NGSL", "quote": "NGSL"}],
             "missing": [],
             "sure": True,
         }
@@ -1968,8 +1986,8 @@ async def test_an_answer_that_leaves_something_missing_asks_for_the_rest() -> No
     )
     reads = _Reads(
         {
-            "workflow_id": JOB,
-            "values": [{"name": "Customer Type", "value": "NGSL"}],
+            "job": JOB,
+            "values": [{"field": "Customer Type", "value": "NGSL", "quote": "NGSL"}],
             "missing": [],
             "sure": True,
         }
@@ -2046,10 +2064,10 @@ async def test_a_field_the_job_cannot_vary_but_the_form_posts_is_carried_not_dro
     mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("create one in Inbound")})
     reads = _Reads(
         {
-            "workflow_id": JOB,
+            "job": JOB,
             "values": [
-                {"name": "Customer Type", "value": "GV3"},
-                {"name": "Department", "value": "Inbound"},
+                {"field": "Customer Type", "value": "GV3", "quote": "GV3"},
+                {"field": "Department", "value": "Inbound", "quote": "Inbound"},
             ],
             "missing": [],
             "sure": True,
@@ -2071,10 +2089,10 @@ async def test_a_field_nothing_documents_is_still_something_this_job_cannot_set(
     mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("create one in Inbound")})
     reads = _Reads(
         {
-            "workflow_id": JOB,
+            "job": JOB,
             "values": [
-                {"name": "Customer Type", "value": "GV3"},
-                {"name": "Department", "value": "Inbound"},
+                {"field": "Customer Type", "value": "GV3", "quote": "GV3"},
+                {"field": "Department", "value": "Inbound", "quote": "Inbound"},
             ],
             "missing": [],
             "sure": True,
@@ -2126,6 +2144,35 @@ async def test_an_unreadable_mail_is_read_by_the_next_look() -> None:
     await world.poll.execute()
 
     assert len(world.durable.runs_started) == 1
+
+
+@pytest.mark.parametrize(
+    "unread",
+    [ToolResult(text="thread t-1: backend error", failed=True), ToolResult(text="<html>502")],
+)
+async def test_a_reply_whose_thread_could_not_be_read_starts_nothing_and_is_read_again(
+    unread: ToolResult,
+) -> None:
+    """Only the thread says a "Re:" is a quoted reply. A thread that was not
+    read never counts as one holding this mail alone."""
+    world = await mail_world(sure=True, values=EVERY_VALUE, steel=True, thread="t-1")
+    mails = {"m-1": _mail("Re: thanks!\n\n> please add customer type GT2", "t-1")}
+
+    class _NoThread(_Mailbox):
+        async def call(self, *args: Any, **kwargs: Any) -> ToolResult:
+            if args[3] == "get_thread":
+                return unread
+            return await super().call(*args, **kwargs)
+
+    await world.polling(_NoThread(search=_found("m-1"), **mails), _sure()).execute()
+    assert not await _said_or_ran(world)
+
+    thread = _conversation("please add customer type GT2", "Re: thanks!")
+    again = _sure()
+    await world.polling(_Mailbox(search=_found("m-1"), **mails, **{"t-1": thread}), again).execute()
+
+    assert again.saw, "the mail was dropped, not left for the next look"
+    assert world.durable.runs_started == []
 
 
 async def test_a_look_that_died_holding_a_mail_leaves_it_for_a_later_look() -> None:
@@ -2234,7 +2281,7 @@ async def test_a_value_reply_answers_the_question_asked_on_its_own_thread() -> N
         ask_to_run=True,
     )
     mailbox = _Mailbox(search=_found("m-9"), **{"m-9": _mail("The code is GPX.", thread="t-1")})
-    reads = _Reads({"workflow_id": None, "values": [], "missing": [], "sure": True})
+    reads = _Reads({"job": None, "values": [], "missing": [], "sure": True})
 
     looked = await _look(uow, mailbox, reads).execute(CTX)
 
@@ -2372,3 +2419,203 @@ async def test_an_outage_that_broke_every_browser_lane_still_leaves_the_mail_a_r
     (one,) = looked.offered
     assert one.workflow_id == JOB and one.cannot_run == []
     assert one.started or one.asked
+
+
+def _followed_up(said: str, value: str) -> tuple[_Mailbox, _Reads]:
+    """A thread whose first mail asked for GT2 and whose newest one says `said`."""
+    mailbox = _Mailbox(
+        search=_found("m-2"),
+        **{
+            "m-2": _mail(said, thread="t-9"),
+            "t-9": json.dumps(
+                {
+                    "id": "t-9",
+                    "messages": [
+                        {"id": "m-1", "subject": "new type", "body": "customer type GT2 please"},
+                        {"id": "m-2", "subject": "Re: new type", "body": said},
+                    ],
+                }
+            ),
+        },
+    )
+    reads = _Reads(
+        {
+            "job": JOB,
+            "sure": True,
+            "values": [{"field": "Customer Type", "value": value, "quote": f"type {value}"}],
+        }
+    )
+    return mailbox, reads
+
+
+async def test_a_follow_up_on_a_thread_that_started_a_run_is_answered_never_offered_again() -> None:
+    """greyorange: "check now", "have you recived mail" were each treated as a
+    new job. Read with the whole thread, a follow-up names the old request's
+    values again; nothing in it is new, so it is about the run already started."""
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
+    started = _short("t-9", needs=[], values={"Customer Type": "GT2"})
+    started.outcome = "held"
+    await world.uow.workflow_runs.save(started)
+    mailbox, reads = _followed_up("have you recived mail? customer type GT2 done?", "GT2")
+
+    looked = await world.look(mailbox, reads).execute(CTX)
+
+    (one,) = looked.offered
+    assert one.asked and not one.started and not one.fresh
+    assert world.durable.runs_started == []
+    last = (await _thread(world.uow)).messages[-1]
+    assert "already started" in last.text and last.decision["kind"] == "note"
+
+
+async def test_a_new_value_on_a_thread_that_started_a_run_is_a_new_request() -> None:
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
+    started = _short("t-9", needs=[], values={"Customer Type": "GT2"})
+    started.outcome = "held"
+    await world.uow.workflow_runs.save(started)
+    mailbox, reads = _followed_up("also customer type GT8 please", "GT8")
+
+    looked = await world.look(mailbox, reads).execute(CTX)
+
+    (one,) = looked.offered
+    assert one.fresh and one.values == {"Customer Type": "GT8"}
+    last = (await _thread(world.uow)).messages[-1]
+    assert "already started" not in last.text
+
+
+async def test_a_reply_to_a_standing_question_is_read_with_that_question() -> None:
+    uow = await _held()
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    thread.say(
+        Message(
+            id=MessageId("msg_asked"),
+            speaker=Speaker.ASSISTANT,
+            text="What should Customer Type be?",
+            said_at=FakeClock().now(),
+            decision={
+                "kind": NEEDS,
+                "workflow_id": JOB,
+                "title": "Create a Customer Type",
+                "values": {"Customer Type Description": "north"},
+                "missing": ["Customer Type"],
+                "items": [],
+                "mail_thread": "t-32",
+                "watched": True,
+            },
+        )
+    )
+    await uow.threads.save(thread)
+    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("use GPX", thread="t-32")})
+    reads = _Reads(
+        {
+            "job": JOB,
+            "sure": True,
+            "values": [{"field": "Customer Type", "value": "GPX", "quote": "use GPX"}],
+        }
+    )
+
+    looked = await _look(uow, mailbox, reads).execute(CTX)
+
+    (one,) = looked.offered
+    assert one.values["Customer Type"] == "GPX"
+    (seen,) = reads.saw
+    assert json.loads(seen.split("\n\n", 1)[0]) == {"question": "What should Customer Type be?"}
+
+
+async def test_a_reply_with_nothing_new_on_a_thread_that_started_no_run_starts_none() -> None:
+    """Invariant 7. "thanks!" under "customer type GT2 please": read with the
+    whole thread it names GT2 again. No run was started on the thread (an
+    offer that expired, a mail sent to others), so a reply never starts one;
+    it is only offered."""
+    world = await mail_world(sure=True, values={"Customer Type": "GT2"}, steel=True)
+    mailbox, reads = _followed_up("thanks!", "GT2")
+
+    looked = await world.look(mailbox, reads).execute(CTX)
+
+    (one,) = looked.offered
+    assert not one.fresh and not one.started and one.asked
+    assert world.durable.runs_started == []
+
+
+async def test_a_long_thread_is_cut_at_its_oldest_so_the_newest_mail_is_read() -> None:
+    history = "earlier words " * 1000
+    newest = "also customer type GT8 please"
+    mailbox = _Mailbox(
+        search=_found("m-2"),
+        **{
+            "m-2": _mail(newest, thread="t-9"),
+            "t-9": json.dumps(
+                {
+                    "id": "t-9",
+                    "messages": [
+                        {"id": "m-1", "subject": "new type", "body": history},
+                        {"id": "m-2", "subject": "Re: new type", "body": newest},
+                    ],
+                }
+            ),
+        },
+    )
+    reads = _Reads(_reading(None))
+
+    await _look(await _held(), mailbox, reads).execute(CTX)
+
+    (seen,) = reads.saw
+    assert _request(seen)["thread"].endswith(newest)
+
+
+async def test_a_mail_reply_that_is_the_operator_s_sign_in_name_answers_nothing() -> None:
+    """thr_163b by mail: "RKUCHIYAGM" under "What should Customer Type be?"."""
+    uow = await _held()
+    async with uow:
+        await uow.workflows.save(replace(_login_job("a"), tenant=f.TENANT.value))
+        await uow.gestures.add_gestures(
+            tuple(_sign_in("a", "RKUCHIYAGM", "https://wms.example").values())
+        )
+        await uow.commit()
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    thread.say(
+        Message(
+            id=MessageId("msg_asked"),
+            speaker=Speaker.ASSISTANT,
+            text="What should Customer Type be?",
+            said_at=FakeClock().now(),
+            decision={
+                "kind": NEEDS,
+                "workflow_id": JOB,
+                "title": "Create a Customer Type",
+                "values": {"Customer Type Description": "north"},
+                "missing": ["Customer Type"],
+                "items": [],
+                "mail_thread": "t-40",
+                "watched": True,
+            },
+        )
+    )
+    await uow.threads.save(thread)
+    mailbox = _Mailbox(search=_found("m-1"), **{"m-1": _mail("RKUCHIYAGM", thread="t-40")})
+    reads = _Reads(
+        {
+            "job": JOB,
+            "sure": True,
+            "values": [{"field": "Customer Type", "value": "RKUCHIYAGM", "quote": "RKUCHIYAGM"}],
+        }
+    )
+
+    looked = await _look(uow, mailbox, reads).execute(CTX)
+
+    (one,) = looked.offered
+    assert "Customer Type" not in one.values and one.missing == ["Customer Type"]
+
+
+async def test_a_first_mail_for_a_job_with_nothing_to_fill_still_starts_it() -> None:
+    """Freshness is about a reply: the first mail of a thread is the request
+    itself, even when it names no value because the job takes none."""
+    world = await mail_world(sure=True, values={}, steel=True)
+    (job,) = await world.uow.workflows.known(f.TENANT)
+    await world.uow.workflows.save(
+        replace(job, parameters=[], steps=[replace(one, parameters=[]) for one in job.steps])
+    )
+
+    looked = await world.from_the_mail.execute(CTX)
+
+    (one,) = looked.offered
+    assert one.fresh and one.started

@@ -2,119 +2,109 @@ from __future__ import annotations
 
 from sro.domain.prompts.record import EdgeCase, Prompt
 
-_ROLE = """\
-An operator has said what they want done. You are given the jobs this system
-can do, each with the parameters it takes and the values it has seen. Answer
-which job they mean (its id, or null if none fits), the values they gave for
-its parameters, and which parameters are still missing. Never invent a value."""
+_ROLE = (
+    "You read a warehouse request -- a mail thread or a sentence -- and say which job it asks for."
+)
 
 _TASK = """\
-A job is a kind of work, not the one time it was done. Its title and narrative
-were read from a demonstration and carry that demonstration's values: "Create
-Work Area NEWTESTS" is the job of creating a work area, done once with the name
-NEWTESTS. An operator asking for the same work with other values -- a work area
-called NEWTEST9 -- means that job. Match on what the job does. Answer null only
-when no job here does that kind of work at all. When two jobs do the same work,
-name the one whose demonstration is closest to what was said.
+You are given a few candidate jobs this system can do and the request. For each
+job you see its fields: their names, the labels the screen shows for them, the
+operator's own words for them (aliases), the values seen in them before, and
+mails that asked for the job before (`asked_by`).
 
-Say whether you are SURE. You are sure when the sentence plainly names one of
-these jobs and no other job here does that kind of work. You are not sure when
-two or more could be meant, when the sentence names a kind of work none of
-them quite does, or when you are choosing on a detail rather than on what the
-work is. Where you are not sure, still answer the closest job, and list the
-others you considered in `also` -- a person will be asked which. Guessing
-confidently is worse than saying you are unsure: what gets done with this
-answer is work in a warehouse, and there may be twenty of it.
+Answer the job's id, or null if no candidate does that kind of work. Match on
+what the job does, not on one demonstration's values: "a work area called
+NEWTEST9" asks for "Create Work Area NEWTESTS". A request rarely uses the job's
+words; the `asked_by` mails show what a request for it looks like. Never take a
+value out of an `asked_by` mail: those are old requests for records that exist.
 
-Some jobs carry `asked_by`: the mails this operator acted on before doing that
-job, as their mailbox recorded them. That is what a REQUEST for the job looks
-like, which is not the same thing as what the job is called -- a request rarely
-uses the job's words, and "please set up a new client category" is a request
-for `Create a Customer Type` however little the two sentences share. Read them
-as examples of the kind of ask, and prefer a job whose examples are asking for
-the same work as what was said.
+For each value the request gives, answer `field` (the field's name, one of its
+labels, or one of its aliases -- or the request's own word for it when no field
+fits), `value` exactly as written, and `quote`: the few words of the request the
+value appears in, copied exactly. A value you cannot quote is a value you must
+not give. A value stated against a name -- "customer type :- RRF", "code: GT7"
+-- belongs to the field that name is, and to no other. The operator's own
+sign-in username or password is never a job's value; a job's own Username field
+is filled like any other.
 
-Never take a value out of one. They are somebody's old requests, and the codes
-and names in them belong to records that already exist -- answering with one
-would do the job again for the wrong thing. A job with no `asked_by` is not a
-job nobody asks for: it is a job whose demonstration began on a page, so match
-it on its title and narrative as you would have anyway. And examples raise your
-confidence about which job, never about whether you were told enough: a value
-the operator did not give is still missing.
+Say whether you are SURE: the request plainly names one of these jobs and no
+other does that kind of work. When two could be meant, answer the closest and
+list the others in `also`. Guessing confidently is worse than saying you are
+unsure: what follows is work in a live warehouse.
 
-An operator may name several things for one job: three equipment types in one
-mail, four work areas in one sentence. That is one job done once per thing.
-Answer one entry in `items` for each thing, carrying that thing's own values,
-and put in `values` only what is true of all of them. Where they named one
-thing, leave `items` empty and put its values in `values`. Never split one
-thing into several, and never merge two things into one."""
+When a question is standing, the request is the answer to it, never a new
+request: give the value it answers under the field the question asks for.
+
+Several things for one job -- three equipment types in one mail -- are one
+entry in `items` per thing, each with its own values; put in `values` only what
+is true of all of them."""
+
+_VALUE = {
+    "type": "object",
+    "properties": {
+        "field": {"type": "string"},
+        "value": {"type": "string"},
+        "quote": {"type": "string"},
+    },
+    "required": ["field", "value", "quote"],
+    "propertyOrdering": ["field", "value", "quote"],
+}
 
 READ_REQUEST = Prompt(
     name="read_request",
-    version=1,
+    version=2,
     model="gemini-3.8-flash",
     thinking=None,
     role=_ROLE,
     task=_TASK,
     input_contract=(
-        "One untrusted block `request`: the sentence and the jobs, with their parameters, "
-        "seen values and `asked_by` mails."
+        "`question` as JSON when one is standing; the request as the untrusted block `thread`; "
+        "the candidate jobs as the untrusted block `candidates`."
     ),
     output_schema={
         "type": "object",
         "properties": {
-            "workflow_id": {"type": "string", "nullable": True},
-            "values": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {"name": {"type": "string"}, "value": {"type": "string"}},
-                    "required": ["name", "value"],
-                    "propertyOrdering": ["name", "value"],
-                },
-            },
-            "missing": {"type": "array", "items": {"type": "string"}},
+            "job": {"type": "string", "nullable": True},
             "sure": {"type": "boolean"},
             "also": {"type": "array", "items": {"type": "string"}},
+            "values": {"type": "array", "items": _VALUE},
             "items": {
                 "type": "array",
                 "items": {
                     "type": "object",
-                    "properties": {
-                        "values": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {"type": "string"},
-                                    "value": {"type": "string"},
-                                },
-                                "required": ["name", "value"],
-                                "propertyOrdering": ["name", "value"],
-                            },
-                        }
-                    },
+                    "properties": {"values": {"type": "array", "items": _VALUE}},
                     "required": ["values"],
-                    "propertyOrdering": ["values"],
                 },
             },
         },
-        "required": ["workflow_id", "values", "missing", "sure"],
-        "propertyOrdering": ["workflow_id", "sure", "also", "values", "missing", "items"],
+        "required": ["job", "sure", "values"],
+        "propertyOrdering": ["job", "sure", "also", "values", "items"],
     },
+    rules=(
+        "Every value carries a quote copied exactly from the request.",
+        "Only candidate ids are jobs.",
+    ),
     edge_cases=(
         EdgeCase(
-            '"a work area called NEWTEST9" beside the job "Create Work Area NEWTESTS"',
-            "that job",
+            '"a work area called NEWTEST9" and job "Create Work Area NEWTESTS"',
+            "that job, value NEWTEST9 under the work area's field, quote \"work area called "
+            'NEWTEST9"',
         ),
         EdgeCase(
-            '"please set up a new client category" beside "Create a Customer Type", whose '
-            "`asked_by` holds that mail",
+            '"please set up a new client category" and an `asked_by` mail like it on '
+            '"Create a Customer Type"',
             "that job, sure",
         ),
         EdgeCase(
-            '"three equipment types"',
-            "three entries in `items`",
+            '"customer type :- RRF and description :- first run" beside "Create a Customer '
+            'Type" and "Reply to Email"',
+            "Create a Customer Type, sure, RRF under Customer Type and first run under its "
+            "description",
+        ),
+        EdgeCase('"three equipment types: FORK1, FORK2, REACH1"', "three `items`, one value each"),
+        EdgeCase(
+            'the standing question "What should Customer Type be?" and the reply "use GT7"',
+            'value GT7 under Customer Type, quote "use GT7"',
         ),
     ),
 )

@@ -10,7 +10,7 @@ How a real case becomes one that may be committed: every string is redacted by i
 > `aaaaaaa`. `_URL_KEYS` hold URLs and paths, whose host and every path
 > segment are shaped. The rest is prose.
 
-## `_key`, [line 38](../../../../backend/evals/redact.py#L38): Design
+## `_key`, [line 39](../../../../backend/evals/redact.py#L39): Design
 
 > A key is schema and is kept (`shape_key`, `seen_values` and `pass_id`
 > must still load into `Workflow` and still be read by the scoring). Only
@@ -18,7 +18,7 @@ How a real case becomes one that may be committed: every string is redacted by i
 > as a value) and a reader case's `expected.values` (keyed by a field
 > label, shaped as prose).
 
-## `_Shapes.learn`, [line 72](../../../../backend/evals/redact.py#L72): Design
+## `_Shapes.learn`, [line 73](../../../../backend/evals/redact.py#L73): Design
 
 > The first pass collects every word of every value, URL and the tenant. In
 > the second pass prose keeps its lowercase words except those, so an
@@ -27,13 +27,13 @@ How a real case becomes one that may be committed: every string is redacted by i
 > customer word that is never a value survives, which is why a person reads
 > every candidate.
 
-## `shape`, [line 23](../../../../backend/evals/redact.py#L23): Function
+## `shape`, [line 24](../../../../backend/evals/redact.py#L24): Function
 
 > Upper case to `A`, other letters to `a`, digits to `9`, anything else kept:
 > `GT-0042` is `AA-9999`. A shape keeps what a prompt reasons with (a code, a
 > date, a quantity) and drops what the value was.
 
-## `redacted`, [line 119](../../../../backend/evals/redact.py#L119): Design
+## `redacted`, [line 120](../../../../backend/evals/redact.py#L120): Design
 
 > One shape map per case, shared by the input, the expected and the recorded
 > answer: the same value becomes the same shape everywhere, so an expected

@@ -2,22 +2,19 @@
 
 The request-reader suite: given a real request mail, does READ_REQUEST pick the job, know it is sure, and read each value into its field?
 
-## `_job`, [line 23](../../../../../backend/evals/suites/reader.py#L23): Note on the line above
+## `Reader.cases`, [line 70](../../../../../backend/evals/suites/reader.py#L33): Design
 
-Code: `raw.pop("same_as", None)`
-
-> Cases captured before M1 carry `same_as`, which `Workflow` no longer has.
-> The key is dropped on load so those cases still score; it was never read.
-
-## `Reader.cases`, [line 34](../../../../../backend/evals/suites/reader.py#L34): Design
-
-> One case per mail behind a job (`mails_behind`). That mail is removed from
-> every job's `asked_by` examples, so the reader never sees the answer among
+> One case per mail behind a work job (`mails_behind`). A sign-in job's
+> mails are no case: `rank_jobs` never offers a sign-in job, so the case
+> could only score as a miss (R1 review, M14). Its input is R1's: the
+> mail as the thread and the candidates `rank_jobs` picks for it, in the
+> reader's own form plus each field's kind and limits, so `run` rebuilds the
+> same `Candidate`s. That mail is removed from every candidate's `asked_by`, so the reader never sees the answer among
 > its examples. Expected: every job with the same normalised title (two
 > copies of one job are both right), and each seen value the mail quotes,
 > under its field.
 
-## `Reader.run`, [line 65](../../../../../backend/evals/suites/reader.py#L65): Design
+## `Reader.run`, [line 103](../../../../../backend/evals/suites/reader.py#L103): Design
 
 > Runs the production `understand`. Passes only when the job is right, the
 > reader is sure, and every expected value is read into its field.

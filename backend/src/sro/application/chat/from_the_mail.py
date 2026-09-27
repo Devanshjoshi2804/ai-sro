@@ -10,6 +10,7 @@ from types import MappingProxyType
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.announce import SayWhatHappened
+from sro.application.chat.candidates import candidate_of
 from sro.application.chat.mailbox import (
     K_REMEMBER,
     SERVER,
@@ -18,7 +19,8 @@ from sro.application.chat.mailbox import (
     sent_to_others,
 )
 from sro.application.chat.read_threads import ReadThreads
-from sro.application.chat.understand import understand
+from sro.application.chat.understand import held_runs, offer_check, read_request, understand
+from sro.application.connection.sign_in import logins_of
 from sro.application.context import RequestContext
 from sro.application.execution.declared import (
     declared_keys,
@@ -36,21 +38,21 @@ from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
 from sro.application.runtime.answer_run import K_ANSWER, AnswerRun
 from sro.application.shared.refusals import OverCap
-from sro.application.skill.job_facts import job_facts
-from sro.domain.chat.asked_by import mails_behind, texts
+from sro.application.skill.job_facts import JobFacts, job_facts
 from sro.domain.chat.asking import NEEDS, Pending, question, waiting_on_mail
 from sro.domain.chat.thread import Said, Speaker
-from sro.domain.execution.compiled import why_not
 from sro.domain.execution.learned_step import limits_for, too_long
 from sro.domain.execution.mail_job import one_address_in
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.waiting import read_wait, still_waiting
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.observation.attempts import DONE
+from sro.domain.prompts.record import quoted_in
 from sro.domain.recording.sensitivity import is_secret_field
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.learned import offerable
+from sro.domain.skill.signing_in import Logins
 from sro.domain.skill.workflow import Workflow
 
 K_LOOK = 8
@@ -111,6 +113,8 @@ class Offered:
 
     cannot_run: Sequence[str] = ()
 
+    fresh: bool = True
+
 
 @dataclass(frozen=True, slots=True)
 class LookedInTheMail:
@@ -164,18 +168,10 @@ class FromTheMail:
             if not workflows:
                 return LookedInTheMail(why="this tenant has no mined jobs to recognise")
             facts = await job_facts(uow, ctx.tenant_id, workflows, now=now)
-        cannot_run = {
-            one.workflow.id: why_not(one.compiled.reasons)
-            for one in facts
-            if not one.compiled.runnable
-        }
-        asked_by = {
-            one.workflow.id: mails
-            for one in facts
-            if (mails := texts(mails_behind(one.workflow, one.by_id)))
-        }
+            held_by = await held_runs(uow, ctx.tenant_id)
+            logins = await logins_of(uow, ctx.tenant_id)
         titles = {w.id: w.title for w in workflows}
-        held = {w.id: w for w in workflows}
+        held = {one.workflow.id: one for one in facts}
 
         try:
             arrivals, more = await self._recent(ctx, limit)
@@ -185,7 +181,7 @@ class FromTheMail:
         offered: list[Offered] = []
         look = _Look()
         reach = _Reach()
-        known = _Known(workflows, asker, asked_by, titles, held, cannot_run)
+        known = _Known(workflows, asker, facts, titles, held, held_by, now, logins)
         tenant = ctx.tenant_id.value
         async for message in self._unclaimed(ctx, arrivals, more, limit, now=now, reach=reach):
             try:
@@ -224,13 +220,7 @@ class FromTheMail:
     async def _read(
         self, ctx: RequestContext, message: str, look: _Look, known: _Known
     ) -> Offered | None:
-        workflows, asker, asked_by, titles, held = (
-            known.workflows,
-            known.asker,
-            known.asked_by,
-            known.titles,
-            known.held,
-        )
+        workflows, asker, titles, held = known.workflows, known.asker, known.titles, known.held
         tenant = ctx.tenant_id.value
         said, thread, subject, sent_to, marker = await self._body(ctx, message)
         if not said:
@@ -253,10 +243,14 @@ class FromTheMail:
         asked = await self._was_asked(ctx, thread)
         if asked is not None:
             return await self._answered_by_mail(ctx, message, asked, said, thread, subject, held)
-        got = await understand(said, workflows, asker, asked_by)
+        whole, earlier = await self._conversation(ctx, thread, message) if thread else ("", "")
+        text = whole or said
+        got = await read_request(text, known.facts, asker, held=known.held_by, logins=known.logins)
         look.spent = _also(look.spent, got.answer)
         if got.answer.data is None:
             raise Unread(got.answer.error or "the model gave no reading")
+        async with self._uow as uow:
+            got = await offer_check(uow, ctx.tenant_id, got, known.facts, now=known.now)
         if got.workflow_id is None:
             logger.info("%s: read a mail that asks for no job this tenant holds", tenant)
             return None
@@ -269,41 +263,6 @@ class FromTheMail:
                 ", ".join(titles.get(one, one) for one in got.also) or "another job",
             )
         values, missing = dict(got.values), list(got.missing)
-        asked_for_too: set[str] = set()
-        said_besides: dict[str, str] = {}
-        if missing:
-            job_ = titles.get(got.workflow_id, got.workflow_id)
-            if not thread:
-                logger.info("%s: %s -- the mail names no conversation", tenant, job_)
-            else:
-                whole = await self._conversation(ctx, thread)
-                if not whole:
-                    logger.info("%s: %s -- the conversation read back empty", tenant, job_)
-                elif whole == said:
-                    logger.info("%s: %s -- the conversation is only this mail", tenant, job_)
-                else:
-                    again = await understand(whole, workflows, asker, asked_by)
-                    look.spent = _also(look.spent, again.answer)
-                    if again.workflow_id != got.workflow_id:
-                        logger.info(
-                            "%s: %s -- the conversation read as %s instead",
-                            tenant,
-                            job_,
-                            titles.get(again.workflow_id or "", again.workflow_id)
-                            or "no job at all",
-                        )
-                    else:
-                        values |= dict(again.values)
-                        asked_for_too.update(again.unasked)
-                        said_besides.update(again.aside)
-                        missing = [name for name in missing if name not in values]
-                        logger.info(
-                            "%s: %s -- the conversation gave %d of %d",
-                            tenant,
-                            job_,
-                            len(values),
-                            len(values) + len(missing),
-                        )
         if missing and self._gather is not None:
             found = await self._gather.execute(
                 ctx,
@@ -337,11 +296,17 @@ class FromTheMail:
                 ),
                 values,
             ),
-            unasked=sorted({*got.unasked, *asked_for_too}),
-            aside={**got.aside, **said_besides},
+            unasked=got.unasked,
+            aside=got.aside,
             sure=got.sure,
             sent_to=sent_to,
-            cannot_run=known.cannot_run.get(got.workflow_id, []),
+            cannot_run=got.cannot_run,
+            fresh=not earlier
+            or any(
+                not quoted_in(value, earlier)
+                for one in (got.values, *got.items)
+                for value in one.values()
+            ),
         )
 
     async def _settle(
@@ -358,7 +323,11 @@ class FromTheMail:
                 mail_thread=one.thread,
             )
             return replace(one, asked=True)
-        one = await self._started(ctx, one)
+        if not one.fresh and await self._started_here(ctx, one.thread):
+            await self._about_the_run(ctx, one)
+            return replace(one, asked=True)
+        if one.fresh:
+            one = await self._started(ctx, one)
         if (
             one.started
             or self._asks is None
@@ -383,6 +352,34 @@ class FromTheMail:
             offer=mail_key(one.message),
         )
         return replace(one, asked=True)
+
+    async def _started_here(self, ctx: RequestContext, thread: str) -> bool:
+        async with self._uow as uow:
+            return await uow.workflow_runs.started_on(ctx.tenant_id, server=SERVER, thread=thread)
+
+    async def _about_the_run(self, ctx: RequestContext, one: Offered) -> None:
+        if self._clock is None or self._ids is None:
+            return
+        about = f" — {one.subject}" if one.subject.strip() else ""
+        await SayWhatHappened(self._uow, self._clock, self._ids).execute(
+            ctx,
+            for_operator=ctx.principal_id,
+            text=(
+                f"{one.title}{about}. A reply asks about the run this conversation already "
+                "started; its card shows where it stands. Nothing new was started."
+            ),
+            speaker=Speaker.ASSISTANT,
+            decision={
+                "kind": Said.NOTE,
+                "workflow_id": one.workflow_id,
+                "mail_thread": one.thread,
+            },
+        )
+        logger.info(
+            "%s: a reply on %s asks about its run, so nothing new was offered",
+            ctx.tenant_id.value,
+            one.thread,
+        )
 
     async def _started(self, ctx: RequestContext, one: Offered) -> Offered:
         if (
@@ -512,7 +509,7 @@ class FromTheMail:
         thread: str,
         subject: str,
         titles: Mapping[str, str],
-        held: Mapping[str, Workflow] = MappingProxyType({}),
+        held: Mapping[str, JobFacts] = MappingProxyType({}),
     ) -> Offered:
         values = dict(back.values)
         missing = [name for name in back.needs if name not in values]
@@ -553,11 +550,13 @@ class FromTheMail:
         said: str,
         thread: str,
         subject: str,
-        held: Mapping[str, Workflow] = MappingProxyType({}),
+        held: Mapping[str, JobFacts] = MappingProxyType({}),
     ) -> Offered:
         values = dict(asked.values)
         missing = [name for name in asked.missing if name not in values or not values[name]]
-        values |= await self._reply_says(ctx, said, held.get(asked.workflow_id), missing)
+        values |= await self._reply_says(
+            ctx, said, held.get(asked.workflow_id), missing, question=question(asked)
+        )
         missing = [name for name in missing if name not in values]
         if missing and self._gather is not None:
             found = await self._gather.execute(
@@ -592,12 +591,17 @@ class FromTheMail:
         self,
         ctx: RequestContext,
         said: str,
-        job: Workflow | None,
+        job: JobFacts | None,
         wanted: Sequence[str],
+        *,
+        question: str = "",
     ) -> dict[str, str]:
         if not wanted or job is None or self._asker is None or not said.strip():
             return {}
-        read = await understand(said, [job], self._asker)
+        logins = await logins_of(self._uow, ctx.tenant_id)
+        read = await understand(
+            said, [candidate_of(job, logins=logins)], self._asker, question=question
+        )
         got = {
             name: value
             for name, value in read.values.items()
@@ -796,23 +800,23 @@ class FromTheMail:
             str(said.get("marker") or ""),
         )
 
-    async def _conversation(self, ctx: RequestContext, thread: str) -> str:
+    async def _conversation(
+        self, ctx: RequestContext, thread: str, message: str
+    ) -> tuple[str, str]:
         answered = await self._tools.call(
             ctx.tenant_id, ctx.principal_id, SERVER, "get_thread", {"id": thread}
         )
         try:
-            said = json.loads(answered.text)
+            said = None if answered.failed else json.loads(answered.text)
         except ValueError:
-            return ""
+            said = None
         rows = said.get("messages") if isinstance(said, dict) else None
         if not isinstance(rows, list):
-            return ""
-        whole = " ".join(
-            " ".join(str(one.get(part) or "") for part in ("subject", "body"))
-            for one in rows
-            if isinstance(one, dict)
-        )
-        return " ".join(whole.split())[:K_THREAD]
+            # Unread is not "this mail alone": that would make a quoted reply fresh.
+            raise ToolsUnavailable(f"thread {thread} could not be read")
+        rows = [one for one in rows if isinstance(one, dict)]
+        whole = _joined(rows)[-K_THREAD:]
+        return whole, _joined([one for one in rows if one.get("id") != message])
 
     async def _take(self, ctx: RequestContext, message: str, *, now: datetime) -> bool | None:
         tenant, kept, reading = ctx.tenant_id, mail_key(message), _reading_key(message)
@@ -886,10 +890,19 @@ class _Reach:
 class _Known:
     workflows: list[Workflow]
     asker: Asker
-    asked_by: dict[str, list[str]]
+    facts: tuple[JobFacts, ...]
     titles: Mapping[str, str]
-    held: Mapping[str, Workflow]
-    cannot_run: Mapping[str, list[str]]
+    held: Mapping[str, JobFacts]
+    held_by: Mapping[str, int]
+    now: datetime
+    logins: Logins
+
+
+def _joined(rows: Sequence[Mapping[str, object]]) -> str:
+    whole = " ".join(
+        " ".join(str(one.get(part) or "") for part in ("subject", "body")) for one in rows
+    )
+    return " ".join(whole.split())
 
 
 def _page_of(answered: str) -> str:

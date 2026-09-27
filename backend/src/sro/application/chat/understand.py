@@ -4,20 +4,22 @@ import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime
-from types import MappingProxyType
 
+from sro.application.chat.candidates import candidate_of, chore_named, rank_jobs
+from sro.application.connection.sign_in import logins_of
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.shared.asking import ask
-from sro.application.skill.job_facts import job_facts
-from sro.domain.chat.asked_by import mails_behind, texts
+from sro.application.skill.job_facts import JobFacts, job_facts
 from sro.domain.chat.reading import ChatReading, new_chat_id
+from sro.domain.chat.request import Candidate, read_of
 from sro.domain.execution.compiled import why_not
 from sro.domain.prompts.read_request import READ_REQUEST
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
-from sro.domain.skill.learned import demanded
-from sro.domain.skill.workflow import Workflow
+from sro.domain.skill.signing_in import Logins
+
+K_A_CHORE = "signing in is the session broker's work, never a request's"
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,112 +40,99 @@ class Understood:
 
     cannot_run: list[str] = field(default_factory=list)
 
+    refused: dict[str, str] = field(default_factory=dict)
+
+
+def shown(candidate: Candidate) -> dict[str, object]:
+    return {
+        "id": candidate.id,
+        "title": candidate.title,
+        "fields": [
+            {
+                "name": one.name,
+                "labels": list(one.labels),
+                "aliases": sorted(w for w, f in candidate.aliases.items() if f == one.name),
+                "seen": list(candidate.seen.get(one.name, ())),
+                "filled_before": one.kind != "never",
+            }
+            for one in candidate.fields
+        ],
+        **({"asked_by": list(candidate.asked_by)} if candidate.asked_by else {}),
+    }
+
 
 async def understand(
-    utterance: str,
-    workflows: list[Workflow],
-    asker: Asker,
-    asked_by: Mapping[str, Sequence[str]] = MappingProxyType({}),
+    thread: str, candidates: Sequence[Candidate], asker: Asker, *, question: str = ""
 ) -> Understood:
-    held = [
-        {
-            "id": w.id,
-            "title": w.title,
-            "narrative": w.narrative,
-            "parameters": [
-                {"name": p.get("name"), "seen": p.get("seen_values", [])}
-                for p in w.parameters
-                if isinstance(p, dict)
-            ],
-            **({"asked_by": list(said)} if (said := asked_by.get(w.id)) else {}),
-        }
-        for w in workflows
-    ]
+    if not candidates:
+        return Understood(None, Answer(data={}))
     answer = await ask(
         asker,
         READ_REQUEST,
-        trusted={},
+        trusted={"question": question} if question else {},
         untrusted={
-            "request": json.dumps({"said": utterance, "jobs": held}, indent=2, ensure_ascii=False)
+            "thread": thread,
+            "candidates": json.dumps(
+                [shown(one) for one in candidates], indent=2, ensure_ascii=False
+            ),
         },
     )
     if answer.data is None:
         return Understood(None, answer)
-    by_id = {w.id: w for w in workflows}
-    chosen = by_id.get(str(answer.data.get("workflow_id") or ""))
-    if chosen is None:
-        return Understood(None, answer)
-    declared = {p.get("name") for p in chosen.parameters if isinstance(p, dict)}
-    raw = answer.data.get("values")
-    pairs = (
-        (p.get("name"), p.get("value"))
-        for p in (raw if isinstance(raw, list) else ())
-        if isinstance(p, dict)
-    )
-    read = [(k, v) for k, v in pairs if isinstance(k, str) and isinstance(v, str)]
-    values = {k: v for k, v in read if k in declared}
-    unasked = sorted({k for k, _ in read if k not in declared})
-    aside = {k: v for k, v in read if k not in declared}
-    items = _things(answer.data.get("items"), declared)
-    nearly = answer.data.get("also")
-    also = [
-        one
-        for one in (nearly if isinstance(nearly, list) else [])
-        if isinstance(one, str) and one in by_id and one != chosen.id
-    ]
-    named = {name for name, _ in read}
-    settled = (
-        bool(also) and _fills(chosen, named) and not any(_fills(by_id[one], named) for one in also)
-    )
-    if settled:
-        also = []
-    sure = (bool(answer.data.get("sure", True)) or settled) and not also
-    supplied = [{**values, **item} for item in items] or [values]
-    items = [item for item in items if item]
-    wanted = {
-        name
-        for parameter in chosen.parameters
-        if isinstance(parameter, dict)
-        and isinstance(name := parameter.get("name"), str)
-        and demanded(parameter)
-    }
-    missing = sorted(
-        name
-        for name in declared
-        if isinstance(name, str) and name in wanted and any(name not in one for one in supplied)
-    )
+    read = read_of(answer.data, candidates, thread)
     return Understood(
-        chosen.id, answer, values, missing, sure, also, items, aside=aside, unasked=unasked
+        read.job,
+        answer,
+        read.values,
+        read.missing,
+        read.sure,
+        read.also,
+        read.items,
+        aside=read.aside,
+        unasked=sorted(read.aside),
+        refused=read.refused,
     )
 
 
-def _fills(job: Workflow, said: set[str]) -> bool:
-    declared = {
-        str(name)
-        for one in job.parameters
-        if isinstance(one, dict) and (name := one.get("name")) and demanded(one)
-    }
-    return declared <= said
+async def read_request(
+    text: str,
+    facts: Sequence[JobFacts],
+    asker: Asker,
+    *,
+    held: Mapping[str, int],
+    logins: Logins = Logins(),
+) -> Understood:
+    chore = chore_named(text, facts)
+    if chore is not None:
+        return Understood(chore.workflow.id, Answer(data={}), cannot_run=[K_A_CHORE])
+    ranked = rank_jobs(text, facts, held=held)
+    return await understand(text, [candidate_of(one, logins=logins) for one in ranked], asker)
 
 
-def _things(raw: object, declared: set[object]) -> list[dict[str, str]]:
-    things: list[dict[str, str]] = []
-    for one in raw if isinstance(raw, list) else ():
-        if not isinstance(one, dict):
-            continue
-        said_values = one.get("values")
-        pairs = (
-            (pair.get("name"), pair.get("value"))
-            for pair in (said_values if isinstance(said_values, list) else [])
-            if isinstance(pair, dict)
+async def held_runs(uow: UnitOfWork, tenant_id: TenantId) -> dict[str, int]:
+    return {job: held for job, (_, held) in (await uow.workflow_runs.tallies(tenant_id)).items()}
+
+
+async def offer_check(
+    uow: UnitOfWork,
+    tenant_id: TenantId,
+    got: Understood,
+    facts: Sequence[JobFacts],
+    *,
+    now: datetime,
+) -> Understood:
+    picked = next((one for one in facts if one.workflow.id == got.workflow_id), None)
+    if picked is None or got.cannot_run:
+        return got
+    for given in [{**got.values, **one} for one in got.items] or [got.values]:
+        compiled = (
+            (await job_facts(uow, tenant_id, [picked.workflow], now=now, values=given))[0].compiled
+            if given
+            else picked.compiled
         )
-        said = {
-            name: value
-            for name, value in pairs
-            if isinstance(name, str) and name in declared and isinstance(value, str)
-        }
-        things.append(said)
-    return things
+        if not compiled.runnable:
+            return replace(got, cannot_run=why_not(compiled.reasons))
+    return got
 
 
 async def read_utterance(
@@ -155,14 +144,14 @@ async def read_utterance(
     now: datetime,
 ) -> Understood:
     facts = await job_facts(uow, tenant_id, await uow.workflows.known(tenant_id), now=now)
-    workflows = [one.workflow for one in facts]
-    asked_by = {one.workflow.id: texts(mails_behind(one.workflow, one.by_id)) for one in facts}
-    got = await understand(
-        utterance, workflows, asker, {w: said for w, said in asked_by.items() if said}
+    got = await read_request(
+        utterance,
+        facts,
+        asker,
+        held=await held_runs(uow, tenant_id),
+        logins=await logins_of(uow, tenant_id),
     )
-    picked = next((one.compiled for one in facts if one.workflow.id == got.workflow_id), None)
-    if picked is not None and not picked.runnable:
-        got = replace(got, cannot_run=why_not(picked.reasons))
+    got = await offer_check(uow, tenant_id, got, facts, now=now)
     answer = got.answer
     await uow.chats.record(
         ChatReading(

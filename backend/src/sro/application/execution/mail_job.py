@@ -159,6 +159,7 @@ async def _allowed(
             for one in await _conversation(ctx, tools, thread)
             if one.get("sent") is True
             and abs(_seconds(one.get("sent_at")) - clicked) <= K_SEND_WINDOW_S
+            and not one.get("marker")
             and not await is_ours(uow, ctx.tenant_id, one, since=since)
         ]
         if len(sent) != 1:

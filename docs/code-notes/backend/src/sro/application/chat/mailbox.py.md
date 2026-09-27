@@ -28,7 +28,7 @@ Code: `K_REMEMBER = timedelta(days=30)`
 > comes round again is one nobody acted on in a month, and offering it a second
 > time is not the worst thing this could do.
 
-## `sent_to_others`, [line 87](../../../../../../../backend/src/sro/application/chat/mailbox.py#L87): Note
+## `sent_to_others`, [line 92](../../../../../../../backend/src/sro/application/chat/mailbox.py#L92): Note
 
 > Who else a request went to when the operator sent it: every To and Cc
 > address other than the mailbox's own, when the sender is the mailbox. So a
@@ -40,15 +40,16 @@ Code: `K_REMEMBER = timedelta(days=30)`
 
 ## `mail_key`, [line 29](../../../../../../../backend/src/sro/application/chat/mailbox.py#L29): Docstring
 
-> The one key a mail is known by in the claim ledger, for every door: the look
-> keeps a mail it has read under it, and a send this system made is remembered
-> under it, so the look finds its own mail already taken and never reads it. It
-> was two keys once (`mail:{id}` read, `mail:{operator}:{id}` sent), and this
-> system's own sent mail was read back as the operator's -- a reply that could
-> answer a value, or, once SENT counted as the operator's word, name a
-> recipient.
+> The key a mail is read under in the claim ledger, for every door: the look
+> keeps a mail it has read under it. It says "read", never "this system sent
+> it" -- that is `sent_key` (M2 round 4). One key for both once made the
+> operator's own demonstrated Send, already read by the look, look like this
+> system's mail, and it granted no recipient. Before that it was two keys
+> spelled apart (`mail:{id}` read, `mail:{operator}:{id}` sent), and this
+> system's own sent mail was read back as the operator's; now `is_ours` is the
+> one check of `sent_key`, and the look calls it before it reads a mail.
 
-## `send_as_this_system`, [line 41](../../../../../../../backend/src/sro/application/chat/mailbox.py#L41): Comment
+## `send_as_this_system`, [line 46](../../../../../../../backend/src/sro/application/chat/mailbox.py#L46): Comment
 
 Code: `marker = secrets.token_hex(16)`
 
@@ -62,9 +63,9 @@ Code: `marker = secrets.token_hex(16)`
 > it, which is this system asking itself to do the thing it had just
 > asked a person about.
 >
-> Claimed in the same ledger a read claims, because it is the same
-> question -- "have I dealt with this message" -- and a second store
-> for it is a second store to keep in step.
+> Claimed in the same ledger a read claims, under its own key, `sent_key`:
+> "this system sent it" is not "this was read", and `_allowed` must tell an
+> operator's Send the look has read from a mail this system sent.
 >
 > Claimed before the send, not after (M2 round 3). Gmail has the mail before
 > `send_message` answers with its id, and a look in that gap read it as the

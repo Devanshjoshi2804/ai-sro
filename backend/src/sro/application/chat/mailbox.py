@@ -30,6 +30,11 @@ def mail_key(message: str) -> str:
     return f"mail:{message}"
 
 
+def sent_key(message: str) -> str:
+    """This system sent it -- apart from mail_key, which only says it was read."""
+    return f"sent:{message}"
+
+
 async def send_as_this_system(
     ctx: RequestContext,
     uow: UnitOfWork,
@@ -41,7 +46,7 @@ async def send_as_this_system(
     marker = secrets.token_hex(16)
     async with uow as unit:
         claimed = await unit.tool_calls.remember(
-            ctx.tenant_id, mail_key(marker), tool=K_OURS, at=at, stale_after=K_REMEMBER
+            ctx.tenant_id, sent_key(marker), tool=K_OURS, at=at, stale_after=K_REMEMBER
         )
         await unit.commit()
     if not claimed:
@@ -63,7 +68,7 @@ async def send_as_this_system(
     try:
         async with uow as unit:
             await unit.tool_calls.remember(
-                ctx.tenant_id, mail_key(sent_id), tool=K_OURS, at=at, stale_after=K_REMEMBER
+                ctx.tenant_id, sent_key(sent_id), tool=K_OURS, at=at, stale_after=K_REMEMBER
             )
             await unit.commit()
     except Exception:
@@ -79,7 +84,7 @@ async def is_ours(
     keys = [str(message.get(name) or "") for name in ("id", "marker")]
     async with uow as unit:
         for key in keys:
-            if key and await unit.tool_calls.held(tenant_id, mail_key(key), since=since):
+            if key and await unit.tool_calls.held(tenant_id, sent_key(key), since=since):
                 return True
     return False
 

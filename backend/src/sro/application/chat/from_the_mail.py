@@ -235,8 +235,11 @@ class FromTheMail:
         said, thread, subject, sent_to, marker = await self._body(ctx, message)
         if not said:
             return None
-        if marker and await is_ours(
-            self._uow, ctx.tenant_id, {"marker": marker}, since=datetime.now(tz=UTC) - K_REMEMBER
+        if await is_ours(
+            self._uow,
+            ctx.tenant_id,
+            {"id": message, "marker": marker},
+            since=datetime.now(tz=UTC) - K_REMEMBER,
         ):
             return None
         look.read += 1

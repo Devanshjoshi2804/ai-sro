@@ -17,7 +17,7 @@ from typing import Any
 import pytest
 
 import sro
-from sro.application.chat.mailbox import NotSent, is_ours, mail_key, send_as_this_system
+from sro.application.chat.mailbox import NotSent, is_ours, mail_key, send_as_this_system, sent_key
 from sro.application.context import RequestContext
 from sro.application.ports.tools import ToolResult
 from sro.domain.shared.identifiers import PrincipalId, TenantId
@@ -51,7 +51,7 @@ class _Mailbox:
     ) -> ToolResult:
         assert tool == "send_message"
         self.claimed_first.append(
-            await self.uow.tool_calls.held(tenant_id, mail_key(arguments["marker"]), since=NOW)
+            await self.uow.tool_calls.held(tenant_id, sent_key(arguments["marker"]), since=NOW)
         )
         self.sent.append(dict(arguments))
         return ToolResult(text=json.dumps({"status": "sent", "id": "gm-7"}))
@@ -70,6 +70,18 @@ async def test_the_claim_is_made_before_the_mail_is_sent() -> None:
     assert await is_ours(uow, tenant, {"id": "unknown", "marker": sent["marker"]}, since=NOW)
     assert await is_ours(uow, tenant, {"id": "gm-7"}, since=NOW)
     assert not await is_ours(uow, tenant, {"id": "m-9", "marker": "forged"}, since=NOW)
+    assert not await uow.tool_calls.held(tenant, mail_key("gm-7"), since=NOW)
+
+
+async def test_a_read_claim_is_not_this_systems_own() -> None:
+    """The look claims every mail it reads under mail_key; that says "read",
+    not "this system sent it"."""
+    uow = FakeUnitOfWork()
+    async with uow as unit:
+        await unit.tool_calls.remember(CTX.tenant_id, mail_key("m-1"), tool="read", at=NOW)
+        await unit.commit()
+
+    assert not await is_ours(uow, CTX.tenant_id, {"id": "m-1", "marker": "m-1"}, since=NOW)
 
 
 async def test_no_claim_no_send(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -103,7 +115,7 @@ async def test_a_sent_mail_is_not_turned_into_an_error_by_its_id_claim(
     remember = uow.tool_calls.remember
 
     async def only_the_marker(tenant_id: TenantId, key: str, **kwargs: Any) -> bool:
-        if key == mail_key("gm-7"):
+        if key == sent_key("gm-7"):
             raise RuntimeError("the ledger is down")
         return await remember(tenant_id, key, **kwargs)
 

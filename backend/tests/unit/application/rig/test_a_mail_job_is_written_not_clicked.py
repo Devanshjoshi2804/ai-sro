@@ -22,7 +22,7 @@ from typing import Any
 import pytest
 
 from sro.application.chat.ask_the_asker import DRAFTED, SendTheDraft
-from sro.application.chat.mailbox import mail_key
+from sro.application.chat.mailbox import mail_key, sent_key
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
 from sro.application.execution.gather import GatherContext
@@ -408,23 +408,47 @@ async def test_a_send_that_cannot_be_tied_to_one_sent_mail_grants_nobody(
     assert isinstance(await _write(_Mailbox(thread), "vendor@supplier.example"), Unaddressed)
 
 
-@pytest.mark.parametrize("claimed", ["s-ours", "mk-ours"])
-async def test_mail_this_system_sent_is_never_the_demonstrated_send(claimed: str) -> None:
-    """A SENT mail in the window that this system sent -- claimed by its id,
-    or by the marker claimed before it was sent -- is not the operator's
-    demonstration: it is left out, and the operator's own send is the one."""
+async def _claimed(key: str) -> FakeUnitOfWork:
     uow = FakeUnitOfWork()
     async with uow as unit:
         await unit.tool_calls.remember(
-            f.TENANT, mail_key(claimed), tool="ours", at=datetime.fromtimestamp(CLICKED_AT, UTC)
+            f.TENANT, key, tool="ours", at=datetime.fromtimestamp(CLICKED_AT, UTC)
         )
-    ours = {**_sent_copy(after=1.0, to="mallory@evil.example"), "id": "s-ours", "marker": "mk-ours"}
-    mailbox = _Mailbox([ours, _sent_copy(to="vendor@supplier.example")])
+    return uow
+
+
+@pytest.mark.parametrize(
+    "ours",
+    [
+        {"id": "s-ours", "marker": "mk-unclaimed"},
+        {"id": "s-ours", "claim": sent_key("s-ours")},
+        {"id": "s-ours", "marker": "mk-ours", "claim": sent_key("mk-ours")},
+    ],
+)
+async def test_mail_this_system_sent_is_never_the_demonstrated_send(
+    ours: dict[str, str],
+) -> None:
+    """A SENT mail in the window that this system sent -- carrying its marker
+    header, or with its id or marker claimed as sent by this system -- is not
+    the operator's demonstration: it is left out, and the operator's own send
+    is the one."""
+    uow = await _claimed(ours.pop("claim", "unrelated"))
+    theirs = {**_sent_copy(after=1.0, to="mallory@evil.example"), **ours}
+    mailbox = _Mailbox([theirs, _sent_copy(to="vendor@supplier.example")])
 
     assert isinstance(await _write(mailbox, "vendor@supplier.example", uow=uow), Written)
     assert isinstance(await _write(mailbox, "mallory@evil.example", uow=uow), Unaddressed)
-    only_ours = _Mailbox([ours])
+    only_ours = _Mailbox([theirs])
     assert isinstance(await _write(only_ours, "mallory@evil.example", uow=uow), Unaddressed)
+
+
+async def test_the_operators_send_already_read_by_the_look_is_still_granted() -> None:
+    """The look claims every mail it reads under mail_key. That read-claim is
+    not "this system sent it", so the operator's own send stays the demonstration."""
+    uow = await _claimed(mail_key("s-1"))
+    mailbox = _Mailbox([_sent_copy(to="vendor@supplier.example")])
+
+    assert isinstance(await _write(mailbox, "vendor@supplier.example", uow=uow), Written)
 
 
 async def test_a_send_whose_call_names_no_thread_grants_nobody() -> None:

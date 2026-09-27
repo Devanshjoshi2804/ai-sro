@@ -28,7 +28,7 @@ from sro.application.chat.from_the_mail import (
     _page_of,
 )
 from sro.application.chat.look_lately import LookInTheMailLately
-from sro.application.chat.mailbox import SERVER, mail_key
+from sro.application.chat.mailbox import SERVER, sent_key
 from sro.application.context import RequestContext
 from sro.application.execution.mail_job import Written, send_the_mail
 from sro.application.execution.workflow_runs import RunRefused, StartWorkflowRun
@@ -1460,14 +1460,15 @@ async def test_a_mail_this_system_sent_answers_no_question(kind: str) -> None:
     assert durable.answered == []
 
 
-@pytest.mark.parametrize(("claimed", "answers"), [(True, False), (False, True)])
+@pytest.mark.parametrize(("claimed", "answers"), [("mk-1", False), ("m-1", False), ("", True)])
 async def test_a_mail_read_before_its_send_came_back_is_known_by_its_marker(
-    claimed: bool, answers: bool
+    claimed: str, answers: bool
 ) -> None:
     """The gap: Gmail has the mail and the look lists it before the send has
     answered with its id. It carries the marker claimed before it was sent, so
     it is known as this system's own; a marker nobody claimed (forged, or
-    another system's) is just a header, and the mail is read as usual."""
+    another system's) is just a header, and the mail is read as usual. Its id,
+    claimed as sent once Gmail answered, marks it just the same."""
     uow = await _held()
     run = _short("t-9", needs=[], values={})
     run.outcome, run.executor = "running", "steel"
@@ -1476,7 +1477,7 @@ async def test_a_mail_read_before_its_send_came_back_is_known_by_its_marker(
     if claimed:
         async with uow as unit:
             await unit.tool_calls.remember(
-                f.TENANT, mail_key("mk-1"), tool="ours", at=datetime.now(tz=UTC)
+                f.TENANT, sent_key(claimed), tool="ours", at=datetime.now(tz=UTC)
             )
     ours = json.dumps(
         {
@@ -1498,12 +1499,15 @@ async def test_a_mail_read_before_its_send_came_back_is_known_by_its_marker(
 def test_one_key_says_a_mail_is_this_system_s_own() -> None:
     """The key a send is remembered under and the key the look checks are the
     same function's: split, this system's own mail was read back as the
-    operator's. No other module spells it."""
+    operator's. No other module spells it, nor the read-claim's key."""
     root = Path(sro.__file__).parent
     spelled = sorted(
         path.relative_to(root).as_posix()
         for path in root.rglob("*.py")
-        if '"mail:' in (text := path.read_text(encoding="utf-8")) or 'f"mail:' in text
+        if any(
+            spelling in path.read_text(encoding="utf-8")
+            for spelling in ('"mail:', 'f"mail:', '"sent:', 'f"sent:')
+        )
     )
     assert spelled == ["application/chat/mailbox.py"]
 

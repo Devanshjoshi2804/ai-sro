@@ -767,7 +767,7 @@ class WorkflowStepRow(Base):
     cites: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
     parameters: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
     uses: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
-    tab: Mapped[str] = mapped_column(Text, nullable=False, default="main", server_default="main")
+    tab: Mapped[str | None] = mapped_column(Text)
 
 
 class WorkflowStaleRow(Base):

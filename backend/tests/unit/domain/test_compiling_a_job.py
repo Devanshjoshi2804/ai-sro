@@ -211,21 +211,17 @@ def test_a_step_before_the_start_point_is_not_asked_about() -> None:
     assert compile_job(job, by_id, learned={}, ledger=(), broken=(), from_step=1).runnable
 
 
-def test_a_job_whose_doing_used_two_tabs_but_every_step_says_main_is_unlearned() -> None:
-    """A two-tab job mined before tab roles existed stores every step as `main`;
-    running it would act in the wrong tab, so it waits for a pass to grow it."""
+def test_a_job_whose_tabs_are_undecided_runs_with_a_warning() -> None:
+    """Steps stored before steps knew their tab are NULL until the sweep decides
+    them; meanwhile they read as main, and the job is not refused for it."""
     first, by_id = save_step(gid="ges_a", at=1.0)
-    second, more = save_step(gid="ges_b", at=2.0)
-    by_id |= {"ges_b": replace(more["ges_b"], tab_id=2)}
-    job = _job(replace(first, order=0), replace(second, order=1))
+    job = _job(replace(first, order=0, tab=None), replace(first, order=1, tab="opened_from:tab_3"))
 
     got = compile_job(job, by_id, learned={}, ledger=(), broken=())
 
-    assert "tab_roles_unlearned" in _codes(got)
-    learned = _job(replace(first, order=0), replace(second, order=1, tab="tab_2"))
-    assert "tab_roles_unlearned" not in _codes(
-        compile_job(learned, by_id, learned={}, ledger=(), broken=())
-    )
+    assert "tab_role_unresolved" not in _codes(got)
+    assert "tab_roles_undecided" in _warned(got)
+    assert [one["tab"] for one in got.view["steps"]] == ["main", "opened_from:tab_3"]
 
 
 def test_a_step_in_a_tab_no_earlier_step_opened_is_unresolved() -> None:

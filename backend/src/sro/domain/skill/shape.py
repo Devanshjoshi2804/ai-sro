@@ -12,6 +12,7 @@ from sro.domain.observation.identity import shape_key, target_identity
 from sro.domain.shared.hosts import page_of, system_of
 from sro.domain.skill.learned import control_names
 from sro.domain.skill.offers import K_OFFER_AFTER, Counsel
+from sro.domain.skill.tabs import MAIN
 from sro.domain.skill.workflow import Step, Workflow, field_key, ordered_cites
 
 
@@ -168,12 +169,12 @@ def keeping_fields(
         placed += [(field, True) for field in before.get(one.order, [])]
         placed.append((one, False))
     renumber = {one.order: n for n, (one, kept) in enumerate(placed) if not kept}
-    steps = [
-        replace(one, order=n)
-        if kept
-        else replace(one, order=n, uses=[renumber.get(use, use) for use in one.uses])
-        for n, (one, kept) in enumerate(placed)
-    ]
+    steps: list[Step] = []
+    for n, (one, kept) in enumerate(placed):
+        if kept:
+            steps.append(replace(one, order=n, tab=steps[-1].tab if steps else MAIN))
+        else:
+            steps.append(replace(one, order=n, uses=[renumber.get(use, use) for use in one.uses]))
     kept_at = {one.order: n for n, (one, kept) in enumerate(placed) if kept}
     return steps, {**{old: renumber[new] for old, new in moved.items()}, **kept_at}
 

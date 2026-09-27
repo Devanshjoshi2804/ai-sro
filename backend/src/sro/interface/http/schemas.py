@@ -1769,7 +1769,7 @@ class WorkflowModel(BaseModel):
                     system=step.system,
                     cites=list(step.cites),
                     parameters=list(step.parameters),
-                    tab=step.tab,
+                    tab=step.role,
                 )
                 for step in sorted(workflow.steps, key=lambda step: step.order)
             ],

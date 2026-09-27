@@ -3,7 +3,7 @@ from dataclasses import dataclass, field, replace
 
 from sro.domain.observation.gesture import Gesture, Intent
 from sro.domain.observation.trim import is_secret, trim
-from sro.domain.skill.tabs import POPUP
+from sro.domain.recording.state import PageEventKind
 
 K_WINDOW_TOKENS = 100_000
 K_LEAD_UP_S = 180.0
@@ -65,6 +65,11 @@ def _seq(value: object) -> list[object]:
 
 def as_evidence(gesture: Gesture, intent: Intent | None) -> dict[str, object]:
     hide = is_secret(gesture)
+    opened = [
+        {"tab": mark.tab_id, "from": mark.opener_tab_id}
+        for mark in gesture.page_events
+        if mark.page_kind == PageEventKind.POPUP_OPENED
+    ]
     body: dict[str, object] = _map(
         _clip(
             {
@@ -73,11 +78,7 @@ def as_evidence(gesture: Gesture, intent: Intent | None) -> dict[str, object]:
                 "system": gesture.system,
                 "gesture": trim(gesture),
                 "tab": gesture.tab_id,
-                "opened": [
-                    {"tab": mark.tab_id, "from": mark.opener_tab_id}
-                    for mark in gesture.page_events
-                    if mark.page_kind == POPUP
-                ],
+                **({"opened": opened} if opened else {}),
                 "intent": None
                 if intent is None
                 else {

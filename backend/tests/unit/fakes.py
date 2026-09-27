@@ -2719,6 +2719,25 @@ class FakeWorkflowRepository:
         row.signs_in = signs_in
         return True
 
+    async def tabs_undecided(self) -> tuple[Workflow, ...]:
+        found = [
+            row
+            for row in self.rows.values()
+            if row.id not in self.retired and any(step.tab is None for step in row.steps)
+        ]
+        found.sort(key=lambda row: (row.tenant, self._created[row.id], row.id))
+        return tuple(deepcopy(row) for row in found)
+
+    async def decide_tab(self, tenant_id: TenantId, workflow_id: str, order: int, tab: str) -> bool:
+        row = self.rows.get(workflow_id)
+        if row is None or row.tenant != tenant_id.value:
+            return False
+        step = next((one for one in row.steps if one.order == order and one.tab is None), None)
+        if step is None:
+            return False
+        step.tab = tab
+        return True
+
     async def add_pass(self, mining_pass: MiningPass) -> None:
         self._alive()
         # The store's plain INSERT, which refuses a second row under one id:

@@ -38,14 +38,14 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 > - `tab_role_unresolved` -- "every step's tab role resolves" (spec §5): a
 >   step in `opened_from:R` with no earlier step in R, or a `tab_N` out of
 >   sequence (`unresolved`).
-> - `tab_roles_unlearned` -- the job's doing used more than one tab (by the
->   same `tab_roles` mining runs, so the two cannot disagree) while every step
->   says `main`. That is a two-tab job mined before steps knew their tab: every
->   stored step defaults `main`. It is not offered until a mining pass grows
->   it and writes the roles.
+>   Asked only of a decided job.
 >
 > Warnings, never refusals:
 >
+> - `tab_roles_undecided` -- a step stored before steps knew their tab (NULL
+>   since 0086). It runs in the first tab, as every job did before, until the
+>   mining sweep decides its roles; refusing it would take every stored job
+>   offline for a column nothing had filled yet.
 > - `every_lane_broken` -- every lane that could run the step failed lately.
 >   A refusal here locked a job out for good: only a winning run mends a lane,
 >   and a job no one is offered never runs. Broken lanes cool down instead

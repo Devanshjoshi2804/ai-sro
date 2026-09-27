@@ -190,3 +190,15 @@ def test_a_choice_two_writes_would_both_answer_to_is_never_offered() -> None:
     job.steps.append(replace(job.steps[0], order=job.steps[0].order + 1, cites=["ges_save_2"]))
 
     assert not any(one.startswith("Notes") for one in choices(job, by_id))
+
+
+def test_a_composed_field_acts_in_the_tab_of_the_form_it_fills() -> None:
+    job, _ = _job(OutlineField("combobox", "Department"))
+    job = replace(job, steps=[replace(job.steps[0], tab="opened_from:main")])
+    write = job.steps[0].order
+
+    grown, _ = with_field(
+        job, Composed("department", "Department", "combobox", write), key="department", value="F"
+    )
+
+    assert [one.tab for one in grown.steps] == ["opened_from:main", "opened_from:main"]

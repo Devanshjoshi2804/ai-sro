@@ -66,6 +66,7 @@ from sro.whose import attribute
 __all__ = [
     "MineResult",
     "decide_sign_ins",
+    "decide_tabs",
     "evidence_of",
     "fill_in_passwords",
     "learn_parameters",
@@ -705,6 +706,19 @@ async def decide_sign_ins(uow: UnitOfWork, tenant_id: TenantId, jobs: Sequence[W
     decided = 0
     for job in jobs:
         decided += await uow.workflows.decide_signs_in(tenant_id, job.id, _judged(job, by_id))
+    return decided
+
+
+async def decide_tabs(uow: UnitOfWork, tenant_id: TenantId, jobs: Sequence[Workflow]) -> int:
+    by_id = await evidence_of(uow, tenant_id, jobs)
+    decided = 0
+    for job in jobs:
+        roles = tab_roles(job, by_id)
+        for step in job.steps:
+            if step.tab is None:
+                decided += await uow.workflows.decide_tab(
+                    tenant_id, job.id, step.order, roles.get(step.order, MAIN)
+                )
     return decided
 
 

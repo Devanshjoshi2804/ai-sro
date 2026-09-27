@@ -16,7 +16,11 @@ def test_no_field_nobody_reads_is_kept() -> None:
 
 def test_the_miner_is_not_asked_for_what_nothing_reads() -> None:
     assert "two systems" not in MINE.task
-    assert MINE.version == 2
+    assert MINE.version == 3
+
+
+def test_the_miner_is_told_what_a_tab_and_an_opened_tab_are() -> None:
+    assert "`tab`" in MINE.input_contract and "`opened`" in MINE.input_contract
 
 
 async def test_page_text_reaches_the_miner_only_inside_its_fence() -> None:

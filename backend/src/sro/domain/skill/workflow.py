@@ -31,7 +31,11 @@ class Step:
 
     uses: list[int] = field(default_factory=list)
 
-    tab: str = MAIN
+    tab: str | None = MAIN
+
+    @property
+    def role(self) -> str:
+        return self.tab or MAIN
 
 
 @dataclass

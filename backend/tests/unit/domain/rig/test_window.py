@@ -728,3 +728,4 @@ def test_evidence_shows_the_tab_and_the_tabs_it_opened() -> None:
 
     assert evidence["tab"] == 7
     assert evidence["opened"] == [{"tab": 9, "from": 7}]
+    assert "opened" not in as_evidence(replace(gesture, page_events=[loaded]), None)

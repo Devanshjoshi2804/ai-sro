@@ -434,6 +434,7 @@ async def test_a_mined_job_reaches_the_wire_whole(
                 "system": "wms.test",
                 "cites": ["ges_3", "ges_1"],
                 "parameters": [],
+                "tab": "main",
             },
             {
                 "order": 1,
@@ -441,6 +442,7 @@ async def test_a_mined_job_reaches_the_wire_whole(
                 "system": "billing.test",
                 "cites": ["ges_6", "ges_5"],
                 "parameters": ["clientCode"],
+                "tab": "main",
             },
             {
                 "order": 2,
@@ -448,6 +450,7 @@ async def test_a_mined_job_reaches_the_wire_whole(
                 "system": "wms.test",
                 "cites": ["ges_7", "ges_2"],
                 "parameters": [],
+                "tab": "main",
             },
         ],
         "runs": {"total": 0, "held": 0, "stale": 0, "earned": False, "proven": 0, "needed": 3},

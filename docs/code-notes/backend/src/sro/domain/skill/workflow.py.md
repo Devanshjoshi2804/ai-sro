@@ -15,7 +15,7 @@ Code: `K_MIN_VALUE_LENGTH = 3`
 > equipment type; a voice code of `2` is a value too, and a title is allowed to
 > contain the word "3".
 
-## module, [line 13](../../../../../../../backend/src/sro/domain/skill/workflow.py#L13): Note on the line above
+## module, [line 15](../../../../../../../backend/src/sro/domain/skill/workflow.py#L15): Note on the line above
 
 Code: `_DANGLING = frozenset(`
 
@@ -23,7 +23,7 @@ Code: `_DANGLING = frozenset(`
 > Carrier Cross Reference for Test Drive LLC" loses the customer and keeps the
 > `for`.
 
-## `Step`, [line 30](../../../../../../../backend/src/sro/domain/skill/workflow.py#L30): Note on the line above
+## `Step`, [line 32](../../../../../../../backend/src/sro/domain/skill/workflow.py#L32): Note on the line above
 
 Code: `uses: list[int] = field(default_factory=list)`
 
@@ -49,7 +49,7 @@ Code: `uses: list[int] = field(default_factory=list)`
 > comes to it: a value typed in step five that equals what step two's
 > response returned IS this edge, and the recorded calls hold both halves.
 
-## `Workflow`, [line 45](../../../../../../../backend/src/sro/domain/skill/workflow.py#L45): Note on the line above
+## `Workflow`, [line 49](../../../../../../../backend/src/sro/domain/skill/workflow.py#L49): Note on the line above
 
 Code: `repeat: Repeat | None = None`
 
@@ -61,7 +61,7 @@ Code: `repeat: Repeat | None = None`
 > given one item performs exactly like a run of a job with no repeat at all.
 > See `domain/skill/repeats`.
 
-## `ordered_cites`, [line 82](../../../../../../../backend/src/sro/domain/skill/workflow.py#L82): Docstring
+## `ordered_cites`, [line 86](../../../../../../../backend/src/sro/domain/skill/workflow.py#L86): Docstring
 
 > Every gesture the workflow cites, in step order.
 >
@@ -71,7 +71,7 @@ Code: `repeat: Repeat | None = None`
 > caller: the mining pass writes a shape key and `rekey_workflows` rewrites
 > one, and two spellings of "in step order" is two shapes for one job.
 
-## `Workflow.generalise_title`, [line 49](../../../../../../../backend/src/sro/domain/skill/workflow.py#L49): Docstring
+## `Workflow.generalise_title`, [line 53](../../../../../../../backend/src/sro/domain/skill/workflow.py#L53): Docstring
 
 > This job's own parameter values taken out of its name.
 >
@@ -101,7 +101,7 @@ Code: `from sro.domain.skill.repeats import Repeat`
 > either way -- `from __future__ import annotations` is the first line of
 > this file -- and nothing here resolves it at runtime.
 
-## `Step`, [line 27](../../../../../../../backend/src/sro/domain/skill/workflow.py#L27): Comment
+## `Step`, [line 29](../../../../../../../backend/src/sro/domain/skill/workflow.py#L29): Comment
 
 Code: `cites: list[str] = field(default_factory=list)`
 
@@ -109,7 +109,7 @@ Code: `cites: list[str] = field(default_factory=list)`
 > hallucinated up to 21% of steps; forced to select from real evidence, that
 > fell below 7.5%. An uncited step is a rejected step -- see checks.py.
 
-## `Workflow`, [line 43](../../../../../../../backend/src/sro/domain/skill/workflow.py#L43): Comment
+## `Workflow`, [line 47](../../../../../../../backend/src/sro/domain/skill/workflow.py#L47): Comment
 
 Code: `pass_id: str = ""`
 
@@ -119,7 +119,7 @@ Code: `pass_id: str = ""`
 > times. Empty for a workflow saved outside a pass, which today is only a
 > test.
 
-## `Workflow`, [line 47](../../../../../../../backend/src/sro/domain/skill/workflow.py#L47): Note on the line above
+## `Workflow`, [line 51](../../../../../../../backend/src/sro/domain/skill/workflow.py#L51): Note on the line above
 
 Code: `signs_in: bool | None = None`
 
@@ -135,7 +135,7 @@ Code: `signs_in: bool | None = None`
 > sweep decides it (`mining_pass.decide_sign_ins`). A job starts undecided;
 > the mining pass decides a proposal before it is stored.
 
-## `field_key`, [line 86](../../../../../../../backend/src/sro/domain/skill/workflow.py#L86): Docstring
+## `field_key`, [line 90](../../../../../../../backend/src/sro/domain/skill/workflow.py#L90): Docstring
 
 > The body key of a learned field step (X10, `with_field`), or "". Such a step
 > cites no gesture and fills one parameter that the job declares with the `key`

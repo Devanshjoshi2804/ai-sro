@@ -58,6 +58,7 @@ from sro.domain.skill.passwords import with_passwords
 from sro.domain.skill.presses import with_the_press
 from sro.domain.skill.repeats import detect as repeated_block
 from sro.domain.skill.shape import in_time_order, keeping_fields
+from sro.domain.skill.tabs import MAIN, tab_roles
 from sro.domain.skill.umbrella import mining_blocks, workflow_from
 from sro.domain.skill.workflow import Workflow, cited_ids, ordered_cites
 from sro.whose import attribute
@@ -481,6 +482,9 @@ async def _one_pass(
                             order,
                             ", ".join(str(one) for one in used),
                         )
+            roles = tab_roles(proposal, by_id)
+            for step in proposal.steps:
+                step.tab = roles.get(step.order, MAIN)
             proposal.repeat = repeated_block(proposal, by_id)
             if proposal.repeat is not None:
                 logger.info(

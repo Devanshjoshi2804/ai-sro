@@ -73,6 +73,7 @@ def _step_values(workflow_id: str, step: Step) -> dict[str, Any]:
         "cites": list(step.cites),
         "parameters": list(step.parameters),
         "uses": list(step.uses),
+        "tab": step.tab,
     }
 
 
@@ -84,6 +85,7 @@ def _row_to_step(row: WorkflowStepRow) -> Step:
         cites=list(row.cites),
         parameters=list(row.parameters),
         uses=list(row.uses or []),
+        tab=row.tab,
     )
 
 

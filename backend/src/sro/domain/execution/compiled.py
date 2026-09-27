@@ -18,6 +18,7 @@ from sro.domain.observation.gesture import Gesture
 from sro.domain.observation.trim import body_key_set
 from sro.domain.skill.aliases import JobAlias
 from sro.domain.skill.learned import demanded
+from sro.domain.skill.tabs import MAIN, tab_roles, unresolved
 from sro.domain.skill.workflow import Step, Workflow, field_key
 
 
@@ -145,6 +146,7 @@ def compile_job(
             {
                 "order": step.order,
                 "says": step.says,
+                "tab": step.tab,
                 "lanes": [lane.value for lane in ladder],
                 "broken": sorted(lane.value for lane in dead),
                 "locators": found,
@@ -156,6 +158,17 @@ def compile_job(
                     "read_back": None if read is None else urlsplit(read.url).path,
                 },
             }
+        )
+
+    for order in unresolved(workflow.steps):
+        reasons.append(
+            Reason("tab_role_unresolved", order, "the tab it acts in is opened by no earlier step")
+        )
+    if set(tab_roles(workflow, by_id).values()) != {MAIN} and {
+        step.tab for step in workflow.steps
+    } == {MAIN}:
+        reasons.append(
+            Reason("tab_roles_unlearned", None, "its doing used more than one tab; mine it again")
         )
 
     def listed(found: list[Reason]) -> list[dict[str, object]]:

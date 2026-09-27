@@ -10,8 +10,9 @@ from sro.application.runtime.step import LaneContext, Superseded
 from sro.application.runtime.ui_lane import UiLane
 from sro.domain.execution.account import Account, LeaseState
 from sro.domain.execution.lanes import Broken, Lane, StepResult, Verdict, cites_key
-from sro.domain.execution.progress import MAIN, Progress, StepMark
+from sro.domain.execution.progress import Progress, StepMark
 from sro.domain.execution.takeover import OPERATOR, Takeover, Took, take_over
+from sro.domain.skill.tabs import MAIN
 from tests.unit.runtime_support import (
     CTX,
     NOW,

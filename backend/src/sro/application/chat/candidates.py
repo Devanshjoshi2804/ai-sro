@@ -8,7 +8,9 @@ from sro.application.skill.job_facts import JobFacts
 from sro.domain.chat.asked_by import mails_behind, texts
 from sro.domain.chat.request import K_CANDIDATES, Candidate
 from sro.domain.execution.compose import alias_map, normal
+from sro.domain.shared.hosts import origin_of
 from sro.domain.skill.signing_in import Logins
+from sro.domain.skill.workflow import ordered_cites
 
 _NONE: Mapping[str, int] = MappingProxyType({})
 
@@ -27,6 +29,12 @@ def candidate_of(facts: JobFacts, *, leave_out: str = "", logins: Logins = Login
         },
         asked_by=tuple(one for one in texts(mails_behind(job, facts.by_id)) if one != leave_out),
         logins=logins,
+        systems=frozenset(
+            origin_of(facts.by_id[one].system or "")
+            for one in ordered_cites(job)
+            if one in facts.by_id
+        )
+        - {""},
     )
 
 

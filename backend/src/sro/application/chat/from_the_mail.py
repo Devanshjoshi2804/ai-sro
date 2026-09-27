@@ -772,12 +772,13 @@ class FromTheMail:
             ctx.tenant_id, ctx.principal_id, SERVER, "get_thread", {"id": thread}
         )
         try:
-            said = json.loads(answered.text)
+            said = None if answered.failed else json.loads(answered.text)
         except ValueError:
-            return "", ""
+            said = None
         rows = said.get("messages") if isinstance(said, dict) else None
         if not isinstance(rows, list):
-            return "", ""
+            # Unread is not "this mail alone": that would make a quoted reply fresh.
+            raise ToolsUnavailable(f"thread {thread} could not be read")
         rows = [one for one in rows if isinstance(one, dict)]
         whole = _joined(rows)[-K_THREAD:]
         return whole, _joined([one for one in rows if one.get("id") != message])

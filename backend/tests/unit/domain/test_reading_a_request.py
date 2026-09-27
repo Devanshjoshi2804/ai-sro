@@ -347,7 +347,8 @@ def test_a_value_that_names_a_field_itself_is_still_that_value() -> None:
     assert read.refused == {}
 
 
-SIGNED = Logins(names=frozenset({"rkuchiyagm"}), labels=frozenset({"username"}))
+WMS = "wms.example"
+SIGNED = Logins(names=frozenset({"rkuchiyagm"}), labels=frozenset({(WMS, "username")}))
 
 
 def test_a_username_the_thread_states_is_never_a_job_value_nor_carried_aside() -> None:
@@ -358,6 +359,7 @@ def test_a_username_the_thread_states_is_never_a_job_value_nor_carried_aside() -
         aliases={},
         seen={},
         logins=SIGNED,
+        systems=frozenset({WMS}),
     )
     thread = "username QATEST01, please add the client"
     read = read_of(
@@ -385,6 +387,7 @@ def test_a_job_s_own_username_field_is_filled_like_any_other() -> None:
         aliases={},
         seen={},
         logins=SIGNED,
+        systems=frozenset({WMS}),
     )
     read = read_of(
         {"job": "wfl_user", "sure": True, "values": [_value("username", "JDOE", "username JDOE")]},
@@ -399,3 +402,43 @@ def test_a_chat_answer_that_is_a_sign_in_name_is_not_taken() -> None:
     pending = Pending("wfl_client", "Create a Client", {}, ("Address",))
     assert answered(pending, "RKUCHIYAGM", SIGNED) == pending
     assert answered(pending, "12 Main St", SIGNED).values == {"Address": "12 Main St"}
+
+
+def _client(logins: Logins, *on: str) -> Candidate:
+    return Candidate(
+        id="wfl_client",
+        title="Create a Client",
+        fields=(FieldClass("Address", "required", ("Address",), FieldLimits()),),
+        aliases={},
+        seen={},
+        logins=logins,
+        systems=frozenset(on),
+    )
+
+
+BOX_USER = Logins(labels=frozenset({(WMS, "user")}))
+
+
+def _address(client: Candidate, value: str, thread: str) -> tuple[dict[str, str], dict[str, str]]:
+    got = read_of(
+        {"job": "wfl_client", "sure": True, "values": [_value("Address", value, thread)]},
+        [client],
+        thread,
+    )
+    return got.values, got.refused
+
+
+def test_a_generic_sign_in_box_name_near_a_value_does_not_make_it_a_login() -> None:
+    thread = "user asked for address 12 Main St"
+    assert _address(_client(BOX_USER, WMS), "12 Main St", thread) == ({"Address": "12 Main St"}, {})
+
+
+def test_a_value_stated_after_the_sign_in_box_name_is_a_login() -> None:
+    thread = "user: RKUCHIYAGM"
+    assert _address(_client(BOX_USER, WMS), "RKUCHIYAGM", thread) == ({}, {"Address": K_A_LOGIN})
+
+
+def test_one_system_s_sign_in_box_name_says_nothing_about_another_system_s_jobs() -> None:
+    thread = "user: RKUCHIYAGM"
+    got = _address(_client(BOX_USER, "other.example"), "RKUCHIYAGM", thread)
+    assert got == ({"Address": "RKUCHIYAGM"}, {})

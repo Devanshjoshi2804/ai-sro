@@ -97,6 +97,9 @@ class _Mailbox:
         self.asked.append((principal_id.value, tool, dict(arguments)))
         if tool == "search_threads":
             return ToolResult(text=self._answers.get("search", json.dumps({"messages": []})))
+        if tool == "get_thread":
+            # A thread no test wrote out holds this mail alone.
+            return ToolResult(text=self._answers.get(arguments["id"], '{"messages": []}'))
         return ToolResult(text=self._answers.get(arguments.get("id", ""), "{}"))
 
 
@@ -1924,6 +1927,35 @@ async def test_an_unreadable_mail_is_read_by_the_next_look() -> None:
     await world.poll.execute()
 
     assert len(world.durable.runs_started) == 1
+
+
+@pytest.mark.parametrize(
+    "unread",
+    [ToolResult(text="thread t-1: backend error", failed=True), ToolResult(text="<html>502")],
+)
+async def test_a_reply_whose_thread_could_not_be_read_starts_nothing_and_is_read_again(
+    unread: ToolResult,
+) -> None:
+    """Only the thread says a "Re:" is a quoted reply. A thread that was not
+    read never counts as one holding this mail alone."""
+    world = await mail_world(sure=True, values=EVERY_VALUE, steel=True, thread="t-1")
+    mails = {"m-1": _mail("Re: thanks!\n\n> please add customer type GT2", "t-1")}
+
+    class _NoThread(_Mailbox):
+        async def call(self, *args: Any, **kwargs: Any) -> ToolResult:
+            if args[3] == "get_thread":
+                return unread
+            return await super().call(*args, **kwargs)
+
+    await world.polling(_NoThread(search=_found("m-1"), **mails), _sure()).execute()
+    assert not await _said_or_ran(world)
+
+    thread = _conversation("please add customer type GT2", "Re: thanks!")
+    again = _sure()
+    await world.polling(_Mailbox(search=_found("m-1"), **mails, **{"t-1": thread}), again).execute()
+
+    assert again.saw, "the mail was dropped, not left for the next look"
+    assert world.durable.runs_started == []
 
 
 async def test_a_look_that_died_holding_a_mail_leaves_it_for_a_later_look() -> None:

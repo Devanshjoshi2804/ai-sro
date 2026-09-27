@@ -10,13 +10,13 @@ R1's request reading, checked in code (spec §4.1; GC 10). The model says which 
 > `never`); `required` only the page-demanded ones, so an optional field is
 > never missing and never asked for (amendment 2, item 3; thr_c563).
 
-## `field_of`, [line 48](../../../../../../../backend/src/sro/domain/chat/request.py#L48): Design
+## `field_of`, [line 49](../../../../../../../backend/src/sro/domain/chat/request.py#L49): Design
 
 > Which field a wording means: an alias wins (the operator's own word, R2),
 > then a parameter's name or label, then an on-screen label the job never
 > filled. The bool says whether the job fills it.
 
-## `_names`, [line 78](../../../../../../../backend/src/sro/domain/chat/request.py#L78): Design
+## `_names`, [line 79](../../../../../../../backend/src/sro/domain/chat/request.py#L79): Design
 
 > The fields a quote names, as whole words. A value binds only to a field its
 > quote supports (amendment 2, item 2): a quote that names another field and
@@ -24,7 +24,7 @@ R1's request reading, checked in code (spec §4.1; GC 10). The model says which 
 > misfiled value, refused and asked for. A quote that names no field (the
 > answer "use GT7") supports any.
 
-## `_placed`, [line 103](../../../../../../../backend/src/sro/domain/chat/request.py#L103): Design
+## `_placed`, [line 110](../../../../../../../backend/src/sro/domain/chat/request.py#L110): Design
 
 > Each value on its own (invariant 14). The quote must be in the thread and
 > the value in the quote; one that is not makes the whole reading unsure --
@@ -43,7 +43,7 @@ R1's request reading, checked in code (spec §4.1; GC 10). The model says which 
 > job never fills goes aside under its label, and one the reader could not
 > place under the request's own wording, where X10's compose and R2 take it.
 
-## `read_of`, [line 135](../../../../../../../backend/src/sro/domain/chat/request.py#L135): Design
+## `read_of`, [line 143](../../../../../../../backend/src/sro/domain/chat/request.py#L143): Design
 
 > Only a candidate is a job. `missing` is the required fields some thing
 > lacks, nothing else. `also` and `items` stay because callers read
@@ -55,27 +55,34 @@ R1's request reading, checked in code (spec §4.1; GC 10). The model says which 
 > RRF and description :- ..." mail that was asked "which job?" against Reply
 > to Email.
 
-## `_rest`, [line 64](../../../../../../../backend/src/sro/domain/chat/request.py#L64): Design
+## `_rest`, [line 65](../../../../../../../backend/src/sro/domain/chat/request.py#L65): Design
 
 > The quote with the value's own span taken out, or None when the value is
 > not in it whole: bounded by non-word characters, case kept, whitespace
 > runs read as one space.
 
-## `_signing`, [line 82](../../../../../../../backend/src/sro/domain/chat/request.py#L82): Design
+## `_signing`, [line 83](../../../../../../../backend/src/sro/domain/chat/request.py#L83): Design
 
 > A login is the tenant's recorded sign-in name (thr_163b's RKUCHIYAGM), or
-> a value whose quote, less the value, names a box a sign-in was typed in
-> ("username QATEST01" -- a username the thread states). A job's own field of
-> that name wins (`own`): a Create-a-User job's Username is the new user's.
+> a value the thread states right after the name of a box a sign-in was
+> typed in ("username QATEST01", "user: X") -- only a box of a sign-in that
+> lands on one of the job's own systems (`Candidate.systems`). The label
+> merely appearing near the value is no signal (R1 re-review 1, item 3): a
+> generic box name such as "User" refused "12 Main St" out of "user asked
+> for address 12 Main St". A job's own field of that name wins (`own`): a
+> Create-a-User job's Username is the new user's.
 
-## `refusal`, [line 86](../../../../../../../backend/src/sro/domain/chat/request.py#L86): Design
+## `refusal`, [line 95](../../../../../../../backend/src/sro/domain/chat/request.py#L95): Design
 
 > The one check every binder calls (R1 review, I5): the value must be in
-> what was said, must not be a login, and must pass the field's limits.
+> what was said, must not be a recorded login, and must pass the field's
+> limits. The box-name signal needs the thread and the job's systems, so
+> `_placed` applies it itself; a chat answer is the bare value, which states
+> no box name.
 > `_placed` calls it for the reader, and `asking.answered` for a chat answer
 > to a pending question, where the value is the whole reply.
 
-## `_fills`, [line 131](../../../../../../../backend/src/sro/domain/chat/request.py#L131): Design
+## `_fills`, [line 139](../../../../../../../backend/src/sro/domain/chat/request.py#L139): Design
 
 > Whether the stated values settle a job: at least one value is named, the
 > job takes every named field, and they hold all its required ones (R1

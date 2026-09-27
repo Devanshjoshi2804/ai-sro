@@ -123,4 +123,16 @@ def test_the_logins_are_each_system_s_recorded_username_and_the_box_it_was_typed
 
     found = recorded_logins([_job("a"), _job("b"), worked], {**STORE, **work})
 
-    assert found == Logins(names=frozenset({"alice", "bob"}), labels=frozenset({"username"}))
+    assert found == Logins(
+        names=frozenset({"alice", "bob"}),
+        labels=frozenset({("a.example.com", "username"), ("b.example.com", "username")}),
+    )
+
+
+def test_two_sign_in_copies_on_one_system_still_name_their_login() -> None:
+    """Whose credential to type needs exactly one; which names are logins does not."""
+    store = {**_sign_in("a", "alice", A), **_sign_in("b", "alice", A, at=100.0)}
+
+    found = recorded_logins([_job("a"), _job("b")], store)
+
+    assert "alice" in found.names

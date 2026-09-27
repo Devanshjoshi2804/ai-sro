@@ -263,16 +263,16 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 
 > Read the operator's recent mail, and offer the jobs it asks for.
 
-## `_sentence`, [line 893](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L893): Docstring
+## `_sentence`, [line 894](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L894): Docstring
 
 > What happened, for a person reading the result rather than the code.
 
-## `_also`, [line 903](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L903): Docstring
+## `_also`, [line 904](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L904): Docstring
 
 > What the readings came to, totalled. Kept because every other loop here
 > reports it and the spend line reads it, not as a limit on anything.
 
-## `_told`, [line 916](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L916): Docstring
+## `_told`, [line 917](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L917): Docstring
 
 > One offer, told what its boxes will not hold and what it can write after
 > all.
@@ -468,7 +468,7 @@ Code: `too_long: Mapping[str, int] = field(default_factory=dict)`
 > about a value sitting one mail away. Measured on the deployment,
 > 2026-09-17 at 21:26.
 
-## `FromTheMail._take`, [line 786](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L786): Note
+## `FromTheMail._take`, [line 787](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L787): Note
 
 Code: `tenant, kept, reading = ctx.tenant_id, _mail_key(message), _reading_key(message)`
 
@@ -517,7 +517,7 @@ Code: `why = await over_cap(`
 > client would refuse each call anyway; asking here gives the operator the 429
 > and the reason instead of a look that quietly read nothing.
 
-## `_Look`, [line 843](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L843): Comment
+## `_Look`, [line 844](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L844): Comment
 
 Code: `unsure: int = 0`
 
@@ -708,7 +708,7 @@ Code: `asked = sorted(`
 > the dictionary names the slot, the write can fill it -- and the
 > run then proves it landed, because nothing demonstrated it.
 
-## `_sentence`, [line 897](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L897): Comment
+## `_sentence`, [line 898](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L898): Comment
 
 Code: `return f"read {read}, and {unsure} asked for a job this tenant holds more than one of"`
 
@@ -718,7 +718,7 @@ Code: `return f"read {read}, and {unsure} asked for a job this tenant holds more
 > nobody investigates -- the tenant had two workflows with one name for
 > a day, and this sentence is why nobody knew.
 
-## `_told`, [line 926](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L926): Comment
+## `_told`, [line 927](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L927): Comment
 
 Code: `return replace(`
 
@@ -788,7 +788,7 @@ Code: `if await self._caught_up_to(ctx, message, now=now):`
 > whole look's newest mail, and a look is whole only when it got there (or to
 > the end of the search) with nothing held by another look along the way.
 
-## `_page_of`, [line 878](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L878): Note
+## `_page_of`, [line 879](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L879): Note
 
 Code: `return more if isinstance(more, str) and K_PAGE_TOKEN.fullmatch(more) else ""`
 
@@ -849,6 +849,10 @@ Code: `whole, earlier = await self._conversation(ctx, thread, message) if thread
 > calls for one request, and the second reading could name another job.
 > `earlier` is the thread without this mail, which says whether this mail
 > brought anything new (`Offered.fresh`).
+> A thread that could not be read (an error result, text that is not a
+> thread) raises ToolsUnavailable, and the mail is released for the next
+> look: "not read" is never "this mail alone", which would make a quoted
+> reply fresh and start a run from it (R1 re-review 1, item 2).
 
 ## `Offered`, [line 109](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L109): Note on the line above
 

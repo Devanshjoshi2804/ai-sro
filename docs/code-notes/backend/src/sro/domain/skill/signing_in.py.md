@@ -232,9 +232,10 @@ Comments and docstrings moved out of [`backend/src/sro/domain/skill/signing_in.p
 ## `Logins`, [line 207](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L207): Class
 
 > The tenant's recorded sign-in usernames and the boxes they were typed in,
-> both through `normal`. Never logged and never put in an eval case.
+> both through `normal`; each box paired with the system its sign-in lands
+> on, since a box name means a login only on that system. Never logged and never put in an eval case.
 
-## `recorded_login`, [line 212](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L212): Docstring
+## `recorded_login`, [line 213](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L213): Docstring
 
 > The tagged sign-in job that lands on the connection's own system: the
 > `worked` half of `checks.signs_in_to`, the same key the mining pass folds
@@ -254,14 +255,15 @@ Comments and docstrings moved out of [`backend/src/sro/domain/skill/signing_in.p
 > The username is the last non-secret value typed at or before the
 > credential -- the identifier box, by position, not by label.
 
-## `recorded_logins`, [line 245](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L245): Design
+## `recorded_logins`, [line 237](../../../../../../../backend/src/sro/domain/skill/signing_in.py#L237): Design
 
-> Every system's recorded login, read by `recorded_login` itself: for each
-> system a tagged sign-in job lands on, the username typed before its
+> Every tagged sign-in job that lands somewhere, read by the same
+> `_typed_login` as `recorded_login`: the username typed before its
 > credential. A job value is never a login (R1 review, I9): the reader's own
 > scan of every job's evidence made "GT7", typed before a session-expiry
-> password re-entry in a work job, a login for the whole tenant. A system
-> with two sign-ins and nothing to choose between them lends no name, as it
-> lends no credential.
+> password re-entry in a work job, a login for the whole tenant. Collecting
+> is not choosing (R1 re-review 1, item 1): two sign-in copies on one system
+> lend no credential, but both their names are logins -- the QA store has
+> such copies, and "exactly one" turned the rule off there.
 > ponytail: the operator's vault login is not consulted (listing accounts
 > needs a new port, GC13); add it when a sign-in was never recorded.

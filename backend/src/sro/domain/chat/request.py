@@ -23,6 +23,7 @@ class Candidate:
     seen: Mapping[str, tuple[str, ...]]
     asked_by: tuple[str, ...] = ()
     logins: Logins = field(default_factory=Logins)
+    systems: frozenset[str] = frozenset()
 
     @property
     def parameters(self) -> tuple[str, ...]:
@@ -79,8 +80,16 @@ def _names(said: str, candidate: Candidate) -> set[str]:
     return {name for label, name in _wordings(candidate) if _says(said, label)}
 
 
-def _signing(value: str, rest: str, logins: Logins, own: frozenset[str]) -> bool:
-    return normal(value) in logins.names or any(_says(rest, label) for label in logins.labels - own)
+def _signing(value: str, thread: str, job: Candidate, own: frozenset[str]) -> bool:
+    """A recorded username, or a value the thread states right after a sign-in
+    box name of the job's own system: "user: X", "user X"."""
+    spoken = re.escape(normal(value))
+    said = normal(thread)
+    return normal(value) in job.logins.names or any(
+        re.search(rf"(?<!\w){re.escape(label)}[\s:=-]+{spoken}(?!\w)", said) is not None
+        for system, label in job.logins.labels
+        if system in job.systems and label not in own
+    )
 
 
 def refusal(
@@ -88,12 +97,10 @@ def refusal(
     quote: str,
     limits: FieldLimits,
     logins: Logins,
-    own: frozenset[str] = frozenset(),
 ) -> str:
-    rest = _rest(value, quote)
-    if rest is None:
+    if _rest(value, quote) is None:
         return "not in what was said"
-    return K_A_LOGIN if _signing(value, rest, logins, own) else limits.refuses(value)
+    return K_A_LOGIN if normal(value) in logins.names else limits.refuses(value)
 
 
 def _entries(raw: object) -> list[Mapping[str, object]]:
@@ -112,13 +119,14 @@ def _placed(raw: object, job: Candidate, thread: str, read: Read) -> tuple[dict[
             clean = False
             continue
         placed = field_of(said, job)
+        signing = _signing(value, thread, job, own)
         if placed is None or not placed[1]:
-            if not _signing(value, rest, job.logins, own):
+            if not signing:
                 read.aside[said if placed is None else placed[0]] = value
             continue
         name = placed[0]
         named = _names(rest, job)
-        why = refusal(value, quote, limits[name], job.logins, own) or (
+        why = (K_A_LOGIN if signing else refusal(value, quote, limits[name], job.logins)) or (
             f"its quote names {', '.join(sorted(named))}" if named and name not in named else ""
         )
         if why:

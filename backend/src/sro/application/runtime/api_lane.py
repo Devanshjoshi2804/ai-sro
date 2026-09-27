@@ -23,7 +23,7 @@ from sro.domain.execution.lanes import (
 )
 from sro.domain.execution.planning import Planned
 from sro.domain.execution.records import made_by
-from sro.domain.execution.write_plan import seen_values
+from sro.domain.execution.write_plan import learned_slots, seen_values
 from sro.domain.observation.trim import path_shape
 from sro.domain.recording.sensitivity import K_TOKENS, classify_header
 from sro.domain.shared.hosts import REDACTED
@@ -206,6 +206,7 @@ def replay_of(step: Step, values: Mapping[str, str], ctx: LaneContext) -> Planne
         values=values,
         verified_writes=ctx.ledger,
         seen=seen_values(ctx.workflow),
+        learned=learned_slots(ctx.workflow, step),
     )
 
 

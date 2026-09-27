@@ -235,7 +235,7 @@ Code: `entry: VerifiedWrite`
 > refusals, both of them silence rather than a guess: a slot two parameters
 > claim, and a parameter claiming two slots.
 
-## `write_plan_for`, [line 209](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L209): Docstring
+## `write_plan_for`, [line 233](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L233): Docstring
 
 > The call this step would send with this run's values in it, or None.
 >
@@ -243,7 +243,7 @@ Code: `entry: VerifiedWrite`
 > caller reads it the same way: perform the step through the interface, which
 > is what happens today and what has always happened.
 
-## `_path_owner`, [line 271](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L271): Docstring
+## `_path_owner`, [line 303](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L303): Docstring
 
 > The parameter this write's last path segment IS, where the doings prove it.
 >
@@ -259,7 +259,7 @@ Code: `entry: VerifiedWrite`
 > that got a 404 demonstrated the wrong record. Every other segment must be
 > the same across them, so this can only ever name the LAST one.
 
-## `_path_plan`, [line 296](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L296): Docstring
+## `_path_plan`, [line 328](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L328): Docstring
 
 > The recorded call with this run's value where the demonstration's was.
 >
@@ -267,7 +267,7 @@ Code: `entry: VerifiedWrite`
 > `verify` holds it on the status -- and for a url that NAMES the record, a
 > 2xx is the server saying which record it acted on.
 
-## `demonstrated_writes`, [line 323](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L323): Docstring
+## `demonstrated_writes`, [line 355](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L355): Docstring
 
 > The endpoints this job's OWN demonstrations proved, for this job alone.
 >
@@ -282,7 +282,7 @@ Code: `entry: VerifiedWrite`
 > is stored; the tuple is added to this run's ledger and gone with it, so
 > one job's demonstrations never license another job's call.
 
-## `_undemonstrated`, [line 339](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L339): Docstring
+## `_undemonstrated`, [line 371](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L371): Docstring
 
 > Values for slots no demonstration varied, and only the provable ones.
 >
@@ -294,6 +294,13 @@ Code: `entry: VerifiedWrite`
 > describes a screen. The form posts every field it has; a box nobody touched
 > goes out as the empty string, and filling that is editing a request rather
 > than composing one.
+>
+> **Or one a confirmed write learned** (`learned`, K1). That key is not a
+> guess from a dictionary: the page's own call sent it on a write that was
+> confirmed done, and `with_field` kept it as the parameter's `body_key`. It
+> still has to pass the next refusal: a learned slot the recorded response
+> never names cannot be read back, and a write carrying it would be in doubt
+> by construction -- so the plan declines rather than send it.
 >
 > **Not a slot the evidence already binds.** `_assigned` decided those from
 > what the operator was seen typing, which is stronger than a declaration.
@@ -316,7 +323,7 @@ Code: `entry: VerifiedWrite`
 > **And never where the demonstrations answered nothing at all.** `None` is
 > "no evidence about the record's shape", which is not evidence about it.
 
-## `begins_again_at`, [line 357](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L357): Docstring
+## `begins_again_at`, [line 396](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L396): Docstring
 
 > Where a run has to start over so the screen the stopped step needed is
 > there again.
@@ -344,7 +351,7 @@ Code: `entry: VerifiedWrite`
 > `stopped_at` itself where there is nothing before it to rebuild from, which
 > is a run that stopped on its own first step.
 
-## `scaffolding_for`, [line 369](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L369): Docstring
+## `scaffolding_for`, [line 408](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L408): Docstring
 
 > The steps whose only job was to put the write's form on the screen.
 >
@@ -442,7 +449,7 @@ Code: `if any(`
 > to the interface for every field -- the opposite of what naming it was
 > for.
 
-## `write_plan_for`, [line 225](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L225): Comment
+## `write_plan_for`, [line 250](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L250): Comment
 
 Code: `if any(`
 
@@ -451,7 +458,7 @@ Code: `if any(`
 > substitute and `unreplayable` would already have refused a body carrying
 > the marker. Belt and braces, and cheap.
 
-## `write_plan_for`, [line 234](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L234): Comment
+## `write_plan_for`, [line 259](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L259): Comment
 
 Code: `return _path_plan(step, by_id, call, values, seen, entry)`
 
@@ -460,9 +467,9 @@ Code: `return _path_plan(step, by_id, call, values, seen, entry)`
 > existing path sends it as it was recorded -- unless the value this
 > run was given lives in the path, which is what a delete is.
 
-## `write_plan_for`, [line 241](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L241): Comment
+## `write_plan_for`, [line 266](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L266): Comment
 
-Code: `also = _undemonstrated(keys, values, bodies[0], slots, _returned(step, by_id, call))`
+Code: `also = _undemonstrated(`
 
 > Worked out BEFORE the assignment, because the assignment has to know
 > about it: a value with a declared slot to go to is not a value with
@@ -472,11 +479,16 @@ Code: `also = _undemonstrated(keys, values, bodies[0], slots, _returned(step, by
 > without looking, and this is the opposite -- a slot that will be looked
 > at. See `_returned`, which carries the measurement.
 
-## `write_plan_for`, [line 242](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L242): Comment
+## `write_plan_for`, [line 274](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L274): Comment
 
-Code: `named = frozenset(keys)`
+Code: `named = frozenset(keys) | {name for name, slot in learned.items() if slot in also}`
 
-> Every name with a declared slot, not only the ones actually filled.
+> Every name with a declared slot, not only the ones actually filled -- but a
+> LEARNED name only once its slot is filled. A learned key the recorded body
+> lacks is not the empty string the form sends; left out, the field is simply
+> missing, so a learned value `_undemonstrated` refused (the response never
+> names the key) is a value with nowhere to go, and the plan declines (K1).
+>
 >
 > "Every value must have somewhere to go" exists for the TRANSFORMED case:
 > a value that should have gone into a varied slot and did not means the
@@ -487,7 +499,7 @@ Code: `named = frozenset(keys)`
 > whole replay for it would send every field through the interface, which
 > cannot set that field either. The cost would be paid for nothing.
 
-## `write_plan_for`, [line 247](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L247): Comment
+## `write_plan_for`, [line 279](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L279): Comment
 
 Code: `return None`
 
@@ -502,7 +514,7 @@ Code: `return None`
 > read-back -- so a job nobody parameterised would stop asking for
 > evidence it was never going to have, for a body nobody rewrote.
 
-## `write_plan_for`, [line 250](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L250): Comment
+## `write_plan_for`, [line 282](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L282): Comment
 
 Code: `aimed = {key: value for key, value in bodies[0].items() if key not in left_out}`
 
@@ -525,7 +537,7 @@ Code: `aimed = {key: value for key, value in bodies[0].items() if key not in lef
 > length -- that argument is about INFERRING a correspondence from two
 > strings, and this is reading one somebody wrote down.
 
-## `write_plan_for`, [line 265](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L265): Comment
+## `write_plan_for`, [line 297](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L297): Comment
 
 Code: `**also,`
 
@@ -535,7 +547,7 @@ Code: `**also,`
 > refuses any slot that cannot be read back, so everything here is
 > provable by construction.
 
-## `_path_plan`, [line 311](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L311): Comment
+## `_path_plan`, [line 343](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L343): Comment
 
 Code: `if verified_write_for(replace(call, url=url), (entry,)) is None:`
 
@@ -549,7 +561,7 @@ Code: `if verified_write_for(replace(call, url=url), (entry,)) is None:`
 > API half of the rule that an absent optional value is never filled from
 > the recording.
 
-## `write_plan_for`, [line 235](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L235): Note
+## `write_plan_for`, [line 260](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L260): Note
 
 Code: `owner = _path_owner(step, by_id, call, seen)`
 
@@ -577,3 +589,12 @@ Code: `if owners and not isinstance(bodies[0][slot], str):`
 > through the interface, as it did before non-string slots had owners.
 > ponytail: refusal, not coercion; parse the value back to the recorded type
 > when a numeric write needs the API lane.
+
+## `learned_slots`, [line 209](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L209): Docstring
+
+> The keys learned fields put into this write's body: `{parameter: body_key}`.
+> A field step learned by X10 cites nothing and fills one parameter, and
+> `with_field` inserts it directly before the write it feeds, so the walk goes
+> back from the write over exactly those steps and stops at the first step that
+> is not one. A parameter whose slot was taken out (`"slot": False`,
+> `without_slots`) is walked over but not taken.

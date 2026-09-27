@@ -6,11 +6,12 @@ from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.domain.execution.belts import confirming_read, expected_statuses
-from sro.domain.execution.compose import Adding, Composed, with_field
+from sro.domain.execution.compose import Adding, Composed, with_field, with_slots, without_slots
 from sro.domain.execution.evidence import recorded_call
 from sro.domain.execution.lanes import Broken, Lane, StepResult, accepts, cites_key, same_call
 from sro.domain.execution.learned_step import K_NAME, LearnedStep
 from sro.domain.execution.verified_writes import learned_pattern
+from sro.domain.execution.write_plan import learned_slots
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.hosts import origin_of
@@ -36,7 +37,8 @@ class Teach:
         now = self._clock.now()
         won = tried[-1] if tried and tried[-1].verdict in ("done", "read") else None
         async with self._uow as uow:
-            if await _still(uow, ctx, workflow) is None:
+            job = await _still(uow, ctx, workflow)
+            if job is None:
                 return
             for result in tried:
                 if result.verdict == "failed" and result.fingerprint and not result.expired:
@@ -47,6 +49,23 @@ class Teach:
                         cites=cites_key(step),
                         at=now,
                     )
+            slots = learned_slots(job, step)
+            api_broke = any(
+                one.lane is Lane.API
+                and one.verdict == "failed"
+                and one.fingerprint
+                and not one.expired
+                for one in tried
+            )
+            grown = (
+                without_slots(job, slots)
+                if api_broke and slots
+                else with_slots(job, won.keyed)
+                if won is not None and won.lane is Lane.UI and won.verdict == "done" and won.keyed
+                else None
+            )
+            if grown is not None:
+                await uow.workflows.save(grown)
             if won is not None:
                 await uow.workflows.mend_lane(ctx.tenant_id, workflow.id, step.order, won.lane)
             if (

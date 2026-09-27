@@ -59,6 +59,13 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > value it was seen with, the label it was found by and the body key it was
 > confirmed by.
 >
+> **`body_key`, never `key`.** The miner's parameters already use `key` for the
+> control's id (`component.item_id`), and `same_control` folds two parameters
+> whose `key`s agree. A learned body key such as `department` stored as `key`
+> would be read as a control id the next time the miner folds, and could merge
+> the learned field with some other control whose id happens to be the same
+> word -- two fields become one parameter and one of them stops being filled.
+>
 > **Ceiling.** A later mining pass that grows the job re-derives its steps from
 > demonstrations. `where_steps_moved` gives a step with no cites no place, so the
 > learned step is dropped. Its parameter stays, and the next run with that value
@@ -92,3 +99,21 @@ Comments and docstrings for [`backend/src/sro/domain/execution/compose.py`](../.
 > A job's aliases as `normal(wording) -> field`, so a required parameter named
 > in a request's words binds to the field a step fills. Keyed by `normal`,
 > the same folding the composer matches labels with.
+
+## `with_slots`, [line 204](../../../../../../../backend/src/sro/domain/execution/compose.py#L204): Docstring
+
+> A learned key back in the API lane's body template (K1). `keyed` is what the
+> page's own call confirmed on a UI write (`StepResult.keyed`: parameter to
+> body key). Only a parameter a learned field step fills takes one, and a key
+> that differs from the one learned replaces it: the page's own call is the
+> latest proof of what the endpoint takes. `None` when nothing changes, so the
+> caller saves nothing.
+
+## `without_slots`, [line 218](../../../../../../../backend/src/sro/domain/execution/compose.py#L218): Docstring
+
+> A learned key out of the API lane's body template, after that lane broke on
+> the write it feeds. The parameter keeps its `body_key` and gains
+> `"slot": False`, rather than losing the key: `body_key` is also what makes its
+> step a learned field (`field_key`) and what `prepare` builds `Adding.known`
+> from, and without `Adding.known` the UI lane could not confirm the field --
+> so the keyed UI write that puts the slot back could never happen.

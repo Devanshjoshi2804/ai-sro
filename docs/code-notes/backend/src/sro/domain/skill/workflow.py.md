@@ -138,6 +138,10 @@ Code: `signs_in: bool | None = None`
 ## `field_key`, [line 86](../../../../../../../backend/src/sro/domain/skill/workflow.py#L86): Docstring
 
 > The body key of a learned field step (X10, `with_field`), or "". Such a step
-> cites no gesture and fills one parameter that the job declares with the `key`
-> the save's own call confirmed it by -- that `key` exists nowhere else, so it is
-> what tells a field nobody demonstrated from a step with its evidence missing.
+> cites no gesture and fills one parameter that the job declares with the
+> `body_key` the save's own call confirmed it by -- `body_key` exists nowhere
+> else, so it is what tells a field nobody demonstrated from a step with its
+> evidence missing. Not `key`: the miner writes `key` as the control's id and
+> folds parameters by it (K1). Whether the API lane may carry the key is
+> `learned_slots`' question, not this one: a slot taken out leaves the field a
+> field.

@@ -206,6 +206,30 @@ def _owned_by_nobody_given(
     return frozenset(left_out)
 
 
+def learned_slots(workflow: Workflow, step: Step) -> dict[str, str]:
+    keys = {
+        str(one["name"]): str(one["body_key"])
+        for one in workflow.parameters
+        if isinstance(one.get("name"), str)
+        and isinstance(one.get("body_key"), str)
+        and one["body_key"]
+        and one.get("slot") is not False
+    }
+    by_order = {one.order: one for one in workflow.steps}
+    slots: dict[str, str] = {}
+    order = step.order - 1
+    while (
+        (field := by_order.get(order)) is not None
+        and not field.cites
+        and len(field.parameters) == 1
+    ):
+        (name,) = field.parameters
+        if name in keys:
+            slots[name] = keys[name]
+        order -= 1
+    return slots
+
+
 def write_plan_for(
     step: Step,
     by_id: Mapping[str, Gesture],
@@ -213,6 +237,7 @@ def write_plan_for(
     verified: tuple[VerifiedWrite, ...],
     seen: Mapping[str, frozenset[str]],
     keys: Mapping[str, str] = MappingProxyType({}),
+    learned: Mapping[str, str] = MappingProxyType({}),
 ) -> WritePlan | None:
     call = recorded_call(step, by_id)
     if call is None or call.method.upper() in READ_METHODS:
@@ -238,8 +263,15 @@ def write_plan_for(
 
     slots = _slots(bodies)
     echoed = _echoed(step, by_id, call)
-    also = _undemonstrated(keys, values, bodies[0], slots, _returned(step, by_id, call))
-    named = frozenset(keys)
+    also = _undemonstrated(
+        {**keys, **learned},
+        values,
+        bodies[0],
+        slots,
+        _returned(step, by_id, call),
+        learned=frozenset(learned.values()),
+    )
+    named = frozenset(keys) | {name for name, slot in learned.items() if slot in also}
     claimed = _assigned(slots, bodies, values, seen, named)
     if claimed is None:
         return None
@@ -342,13 +374,20 @@ def _undemonstrated(
     body: Mapping[str, object],
     slots: frozenset[str],
     returned: frozenset[str] | None,
+    *,
+    learned: frozenset[str] = frozenset(),
 ) -> dict[str, str]:
     if not keys or returned is None:
         return {}
     filled: dict[str, str] = {}
     for name, slot in keys.items():
         value = values.get(name)
-        if value is None or slot in slots or slot not in body or slot not in returned:
+        if (
+            value is None
+            or slot in slots
+            or (slot not in body and slot not in learned)
+            or slot not in returned
+        ):
             continue
         filled[slot] = value
     return filled

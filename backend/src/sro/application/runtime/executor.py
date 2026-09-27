@@ -19,6 +19,7 @@ from sro.domain.chat.asked_by import only_reads_the_mail
 from sro.domain.execution.evidence import primary_gesture
 from sro.domain.execution.lanes import Broken, Lane, StepResult, lanes_for
 from sro.domain.execution.mail_job import sends_mail
+from sro.domain.execution.write_plan import learned_slots
 from sro.domain.skill.workflow import Step
 
 
@@ -52,9 +53,10 @@ class StepExecutor:
         if only_reads_the_mail(step, ctx.by_id):
             return (StepResult("read", Lane.TOOL, "the mail this run came from is already read"),)
         tool = sends_mail(step, ctx.by_id)
-        api = (
-            not tool and not ctx.adding.get(step.order) and replay_of(step, values, ctx) is not None
-        )
+        adding = ctx.adding.get(step.order)
+        slotted = set(learned_slots(ctx.workflow, step))
+        added_ok = adding is None or (not adding.fresh and set(adding.known.values()) <= slotted)
+        api = not tool and added_ok and replay_of(step, values, ctx) is not None
         primary = None if tool else primary_gesture(step, ctx.by_id)
         page = None if primary is None else primary.page_url or primary.url
         tried: list[StepResult] = []

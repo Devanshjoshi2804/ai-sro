@@ -45,6 +45,11 @@ class Workflow:
     repeat: Repeat | None = None
 
     signs_in: bool | None = None
+    signs_out: bool | None = None
+
+    @property
+    def chore(self) -> bool:
+        return bool(self.signs_in or self.signs_out)
 
     def generalise_title(self) -> None:
         seen: list[str] = []

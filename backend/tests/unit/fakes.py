@@ -2640,7 +2640,13 @@ class FakeWorkflowRepository:
         if self.save_kills:
             self.poisoned = True
             raise RuntimeError("value too long for type character varying(64)")
+        kept = self.rows.get(workflow.id)
         self.rows[workflow.id] = deepcopy(workflow)
+        # A re-save keeps the verdicts, as the store's upsert does: only
+        # `decide` writes them on a stored job.
+        if kept is not None:
+            self.rows[workflow.id].signs_in = kept.signs_in
+            self.rows[workflow.id].signs_out = kept.signs_out
         # A re-save keeps the creation time, as the store's upsert does.
         if workflow.id not in self._created:
             self._created[workflow.id] = next(self._saved)
@@ -2707,16 +2713,27 @@ class FakeWorkflowRepository:
 
     async def undecided(self) -> tuple[Workflow, ...]:
         found = [
-            row for row in self.rows.values() if row.signs_in is None and row.id not in self.retired
+            row
+            for row in self.rows.values()
+            if (row.signs_in is None or row.signs_out is None) and row.id not in self.retired
         ]
         found.sort(key=lambda row: (row.tenant, self._created[row.id], row.id))
         return tuple(deepcopy(row) for row in found)
 
-    async def decide_signs_in(self, tenant_id: TenantId, workflow_id: str, signs_in: bool) -> bool:
-        row = self.rows.get(workflow_id)
-        if row is None or row.tenant != tenant_id.value or row.signs_in is not None:
+    async def decide(
+        self, tenant_id: TenantId, workflow: Workflow, *, signs_in: bool, signs_out: bool
+    ) -> bool:
+        row = self.rows.get(workflow.id)
+        if (
+            row is None
+            or row.tenant != tenant_id.value
+            or workflow.id in self.retired
+            or (row.steps, row.signs_in, row.signs_out)
+            != (workflow.steps, workflow.signs_in, workflow.signs_out)
+        ):
             return False
         row.signs_in = signs_in
+        row.signs_out = signs_out
         return True
 
     async def add_pass(self, mining_pass: MiningPass) -> None:

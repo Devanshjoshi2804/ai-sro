@@ -58,7 +58,7 @@ def rank_jobs(
 ) -> list[JobFacts]:
     copies: dict[str, list[JobFacts]] = {}
     for one in facts:
-        if not one.workflow.signs_in:
+        if not one.workflow.chore:
             copies.setdefault(normal(one.workflow.title), []).append(one)
     canonical = [min(same, key=lambda one: _first(one, held)) for same in copies.values()]
     asked = words(said)
@@ -69,8 +69,8 @@ def rank_jobs(
 def chore_named(said: str, facts: Sequence[JobFacts]) -> JobFacts | None:
     asked = words(said)
     overlap = {one.workflow.id: len(asked & _said_about(one)) for one in facts}
-    chores = [one for one in facts if one.workflow.signs_in]
-    work = max((overlap[one.workflow.id] for one in facts if not one.workflow.signs_in), default=0)
+    chores = [one for one in facts if one.workflow.chore]
+    work = max((overlap[one.workflow.id] for one in facts if not one.workflow.chore), default=0)
     best = max(chores, key=lambda one: overlap[one.workflow.id], default=None)
     return best if best is not None and overlap[best.workflow.id] > work else None
 

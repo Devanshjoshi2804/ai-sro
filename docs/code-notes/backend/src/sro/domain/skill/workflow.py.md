@@ -61,7 +61,7 @@ Code: `repeat: Repeat | None = None`
 > given one item performs exactly like a run of a job with no repeat at all.
 > See `domain/skill/repeats`.
 
-## `ordered_cites`, [line 82](../../../../../../../backend/src/sro/domain/skill/workflow.py#L82): Docstring
+## `ordered_cites`, [line 87](../../../../../../../backend/src/sro/domain/skill/workflow.py#L87): Docstring
 
 > Every gesture the workflow cites, in step order.
 >
@@ -71,7 +71,7 @@ Code: `repeat: Repeat | None = None`
 > caller: the mining pass writes a shape key and `rekey_workflows` rewrites
 > one, and two spellings of "in step order" is two shapes for one job.
 
-## `Workflow.generalise_title`, [line 49](../../../../../../../backend/src/sro/domain/skill/workflow.py#L49): Docstring
+## `Workflow.generalise_title`, [line 54](../../../../../../../backend/src/sro/domain/skill/workflow.py#L54): Docstring
 
 > This job's own parameter values taken out of its name.
 >
@@ -135,9 +135,24 @@ Code: `signs_in: bool | None = None`
 > sweep decides it (`mining_pass.decide_sign_ins`). A job starts undecided;
 > the mining pass decides a proposal before it is stored.
 
-## `field_key`, [line 86](../../../../../../../backend/src/sro/domain/skill/workflow.py#L86): Docstring
+## `field_key`, [line 91](../../../../../../../backend/src/sro/domain/skill/workflow.py#L91): Docstring
 
 > The body key of a learned field step (X10, `with_field`), or "". Such a step
 > cites no gesture and fills one parameter that the job declares with the `key`
 > the save's own call confirmed it by -- that `key` exists nowhere else, so it is
 > what tells a field nobody demonstrated from a step with its evidence missing.
+
+## `Workflow`, [line 48](../../../../../../../backend/src/sro/domain/skill/workflow.py#L48): Note on the line above
+
+Code: `signs_out: bool | None = None`
+
+> Whether this job signs out (`checks.signs_out`), decided beside `signs_in`
+> by the same decider and written with it (`WorkflowRepository.decide`).
+> `None` is undecided, and read as "not known yet" -- never as a chore. 0087
+> added it NULL on every stored job, so the sweep decides each one.
+
+## `Workflow.chore`, [line 51](../../../../../../../backend/src/sro/domain/skill/workflow.py#L51): Note on the function
+
+> A sign-in or a sign-out: the session broker's work, never a request's.
+> The one place the rule lives, so the candidate list and the chore check
+> cannot disagree about which verdict counts.

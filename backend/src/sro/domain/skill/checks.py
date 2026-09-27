@@ -1,6 +1,8 @@
+import re
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 from sro.domain.execution.evidence import writes
 from sro.domain.observation.gesture import Gesture, passed_through
@@ -184,6 +186,66 @@ def signs_in(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
             if writes(step, gestures)
         )
         and _only_signs_in(workflow, gestures)
+    )
+
+
+_SIGN_OUT = re.compile(r"(?<![a-z0-9])(?:log|sign)[\s_-]?(?:out|off)(?![a-z0-9])", re.IGNORECASE)
+_SIGNED_OUT_PAGE = re.compile(
+    r"(?<![a-z0-9])(?:(?:log(?:ged)?|sign(?:ed)?)[\s_-]?(?:in|on|out|off)"
+    r"|session[\s_-]?(?:ended|expired|timeout))(?![a-z0-9])",
+    re.IGNORECASE,
+)
+
+
+def signs_out(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
+    cited = _in_time(workflow, gestures)
+    control = next((one for one in reversed(cited) if _ends_the_session(one)), None)
+    if control is None or any(_did_business(gesture) for gesture in _during(workflow, gestures)):
+        return False
+    here = origin_of(control.system or "")
+    if any(_acts(one) and not _signed_out_there(one, here) for one in cited if one.at > control.at):
+        return False
+    later = min(
+        (
+            gesture
+            for gesture in gestures.values()
+            if gesture.stream_id == control.stream_id
+            and control.at < gesture.at <= cited[-1].at + K_SITTING_GAP_S
+        ),
+        key=lambda gesture: gesture.at,
+        default=None,
+    )
+    return _left_for_a_signed_out_page(control, here) or (
+        later is not None
+        and (_left_for_a_signed_out_page(later, here) or _signed_out_there(later, here))
+    )
+
+
+def _ends_the_session(gesture: Gesture) -> bool:
+    target = gesture.action.target
+    return (
+        gesture.action.kind in ("click", "press")
+        and target is not None
+        and any(_SIGN_OUT.search(said or "") for said in (target.name, target.text))
+    )
+
+
+def _signed_out_page(url: str) -> bool:
+    return bool(_SIGNED_OUT_PAGE.search(urlsplit(url).path))
+
+
+def _left_for_a_signed_out_page(gesture: Gesture, here: str) -> bool:
+    return any(
+        mark.url and (_signed_out_page(mark.url) or origin_of(mark.url) not in ("", here))
+        for mark in gesture.page_events
+    )
+
+
+def _signed_out_there(gesture: Gesture, here: str) -> bool:
+    return (
+        _signed_in_here(gesture)
+        or origin_of(gesture.system or "") not in ("", here)
+        or _signed_out_page(gesture.page_url or gesture.url or "")
     )
 
 

@@ -4,9 +4,9 @@ import logging
 from collections import defaultdict
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any
 
-from sqlalchemy import CursorResult, delete, func, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -60,6 +60,7 @@ def _workflow_values(workflow: Workflow) -> dict[str, Any]:
             }
         ),
         "signs_in": workflow.signs_in,
+        "signs_out": workflow.signs_out,
         "created_at": datetime.now(tz=UTC),
     }
 
@@ -107,6 +108,7 @@ def _row_to_workflow(row: WorkflowRow, steps: list[Step]) -> Workflow:
             else None
         ),
         signs_in=row.signs_in,
+        signs_out=row.signs_out,
     )
 
 
@@ -173,7 +175,7 @@ class SqlWorkflowRepository(WorkflowRepository):
                     set_={
                         name: statement.excluded[name]
                         for name in values
-                        if name not in ("id", "retired_at", "created_at")
+                        if name not in ("id", "retired_at", "created_at", "signs_in", "signs_out")
                     },
                 )
             )
@@ -304,7 +306,10 @@ class SqlWorkflowRepository(WorkflowRepository):
     async def undecided(self) -> tuple[Workflow, ...]:
         query = (
             select(WorkflowRow)
-            .where(WorkflowRow.signs_in.is_(None), WorkflowRow.retired_at.is_(None))
+            .where(
+                or_(WorkflowRow.signs_in.is_(None), WorkflowRow.signs_out.is_(None)),
+                WorkflowRow.retired_at.is_(None),
+            )
             .order_by(WorkflowRow.tenant_id, WorkflowRow.created_at, WorkflowRow.id)
             .execution_options(populate_existing=True)
         )
@@ -314,17 +319,25 @@ class SqlWorkflowRepository(WorkflowRepository):
         steps = await self._steps_of([row.id for row in rows])
         return tuple(_row_to_workflow(row, steps[row.id]) for row in rows)
 
-    async def decide_signs_in(self, tenant_id: TenantId, workflow_id: str, signs_in: bool) -> bool:
-        decided = await self._session.execute(
+    async def decide(
+        self, tenant_id: TenantId, workflow: Workflow, *, signs_in: bool, signs_out: bool
+    ) -> bool:
+        try:
+            stored = await self.get(tenant_id, workflow.id, lock=True)
+        except NotFound:
+            return False
+        if (stored.steps, stored.signs_in, stored.signs_out) != (
+            workflow.steps,
+            workflow.signs_in,
+            workflow.signs_out,
+        ):
+            return False
+        await self._session.execute(
             update(WorkflowRow)
-            .where(
-                WorkflowRow.tenant_id == tenant_id.value,
-                WorkflowRow.id == workflow_id,
-                WorkflowRow.signs_in.is_(None),
-            )
-            .values(signs_in=signs_in)
+            .where(WorkflowRow.tenant_id == tenant_id.value, WorkflowRow.id == workflow.id)
+            .values(signs_in=signs_in, signs_out=signs_out)
         )
-        return cast(CursorResult[Any], decided).rowcount > 0
+        return True
 
     async def add_pass(self, mining_pass: MiningPass) -> None:
         try:

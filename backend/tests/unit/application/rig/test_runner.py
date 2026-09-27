@@ -1932,9 +1932,9 @@ async def _classify(uow: FakeUnitOfWork, workflow_id: str) -> None:
     """Whether the job signs in, by the classifier the mining pass uses,
     rather than set by hand to a value its evidence could never produce."""
     job = await uow.workflows.get(TENANT, workflow_id)
-    job.signs_in = signs_in(job, {one.id: one for one in await uow.gestures.gestures_for(TENANT)})
-    assert job.signs_in, "the fixture's evidence is not a sign-in"
-    await uow.workflows.save(job)
+    judged = signs_in(job, {one.id: one for one in await uow.gestures.gestures_for(TENANT)})
+    assert judged, "the fixture's evidence is not a sign-in"
+    assert await uow.workflows.decide(TENANT, job, signs_in=judged, signs_out=False)
 
 
 async def _a_way_back_in(

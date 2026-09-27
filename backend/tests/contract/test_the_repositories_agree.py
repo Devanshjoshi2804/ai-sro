@@ -64,6 +64,7 @@ column.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -603,40 +604,86 @@ class TestWorkflows:
                 ["click", "Save", "wms"],
             ]
 
-    async def test_deciding_sets_only_an_undecided_job_and_never_overwrites_one(
+    async def test_the_undecided_are_every_live_job_missing_either_verdict(
         self, store: UnitOfWork
     ) -> None:
-        """The sweep decides whether a job signs in by writing that one column,
-        and only while it is still NULL: a decision already made -- by the
-        mining pass, or by a sweep in another worker -- is never overwritten,
-        and nothing else about the job is rewritten with it."""
         async with store as work:
-            await work.workflows.save(_workflow("wfl_1", signs_in=None))
-            await work.workflows.save(_workflow("wfl_2", signs_in=None))
-            await work.workflows.save(_workflow("wfl_3", signs_in=None, tenant=OTHER_TENANT))
-            await work.workflows.save(_workflow("wfl_4", signs_in=True))
+            await work.workflows.save(_workflow("wfl_1", signs_in=None, signs_out=None))
+            await work.workflows.save(_workflow("wfl_2", signs_in=False, signs_out=None))
+            await work.workflows.save(
+                _workflow("wfl_3", signs_in=None, signs_out=False, tenant=OTHER_TENANT)
+            )
+            await work.workflows.save(_workflow("wfl_4", signs_in=True, signs_out=False))
             await work.workflows.save(_workflow("wfl_5", signs_in=None))
             await work.workflows.retire(TENANT, "wfl_5", at=_when(12))
             await work.commit()
 
         async with store as work:
             undecided = await work.workflows.undecided()
-            assert [(job.tenant, job.id) for job in undecided] == [
-                (TENANT.value, "wfl_1"),
-                (TENANT.value, "wfl_2"),
-                (OTHER_TENANT.value, "wfl_3"),
-            ]
-            assert await work.workflows.decide_signs_in(TENANT, "wfl_1", True) is True
-            assert await work.workflows.decide_signs_in(TENANT, "wfl_1", False) is False
-            assert await work.workflows.decide_signs_in(TENANT, "wfl_4", False) is False
-            assert await work.workflows.decide_signs_in(OTHER_TENANT, "wfl_2", True) is False
+        assert [(job.tenant, job.id) for job in undecided] == [
+            (TENANT.value, "wfl_1"),
+            (TENANT.value, "wfl_2"),
+            (OTHER_TENANT.value, "wfl_3"),
+        ]
+
+    async def test_deciding_writes_both_verdicts_only_over_the_job_it_was_decided_from(
+        self, store: UnitOfWork
+    ) -> None:
+        """The decision is a compare-and-set on the job as it was read: its
+        steps and both verdicts. A grow, heal or learn that changed the steps,
+        or another decider that got there first, wins, and nothing else about
+        the job is rewritten with it."""
+        step = Step(order=0, says="press it", system=None, cites=["ges_1"])
+        read = _workflow("wfl_1", steps=[step], signs_in=False, signs_out=None)
+        async with store as work:
+            await work.workflows.save(read)
+            await work.workflows.save(_workflow("wfl_2", steps=[step], signs_in=None))
             await work.commit()
 
         async with store as work:
-            assert (await work.workflows.get(TENANT, "wfl_1")).signs_in is True
-            assert (await work.workflows.get(TENANT, "wfl_2")).signs_in is None
-            assert (await work.workflows.get(TENANT, "wfl_4")).signs_in is True
-            assert [job.id for job in await work.workflows.undecided()] == ["wfl_2", "wfl_3"]
+            grown = replace(read, steps=[step, replace(step, order=1, cites=["ges_2"])])
+            assert (
+                await work.workflows.decide(TENANT, grown, signs_in=True, signs_out=True) is False
+            )
+            assert (
+                await work.workflows.decide(OTHER_TENANT, read, signs_in=True, signs_out=True)
+                is False
+            )
+            assert await work.workflows.decide(TENANT, read, signs_in=True, signs_out=False) is True
+            assert (
+                await work.workflows.decide(TENANT, read, signs_in=False, signs_out=True) is False
+            )
+            await work.commit()
+
+        async with store as work:
+            now = await work.workflows.get(TENANT, "wfl_1")
+            other = await work.workflows.get(TENANT, "wfl_2")
+        assert (now.signs_in, now.signs_out) == (True, False)
+        assert now.title == read.title and now.steps == [step]
+        assert (other.signs_in, other.signs_out) == (None, None)
+
+    async def test_a_whole_job_save_never_rewrites_a_stored_verdict(
+        self, store: UnitOfWork
+    ) -> None:
+        """Only `decide` writes the verdict of a stored job. A learn that read
+        the job before a decision landed saves its own change and leaves the
+        decision standing; a new job is stored with the verdict it carries."""
+        async with store as work:
+            await work.workflows.save(_workflow("wfl_1", signs_in=None, signs_out=None))
+            await work.workflows.save(_workflow("wfl_2", signs_in=True, signs_out=False))
+            await work.commit()
+
+        async with store as work:
+            stale = await work.workflows.get(TENANT, "wfl_1")
+            assert await work.workflows.decide(TENANT, stale, signs_in=True, signs_out=True)
+            await work.workflows.save(replace(stale, title="put away two pallets"))
+            await work.commit()
+
+        async with store as work:
+            now = await work.workflows.get(TENANT, "wfl_1")
+            new = await work.workflows.get(TENANT, "wfl_2")
+        assert (now.title, now.signs_in, now.signs_out) == ("put away two pallets", True, True)
+        assert (new.signs_in, new.signs_out) == (True, False)
 
     async def test_proofs_name_the_written_steps_of_every_live_held_run(
         self, store: UnitOfWork

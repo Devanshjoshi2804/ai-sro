@@ -22,7 +22,7 @@ from sro.application.context import RequestContext
 from sro.application.observation.mine_lately import K_ERRORED_PASSES, MineLately
 from sro.application.observation.mining_pass import MineResult, mine
 from sro.application.shared.refusals import OverCap
-from sro.domain.observation.gesture import Action, Gesture, GestureBatch
+from sro.domain.observation.gesture import Action, Gesture, GestureBatch, PageMark, Target
 from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
@@ -568,7 +568,7 @@ async def test_each_tenant_s_reading_and_pass_are_billed_to_that_tenant() -> Non
     )
 
 
-def _job_citing(tenant: str, *, signs_in: bool | None) -> Workflow:
+def _job_citing(tenant: str, *, signs_in: bool | None, signs_out: bool | None = None) -> Workflow:
     return Workflow(
         id=f"wfl_{tenant}",
         tenant=tenant,
@@ -576,7 +576,28 @@ def _job_citing(tenant: str, *, signs_in: bool | None) -> Workflow:
         narrative="n",
         steps=[Step(order=0, says="s", system=None, cites=[f"ges_{tenant}"])],
         signs_in=signs_in,
+        signs_out=signs_out,
     )
+
+
+def _log_out(tenant: str) -> dict[str, Gesture]:
+    def _click(gesture_id: str, at: float, name: str) -> Gesture:
+        return Gesture(
+            id=gesture_id,
+            tenant=tenant,
+            stream_id="s",
+            batch_id="b",
+            at=at,
+            url="https://wms.example/portal/page",
+            system="https://wms.example",
+            tab_id=1,
+            frame_url=None,
+            action=Action(kind="click", at=at, target=Target(name=name)),
+        )
+
+    out = _click("ges_out", 2, "Log Out")
+    out.page_events.append(PageMark(at=2.5, page_kind="navigated", url="https://wms.example/login"))
+    return {"ges_menu": _click("ges_menu", 1, "admin"), "ges_out": out}
 
 
 async def test_a_quiet_sweep_decides_every_job_nobody_has_judged() -> None:
@@ -599,7 +620,7 @@ async def test_a_decided_job_is_not_decided_again_without_new_evidence() -> None
     uow = FakeUnitOfWork()
     await _recorded(uow, "acme", taken=NOW - timedelta(hours=2))
     await _mined(uow, "acme", left_out=0, at=NOW - timedelta(hours=1))
-    await uow.workflows.save(_job_citing("acme", signs_in=True))
+    await uow.workflows.save(_job_citing("acme", signs_in=True, signs_out=False))
 
     await _swept(uow, _Passes())
 
@@ -636,11 +657,39 @@ async def test_nothing_undecided_reads_no_gestures() -> None:
     uow = FakeUnitOfWork()
     await _recorded(uow, "acme", taken=NOW - timedelta(hours=2))
     await _mined(uow, "acme", left_out=0, at=NOW - timedelta(hours=1))
-    await uow.workflows.save(_job_citing("acme", signs_in=False))
+    await uow.workflows.save(_job_citing("acme", signs_in=False, signs_out=False))
 
     await _swept(uow, _Passes())
 
     assert uow.gestures.gestures_for_calls == 0
+
+
+async def test_a_job_whose_sign_out_is_undecided_is_decided_both_ways_by_the_sweep() -> None:
+    """0087 adds `signs_out` as NULL on every stored job. The sweep decides
+    each of them, and decides `signs_in` again with it: `Log Out` was stored
+    as not signing in, and nothing had ever asked whether it signs out."""
+    uow = FakeUnitOfWork()
+    await uow.gestures.add_gestures(tuple(_log_out("acme").values()))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_out",
+            tenant="acme",
+            title="Log Out",
+            narrative="n",
+            steps=[
+                Step(order=0, says="open the user menu", system=None, cites=["ges_menu"]),
+                Step(order=1, says="click Log Out", system=None, cites=["ges_out"]),
+            ],
+            signs_in=False,
+        )
+    )
+
+    await _swept(uow, _Passes())
+
+    decided = await uow.workflows.get(TenantId("acme"), "wfl_out")
+    assert (decided.signs_in, decided.signs_out) == (False, True)
+    assert decided.chore
+    assert await uow.workflows.undecided() == ()
 
 
 async def test_a_tenant_busy_elsewhere_is_skipped_quietly(
@@ -669,14 +718,16 @@ async def test_a_tenant_whose_write_fails_does_not_stop_another() -> None:
     uow = FakeUnitOfWork()
     await uow.workflows.save(_job_citing("acme", signs_in=None))
     await uow.workflows.save(_job_citing("zeta", signs_in=None))
-    deciding = uow.workflows.decide_signs_in
+    deciding = uow.workflows.decide
 
-    async def _refuses_acme(tenant_id: TenantId, workflow_id: str, signs_in: bool) -> bool:
+    async def _refuses_acme(
+        tenant_id: TenantId, workflow: Workflow, *, signs_in: bool, signs_out: bool
+    ) -> bool:
         if tenant_id.value == "acme":
             raise RuntimeError("the store refused")
-        return await deciding(tenant_id, workflow_id, signs_in)
+        return await deciding(tenant_id, workflow, signs_in=signs_in, signs_out=signs_out)
 
-    uow.workflows.decide_signs_in = _refuses_acme  # type: ignore[method-assign]
+    uow.workflows.decide = _refuses_acme  # type: ignore[method-assign]
 
     await _swept(uow, _Passes())
 

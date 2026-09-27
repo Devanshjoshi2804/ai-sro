@@ -232,6 +232,52 @@ async def test_0078_makes_every_stored_job_undecided_and_back(postgres_url: str)
     ]
 
 
+async def test_0087_leaves_every_stored_job_undecided_about_signing_out_and_back(
+    postgres_url: str,
+) -> None:
+    """0087 adds `signs_out` NULL on every stored job, keeping `signs_in` as it
+    was; the sweep decides both. Its downgrade drops the column and nothing
+    else."""
+    engine = create_async_engine(postgres_url)
+    try:
+        async with engine.begin() as connection:
+            await connection.execute(text("DROP SCHEMA public CASCADE"))
+            await connection.execute(text("CREATE SCHEMA public"))
+            await connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        await _alembic(postgres_url, "upgrade", "0085")
+        async with engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "INSERT INTO workflows (id, tenant_id, pass_id, title, narrative, systems,"
+                    " parameters, shape_key, created_at, signs_in) VALUES"
+                    " ('wfl_in', 'acme', '', '', '', '[]', '[]', '[]', now(), true),"
+                    " ('wfl_out', 'acme', '', '', '', '[]', '[]', '[]', now(), false)"
+                )
+            )
+        await _alembic(postgres_url, "upgrade", "0087")
+        async with engine.begin() as connection:
+            upgraded = (
+                await connection.execute(
+                    text("SELECT id, signs_in, signs_out FROM workflows ORDER BY id")
+                )
+            ).all()
+        await _alembic(postgres_url, "downgrade", "0085")
+        async with engine.begin() as connection:
+            downgraded = (
+                await connection.execute(text("SELECT id, signs_in FROM workflows ORDER BY id"))
+            ).all()
+            columns = await connection.run_sync(
+                lambda sync: [one["name"] for one in inspect(sync).get_columns("workflows")]
+            )
+        await _alembic(postgres_url, "upgrade", "head")
+    finally:
+        await engine.dispose()
+
+    assert [tuple(row) for row in upgraded] == [("wfl_in", True, None), ("wfl_out", False, None)]
+    assert [tuple(row) for row in downgraded] == [("wfl_in", True), ("wfl_out", False)]
+    assert "signs_out" not in columns
+
+
 async def test_0082_pins_every_steel_run_still_going_and_back(postgres_url: str) -> None:
     """A Steel run going when 0081 lands has been reading its job as it
     stands, so that is the version it is pinned to; an ended run and an

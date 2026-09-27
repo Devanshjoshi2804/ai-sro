@@ -383,7 +383,7 @@ async def test_a_field_the_save_call_carried_is_done_and_learned_into_the_job() 
     assert (field["lane"], field["verdict"], field["key"]) == ("ui", "done", "department")
     job = await world.job()
     assert job.steps[0].parameters == ["department"]
-    assert job.parameters[-1]["key"] == "department"
+    assert job.parameters[-1]["body_key"] == "department"
     assert [(one.strategy, one.found_by) for one in await world.learned()] == [
         ("role_and_name", "composed")
     ]

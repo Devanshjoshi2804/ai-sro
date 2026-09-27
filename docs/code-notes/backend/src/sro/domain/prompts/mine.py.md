@@ -43,8 +43,8 @@ Code: `model="gemini-3.8-flash",`
 > twice, because the store had converged.
 >
 > So this is not "flash mines better"; nothing here shows that, and a
-> converged store cannot show it. It is the rule `gemini_rescue_model` in
-> `config.py` already states -- the expensive model earns its price where depth per call
+> converged store cannot show it. It is the rule `PLAN_STEP_ESCALATED` in
+> `plan_step.py` already states -- the expensive model earns its price where depth per call
 > is the product -- applied to the call that is its opposite. A mining pass
 > is 162,000 input tokens, one shallow judgement, and then the nine rules in
 > `validate` that do the actual discrimination. The miner's job is recall;

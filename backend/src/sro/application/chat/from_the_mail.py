@@ -61,7 +61,7 @@ K_LOOK_PAGES = 10
 
 K_LEASE = timedelta(minutes=15)
 
-K_READING = "read a mail for what it asks"
+K_READ_TOOL = "read a mail for what it asks"
 
 K_PAGE_TOKEN = re.compile(r"[A-Za-z0-9_-]{1,256}")
 
@@ -824,7 +824,7 @@ class FromTheMail:
             if await uow.tool_calls.held(tenant, kept, since=now - K_REMEMBER):
                 return False
             if not await uow.tool_calls.remember(
-                tenant, reading, tool=K_READING, at=now, stale_after=K_LEASE
+                tenant, reading, tool=K_READ_TOOL, at=now, stale_after=K_LEASE
             ):
                 return None
             if await uow.tool_calls.held(tenant, kept, since=now - K_REMEMBER):
@@ -839,7 +839,7 @@ class FromTheMail:
             await uow.tool_calls.remember(
                 ctx.tenant_id,
                 mail_key(message),
-                tool=K_READING,
+                tool=K_READ_TOOL,
                 at=now,
                 stale_after=K_REMEMBER,
             )

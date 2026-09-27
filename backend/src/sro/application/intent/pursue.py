@@ -70,7 +70,7 @@ def _cautions(proposal: Proposal | None) -> tuple[str, ...]:
     )
 
 
-_READING = ("how many", "which", "list", "show", "what is", "are there", "count of")
+_ASKING_OPENINGS = ("how many", "which", "list", "show", "what is", "are there", "count of")
 
 
 def _writes(intent: str, proposal: Proposal | None) -> bool:
@@ -84,7 +84,7 @@ def _writes(intent: str, proposal: Proposal | None) -> bool:
         if methods:
             return bool(methods - {"GET", "HEAD", "OPTIONS"})
     lowered = intent.strip().lower()
-    return not any(lowered.startswith(opening) for opening in _READING)
+    return not any(lowered.startswith(opening) for opening in _ASKING_OPENINGS)
 
 
 @dataclass(frozen=True, slots=True)

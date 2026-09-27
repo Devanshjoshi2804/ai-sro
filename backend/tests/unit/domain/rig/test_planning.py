@@ -41,15 +41,11 @@ import pkgutil
 from dataclasses import replace
 
 import sro
-from sro.domain.execution.planning import (
-    PLAN_SCHEMA,
-    SIGHT_ACTIONS,
-    SIGHT_SCHEMA,
-    unreplayable,
-    value_for,
-)
+from sro.domain.execution.planning import unreplayable, value_for
 from sro.domain.observation.gesture import Body, Call, Gesture
+from sro.domain.prompts.plan_step import PLAN_STEP
 from sro.domain.prompts.record import Prompt
+from sro.domain.prompts.see_step import SEE_STEP
 from sro.domain.shared.hosts import REDACTED
 from sro.domain.skill.workflow import Step
 from tests.unit.domain.rig.conftest import gestures as _gestures
@@ -66,7 +62,7 @@ def _step(gesture: Gesture) -> Step:
 def test_the_schema_puts_why_last_and_kind_first() -> None:
     """Decide before explaining: identifying the command before composing the
     reason measurably beats composing first."""
-    properties = PLAN_SCHEMA["properties"]
+    properties = PLAN_STEP.output_schema["properties"]
     assert isinstance(properties, dict)
     assert list(properties) == ["kind", "action", "value", "url", "why"]
 
@@ -151,15 +147,14 @@ def test_a_call_with_no_body_at_all_is_replayable() -> None:
 
 def test_the_sight_schema_offers_only_the_actions_a_point_can_take() -> None:
     """No select: `sroPage.performAt` has no way to choose an option at a point,
-    and an action the browser cannot take is a step that stops. SIGHT_ACTIONS
-    is what the answer is checked against, so it has to be the same three."""
-    properties = SIGHT_SCHEMA["properties"]
+    and an action the browser cannot take is a step that stops. `ask` holds
+    the answer to this schema, so these three are all a point is ever asked."""
+    properties = SEE_STEP.output_schema["properties"]
     assert isinstance(properties, dict)
     action = properties["action"]
     assert isinstance(action, dict)
 
     assert action["enum"] == ["click", "type", "press"]
-    assert frozenset(action["enum"]) == SIGHT_ACTIONS
 
 
 def test_no_schema_in_the_package_uses_what_the_developer_api_refuses() -> None:

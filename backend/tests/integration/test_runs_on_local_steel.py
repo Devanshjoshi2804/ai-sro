@@ -892,8 +892,6 @@ async def test_a_takeover_after_the_operator_s_own_save_sends_only_the_rest(
         world.uow,
         channel=FakeChannel(),
         asker=FakeAsker(),
-        plan_model="plan",
-        rescue_model="rescue",
         clock=world.clock,
         cap_usd=5.0,
         stops=Stops(),

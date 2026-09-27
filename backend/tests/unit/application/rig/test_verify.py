@@ -41,14 +41,10 @@ from sro.application.execution.verify import (
     verify,
 )
 from sro.application.ports.channel import Reply
-from sro.domain.execution.belts import (
-    SCREEN_INSTRUCTIONS,
-    SCREEN_SCHEMA,
-    WAY_THROUGH_INSTRUCTIONS,
-    StepVerdict,
-)
+from sro.domain.execution.belts import StepVerdict
 from sro.domain.execution.planning import Look
 from sro.domain.observation.gesture import Call, Gesture
+from sro.domain.prompts.check_step import CHECK_SCREEN, CHECK_WAY_THROUGH
 from sro.domain.shared.hosts import REDACTED
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer
@@ -56,7 +52,7 @@ from sro.domain.skill.assertion import Assertion, AssertionKind
 from sro.domain.skill.template import Template
 from sro.domain.skill.workflow import Step
 from tests.unit.domain.rig.conftest import gestures as _gestures
-from tests.unit.fakes import FakeAsker, FakeChannel
+from tests.unit.fakes import FakeAsker, FakeChannel, fenced_json
 
 _TENANT = TenantId("caller")
 _DEVICE = DeviceId("dev_test")
@@ -107,13 +103,12 @@ async def _verify(
     look_before: Look | None = None,
     look_after: Look | None = None,
     origin: str | None = "http://127.0.0.1:63319",
-    model: str = "m",
     rewrote: bool = False,
     confirm: Mapping[str, str] | None = None,
     next_says: str | None = None,
 ) -> StepVerdict:
     """One step verified. The helper is the rig's own `_verified`, widened so
-    the tests that varied a look, an asker or a model do not have to spell the
+    the tests that varied a look or an asker do not have to spell the
     other thirteen arguments."""
     return await verify(
         step=_step(saver),
@@ -135,7 +130,6 @@ async def _verify(
         run_id="run_1",
         origin=origin,
         asker=asker or FakeAsker(),
-        model=model,
         next_says=next_says,
     )
 
@@ -302,9 +296,7 @@ async def test_the_screenshot_is_last_and_least() -> None:
     assert asker.asked[0]["image"] == b"after"
     # Nothing else off the browser's answer: for an http.send that dict is the
     # response body and headers, and no trim rule stands between it and here.
-    evidence = asker.asked[0]["evidence"]
-    assert isinstance(evidence, str)
-    shown = json.loads(evidence)
+    shown = fenced_json(asker.asked[0]["evidence"])
     assert shown["browser_answered"] == {"ok": True, "status": None}
     assert verdict.answer is not None and verdict.answer.cost_usd == 0.0002
 
@@ -521,7 +513,7 @@ async def test_a_model_that_answered_nothing_leaves_the_step_unclear_with_its_er
 async def test_a_masked_field_is_never_held_by_a_picture() -> None:
     """A password box shows dots whether it holds a password or nothing.
 
-    `SCREEN_INSTRUCTIONS` already tells the model not to read success from a
+    `CHECK_SCREEN` already tells the model not to read success from a
     page with no errors on it. On 2026-09-22 it did exactly that: step 1 of
     `run_2a9d4c7d` was held on "the sign-in form is displayed properly without
     any errors", with the box empty and nobody signed in. A rule the prompt
@@ -545,7 +537,6 @@ async def test_a_masked_field_is_never_held_by_a_picture() -> None:
         asker=FakeAsker(
             Answer(data={"held": True, "why": "the sign-in form is displayed properly"})
         ),
-        model="m",
     )
 
     assert (verdict.state, verdict.by) == ("unclear", "screen")
@@ -592,7 +583,6 @@ async def test_the_username_step_is_still_judged_when_it_cites_the_password_too(
         asker=FakeAsker(
             Answer(data={"held": True, "why": "the username field now shows RKUCHIYAGM"})
         ),
-        model="m",
     )
 
     assert (verdict.state, verdict.by) == ("held", "screen")
@@ -628,8 +618,13 @@ async def test_the_screen_verdict_is_the_models_own_word_and_its_own_reason() ->
     assert (held.state, held.by) == ("held", "screen")
     assert held.reason == "the saved record is on screen"
 
-    silent = await _screened({"held": True})
+    silent = await _screened({"held": True, "why": ""})
     assert silent.reason == "", "no explanation is an empty one, not the word None"
+
+    # Invariant 14: the verdict is the answer and `why` its commentary. A
+    # verdict that came without one keeps its verdict.
+    unsaid = await _screened({"held": True})
+    assert (unsaid.state, unsaid.by, unsaid.reason) == ("held", "screen", "")
 
 
 async def test_the_screen_belt_is_told_the_step_the_command_and_both_pictures_words() -> None:
@@ -643,9 +638,7 @@ async def test_the_screen_belt_is_told_the_step_the_command_and_both_pictures_wo
         look_after=Look("http://127.0.0.1:63319/list", b"after", "THIRD in the list"),
     )
     assert verdict.state == "held" and verdict.by == "screen"
-    evidence = asker.asked[0]["evidence"]
-    assert isinstance(evidence, str)
-    shown = json.loads(evidence)
+    shown = fenced_json(asker.asked[0]["evidence"])
     # The names the instructions use, and the things they name: not one of
     # them may drift, because the model reads the words.
     assert shown["step"] == {"says": "save"}
@@ -745,27 +738,26 @@ async def test_the_screen_belt_asks_the_named_model_against_the_verdict_schema()
         values={},
         asker=asker,
         look_after=Look("u", b"after", "Saved"),
-        model="gemini-3.8-flash",
     )
 
-    assert asker.asked[0]["model"] == "gemini-3.8-flash"
-    assert asker.asked[0]["schema"] == SCREEN_SCHEMA
+    assert asker.asked[0]["model"] == CHECK_SCREEN.model
+    assert asker.asked[0]["schema"] == CHECK_SCREEN.output_schema
     assert asker.asked[0]["image"] == b"after"
     # The words themselves, not just that there were some. This is the only
-    # place `SCREEN_INSTRUCTIONS` is ever spoken to a model, and the sentence
+    # place `CHECK_SCREEN` is ever spoken to a model, and the sentence
     # named here is what makes the weakest belt conservative: without it the
     # cheapest reading of a screenshot -- no error visible, so it worked -- is
     # the one that promotes a step to held.
-    assert asker.asked[0]["instructions"] == SCREEN_INSTRUCTIONS
-    assert "Do not assume success from the absence of an error." in SCREEN_INSTRUCTIONS
+    assert asker.asked[0]["instructions"] == CHECK_SCREEN.instructions
+    assert "Do not assume success from the absence of an error." in CHECK_SCREEN.instructions
     # And the half that rule did not cover. Measured on the deployment
     # 2026-09-22: `Select Create Shipment By value` was held because "The Save
     # button is clearly visible and accessible at the bottom of the screen" --
     # a true sentence about a different control, with the dropdown plainly
     # empty. Nothing was being assumed from an absence; a presence was being
     # reported, of something else.
-    assert "must be about the thing the STEP names" in SCREEN_INSTRUCTIONS
-    assert "whatever\nelse on the page looks healthy" in SCREEN_INSTRUCTIONS
+    assert "must be about the thing the STEP names" in CHECK_SCREEN.instructions
+    assert "whatever\nelse on the page looks healthy" in CHECK_SCREEN.instructions
 
 
 async def test_a_step_that_changes_nothing_is_asked_whether_the_job_can_go_on() -> None:
@@ -791,10 +783,9 @@ async def test_a_step_that_changes_nothing_is_asked_whether_the_job_can_go_on() 
         values={},
         asker=asker,
         look_after=Look("u", b"after", "Add Copy Delete"),
-        model="gemini-3.8-flash",
     )
 
-    assert asker.asked[0]["instructions"] == WAY_THROUGH_INSTRUCTIONS
+    assert asker.asked[0]["instructions"] == CHECK_WAY_THROUGH.instructions
     assert asker.asked[0]["image"] == b"after", "the picture is still looked at"
     assert verdict.state == "held" and verdict.by == "screen"
 
@@ -827,8 +818,8 @@ async def test_the_screen_a_step_left_is_judged_against_what_the_next_step_has_t
         next_says="Selects the matching customer type from the grid.",
     )
 
-    assert "next_step" in asker.asked[0]["evidence"]
-    assert "Selects the matching customer type from the grid." in asker.asked[0]["evidence"]
+    shown = fenced_json(asker.asked[0]["evidence"])
+    assert shown["next_step"] == "Selects the matching customer type from the grid."
 
 
 async def test_the_last_step_of_a_job_is_asked_without_a_next_one() -> None:
@@ -848,11 +839,11 @@ async def test_the_last_step_of_a_job_is_asked_without_a_next_one() -> None:
         next_says=None,
     )
 
-    assert "next_step" not in asker.asked[0]["evidence"]
+    assert "next_step" not in fenced_json(asker.asked[0]["evidence"])
 
 
 async def test_a_step_judged_on_its_own_words_is_not_told_the_next_ones() -> None:
-    """`SCREEN_INSTRUCTIONS` asks whether the step's own sentence came true, and
+    """`CHECK_SCREEN` asks whether the step's own sentence came true, and
     it has no use for what follows. Handing it the next step would invite the
     model to hold a step because the screen looks ready for something else."""
     saver = _saver()
@@ -868,8 +859,8 @@ async def test_a_step_judged_on_its_own_words_is_not_told_the_next_ones() -> Non
         next_says="Selects the matching customer type from the grid.",
     )
 
-    assert asker.asked[0]["instructions"] == SCREEN_INSTRUCTIONS
-    assert "next_step" not in asker.asked[0]["evidence"]
+    assert asker.asked[0]["instructions"] == CHECK_SCREEN.instructions
+    assert "next_step" not in fenced_json(asker.asked[0]["evidence"])
 
 
 async def test_a_step_that_changes_nothing_still_fails_on_a_screen_it_cannot_go_on_from() -> None:
@@ -885,7 +876,6 @@ async def test_a_step_that_changes_nothing_still_fails_on_a_screen_it_cannot_go_
         values={},
         asker=asker,
         look_after=Look("u", b"after", "says: The session has expired"),
-        model="gemini-3.8-flash",
     )
 
     assert verdict.state == "failed" and verdict.by == "screen"
@@ -960,9 +950,10 @@ async def test_the_screen_belt_is_told_the_status_the_browser_came_back_with() -
     )
 
     assert (verdict.state, verdict.by) == ("held", "screen")
-    evidence = asker.asked[0]["evidence"]
-    assert isinstance(evidence, str)
-    assert json.loads(evidence)["browser_answered"] == {"ok": True, "status": 200}
+    assert fenced_json(asker.asked[0]["evidence"])["browser_answered"] == {
+        "ok": True,
+        "status": 200,
+    }
 
 
 async def test_a_picture_never_overrides_the_status_the_warehouse_itself_returned() -> None:

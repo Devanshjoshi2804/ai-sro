@@ -66,7 +66,19 @@ class Prompt:
 
     def kept(self, answer: dict[str, object]) -> dict[str, object]:
         properties = self.output_schema.get("properties")
-        each = properties.get(self.unit) if self.unit and isinstance(properties, Mapping) else None
+        known = properties if isinstance(properties, Mapping) else {}
+        required = self.output_schema.get("required")
+        needed = required if isinstance(required, list) else []
+        voided = {
+            name: None
+            for name, sub in known.items()
+            if isinstance(sub, Mapping)
+            and sub.get("nullable") is True
+            and (not conforms(answer[name], sub) if name in answer else name in needed)
+        }
+        if voided:
+            answer = {**answer, **voided}
+        each = known.get(self.unit) if self.unit else None
         items = each.get("items") if isinstance(each, Mapping) else None
         found = answer.get(self.unit) if self.unit else None
         if self.unit is None or not isinstance(items, Mapping) or not isinstance(found, list):

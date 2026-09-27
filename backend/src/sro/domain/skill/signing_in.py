@@ -12,7 +12,7 @@ from sro.domain.skill.checks import signs_in_to
 from sro.domain.skill.workflow import Step, Workflow, ordered_cites
 
 _AUTHORIZE = frozenset({"response_type", "client_id", "redirect_uri", "state"})
-_PROMPT = frozenset({"current-password", "one-time-code"})
+_ASKS_FOR = frozenset({"current-password", "one-time-code"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,7 +67,7 @@ def _in_round_trip(urls: tuple[str, ...]) -> bool:
 def a_sign_in_page(page: PageSignals) -> bool:
     return (
         page.password
-        or bool(page.autocomplete & _PROMPT)
+        or bool(page.autocomplete & _ASKS_FOR)
         or page.visited is None
         or _in_round_trip((*page.visited, page.url))
     )

@@ -45,20 +45,20 @@ Code: `K_FENCE = "untrusted"`
 > the shape of every prompt: `instructions` opens with the task, and this
 > closes with it, once each.
 
-## `fenced`, [line 77](../../../../../../../backend/src/sro/domain/prompts/record.py#L77): Docstring
+## `fenced`, [line 89](../../../../../../../backend/src/sro/domain/prompts/record.py#L89): Docstring
 
 > A fence the text inside cannot close. Any closing tag in the text is
 > written `<\/untrusted`, so the one closing tag in the block is the one
 > this function wrote. "Any" is `_CLOSES`: case and whitespace do not matter,
 > because a model reads `</UNTRUSTED>` and `</ untrusted>` as the same close.
 
-## `quoted_in`, [line 82](../../../../../../../backend/src/sro/domain/prompts/record.py#L82): Docstring
+## `quoted_in`, [line 94](../../../../../../../backend/src/sro/domain/prompts/record.py#L94): Docstring
 
 > Whether a quote a model cites occurs in what it was given. Whitespace and
 > case are folded, because a model re-wraps and re-cases what it quotes; an
 > empty quote proves nothing and is never "in" anything.
 
-## `conforms`, [line 87](../../../../../../../backend/src/sro/domain/prompts/record.py#L87): Docstring
+## `conforms`, [line 99](../../../../../../../backend/src/sro/domain/prompts/record.py#L99): Docstring
 
 > Whether an answer matches its schema. A miss is no answer (Global Constraint
 > 10): code validates every model answer, and an answer that breaks its schema
@@ -84,3 +84,13 @@ Code: `K_FENCE = "untrusted"`
 >
 > Only the unit's items are filtered. Whatever else breaks the schema --
 > the unit missing, or not a list -- is still no answer.
+>
+> The same rule one level down (P2 round 1, invariant 14): a top-level field
+> the schema lets be null is one item of the answer, so when it is present and
+> broken, or required and missing, it becomes null and the rest stands. A
+> plan whose `action` is one the schema does not offer keeps its kind and
+> falls back to the operator's recorded gesture, as the planner always did
+> for a null action; a verdict with no `why` keeps its verdict. A field that
+> may not be null -- a plan's `kind`, a verdict's `held` -- still makes the
+> whole answer unsure, because the answer means nothing without it. An absent
+> optional field is left absent, not filled in.

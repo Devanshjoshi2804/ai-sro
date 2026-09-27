@@ -4,17 +4,46 @@ import re
 
 import pytest
 
+from sro.domain.prompts.check_step import CHECK_SCREEN, CHECK_WAY_THROUGH
 from sro.domain.prompts.gather import GATHER
+from sro.domain.prompts.interpret import INTERPRET, JUDGE_VARIANT, JUDGE_WORKFLOW, NAME_SKILL
 from sro.domain.prompts.is_it_an_answer import IS_IT_AN_ANSWER
 from sro.domain.prompts.mine import MINE
 from sro.domain.prompts.plan_lookup import PLAN_LOOKUP
+from sro.domain.prompts.plan_step import PLAN_STEP, PLAN_STEP_ESCALATED
 from sro.domain.prompts.read_gesture import READ_GESTURE
 from sro.domain.prompts.read_request import READ_REQUEST
+from sro.domain.prompts.read_sentence import EXTRACT_VALUES, READ_SENTENCE
 from sro.domain.prompts.record import UNTRUSTED_RULE, Prompt, conforms, fenced, quoted_in
+from sro.domain.prompts.see_step import SEE_STEP
+from sro.domain.prompts.sight import SIGHT, SIGHT_ESCALATED
+from sro.domain.prompts.transcribe import TRANSCRIBE
 from sro.domain.prompts.write_mail import WRITE_MAIL
 from sro.domain.skill.umbrella import mining_blocks
 
-RECORDS = (MINE, READ_GESTURE, READ_REQUEST, IS_IT_AN_ANSWER, PLAN_LOOKUP, WRITE_MAIL, GATHER)
+RECORDS = (
+    MINE,
+    READ_GESTURE,
+    READ_REQUEST,
+    IS_IT_AN_ANSWER,
+    PLAN_LOOKUP,
+    WRITE_MAIL,
+    GATHER,
+    PLAN_STEP,
+    PLAN_STEP_ESCALATED,
+    SEE_STEP,
+    CHECK_SCREEN,
+    CHECK_WAY_THROUGH,
+    READ_SENTENCE,
+    EXTRACT_VALUES,
+    SIGHT,
+    SIGHT_ESCALATED,
+    INTERPRET,
+    NAME_SKILL,
+    JUDGE_VARIANT,
+    JUDGE_WORKFLOW,
+    TRANSCRIBE,
+)
 
 
 @pytest.mark.parametrize("prompt", RECORDS, ids=lambda one: one.name)
@@ -24,6 +53,64 @@ def test_every_prompt_is_a_whole_record(prompt: Prompt) -> None:
     assert 3 <= len(prompt.edge_cases) <= 5
     assert UNTRUSTED_RULE in prompt.instructions
     json.dumps(dict(prompt.output_schema))
+
+
+_FLASH, _PRO = "gemini-3.8-flash", "gemini-3.1-pro-preview"
+
+
+@pytest.mark.parametrize(
+    ("prompt", "model"),
+    [
+        (PLAN_STEP, _FLASH),
+        (PLAN_STEP_ESCALATED, _PRO),
+        (SEE_STEP, _PRO),
+        (CHECK_SCREEN, _FLASH),
+        (CHECK_WAY_THROUGH, _FLASH),
+        (READ_SENTENCE, _FLASH),
+        (EXTRACT_VALUES, _FLASH),
+        (SIGHT, _FLASH),
+        (SIGHT_ESCALATED, _PRO),
+        (INTERPRET, _PRO),
+        (NAME_SKILL, _PRO),
+        (JUDGE_VARIANT, _PRO),
+        (JUDGE_WORKFLOW, _PRO),
+        (TRANSCRIBE, _FLASH),
+    ],
+    ids=lambda one: one.name if isinstance(one, Prompt) else one,
+)
+def test_a_record_keeps_the_model_its_prompt_ran_on_before_it_was_a_record(
+    prompt: Prompt, model: str
+) -> None:
+    """P2 moved where a model is named, never which one. Each is the model the
+    call ran on before: `gemini_plan_model` for the plan and the checks,
+    `gemini_rescue_model` for the rescue, the sight rung and the sight lane's
+    escalation, `gemini_intent_model` for the sentence and the values,
+    `gemini_interpreter_model` for the readings, `gemini_transcription_model` for
+    narration and `gemini_vision_model` for the sight lane -- each setting's
+    default, which is what ran wherever the key was not set, and what
+    `test_the_sight_lane_escalates_from_flash_to_pro_and_both_are_metered`
+    already pins for sight. A deployment that set one of those keys is refused
+    at load (`test_retired_model_settings.py`), never moved silently. A
+    different model is a prompt change with its own eval."""
+    assert prompt.model == model
+
+
+def test_the_sight_step_asks_only_for_what_is_read() -> None:
+    """`found` was the older question; `points_at` decides and nothing reads
+    `found`, so it is neither asked for nor described."""
+    properties = SEE_STEP.output_schema["properties"]
+    assert isinstance(properties, dict)
+    assert "found" not in properties
+    assert "found" not in list(SEE_STEP.output_schema["required"])  # type: ignore[call-overload]
+    assert "found:" not in SEE_STEP.instructions
+
+
+def test_each_judgement_is_its_own_record_with_its_own_words() -> None:
+    assert JUDGE_VARIANT.role.startswith("Two tasks were observed in the same system")
+    assert "Say no unless the evidence is clear. These are shown" in JUDGE_VARIANT.task
+    assert JUDGE_WORKFLOW.role.startswith("Two tasks were observed in different systems")
+    assert "Doing two things in a row is not" in JUDGE_WORKFLOW.task
+    assert "different systems" not in JUDGE_VARIANT.instructions
 
 
 def test_no_two_records_share_a_name() -> None:
@@ -71,6 +158,24 @@ def test_an_enum_and_a_nullable_are_honoured() -> None:
         {"job": None, "sure": False, "values": []},
         READ_REQUEST.output_schema,
     )
+
+
+def test_a_bad_nullable_field_is_dropped_alone_and_the_answer_kept() -> None:
+    """Invariant 14: validate by the answer's natural unit. A field the schema
+    lets be null is the one item that went wrong when it is missing or broken,
+    so it becomes null and the rest of the answer stands. A field that may not
+    be null still makes the answer unsure."""
+    plan = {"kind": "ui.perform", "action": "jiggle", "value": 7, "url": None, "why": "w"}
+    kept = PLAN_STEP.kept(plan)
+    assert kept == {**plan, "action": None, "value": None}
+    assert conforms(kept, PLAN_STEP.output_schema)
+
+    verdict = CHECK_SCREEN.kept({"held": True})
+    assert verdict == {"held": True, "why": None}
+    assert conforms(verdict, CHECK_SCREEN.output_schema)
+
+    assert not conforms(PLAN_STEP.kept({**plan, "kind": "rm -rf"}), PLAN_STEP.output_schema)
+    assert "query" not in GATHER.kept({"action": "done", "why": "w"}), "absent and optional"
 
 
 def test_a_quote_must_occur_in_what_was_given() -> None:

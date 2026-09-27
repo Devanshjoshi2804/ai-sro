@@ -136,8 +136,6 @@ def _starter(
         uow,
         channel=FakeChannel(),
         asker=FakeAsker(),
-        plan_model="gemini-3.8-flash-preview",
-        rescue_model="gemini-3.1-pro-preview-rig",
         clock=FakeClock(NOW),
         cap_usd=5.0,
         stops=Stops(),

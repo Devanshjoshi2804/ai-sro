@@ -75,8 +75,6 @@ WHO = PrincipalId("supervisor-9")
 """Not "form", which is what the rig defaulted `started_by` to out of the body.
 The name on a warehouse write is one this system checked."""
 
-PLAN = "gemini-3.8-flash-preview"
-RESCUE = "gemini-3.1-pro-preview-rig"
 """Deliberately neither shipped default, so a use case wired to a literal --
 or to the wrong one of the two model settings -- fails here."""
 
@@ -201,8 +199,6 @@ def _starter(
         uow,
         channel=channel or _Browsers(),
         asker=asker,
-        plan_model=PLAN,
-        rescue_model=RESCUE,
         clock=clock or FakeClock(NOW),
         cap_usd=cap_usd,
         stops=stops or Stops(),
@@ -1051,8 +1047,6 @@ async def test_a_run_claimed_at_step_four_is_driven_from_step_four() -> None:
         channel=FakeChannel(),
         device_id=LAPTOP,
         asker=FakeAsker(),
-        plan_model=PLAN,
-        rescue_model=RESCUE,
         live=claimed.live,
         allow_focus=claimed.allow_focus,
         started_by=claimed.started_by,
@@ -1084,8 +1078,6 @@ async def test_a_re_press_that_moves_the_step_is_refused_by_the_loop() -> None:
             channel=FakeChannel(),
             device_id=LAPTOP,
             asker=FakeAsker(),
-            plan_model=PLAN,
-            rescue_model=RESCUE,
             live=claimed.live,
             allow_focus=claimed.allow_focus,
             started_by=claimed.started_by,
@@ -1117,23 +1109,18 @@ async def test_perform_drives_the_run_the_row_describes() -> None:
     assert stored.live is True and stored.allow_focus is False
 
 
-async def test_perform_plans_on_the_plan_model_and_rescues_on_the_other(
+async def test_perform_hands_the_run_the_row_it_claimed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Which model goes in which slot, read at the call rather than off the
-    built object.
+    """What `perform` hands `run_workflow`, read at the call rather than off the
+    built object. Which model plans and which rescues is no longer handed over:
+    each rung carries its own prompt record, and `test_runner.py` pins the
+    climb from `PLAN_STEP` to `PLAN_STEP_ESCALATED`.
 
-    Swapping the two survived 63 tests: every step would then plan on the
-    rescue model -- the expensive one, the one measured at $2.00 for a
-    truncated answer -- forever, on a door that runs against a live warehouse,
-    while `gemini_plan_model`'s own docstring exists because a slow plan is
-    felt by an operator standing at a screen. Nothing about the run's outcome
-    changes, so no assertion on a finished run can see it.
-
-    The whole keyword set is captured, not just the two, because four of these
-    arguments are overwritten from the row inside `run_workflow` and so decide
-    nothing -- this is the only place that says what was actually handed over,
-    which is what a reader of `perform` needs to be able to check.
+    The whole keyword set is captured because four of these arguments are
+    overwritten from the row inside `run_workflow` and so decide nothing --
+    this is the only place that says what was actually handed over, which is
+    what a reader of `perform` needs to be able to check.
     """
     uow = await _held()
     starter = _starter(uow)
@@ -1148,8 +1135,7 @@ async def test_perform_plans_on_the_plan_model_and_rescues_on_the_other(
 
     await starter.perform(_ctx(), claimed)
 
-    assert seen["plan_model"] == PLAN, "every step would plan on the rescue model"
-    assert seen["rescue_model"] == RESCUE
+    assert "plan_model" not in seen and "rescue_model" not in seen
     assert seen["workflow_id"] == "wfl_1"
     assert seen["tenant_id"] == TENANT
     assert seen["run_id"] == claimed.id
@@ -1323,8 +1309,6 @@ async def test_the_question_says_which_step_the_run_had_reached() -> None:
         uow,
         channel=_Browsers(),
         asker=_A_MODEL,
-        plan_model=PLAN,
-        rescue_model=RESCUE,
         clock=FakeClock(NOW),
         cap_usd=CAP,
         stops=Stops(),
@@ -1379,8 +1363,6 @@ async def test_the_question_offers_the_fields_the_page_does_not_ask_for() -> Non
         uow,
         channel=_Browsers(),
         asker=_A_MODEL,
-        plan_model=PLAN,
-        rescue_model=RESCUE,
         clock=FakeClock(NOW),
         cap_usd=CAP,
         stops=Stops(),

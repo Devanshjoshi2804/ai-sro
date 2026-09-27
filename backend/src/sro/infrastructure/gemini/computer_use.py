@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 from sro.application.ports.vision import ProposedGesture, Screen
+from sro.domain.prompts.record import Prompt
 from sro.domain.recording.events import ActionKind
 
 logger = logging.getLogger(__name__)
@@ -22,15 +23,6 @@ _ACTIONS: dict[str, ActionKind] = {
     "hover_at": ActionKind.HOVER,
 }
 
-_INSTRUCTIONS = (
-    "You are helping finish one step of a warehouse task that was demonstrated "
-    "by an operator and can no longer be replayed as recorded. Propose exactly "
-    "one gesture towards the step's goal, using what is visible now. "
-    "Do not attempt the whole task. Do not enter credentials. If the step "
-    "already appears done, say so instead of acting. If you cannot see how to "
-    "proceed, refuse and say why."
-)
-
 _EXCLUDED = [
     "open_web_browser",
     "navigate",
@@ -42,13 +34,13 @@ _EXCLUDED = [
 
 
 class GeminiVisionDriver:
-    def __init__(self, model: str, *, client: Any) -> None:
-        self._model = model
+    def __init__(self, prompt: Prompt, *, client: Any) -> None:
+        self._prompt = prompt
         self._client = client
 
     @property
     def destination(self) -> str:
-        return f"gemini:{self._model}"
+        return f"gemini:{self._prompt.model}"
 
     async def propose(
         self,
@@ -60,26 +52,19 @@ class GeminiVisionDriver:
     ) -> ProposedGesture:
         from google.genai import types
 
-        prompt = "\n\n".join(
-            part
-            for part in (
-                _INSTRUCTIONS,
-                f"Step goal: {goal}",
-                f"Allowed actions: {', '.join(sorted({a.value for a in allowed}))}",
-                "Already tried this step:\n" + "\n".join(history) if history else "",
-                f"Visible controls (label: x,y, already 0-1000):\n{screen.text_digest}"
-                if screen.text_digest
-                else "",
-                "Answer with one gesture. Coordinates are 0-1000, left to right and top "
-                "to bottom of the screenshot.",
-            )
-            if part
-        )
+        untrusted = {"goal": goal}
+        if history:
+            untrusted["already_tried"] = "\n".join(history)
+        if screen.text_digest:
+            untrusted["visible_controls"] = screen.text_digest
 
         response = await self._client.aio.models.generate_content(
-            model=self._model,
+            model=self._prompt.model,
             contents=[
-                prompt,
+                self._prompt.instructions,
+                self._prompt.evidence(
+                    {"allowed_actions": sorted({a.value for a in allowed})}, untrusted
+                ),
                 types.Part.from_bytes(data=screen.image, mime_type=screen.mime_type),
             ],
             config=types.GenerateContentConfig(

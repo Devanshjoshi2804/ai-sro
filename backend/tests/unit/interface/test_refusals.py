@@ -9,6 +9,8 @@ from fastapi.testclient import TestClient
 from sro.application.execution.call_run_wrong import NotYours as _WrongNotYours
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
+from sro.domain.prompts.plan_step import PLAN_STEP, PLAN_STEP_ESCALATED
+from sro.domain.prompts.record import Prompt
 from sro.interface.http.errors import _problem, install_error_handlers
 
 
@@ -65,31 +67,25 @@ def test_a_bare_429_still_has_a_slug_and_not_error() -> None:
 
 
 @pytest.mark.parametrize(
-    ("name", "expected"),
+    ("prompt", "expected"),
     [
-        ("gemini_plan_model", "gemini-3.8-flash"),
-        ("gemini_rescue_model", "gemini-3.1-pro-preview"),
+        (PLAN_STEP, "gemini-3.8-flash"),
+        (PLAN_STEP_ESCALATED, "gemini-3.1-pro-preview"),
     ],
+    ids=lambda one: one.name if isinstance(one, Prompt) else one,
 )
-def test_the_model_names_are_the_rigs(name: str, expected: str) -> None:
+def test_the_model_names_are_the_rigs(prompt: Prompt, expected: str) -> None:
     """Rule 4: `new_agent_arch/src/rig/config.py` lines 41 and 45 are the
     measured choices -- the pro model truncates a plan and the flash model
     cannot rescue one. A drift there is a different system wearing the same
     numbers.
 
-    The mine model is no longer a setting: it is `MINE.model`, on the prompt
-    record, where a change is a prompt change and goes through the eval gate.
-    This line is still the guard it always was for the two left -- a change
-    to either has to come with a measurement, and changing it without one
-    turns this red.
-
-    `_env_file=None` like every other Settings assertion in this suite: the
-    default is what is being asserted, and a developer with the name in their
-    own `.env` must not turn that into a red suite.
+    Neither is a setting any more: each is the model on its prompt record,
+    where a change is a prompt change and goes through the eval gate. This
+    line is still the guard it always was -- a change to either has to come
+    with a measurement, and changing it without one turns this red.
     """
-    from sro.config import Settings
-
-    assert getattr(Settings(_env_file=None), name) == expected
+    assert prompt.model == expected
 
 
 def test_a_run_that_is_not_yours_is_a_403_and_not_a_500() -> None:

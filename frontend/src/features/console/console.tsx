@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { PursuitCard } from "@/features/console/pursuit-card";
+import { PursuitCard, offersToExplore } from "@/features/console/pursuit-card";
 import { listSkills, skillKeys } from "@/features/skill/api";
 import { ApiError } from "@/lib/api/client";
 import { ink, mono } from "@/features/console/theme";
@@ -705,10 +705,10 @@ function ChatTurn({
           </div>
         )}
 
-        {/* Nothing taught for this, but the knowledge base knows the screen.
+        {/* Only under "nothing has been taught for that" (`pursuable`).
             Offered rather than taken: driving somebody's warehouse is theirs
             to authorise, and this button is that authorisation. */}
-        {!decision.matched_skill_id && threadId && system && askedFor && (
+        {offersToExplore(message.decision) && threadId && system && askedFor && (
           <PursuitCard threadId={threadId} intent={askedFor} system={system} />
         )}
 

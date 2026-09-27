@@ -98,3 +98,50 @@ The worker does not need a restart for this change: it is API-side (`Converse`, 
 2. A thread whose last run id belongs to a run that has since been deleted, or that is in another tenant, is simply not standing. This is tested for tenant.
 3. The attempt log records a status turn as `nothing`; see the Ruling above.
 4. Concurrency: this path writes nothing but thread messages, through the existing `_only_said` / `_also_said` (whole-thread save, the same as every other chat line). It starts no run, answers no question and claims nothing, so two presses produce two status lines and no side effect. A run that ends between `_what_stands` and the write gives a status line that is one beat stale. It is words only, and the run's own result message follows.
+
+---
+
+## Round 1
+
+First merged `origin/feat/execution-runtime` (`659aa6d`) into `d2/f2` with a merge commit (`5e85238`). There were no conflicts.
+
+Every fix below had its test written first, and each test was seen failing before the code changed.
+
+### Fixes
+
+- **I1: an ended run never stands.** `stands` (`domain/chat/standing.py`) is now `outcome == "running"` or a mail wait still inside its deadline. `asks_a_person` is gone from it, because an ended run's question is already the thread's `needs_values` question.
+  - Tests: `test_a_run_that_ended_stands_only_while_its_mail_wait_runs` (domain), and `test_a_run_that_stopped_to_ask_is_not_standing`, where a stopped run with `needs` and a later "create a warehouse zone called Z1" gives the resolver's reply, not a status line.
+- **I2: a ready lookup answers before the status line.** In `Converse._carry_on`, `_look_it_up` now runs before the `about_what_stands` branches.
+  - Test: `test_a_ready_lookup_under_a_standing_question_is_answered_as_before`. It checks the `looked` decision, KKYT in the answers, and that the question is re-asked and still standing.
+  - The F2 fixtures now use `_Plans(ready=False)` for the four mail and status phrases.
+- **I4: the reader's own intent.** A sentence the reading confidently says "acts on a thing" (`_work_on_a_thing`: at or above the floor, `wants == "act"`, with a verb and an entity) is never a status line. It falls through to `_nothing_taught`.
+  - Tests: `test_a_reading_sure_it_is_work_on_a_thing_is_never_a_status_question` (the probe) and `test_a_reading_that_is_not_sure_or_names_no_thing_is_about_what_stands` (low confidence, no entity, `ask`).
+- **I3: the original fixture is back.** `test_a_sentence_nothing_places_under_a_question_is_about_the_question` uses the reader that places nothing. It asserts the decided outcome: the sentence is kept, and the question is re-asked (`needs_values`, "I am still waiting on this one. What should Customer Type…") as two messages. `test_asking_for_a_different_job_is_still_heard` keeps the placed-job case and asserts the offer text. Both docstrings are fixed.
+- **M1: dead branch removed.** The unreachable question branch of `_what_stands` is deleted. `of_the_question(offered=False)` was unused, so the function is now `of_the_offer(pending)`.
+- **M3: only a principal who may see the run is told about it.** The run status is read only for the thread's opener or the run's starter.
+  - Tests: `test_somebody_else_asking_in_the_thread_is_not_told_the_run` (B in A's thread gets the resolver's reply, with no run values) and `test_the_starter_of_the_run_is_told_it_in_a_thread_somebody_else_opened`.
+- **M5: absence tests now assert the decided reply.** The finished-run and other-tenant tests check that the reply equals the resolver's own reply for the same sentence. The finished-run test also checks `pursuable`.
+- **M6: what stands is computed only when nothing was named.** `ResolveIntent.execute` now takes `standing: Callable[[], Awaitable[bool]] | None` and awaits it last: after no candidate ranked and after the reading check. `Converse` passes a closure that answers `True` at once under a question routed from `execute`, and otherwise reads the run and offer.
+  - Tests: `test_what_stands_is_not_read_for_a_sentence_that_names_a_job` (zero `workflow_runs.get` calls) and `test_a_sentence_that_names_a_job_is_that_job_even_while_something_stands` (the callable is never awaited).
+- **UI (controller ruling): the explore card appears only under `pursuable`.** `Resolution.pursuable` is set only in `_nothing_taught` (both returns). `_decision` then adds `"pursuable": true` to the chat decision, and only then.
+  - `console.tsx` draws `PursuitCard` only when `offersToExplore(message.decision)` is true. `offersToExplore` is exported from `pursuit-card.tsx` and returns true only for `pursuable === true`.
+  - `frontend/src/features/console/pursuit-card.test.tsx` covers it as a table: true for pursuable; false for a status line, an offer, `needs_values`, `run_asks`, a matched skill, which-did-you-mean, a resolver decision with no match, and no decision.
+  - Backend: `test_only_the_nothing_taught_reply_offers_to_explore`, plus `decision["pursuable"] is True` in the nothing-standing tests.
+- **`make types`:** run. `frontend/openapi.json` and `generated.ts` are unchanged, because `decision` is `dict[str, Any]` on the wire.
+
+### Gates (round 1)
+
+- Backend: `pytest tests/unit tests/contract` gave **4748 passed, 79 errors**. The errors are the same Docker-less `[sql]` and `TestFuzz` ones as round 0.
+- ruff check and ruff format: clean. `mypy src tests evals`: clean (821 files). `lint-imports`: 4 kept. `check_code_notes.py`: 0 stale, 0 dead. The `_say_the_job` note that the fixer can't disambiguate was re-anchored by hand to line 640. `grep unit_of_work() interface/`: nothing.
+- Frontend: `npx vitest run`, 117 passed. `npx tsc --noEmit`, eslint and prettier on the touched files: clean.
+
+### Rulings (round 1)
+
+- Ruling: `pursuable` is set on every `_nothing_taught` reply, including the "asks" variants ("Nobody has demonstrated reading that…" and "Show me once where you would look"). — These are the same nothing-taught fallback as the proposal and "teach me" replies. — Cost if wrong: the explore card appears under the read-only nothing-taught reply too, which is where it appeared before F2.
+- Ruling: I4 does not pass through the model's `another_task`. Only the reader's `Reading` (`wants`, `verb`, `entity`, `confidence`) can move a sentence off the status line. — The brief forbids trusting the model's status call, and `Reading` is the reader's intent that controller item I4 names. — Cost if wrong: with no intent parser configured, every sentence that names no job under something standing gets the status answer.
+- Ruling: M3 lets the thread's opener **or** the run's starter see the run. — This is the controller's wording. — Cost if wrong: a thread opener is told the status of a run somebody else started from their thread, which the thread already announces.
+
+### Concerns (round 1)
+
+- Round 0's concern 1 (the explore card) is resolved by the UI ruling.
+- A thread reads its run only through the opener/starter check. A third person on the same tenant who types in the thread gets today's fallback, with the explore card offered under it (`pursuable`).

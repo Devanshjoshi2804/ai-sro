@@ -33,7 +33,7 @@ from sro.domain.chat.asking import (
     answered,
     asked_under,
     let_go,
-    of_the_question,
+    of_the_offer,
     offered_job,
     pending_job,
     question,
@@ -252,7 +252,14 @@ class Converse:
             return await self._say_the_job(ctx, thread_id=thread_id, text=text, placed=placed)
         async with self._uow as uow:
             thread = await uow.threads.get(ctx.tenant_id, thread_id)
-        told = await self._what_stands(ctx, thread)
+        told: str | None = None
+
+        async def something_stands() -> bool:
+            nonlocal told
+            if standing:
+                return True
+            told = await self._what_stands(ctx, thread)
+            return told is not None
 
         resolution = await self._resolver.execute(
             ctx,
@@ -261,16 +268,17 @@ class Converse:
             parameters={**_gathered(thread, _awaiting(thread)), **(parameters or {})},
             after=_last_asked(thread),
             pinned=_awaiting(thread),
-            standing=standing or told is not None,
+            standing=something_stands,
         )
-        if resolution.about_what_stands and standing:
-            return await self._also_said(ctx, thread_id=thread_id, text=text)
-        if resolution.about_what_stands and told is not None:
-            return await self._only_said(ctx, thread_id=thread_id, text=text, said=told)
 
         looked = await self._look_it_up(ctx, text, resolution)
         if looked is not None:
             return await self._say_what_was_found(ctx, thread_id=thread_id, text=text, found=looked)
+
+        if resolution.about_what_stands and standing:
+            return await self._also_said(ctx, thread_id=thread_id, text=text)
+        if resolution.about_what_stands and told is not None:
+            return await self._only_said(ctx, thread_id=thread_id, text=text, said=told)
 
         narrowed = await self._narrowed(ctx, resolution)
         run = None if narrowed else await self._answer_now(ctx, resolution)
@@ -340,17 +348,19 @@ class Converse:
         if (run_id := last_run(thread.messages)) is not None:
             async with self._uow as uow:
                 run = await uow.workflow_runs.get(ctx.tenant_id, run_id)
-                job = (
-                    None
-                    if run is None
-                    else run.pinned or await uow.workflows.get(ctx.tenant_id, run.workflow_id)
+                seen = run is not None and ctx.principal_id.value in (
+                    thread.opened_by.value,
+                    run.started_by,
                 )
-            if run is not None and stands(run, now):
+                job = (
+                    run.pinned or await uow.workflows.get(ctx.tenant_id, run.workflow_id)
+                    if run is not None and seen
+                    else None
+                )
+            if run is not None and seen and stands(run, now):
                 return of_the_run(run, job.title if job is not None else "The run", now)
-        if (offer := offered_job(thread.messages)) is not None:
-            return of_the_question(offer, offered=True)
-        question = await self._still_wanted(ctx, pending_job(thread.messages))
-        return of_the_question(question, offered=False) if question is not None else None
+        offer = offered_job(thread.messages)
+        return of_the_offer(offer) if offer is not None else None
 
     async def _question_stands(self, ctx: RequestContext, thread_id: ThreadId) -> bool:
         async with self._uow as uow:
@@ -1120,6 +1130,7 @@ def _decision(
         "proposal_sources": (list(resolution.proposal.sources) if resolution.proposal else []),
         "run_id": run.id.value if run else None,
         "matched_skill_name": resolution.matched.skill.name if resolution.matched else None,
+        **({"pursuable": True} if resolution.pursuable else {}),
     }
 
 

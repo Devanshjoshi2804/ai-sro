@@ -24,13 +24,15 @@ Comments and docstrings moved out of [`backend/src/sro/domain/chat/standing.py`]
 
 ## `stands`, [line 30](../../../../../../../backend/src/sro/domain/chat/standing.py#L30): Docstring
 
-> A run stands while it is going, while it is asking somebody
-> (`asks_a_person`), or while it is waiting on a reply inside its deadline
-> (`still_waiting`). Those are the three states a person could reasonably be
-> asking about; a run that has finished has nothing left to report but its
-> result, which the thread already carries.
+> A run stands only while it is running, or while its mail wait is inside its
+> deadline (`still_waiting`). An ended run never stands otherwise: a run that
+> stopped to ask left its question in the thread (`needs_values`), and that
+> question is what stands -- `Converse.execute` answers under it first. Counting
+> the ended run as well (round 0 used `asks_a_person`) made a later, unrelated
+> request ("create a warehouse zone called Z1") into a status line about a run
+> that was over (F2 round 1, I1).
 
-## `of_the_run`, [line 38](../../../../../../../backend/src/sro/domain/chat/standing.py#L38): Docstring
+## `of_the_run`, [line 34](../../../../../../../backend/src/sro/domain/chat/standing.py#L34): Docstring
 
 > The answer, from the run's own state: where it is (its `doing` line when it
 > is gathering, else its step), its outcome when it is no longer going, what

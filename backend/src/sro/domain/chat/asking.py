@@ -124,17 +124,15 @@ def should_we(pending: Pending, about: str = "", sent_to: Sequence[str] = ()) ->
     return " ".join(said)
 
 
-def of_the_question(pending: Pending, *, offered: bool) -> str:
-    said = [
-        f"{pending.title} is waiting on your word."
-        if offered
-        else f"{pending.title} is waiting for {_listed(list(pending.missing))}.",
-        *_held(pending),
-    ]
-    if offered:
-        said.append("Say yes to run it, or no to leave it.")
-    said.append(NOTHING_NEW)
-    return " ".join(said)
+def of_the_offer(pending: Pending) -> str:
+    return " ".join(
+        [
+            f"{pending.title} is waiting on your word.",
+            *_held(pending),
+            "Say yes to run it, or no to leave it.",
+            NOTHING_NEW,
+        ]
+    )
 
 
 NOTHING_NEW = "Nothing new was started."

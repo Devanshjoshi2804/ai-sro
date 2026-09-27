@@ -6,7 +6,7 @@ from datetime import datetime
 from sro.domain.chat.asking import NOTHING_NEW, shortened
 from sro.domain.chat.thread import Message
 from sro.domain.execution.progress import Progress
-from sro.domain.execution.waiting import asks_a_person, read_wait, still_waiting
+from sro.domain.execution.waiting import read_wait, still_waiting
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.recording.sensitivity import is_secret_field
 
@@ -28,11 +28,7 @@ def last_run(messages: Sequence[Message]) -> str | None:
 
 
 def stands(run: WorkflowRun, now: datetime) -> bool:
-    return (
-        run.outcome == "running"
-        or asks_a_person(run)
-        or still_waiting(read_wait(run.awaiting), now)
-    )
+    return run.outcome == "running" or still_waiting(read_wait(run.awaiting), now)
 
 
 def of_the_run(run: WorkflowRun, title: str, now: datetime) -> str:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from sro.domain.chat.asking import NEEDS, Pending, of_the_question
+from sro.domain.chat.asking import NEEDS, Pending, of_the_offer
 from sro.domain.chat.standing import last_run, of_the_run, stands
 from sro.domain.chat.thread import Message, MessageId, Speaker
 from sro.domain.execution.workflow_run import WorkflowRun
@@ -57,10 +57,17 @@ def test_a_running_run_stands_and_a_finished_one_does_not() -> None:
     assert not stands(_run(outcome="failed"), AT)
 
 
-def test_a_run_that_ended_still_stands_while_it_asks_or_waits() -> None:
+def test_a_run_that_ended_stands_only_while_its_mail_wait_runs() -> None:
+    """An ended run that asks is already the thread's question (its NEEDS
+    message), so the run itself does not stand for it. Only a mail wait inside
+    its deadline keeps an ended run standing."""
     until = (AT + timedelta(days=1)).isoformat()
 
-    assert stands(_run(outcome="failed", needs=["Customer Type"]), AT)
+    assert not stands(_run(outcome="failed", needs=["Customer Type"]), AT)
+    assert not stands(_run(outcome="stopped", needs=["Customer Type"]), AT)
+    assert not stands(
+        _run(outcome="stopped", progress={"asking": {"id": "q_1", "kind": "recipient"}}), AT
+    )
     assert stands(
         _run(outcome="stopped", awaiting={"server": "gmail", "thread": "t1", "until": until}), AT
     )
@@ -101,7 +108,7 @@ def test_a_run_that_is_gathering_says_what_it_is_doing() -> None:
     assert said.startswith("Create is running — Reading your mail for Customer Type."), said
 
 
-def test_a_question_is_told_by_what_it_still_waits_for() -> None:
+def test_an_offer_is_told_by_what_it_waits_on() -> None:
     pending = Pending(
         workflow_id="wfl_1",
         title="Create a Customer Type",
@@ -109,10 +116,8 @@ def test_a_question_is_told_by_what_it_still_waits_for() -> None:
         missing=("Customer Type",),
     )
 
-    asked = of_the_question(pending, offered=False)
-    offered = of_the_question(pending, offered=True)
+    said = of_the_offer(pending)
 
-    assert asked.startswith("Create a Customer Type is waiting for Customer Type."), asked
-    assert "I have Description: north." in asked
-    assert offered.startswith("Create a Customer Type is waiting on your word."), offered
-    assert "Say yes to run it, or no to leave it." in offered
+    assert said.startswith("Create a Customer Type is waiting on your word."), said
+    assert "I have Description: north." in said
+    assert "Say yes to run it, or no to leave it." in said

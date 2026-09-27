@@ -21,7 +21,7 @@ from sro.domain.chat.asking import NEEDS, offered_job, pending_job
 from sro.domain.chat.thread import Message, MessageId, Speaker, ThreadId
 from sro.domain.execution.run import RunId
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel
-from sro.domain.shared.identifiers import SkillId
+from sro.domain.shared.identifiers import PrincipalId, SkillId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.template import Template
@@ -578,18 +578,47 @@ async def test_a_question_about_the_waiting_is_answered_about_the_waiting() -> N
     assert pending_job(said.messages) is not None
 
 
-async def test_asking_for_a_different_job_is_still_heard() -> None:
-    """The gate is about answers, not about the person. Somebody who says
-    "create an equipment type instead" has asked for work, and a door that
-    replied "I am still waiting on Customer Type" to that would be the old
-    swallowing with better manners."""
+async def test_a_sentence_nothing_places_under_a_question_is_about_the_question() -> None:
+    """F2 decides this one in code. "create a warehouse equipment type
+    instead" reaches here with a reading of `another_task`, but no reader
+    places it: the rig names no job, no taught skill ranks, and no reading
+    says it is work on a thing. That is a sentence about what stands, so what
+    they said is kept and the question is asked again -- the answer about the
+    wait. It is not planned onto the screen and not offered as new work.
+
+    The same sentence from a reader that DOES name the job is heard as that
+    job: `test_asking_for_a_different_job_is_still_heard`."""
     uow = FakeUnitOfWork()
     await _taught(uow)
     converse, thread_id = await _asked(uow, ["Customer Type"])
     converse._answers = _Reads(answers=False, about="another_task")  # type: ignore[assignment]
-    # The reader names the job asked for. A sentence that names none, under a
-    # standing question, is about the question (F2) -- that is
-    # `test_asked_about_a_standing_question_it_is_answered_about_the_question`.
+    before = len((await uow.threads.list_for_tenant(CTX.tenant_id, limit=1))[0].messages)
+
+    said = await converse.execute(
+        CTX, thread_id=thread_id, text="create a warehouse equipment type instead"
+    )
+
+    added = said.messages[before:]
+    assert [(m.speaker, m.text) for m in added[:1]] == [
+        (Speaker.OPERATOR, "create a warehouse equipment type instead")
+    ]
+    assert len(added) == 2, [m.text for m in added]
+    assert added[1].text.startswith("I am still waiting on this one. What should Customer Type"), (
+        added[1].text
+    )
+    assert added[1].decision["kind"] == NEEDS
+    assert pending_job(said.messages) is not None
+
+
+async def test_asking_for_a_different_job_is_still_heard() -> None:
+    """The gate is about answers, not about the person. Somebody who says
+    "create an equipment type instead", in words a reader places as a job,
+    has asked for work, and a door that replied "I am still waiting on
+    Customer Type" to that would be the old swallowing with better manners."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _asked(uow, ["Customer Type"])
+    converse._answers = _Reads(answers=False, about="another_task")  # type: ignore[assignment]
     converse._reads_jobs = _PlacesTheJob(_understood("wfl_1"))
     before = len((await uow.threads.list_for_tenant(CTX.tenant_id, limit=1))[0].messages)
 
@@ -604,7 +633,11 @@ async def test_asking_for_a_different_job_is_still_heard() -> None:
     # holds at ">= 3" whether the request was heard or swallowed, and this is
     # the test that has to tell those apart. Three: what they said, the answer
     # to it, and the question again. Two would be the swallow.
-    assert len(said.messages) - before == 3, [m.text for m in said.messages[before:]]
+    added = said.messages[before:]
+    assert len(added) == 3, [m.text for m in added]
+    assert added[1].text == (
+        "Create a Warehouse Equipment Type does that — say the word and I will run it."
+    )
     assert pending_job(said.messages) is not None
 
 
@@ -1379,12 +1412,16 @@ async def _knows_the_screens(uow: FakeUnitOfWork) -> None:
 
 
 async def _running(uow: FakeUnitOfWork, **changed: Any) -> tuple[Converse, ThreadId]:
-    """A thread whose run is going: started, at its third step, waiting on mail."""
+    """A thread whose run is going: started, at its third step, waiting on mail.
+
+    The lookup planner finds nothing ready for these sentences, as it does
+    for sentences about a mailbox: a ready lookup would answer first (I2).
+    """
     from sro.domain.execution.workflow_run import WorkflowRun
 
     await _knows_the_screens(uow)
     converse = await _with_a_job(uow, None)
-    converse._plan_lookups = _Plans()  # type: ignore[assignment]
+    converse._plan_lookups = _Plans(ready=False)  # type: ignore[assignment]
     converse._run_lookups = _Runs()  # type: ignore[assignment]
     run = WorkflowRun(
         id="run_1",
@@ -1430,6 +1467,10 @@ def _explored(messages: Any) -> list[str]:
     ]
 
 
+async def _as_if_nothing_stood(converse: Converse, text: str) -> Resolution:
+    return await converse._resolver.execute(CTX, utterance=text, parameters={})
+
+
 @pytest.mark.parametrize("phrase", K_SAID_ON_THE_DEPLOYMENT)
 async def test_asked_about_a_standing_run_it_is_answered_from_the_run(phrase: str) -> None:
     uow = FakeUnitOfWork()
@@ -1445,10 +1486,10 @@ async def test_asked_about_a_standing_run_it_is_answered_from_the_run(phrase: st
     assert "No reply has answered it yet" in answer
     assert "Customer Type: GGD (from the mail)" in answer
     assert "hunter2" not in answer
+    assert not added[-1].decision, "a status line carries no decision"
     assert not _explored(added), "it was explored"
     assert list(uow.workflow_runs.rows) == ["run_1"], "a job was started"
     assert uow.runs.rows == {}, "a skill was started"
-    assert converse._plan_lookups.asked == [], "it was looked up instead"
 
 
 @pytest.mark.parametrize("phrase", K_SAID_ON_THE_DEPLOYMENT)
@@ -1462,8 +1503,7 @@ async def test_asked_about_a_standing_question_it_is_answered_about_the_question
     await _knows_the_screens(uow)
     converse, thread_id = await _asked(uow, ["Customer Type"])
     converse._answers = _Reads(answers=False, about="another_task")  # type: ignore[assignment]
-    plans = _Plans()
-    converse._plan_lookups = plans  # type: ignore[assignment]
+    converse._plan_lookups = _Plans(ready=False)  # type: ignore[assignment]
     converse._run_lookups = _Runs()  # type: ignore[assignment]
     before = len((await uow.threads.get(CTX.tenant_id, thread_id)).messages)
 
@@ -1474,7 +1514,6 @@ async def test_asked_about_a_standing_question_it_is_answered_about_the_question
     assert added[-1].text.startswith("I am still waiting on this one."), added[-1].text
     assert pending_job(said.messages) is not None, "the question was taken away"
     assert not _explored(added), "it was explored"
-    assert plans.asked == [], "it was looked up instead"
 
 
 @pytest.mark.parametrize("phrase", K_SAID_ON_THE_DEPLOYMENT)
@@ -1502,29 +1541,118 @@ async def test_with_nothing_standing_the_same_phrase_is_what_it_was(phrase: str)
     await _knows_the_screens(uow)
     converse = await _with_a_job(uow, None)
     thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
-    expected = await converse._resolver.execute(CTX, utterance=phrase, parameters={})
+    expected = await _as_if_nothing_stood(converse, phrase)
 
     said = await converse.execute(CTX, thread_id=thread.id, text=phrase)
 
     assert not expected.about_what_stands
     assert said.messages[-1].text.startswith(expected.question or "?"), said.messages[-1].text
     assert _explored(said.messages[-1:]), "the fixture no longer reaches the explore"
+    assert said.messages[-1].decision["pursuable"] is True
 
 
 async def test_a_run_that_has_finished_is_not_standing() -> None:
     uow = FakeUnitOfWork()
     converse, thread_id = await _running(uow, outcome="held", awaiting=None)
+    expected = await _as_if_nothing_stood(converse, "check now")
 
     said = await converse.execute(CTX, thread_id=thread_id, text="check now")
 
-    assert "Nothing new was started." not in said.messages[-1].text, "a finished run still stood"
+    assert said.messages[-1].text.startswith(expected.question or "?"), said.messages[-1].text
+    assert said.messages[-1].decision["pursuable"] is True
+
+
+async def test_a_run_that_stopped_to_ask_is_not_standing() -> None:
+    """I1. Its question is the thread's question, written where the run ended
+    (`needs_values`); the run itself stands for nothing more. A later request
+    for new work is that request, not a status line."""
+    uow = FakeUnitOfWork()
+    converse, thread_id = await _running(
+        uow, outcome="stopped", needs=["Customer Type"], awaiting=None
+    )
+    text = "create a warehouse zone called Z1"
+    expected = await _as_if_nothing_stood(converse, text)
+
+    said = await converse.execute(CTX, thread_id=thread_id, text=text)
+
+    last = said.messages[-1]
+    assert "Nothing new was started." not in last.text, last.text
+    assert last.text.startswith(expected.question or "?"), last.text
 
 
 async def test_another_tenant_s_run_is_not_this_thread_s() -> None:
     """The run id comes out of a thread; the row is read under this tenant."""
     uow = FakeUnitOfWork()
     converse, thread_id = await _running(uow, tenant="someone-else")
+    expected = await _as_if_nothing_stood(converse, "check now")
 
     said = await converse.execute(CTX, thread_id=thread_id, text="check now")
 
+    assert said.messages[-1].text.startswith(expected.question or "?"), said.messages[-1].text
     assert "GGD" not in said.messages[-1].text
+
+
+async def test_somebody_else_asking_in_the_thread_is_not_told_the_run() -> None:
+    """M3 (invariant 5). B, in A's thread, about A's run: B opened neither
+    the thread nor the run, so the status line is never read for B."""
+    uow = FakeUnitOfWork()
+    converse, thread_id = await _running(uow)
+    somebody_else = RequestContext(tenant_id=f.TENANT, principal_id=PrincipalId("b@acme.test"))
+    expected = await _as_if_nothing_stood(converse, "check now")
+
+    said = await converse.execute(somebody_else, thread_id=thread_id, text="check now")
+
+    last = said.messages[-1].text
+    assert "GGD" not in last and "is running" not in last, last
+    assert last.startswith(expected.question or "?"), last
+
+
+async def test_the_starter_of_the_run_is_told_it_in_a_thread_somebody_else_opened() -> None:
+    uow = FakeUnitOfWork()
+    converse, thread_id = await _running(uow, started_by="b@acme.test")
+    starter = RequestContext(tenant_id=f.TENANT, principal_id=PrincipalId("b@acme.test"))
+
+    said = await converse.execute(starter, thread_id=thread_id, text="check now")
+
+    assert said.messages[-1].text.startswith("Create a Warehouse Equipment Type is running")
+
+
+async def test_a_ready_lookup_under_a_standing_question_is_answered_as_before() -> None:
+    """I2. A read-only lookup is neither a job start nor an explore, so a
+    lookup the planner has ready answers before any status line."""
+    uow = FakeUnitOfWork()
+    converse, thread_id = await _asked(uow, ["Customer Type"])
+    converse._answers = _Reads(answers=False, about="another_task")  # type: ignore[assignment]
+    plans = _Plans()
+    converse._plan_lookups = plans  # type: ignore[assignment]
+    converse._run_lookups = _Runs()  # type: ignore[assignment]
+    before = len((await uow.threads.get(CTX.tenant_id, thread_id)).messages)
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="is there a customer type KKYT")
+
+    assert plans.asked == ["is there a customer type KKYT"]
+    added = said.messages[before:]
+    assert len(added) == 3, [m.text for m in added]
+    assert added[1].decision["kind"] == "looked"
+    assert "KKYT" in str(added[1].decision["answers"])
+    assert pending_job(said.messages) is not None, "and the question still stands"
+
+
+async def test_what_stands_is_not_read_for_a_sentence_that_names_a_job() -> None:
+    """M6: worked out only when nothing was named."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id = await _running(uow)
+    reads = 0
+    _get = uow.workflow_runs.get
+
+    async def _counted(*args: Any) -> Any:
+        nonlocal reads
+        reads += 1
+        return await _get(*args)
+
+    uow.workflow_runs.get = _counted  # type: ignore[method-assign, assignment]
+
+    await converse.execute(CTX, thread_id=thread_id, text="adjust inventory at SG")
+
+    assert reads == 0

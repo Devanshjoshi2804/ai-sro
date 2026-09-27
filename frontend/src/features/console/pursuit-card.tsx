@@ -9,6 +9,19 @@ import { LiveScreen } from "@/features/console/live-screen";
 import { ink, mono } from "@/features/console/theme";
 
 /**
+ * Whether a reply offers the explore card: only the "nothing has been taught
+ * for that" reply, which the backend marks `pursuable`. A status line, an
+ * offer, a question or a matched skill never does (F2).
+ */
+export function offersToExplore(decision: unknown): boolean {
+  return (
+    typeof decision === "object" &&
+    decision !== null &&
+    (decision as { pursuable?: unknown }).pursuable === true
+  );
+}
+
+/**
  * Working a task out on the screen, where somebody can watch it happen.
  *
  * This is what the system does when nothing has been taught: read the

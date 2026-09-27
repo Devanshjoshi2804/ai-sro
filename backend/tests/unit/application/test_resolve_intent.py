@@ -236,3 +236,46 @@ async def test_two_skills_with_one_name_are_told_apart_by_their_key() -> None:
 
     assert resolution.matched is None
     assert "DC03" in (resolution.question or "") and "DC07" in (resolution.question or "")
+
+
+async def test_a_sentence_that_names_no_job_while_something_stands_is_about_what_stands() -> None:
+    """F2. "check now", typed under a standing run, was planned into Check In
+    and Check Out screens. The screen is known here too, so the planner WOULD
+    propose it -- and with something standing it is never asked."""
+    uow = FakeUnitOfWork()
+    await RecordClaims(uow, FakeClock(), FakeIdFactory(), FakeEmbedder()).execute(
+        CTX,
+        (
+            Claim(
+                system="blue_yonder",
+                kind=EntryKind.SCREEN,
+                key="#check",
+                title="Inbound ▸ Check In",
+                body={"label": "Check In"},
+                source="index/app-map.json",
+                evidence=EvidenceLevel.OBSERVED,
+            ),
+        ),
+    )
+
+    nothing_standing = await _resolver(uow).execute(CTX, utterance="check now")
+    standing = await _resolver(uow).execute(CTX, utterance="check now", standing=True)
+
+    assert nothing_standing.pursuit is not None, "the fixture no longer reaches the explore"
+    assert not nothing_standing.about_what_stands
+    assert standing.about_what_stands
+    assert standing.proposal is None and standing.pursuit is None
+    assert standing.question is None
+
+
+async def test_a_sentence_that_names_a_job_is_that_job_even_while_something_stands() -> None:
+    uow = FakeUnitOfWork()
+    await _library(uow)
+
+    resolution = await _resolver(uow).execute(
+        CTX, utterance="adjust inventory at SG", standing=True
+    )
+
+    assert resolution.matched is not None
+    assert resolution.matched.skill.id == SkillId("skill-adjust")
+    assert not resolution.about_what_stands

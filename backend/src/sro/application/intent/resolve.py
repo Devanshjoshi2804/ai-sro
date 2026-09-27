@@ -55,6 +55,8 @@ class Resolution:
 
     why: tuple[str, ...] = field(default_factory=tuple)
 
+    about_what_stands: bool = False
+
 
 class ResolveIntent:
     async def _read(self, utterance: str, after: str | None) -> Reading:
@@ -82,6 +84,7 @@ class ResolveIntent:
         parameters: dict[str, str] | None = None,
         after: str | None = None,
         pinned: str | None = None,
+        standing: bool = False,
     ) -> Resolution:
         async with self._uow as uow:
             skills = await uow.skills.list_for_tenant(ctx.tenant_id, limit=_LIBRARY_PAGE)
@@ -126,6 +129,8 @@ class ResolveIntent:
             ):
                 candidates = ()
 
+        if not candidates and standing:
+            return Resolution(utterance=utterance, about_what_stands=True)
         if not candidates:
             return await self._nothing_taught(ctx, utterance, system)
 

@@ -33,6 +33,7 @@ from sro.domain.chat.asking import (
     answered,
     asked_under,
     let_go,
+    of_the_question,
     offered_job,
     pending_job,
     question,
@@ -41,6 +42,7 @@ from sro.domain.chat.asking import (
 )
 from sro.domain.chat.is_it_an_answer import said_as_the_value
 from sro.domain.chat.request import K_A_LOGIN
+from sro.domain.chat.standing import last_run, of_the_run, stands
 from sro.domain.chat.thread import Message, MessageId, Said, Speaker, Thread, ThreadId
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
 from sro.domain.lookup.asking import is_a_question
@@ -144,13 +146,13 @@ class Converse:
             before = await uow.threads.get(ctx.tenant_id, thread_id)
         said_before = before.messages
         if answering is not None and before.opened_by != ctx.principal_id:
-            return await self._no_longer_open(ctx, thread_id=thread_id, text=text, said=K_NOT_YOURS)
+            return await self._only_said(ctx, thread_id=thread_id, text=text, said=K_NOT_YOURS)
         if (
             answering is not None
             and pending_job(said_before, answering) is None
             and offered_job(said_before, answering) is None
         ):
-            return await self._no_longer_open(ctx, thread_id=thread_id, text=text)
+            return await self._only_said(ctx, thread_id=thread_id, text=text)
         asked = asked_under(said_before, answering)
         waiting = await self._still_wanted(ctx, pending_job(said_before, answering))
         if waiting is not None and asked is not None:
@@ -191,7 +193,7 @@ class Converse:
             answering=answering,
         )
 
-    async def _no_longer_open(
+    async def _only_said(
         self, ctx: RequestContext, *, thread_id: ThreadId, text: str, said: str = K_CLOSED
     ) -> Thread:
         async with self._uow as uow:
@@ -238,7 +240,7 @@ class Converse:
                 answering=answering,
             )
         if offered is not None and answering is not None:
-            return await self._no_longer_open(
+            return await self._only_said(
                 ctx,
                 thread_id=thread_id,
                 text=text,
@@ -250,6 +252,7 @@ class Converse:
             return await self._say_the_job(ctx, thread_id=thread_id, text=text, placed=placed)
         async with self._uow as uow:
             thread = await uow.threads.get(ctx.tenant_id, thread_id)
+        told = await self._what_stands(ctx, thread)
 
         resolution = await self._resolver.execute(
             ctx,
@@ -258,7 +261,12 @@ class Converse:
             parameters={**_gathered(thread, _awaiting(thread)), **(parameters or {})},
             after=_last_asked(thread),
             pinned=_awaiting(thread),
+            standing=standing or told is not None,
         )
+        if resolution.about_what_stands and standing:
+            return await self._also_said(ctx, thread_id=thread_id, text=text)
+        if resolution.about_what_stands and told is not None:
+            return await self._only_said(ctx, thread_id=thread_id, text=text, said=told)
 
         looked = await self._look_it_up(ctx, text, resolution)
         if looked is not None:
@@ -326,6 +334,23 @@ class Converse:
         if still == waiting.missing:
             return waiting
         return replace(waiting, missing=still) if still else None
+
+    async def _what_stands(self, ctx: RequestContext, thread: Thread) -> str | None:
+        now = self._clock.now()
+        if (run_id := last_run(thread.messages)) is not None:
+            async with self._uow as uow:
+                run = await uow.workflow_runs.get(ctx.tenant_id, run_id)
+                job = (
+                    None
+                    if run is None
+                    else run.pinned or await uow.workflows.get(ctx.tenant_id, run.workflow_id)
+                )
+            if run is not None and stands(run, now):
+                return of_the_run(run, job.title if job is not None else "The run", now)
+        if (offer := offered_job(thread.messages)) is not None:
+            return of_the_question(offer, offered=True)
+        question = await self._still_wanted(ctx, pending_job(thread.messages))
+        return of_the_question(question, offered=False) if question is not None else None
 
     async def _question_stands(self, ctx: RequestContext, thread_id: ThreadId) -> bool:
         async with self._uow as uow:

@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import timedelta
 from typing import Any
+
+import pytest
 
 from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.read_chat import ReadChat
@@ -14,7 +17,7 @@ from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import Resolution, ResolveIntent
 from sro.application.knowledge.record_claim import Claim, RecordClaims
 from sro.application.knowledge.retrieve import Retrieve
-from sro.domain.chat.asking import NEEDS, pending_job
+from sro.domain.chat.asking import NEEDS, offered_job, pending_job
 from sro.domain.chat.thread import Message, MessageId, Speaker, ThreadId
 from sro.domain.execution.run import RunId
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel
@@ -584,6 +587,10 @@ async def test_asking_for_a_different_job_is_still_heard() -> None:
     await _taught(uow)
     converse, thread_id = await _asked(uow, ["Customer Type"])
     converse._answers = _Reads(answers=False, about="another_task")  # type: ignore[assignment]
+    # The reader names the job asked for. A sentence that names none, under a
+    # standing question, is about the question (F2) -- that is
+    # `test_asked_about_a_standing_question_it_is_answered_about_the_question`.
+    converse._reads_jobs = _PlacesTheJob(_understood("wfl_1"))
     before = len((await uow.threads.list_for_tenant(CTX.tenant_id, limit=1))[0].messages)
 
     said = await converse.execute(
@@ -1335,3 +1342,189 @@ async def test_a_sentence_that_asks_for_work_is_not_looked_up() -> None:
     await converse.execute(CTX, thread_id=thread_id, text="create a customer type called GPP")
 
     assert plans.asked == [], "a sentence asking for work was sent to the lookup door"
+
+
+# --- F2: "check now" is answered from what stands, never explored -------------
+
+K_SAID_ON_THE_DEPLOYMENT = (
+    "check now",
+    "have you recived mail",
+    "what did you fetch from mail",
+    "i will type it here",
+)
+
+
+async def _knows_the_screens(uow: FakeUnitOfWork) -> None:
+    """Screens every one of the four phrases plans into when nothing stands --
+    the state the deployment was in, so an explore is reachable here."""
+    await RecordClaims(uow, FakeClock(), FakeIdFactory(), FakeEmbedder()).execute(
+        CTX,
+        tuple(
+            Claim(
+                system="blue_yonder",
+                kind=EntryKind.SCREEN,
+                key=key,
+                title=title,
+                body={"label": label},
+                source="index/app-map.json",
+                evidence=EvidenceLevel.OBSERVED,
+            )
+            for key, title, label in (
+                ("#check", "Inbound ▸ Check In", "Check In"),
+                ("#mail", "Messages ▸ Mail", "Mail"),
+                ("#type", "Setup ▸ Customer Type", "Type"),
+            )
+        ),
+    )
+
+
+async def _running(uow: FakeUnitOfWork, **changed: Any) -> tuple[Converse, ThreadId]:
+    """A thread whose run is going: started, at its third step, waiting on mail."""
+    from sro.domain.execution.workflow_run import WorkflowRun
+
+    await _knows_the_screens(uow)
+    converse = await _with_a_job(uow, None)
+    converse._plan_lookups = _Plans()  # type: ignore[assignment]
+    converse._run_lookups = _Runs()  # type: ignore[assignment]
+    run = WorkflowRun(
+        id="run_1",
+        tenant=f.TENANT.value,
+        workflow_id="wfl_1",
+        device_id="",
+        values={"Customer Type": "GGD", "Password": "hunter2"},
+        started_by=f.OPERATOR.value,
+        live=True,
+        allow_focus=False,
+        started_at=FakeClock().now().isoformat(),
+        executor="steel",
+        gathered={"Customer Type": {"message": "m1", "quote": "GGD"}},
+        progress={"step": 2},
+        awaiting={
+            "server": "gmail",
+            "thread": "t1",
+            "until": (FakeClock().now() + timedelta(days=7)).isoformat(),
+        },
+    )
+    for name, value in changed.items():
+        setattr(run, name, value)
+    await uow.workflow_runs.save(run)
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    thread.say(
+        Message(
+            id=MessageId("msg_run"),
+            speaker=Speaker.SYSTEM,
+            text="Running Create a Warehouse Equipment Type…",
+            said_at=FakeClock().now(),
+            decision={"kind": "run", "run_id": "run_1", "title": "Create"},
+        )
+    )
+    await uow.threads.save(thread)
+    return converse, thread.id
+
+
+def _explored(messages: Any) -> list[str]:
+    return [
+        m.text
+        for m in messages
+        if "Nobody has demonstrated" in m.text or "work it out on the screen" in m.text
+    ]
+
+
+@pytest.mark.parametrize("phrase", K_SAID_ON_THE_DEPLOYMENT)
+async def test_asked_about_a_standing_run_it_is_answered_from_the_run(phrase: str) -> None:
+    uow = FakeUnitOfWork()
+    converse, thread_id = await _running(uow)
+    before = len((await uow.threads.get(CTX.tenant_id, thread_id)).messages)
+
+    said = await converse.execute(CTX, thread_id=thread_id, text=phrase)
+
+    added = said.messages[before:]
+    assert [m.speaker for m in added] == [Speaker.OPERATOR, Speaker.ASSISTANT]
+    answer = added[-1].text
+    assert answer.startswith("Create a Warehouse Equipment Type is running, at step 3."), answer
+    assert "No reply has answered it yet" in answer
+    assert "Customer Type: GGD (from the mail)" in answer
+    assert "hunter2" not in answer
+    assert not _explored(added), "it was explored"
+    assert list(uow.workflow_runs.rows) == ["run_1"], "a job was started"
+    assert uow.runs.rows == {}, "a skill was started"
+    assert converse._plan_lookups.asked == [], "it was looked up instead"
+
+
+@pytest.mark.parametrize("phrase", K_SAID_ON_THE_DEPLOYMENT)
+async def test_asked_about_a_standing_question_it_is_answered_about_the_question(
+    phrase: str,
+) -> None:
+    """The reading is not trusted to tell a status question from new work:
+    here it calls every phrase `another_task`, the reading that sent "i wll
+    type" to the screens on 2026-09-21."""
+    uow = FakeUnitOfWork()
+    await _knows_the_screens(uow)
+    converse, thread_id = await _asked(uow, ["Customer Type"])
+    converse._answers = _Reads(answers=False, about="another_task")  # type: ignore[assignment]
+    plans = _Plans()
+    converse._plan_lookups = plans  # type: ignore[assignment]
+    converse._run_lookups = _Runs()  # type: ignore[assignment]
+    before = len((await uow.threads.get(CTX.tenant_id, thread_id)).messages)
+
+    said = await converse.execute(CTX, thread_id=thread_id, text=phrase)
+
+    added = said.messages[before:]
+    assert [m.speaker for m in added] == [Speaker.OPERATOR, Speaker.ASSISTANT]
+    assert added[-1].text.startswith("I am still waiting on this one."), added[-1].text
+    assert pending_job(said.messages) is not None, "the question was taken away"
+    assert not _explored(added), "it was explored"
+    assert plans.asked == [], "it was looked up instead"
+
+
+@pytest.mark.parametrize("phrase", K_SAID_ON_THE_DEPLOYMENT)
+async def test_asked_about_a_standing_offer_it_is_answered_about_the_offer(phrase: str) -> None:
+    uow = FakeUnitOfWork()
+    await _knows_the_screens(uow)
+    converse, thread_id = await _offered(uow, can_gather=True, missing=["Customer Type"])
+    before = len((await uow.threads.get(CTX.tenant_id, thread_id)).messages)
+
+    said = await converse.execute(CTX, thread_id=thread_id, text=phrase)
+
+    added = said.messages[before:]
+    assert [m.speaker for m in added] == [Speaker.OPERATOR, Speaker.ASSISTANT]
+    assert added[-1].text.startswith("Create a Customer Type is waiting on your word."), added[
+        -1
+    ].text
+    assert not _explored(added), "it was explored"
+    assert offered_job(said.messages) is not None, "the offer stopped standing"
+    assert list(uow.workflow_runs.rows) == [], "a job was started"
+
+
+@pytest.mark.parametrize("phrase", K_SAID_ON_THE_DEPLOYMENT)
+async def test_with_nothing_standing_the_same_phrase_is_what_it_was(phrase: str) -> None:
+    uow = FakeUnitOfWork()
+    await _knows_the_screens(uow)
+    converse = await _with_a_job(uow, None)
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    expected = await converse._resolver.execute(CTX, utterance=phrase, parameters={})
+
+    said = await converse.execute(CTX, thread_id=thread.id, text=phrase)
+
+    assert not expected.about_what_stands
+    assert said.messages[-1].text.startswith(expected.question or "?"), said.messages[-1].text
+    assert _explored(said.messages[-1:]), "the fixture no longer reaches the explore"
+
+
+async def test_a_run_that_has_finished_is_not_standing() -> None:
+    uow = FakeUnitOfWork()
+    converse, thread_id = await _running(uow, outcome="held", awaiting=None)
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="check now")
+
+    assert "Nothing new was started." not in said.messages[-1].text, "a finished run still stood"
+
+
+async def test_another_tenant_s_run_is_not_this_thread_s() -> None:
+    """The run id comes out of a thread; the row is read under this tenant."""
+    uow = FakeUnitOfWork()
+    converse, thread_id = await _running(uow, tenant="someone-else")
+
+    said = await converse.execute(CTX, thread_id=thread_id, text="check now")
+
+    assert "GGD" not in said.messages[-1].text

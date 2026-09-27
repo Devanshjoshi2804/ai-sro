@@ -109,7 +109,7 @@ Code: `note: str = ""`
 
 > What the extraction could not resolve.
 
-## `_names_another`, [line 223](../../../../../../../backend/src/sro/application/intent/resolve.py#L223): Docstring
+## `_names_another`, [line 228](../../../../../../../backend/src/sro/application/intent/resolve.py#L228): Docstring
 
 > Whether this sentence is plainly about something else.
 >
@@ -117,16 +117,16 @@ Code: `note: str = ""`
 > for a transport mode and then said "actually, release the wave" means the
 > second thing. What is not allowed is a pinned skill quietly swallowing it.
 
-## `_describe`, [line 237](../../../../../../../backend/src/sro/application/intent/resolve.py#L237): Docstring
+## `_describe`, [line 242](../../../../../../../backend/src/sro/application/intent/resolve.py#L242): Docstring
 
 > Name plus what distinguishes it. Three skills called "Release Wave" are
 > told apart by their facility, which is exactly why the key has one.
 
-## `ResolveIntent._read`, [line 60](../../../../../../../backend/src/sro/application/intent/resolve.py#L60): Docstring
+## `ResolveIntent._read`, [line 62](../../../../../../../backend/src/sro/application/intent/resolve.py#L62): Docstring
 
 > What the sentence means, or nothing when there is nobody to ask.
 
-## `ResolveIntent._nothing_taught`, [line 187](../../../../../../../backend/src/sro/application/intent/resolve.py#L187): Docstring
+## `ResolveIntent._nothing_taught`, [line 192](../../../../../../../backend/src/sro/application/intent/resolve.py#L192): Docstring
 
 > No skill was taught for this. Ask the knowledge base, not the ladder.
 >
@@ -134,7 +134,7 @@ Code: `note: str = ""`
 > vision sorts it out. That is a confident wrong action; a proposal the
 > operator can read is a slow correct one.
 
-## `ResolveIntent.execute`, [line 92](../../../../../../../backend/src/sro/application/intent/resolve.py#L92): Comment
+## `ResolveIntent.execute`, [line 95](../../../../../../../backend/src/sro/application/intent/resolve.py#L95): Comment
 
 Code: `reading = await self._read(utterance, after)`
 
@@ -148,7 +148,7 @@ Code: `reading = await self._read(utterance, after)`
 > exist and discarded where it names something that does not, so a
 > misreading costs a clarifying question rather than a wrong write.
 
-## `ResolveIntent.execute`, [line 94](../../../../../../../backend/src/sro/application/intent/resolve.py#L94): Comment
+## `ResolveIntent.execute`, [line 97](../../../../../../../backend/src/sro/application/intent/resolve.py#L97): Comment
 
 Code: `pending = next((s for s in skills if pinned and s.id.value == pinned), None)`
 
@@ -158,7 +158,7 @@ Code: `pending = next((s for s in skills if pinned and s.id.value == pinned), No
 > question again -- which is how a system teaches people not to answer
 > its questions.
 
-## `ResolveIntent.execute`, [line 96](../../../../../../../backend/src/sro/application/intent/resolve.py#L96): Comment
+## `ResolveIntent.execute`, [line 99](../../../../../../../backend/src/sro/application/intent/resolve.py#L99): Comment
 
 Code: `asking = reading.wants == "ask" if reading.confidence >= _READ_FLOOR else asks(utterance)`
 
@@ -166,7 +166,7 @@ Code: `asking = reading.wants == "ask" if reading.confidence >= _READ_FLOOR else
 > a question never matches a skill that writes, and which sentences are
 > questions is something a model reads better than a phrase list.
 
-## `ResolveIntent.execute`, [line 97](../../../../../../../backend/src/sro/application/intent/resolve.py#L97): Comment
+## `ResolveIntent.execute`, [line 100](../../../../../../../backend/src/sro/application/intent/resolve.py#L100): Comment
 
 Code: `subject = reading.entity if reading.confidence >= _READ_FLOOR else ""`
 
@@ -174,7 +174,7 @@ Code: `subject = reading.entity if reading.confidence >= _READ_FLOOR else ""`
 > skill that explains the verb and not the subject answers about the
 > wrong thing, however well it scores.
 
-## `ResolveIntent.execute`, [line 99](../../../../../../../backend/src/sro/application/intent/resolve.py#L99): Comment
+## `ResolveIntent.execute`, [line 102](../../../../../../../backend/src/sro/application/intent/resolve.py#L102): Comment
 
 Code: `interrupted = (`
 
@@ -190,7 +190,7 @@ Code: `interrupted = (`
 > pattern-matched: a pinned skill that writes has no business answering
 > a question, however the question happens to be phrased.
 
-## `ResolveIntent.execute`, [line 112](../../../../../../../backend/src/sro/application/intent/resolve.py#L112): Comment
+## `ResolveIntent.execute`, [line 115](../../../../../../../backend/src/sro/application/intent/resolve.py#L115): Comment
 
 Code: `if not candidates and after and (reading.continues or refers_back(utterance)):`
 
@@ -200,7 +200,7 @@ Code: `if not candidates and after and (reading.continues or refers_back(utteran
 > shown. The previous sentence supplies the subject; this one still has
 > to match something, so nothing is invented -- only remembered.
 
-## `ResolveIntent.execute`, [line 115](../../../../../../../backend/src/sro/application/intent/resolve.py#L115): Comment
+## `ResolveIntent.execute`, [line 118](../../../../../../../backend/src/sro/application/intent/resolve.py#L118): Comment
 
 Code: `if (`
 
@@ -214,7 +214,7 @@ Code: `if (`
 > synonyms to everybody except a string comparison, and gating them on
 > the verb sent every question to the planner.
 
-## `ResolveIntent.execute`, [line 132](../../../../../../../backend/src/sro/application/intent/resolve.py#L132): Comment
+## `ResolveIntent.execute`, [line 137](../../../../../../../backend/src/sro/application/intent/resolve.py#L137): Comment
 
 Code: `if ambiguous(candidates) and not carrying_on:`
 
@@ -223,7 +223,7 @@ Code: `if ambiguous(candidates) and not carrying_on:`
 > answered. Offering a choice here made the operator pick the same
 > skill again and lose what they had just typed.
 
-## `ResolveIntent.execute`, [line 145](../../../../../../../backend/src/sro/application/intent/resolve.py#L145): Comment
+## `ResolveIntent.execute`, [line 150](../../../../../../../backend/src/sro/application/intent/resolve.py#L150): Comment
 
 Code: `understood = reading.confidence >= _READ_FLOOR and (`
 
@@ -234,7 +234,7 @@ Code: `understood = reading.confidence >= _READ_FLOOR and (`
 > because "show" and "all" appear in no objective key -- hedging at the
 > operator about words the reading had already resolved.
 
-## `ResolveIntent.execute`, [line 147](../../../../../../../backend/src/sro/application/intent/resolve.py#L147): Comment
+## `ResolveIntent.execute`, [line 152](../../../../../../../backend/src/sro/application/intent/resolve.py#L152): Comment
 
 Code: `or (asking and not writes(best.version))`
 
@@ -243,14 +243,14 @@ Code: `or (asking and not writes(best.version))`
 > them, and hedging about the word "count" is hedging about a
 > synonym the reading already resolved.
 
-## `ResolveIntent.execute`, [line 159](../../../../../../../backend/src/sro/application/intent/resolve.py#L159): Comment
+## `ResolveIntent.execute`, [line 164](../../../../../../../backend/src/sro/application/intent/resolve.py#L164): Comment
 
 Code: `items: tuple[dict[str, str], ...] = ()`
 
 > Values second, and only for the skill that was chosen. Asking a model
 > which skill to run is the wrong-match failure with a model attached.
 
-## `ResolveIntent._nothing_taught`, [line 191](../../../../../../../backend/src/sro/application/intent/resolve.py#L191): Comment
+## `ResolveIntent._nothing_taught`, [line 196](../../../../../../../backend/src/sro/application/intent/resolve.py#L196): Comment
 
 Code: `pursuit = Pursuit.of(ctx, compose(utterance, proposal))`
 
@@ -258,7 +258,7 @@ Code: `pursuit = Pursuit.of(ctx, compose(utterance, proposal))`
 > a goal, and the browser is driven toward it -- slowly, watched, and
 > captured, so the next time it is a taught skill over the API.
 
-## `ResolveIntent._nothing_taught`, [line 194](../../../../../../../backend/src/sro/application/intent/resolve.py#L194): Comment
+## `ResolveIntent._nothing_taught`, [line 199](../../../../../../../backend/src/sro/application/intent/resolve.py#L199): Comment
 
 Code: `return Resolution(`
 
@@ -267,10 +267,35 @@ Code: `return Resolution(`
 > Saying "teach me that task" to somebody who asked how many there
 > are would be answering a question with a form.
 
-## `ResolveIntent._nothing_taught`, [line 211](../../../../../../../backend/src/sro/application/intent/resolve.py#L211): Comment
+## `ResolveIntent._nothing_taught`, [line 216](../../../../../../../backend/src/sro/application/intent/resolve.py#L216): Comment
 
 Code: `(pursuit.question if pursuit.goal.facts else None)`
 
 > A pursuit with nothing known behind it is not a pursuit: there
 > is no screen to open and no field to fill, and pointing a model
 > at a blank browser is guessing with extra steps.
+
+## `Resolution`, [line 58](../../../../../../../backend/src/sro/application/intent/resolve.py#L58): Note on the line above
+
+Code: `about_what_stands: bool = False`
+
+> The sentence named no job while something stood in the conversation, so it
+> is about what stands (F2). Nothing was planned and nothing is proposed; the
+> caller answers from the run or the question.
+
+## `ResolveIntent.execute`, [line 132](../../../../../../../backend/src/sro/application/intent/resolve.py#L132): Comment
+
+Code: `if not candidates and standing:`
+
+> The explore fallback, closed where it is reached. Measured on the
+> deployment: "check now", "have you recived mail", "what did you fetch from
+> mail" and "i will type it here", each under a standing run or question,
+> went to `_nothing_taught` and came back "Nobody has demonstrated that…".
+>
+> Code decides, from the thread's state (`standing`, which the caller works
+> out) and from the reading (no candidate: the sentence names no job). The
+> model is never asked whether a sentence is a status question -- the
+> reading that called "i wll type" `another_task` on 2026-09-21 is exactly
+> the reading this does not trust. A sentence that does name a job is still
+> that job, standing or not; with nothing standing, the fallback is what it
+> was.

@@ -1,12 +1,15 @@
 // Self-check for how a watched run's end is noticed and kept for the card, and
-// for the pure decision in state.js that bounds how old a watched run may be.
+// for the two pure decisions in state.js that bound it.
 //
 // `service-worker.js`'s `checkFinishing()` reads `state.activeRun()` off both
 // the panel poll and the heartbeat alarm, and hands the record to
 // `noteFinished`, which asks the right door and keeps what came back.
 // `activeRunAge` bounds how old a survivor may be before it is worth asking
 // the backend about at all -- surviving eviction was the point, surviving
-// indefinitely was not.
+// indefinitely was not. `afterRunWrong` decides whether a finished-run row
+// outlives a `run-wrong` call, keyed on which button sent it rather than on
+// whether the run happens to have a reversal -- see the module comment on
+// each in state.js for the reviews that produced them.
 //
 // Run with `node src/background/finishing.test.mjs`.
 
@@ -38,14 +41,14 @@ let answer = () => {
 };
 globalThis.fetch = async (...args) => answer(...args);
 
-const { activeRunAge, state } = await import("./state.js");
+const { activeRunAge, afterRunWrong, state } = await import("./state.js");
 const { api } = await import("./api.js");
 const { noteFinished } = await import("./finishing.js");
 
 /** Round 2 review: `state.activeRun()` surviving a worker eviction had no
  * upper bound, so a run that went quiet before a laptop closed could be
- * "confirmed" a day after it actually finished, handing it a fresh hour of a
- * card for work nobody would recognise as recent. */
+ * "confirmed" a day after it actually finished, handing it a fresh hour of
+ * "Undo that" for work nobody would recognise as recent. */
 function ageBound() {
   const QUIET_MS = 30_000;
   const now = Date.now();
@@ -64,7 +67,37 @@ function ageBound() {
   assert.strictEqual(
     activeRunAge({ runId: "run-1", at: now - 25 * 3600_000 }, now, QUIET_MS),
     "stale",
-    "a day-old quiet run was still confirmed, handing it a fresh hour of a card",
+    "a day-old quiet run was still confirmed, handing it a fresh hour of offering an undo",
+  );
+}
+
+/** Round 2 review: the keep-vs-delete decision after `run-wrong` used to be
+ * keyed on whether the run had a reversal at all, so pressing "It's wrong --
+ * I'll fix it" on a run that also had one left the row -- and "Undo that" --
+ * standing for an hour. Pressing it then would reverse the very correction
+ * the operator had just been told to make by hand. Both presses below answer
+ * for the *same* run, one that does have a reversal, so a fix that merely
+ * stopped keying on `reversal` without keying on the press itself would still
+ * pass the first assertion and only the second would catch it.
+ */
+function keyedOnThePress() {
+  const withReversal = { id: "run-1", reversal: { skill_id: "skl-2", parameters: {} } };
+
+  // "Undo that" pressed: `undoRun` in panel.js sends `keepForRetry: true`
+  // because it still has a second step left -- starting the reversal.
+  const afterUndo = afterRunWrong(withReversal, "undone by the operator", true);
+  assert.ok(afterUndo, "'Undo that' on a run with a reversal did not keep the row to retry");
+  assert.strictEqual(afterUndo.wrongBecause, "undone by the operator");
+
+  // "It's wrong -- I'll fix it" pressed on that *same* run: `wasWrong` in
+  // panel.js never sends `keepForRetry`. The operator's own hands are the
+  // correction from here, so the row -- and "Undo that" alongside it -- must
+  // end, reversal or not.
+  const afterWrong = afterRunWrong(withReversal, "the operator said this was wrong", false);
+  assert.strictEqual(
+    afterWrong,
+    null,
+    "'It's wrong' on a run with a reversal left the row -- and 'Undo that' -- standing",
   );
 }
 
@@ -420,6 +453,7 @@ async function theStoredRunCarriesWhatItWrote() {
 await theStoredRunCarriesWhatItWrote();
 await whoIsAskedHowItEnded();
 ageBound();
+keyedOnThePress();
 await stoppingIsNotAnAlarm();
 await theRigsRunInThePanelsWords();
 await theCardGetsWhatItDraws();

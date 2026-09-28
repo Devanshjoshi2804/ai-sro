@@ -151,13 +151,13 @@ function checked(runs) {
 /**
  * The card, or `null` when nothing was learned for this host.
  *
- * `onReview(job)` for the console. Nothing here runs a job: a job is run by
- * asking for it in the conversation, and the backend starts it.
+ * `onRun(job, button)` when they ask for one; `onReview(job)` for the console.
  *
- * Nothing here knows about a run in progress: while one is watched the panel
- * does not draw this card at all. See `render` in `panel.js`.
+ * Nothing here knows about a run in progress: while one drives this browser
+ * the panel does not draw this card at all, the way an offer taken stops
+ * being an offer. See `render` in `panel.js`.
  */
-export function learned(jobs, { onReview } = {}) {
+export function learned(jobs, { onRun, onReview } = {}) {
   if (!jobs?.length) return null;
   const card = document.createElement("section");
   card.className = "card learned";
@@ -171,7 +171,7 @@ export function learned(jobs, { onReview } = {}) {
   eyebrow.textContent = "Learned from what you do here";
   card.append(eyebrow);
 
-  jobs.slice(0, K_SHOWN).forEach((job) => {
+  jobs.slice(0, K_SHOWN).forEach((job, index) => {
     const runs = { total: 0, held: 0, earned: false, ...job.runs };
     const one = document.createElement("div");
     one.className = "job";
@@ -186,12 +186,18 @@ export function learned(jobs, { onReview } = {}) {
 
     const row = document.createElement("div");
     row.className = "row";
+    const run = document.createElement("button");
+    run.type = "button";
+    run.textContent = "Run it here";
+    // One primary press per card: the first job's. The rest are quiet.
+    if (index > 0) run.className = "quiet";
+    run.addEventListener("click", () => onRun?.(job, run));
     const review = document.createElement("button");
     review.type = "button";
     review.className = "quiet";
     review.textContent = "Review in console ↗";
     review.addEventListener("click", () => onReview?.(job));
-    row.append(review);
+    row.append(run, review);
     one.append(row);
     card.append(one);
   });

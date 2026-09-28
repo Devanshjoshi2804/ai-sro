@@ -22,6 +22,13 @@
     <!-- Three numbers, each measured. Absent on a day with nothing in it. -->
     <div id="today"></div>
 
+    <!-- What arrived while nobody was looking, folded into one line with the
+         number on it. Pinned above the scroll rather than inside it: a request
+         nobody has answered is not something to find by scrolling, and it is
+         the first thing somebody coming back to the panel should see. Built in
+         waiting.js. Absent -- not empty -- when nothing is waiting. -->
+    <div id="waiting" aria-live="polite" hidden></div>
+
     <!-- One card per thing that is true, in the order somebody should deal with
          it. Everything here is built in panel.js from the worker's status,
          because every one of these states is a fact about this browser rather
@@ -49,6 +56,12 @@
     <section id="here">
       <p class="note" id="candidates-note"></p>
     </section>
+
+    <!-- What nobody has answered yet, at the full width of the panel.
+         A pane and not a dialog: it was an overlay with a ✕, sized by the
+         stylesheet rather than by its contents, and a queue of one drew a
+         card and two thirds of empty black. Built in pending.js. -->
+    <section id="backlog" hidden></section>
 
     <!-- What this browser has done lately. Also a pane: as an overlay it drew
          its lines straight through whatever was behind it, and the run a line

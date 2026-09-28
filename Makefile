@@ -251,6 +251,12 @@ mutants-backend: ## Mutation score for the bridge and the ladder, against their 
 	$(BACKEND) uv run mutmut export-cicd-stats
 	$(BACKEND) uv run python scripts/mutation_floor.py
 
+# Beside the rig's rather than replacing it: the same measurement from the
+# other store, so the two can be read against each other until phase 7 deletes
+# the rig and its target with it.
+offer-replay: ## Would the offer name the right job? The store's gestures through the real matcher, no browser
+	$(BACKEND) uv run python scripts/dry_run.py --replay /tmp/offer-replay.json > /dev/null && node ../new-chrome-extension/scripts/offer-replay.mjs /tmp/offer-replay.json
+
 measure: ## What this system has actually done, and what every number stands on
 	@# Reads only. Every line carries a standing -- warehouse, mail, local,
 	@# recorded, none -- because the argument about whether this direction is

@@ -26,8 +26,10 @@ import { state } from "./state.js";
  * persisted in `state.activeRun()` by the worker; renaming it would strand
  * whatever is in flight in somebody's browser. Read it as "workflow run".
  *
- * Nothing is decided here past which door. `derived` is what the run read
- * back, which only the backend has.
+ * Nothing is decided here past which door. `derived` and `reversal` are
+ * computed against the tenant's whole skill library, which only the skill
+ * door has, so a workflow run's card says so by having no undo on it rather
+ * than by inventing one (see `panel.js`'s `finished()`).
  */
 export async function noteFinished(active) {
   // ponytail: `state.activeRun()` is one slot for one run -- see the note above
@@ -55,6 +57,7 @@ export async function noteFinished(active) {
       steps: run.steps || [],
       withheld: run.withheld || [],
       derived: run.derived || {},
+      reversal: run.reversal || null,
       failure: run.failure || null,
       // Copied from the run's own record, not only written by the press that
       // set it. A run called wrong in the console, or by a press whose row
@@ -81,7 +84,18 @@ export async function noteFinished(active) {
       values: run.values || {},
       // The second of the two whitelists this has to pass. `values` was added
       // to one and not the other once already.
+      undo: run.undo || null,
+      undoes_by: run.undoes_by || null,
       undoes_run: run.undoes_run || null,
+      // Whether a person may simply press it again: the run stopped and
+      // nothing it did may have landed. The backend decides it -- a second
+      // press after a write nobody could confirm is two records.
+      try_again: Boolean(run.try_again),
+      // And which job to press: `values` and `items` were already here, and
+      // this is the third thing a press needs. The run's own conversation is
+      // deliberately not carried -- a retry that comes up short asks in the
+      // panel, where the person who pressed it is.
+      workflow_id: run.workflow_id || "",
       gathered: run.gathered || {},
       watched: Boolean(run.watched),
       at: Date.now(),

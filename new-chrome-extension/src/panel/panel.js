@@ -1,22 +1,23 @@
 // The surface docked beside the system the operator is working in.
 //
 // Everything here is native, because everything on it needs `chrome.*` or
-// needs to know which tab this is. This browser records and watches: every
-// run is started by the backend, from the conversation, and run by Steel --
-// so a press here that should start one says so in the conversation.
+// needs to know which tab this is. This browser recognises, offers and
+// watches: every press is a call to the backend, which starts the run and has
+// Steel do it. Nothing here ever drives a step in this tab.
 //
 // What is drawn is one card per thing that is true, in the order somebody
 // should deal with it. Not connected outranks not observing.
 
 import { hostMatches } from "../background/scripts.js";
-import { alreadyAnswered, composer, ledger } from "./ledger.js";
+import { alreadyAnswered, composer, ledger, nudging } from "./ledger.js";
 import { runCard } from "./run-card.js";
 import { history } from "./history.js";
 import { learned, learnedHere } from "./learned.js";
 import { panes } from "./panes.js";
-import { when } from "./pending.js";
+import { dayNamed, pending, when } from "./pending.js";
 import { needsAPress, strip } from "./strip.js";
 import { today } from "./today.js";
+import { waiting } from "./waiting.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -273,6 +274,62 @@ function render(status) {
   const standing = [];
   for (const offer of status.offers || []) offers.push(offering(offer));
 
+  // The jobs this browser is offering to do, HERE rather than in the
+  // conversation.
+  //
+  // They were drawn in the thread, interleaved with what was said, which was
+  // right when the panel was one column and wrong the moment it became two:
+  // Home is what is true right now and an offer is the truest thing on it, so
+  // splitting the panel left Home empty and put the card a person was waiting
+  // to press behind the other tab. Seen on the deployment 2026-09-16 --
+  // "Create a Customer Type — GDY, so far" sitting in Chat with nothing at all
+  // on Home.
+  //
+  // Not the ones that are waiting: those are in the banner above, and a card
+  // drawn twice is a card somebody answers twice. Not another tab's, either --
+  // an offer about a page nobody is looking at is words without buttons.
+  //
+  // ONE of them, and the rest behind the tray.
+  //
+  // Home had eleven cards on it: two of them the same request twice, four from
+  // earlier in the day, and the one that had just arrived at the bottom. A
+  // panel that exists to say "here is the thing that needs you" was saying it
+  // eleven times, which is the same as not saying it. Measured on the
+  // deployment 2026-09-18.
+  //
+  // The newest, because that is the one anybody acts on -- nobody works
+  // Tuesday's request on Thursday, and the older ones are a list to go
+  // through rather than a thing in the way of the run happening now.
+  // Not the job that is running right now.
+  //
+  // A card offering to do what is already being done is a card whose Yes
+  // starts it a second time -- and on `Delete a Customer Type` that is two
+  // deletes of one record. Measured on the deployment 2026-09-22 at 15:57:
+  // "Delete a Customer Type — NEX. Want me to do it?" with a live Yes,
+  // directly above "A run is performing here" for that same job.
+  //
+  // The mail path has had this since it was written -- `offer.started`,
+  // "a run is already going for this one, so there is nothing to offer" --
+  // and the rig's own offers never consulted anything. They are drawn from
+  // the same list, so the guard belongs here, where the list is filtered.
+  const running = status.performing?.workflowId || null;
+  const openHere = (lastStatus?.nudges || status.nudges || []).filter(
+    (nudge) =>
+      nudge.state === "open" &&
+      !nudge.missed &&
+      !(running && nudge.workflowId === running) &&
+      !(nudge.tabId != null && nudge.tabId !== tabHere.tabId),
+  );
+  const [newest, ...others] = [...openHere].sort((a, b) => when(b.at) - when(a.at));
+  if (newest) {
+    const one = nudging(newest, answered);
+    if (justArrived(newest)) one.dataset.fresh = "1";
+    offers.push(one);
+  }
+  // And a way to the rest, which is a line rather than ten more cards.
+  if (others.length) offers.push(theRest(others));
+
+
   // A mail that has gone out and not been answered.
   //
   // On Home as well as in the conversation, because the two panes answer two
@@ -293,12 +350,16 @@ function render(status) {
   // What was learned on this system, and how far each job is toward writing
   // on its own. Below everything that is happening now: it is standing
   // information, and the loud cards above are the ones waiting on somebody.
-  // Not while a run is going: the run is what is happening now.
+  // Not while a run is going.
   //
-  // Nothing on it starts a run. A job is run by asking for it in the
-  // conversation, and the backend starts it.
+  // One browser, one hand: the backend refuses a second run for this device,
+  // so every press on this card would come back refused -- and the card an
+  // operator just pressed sat there beside the run it started, offering to
+  // start it again. An offer taken stops being an offer, which is the rule
+  // the nudges have always followed; this card is the same kind of thing.
   if (status.deviceId && !status.performing) {
     const here = learned(learnedHere(learnedJobs, tabHere.host), {
+      onRun: runHere,
       onReview: (job) => openConsole(`/jobs/${encodeURIComponent(job.id)}`),
     });
     if (here) standing.push(here);
@@ -348,9 +409,74 @@ function render(status) {
   $("here").hidden = !status.deviceId;
   $("thread").hidden = !status.deviceId;
   lastStatus = status;
+  drawnCardsOnce = true;
   toTheQuestion(status.finished);
   paintPanes();
+  // What arrived while nobody was looking, above everything. Painted from the
+  // worker's status rather than from the thread, because that is what it is
+  // about -- a request waiting is a fact about this browser, not a line in a
+  // conversation -- and after `lastStatus` is set, which is what it reads.
+  paintWaiting();
   return status;
+}
+
+const K_FRESH_MS = 20000;
+/** How long a card that has just arrived keeps its moving border. Long enough
+ * to be on screen when somebody is sent here to look at it, short enough that
+ * a panel left open does not have four cards asking for attention at once. */
+
+const seenCards = new Set();
+const freshUntil = new Map();
+let drawnCardsOnce = false;
+
+/** Whether this card is new since the last draw -- and, if it is, send the
+ * operator to it.
+ *
+ * An answer that arrives by mail lands on Home while the person who asked for
+ * it is reading the conversation, so the card they have been waiting for
+ * appears behind the other tab with nothing to say it did. The same reasoning
+ * as `goToTheConversation` when a run asks a question: the panel moves to
+ * where the thing that needs a person is, rather than leaving them to find it.
+ *
+ * Only after a first draw. Every card is new to a panel that has just opened,
+ * and a panel that jumped to Home and lit up four borders on open would be
+ * shouting about nothing that happened.
+ */
+function justArrived(nudge) {
+  const id = nudge.id;
+  if (!id) return false;
+  if (!seenCards.has(id)) {
+    seenCards.add(id);
+    if (drawnCardsOnce) {
+      freshUntil.set(id, Date.now() + K_FRESH_MS);
+      // The pane, not a redraw: this is called from inside the draw, and
+      // `paintPanes` runs at the end of it.
+      pane = "home";
+    }
+  }
+  return (freshUntil.get(id) || 0) > Date.now();
+}
+
+/** The requests Home is not showing, as one line that opens them.
+ *
+ * Not a card per request, which is what this replaces. A person looking at
+ * Home is looking for the next thing to do; how much else is queued is a
+ * number, and the queue itself is somewhere to go.
+ */
+function theRest(rest) {
+  const oldest = rest.reduce(
+    (was, one) => (when(one.at) < when(was.at) ? one : was),
+    rest[0],
+  );
+  return card({
+    title: `${rest.length} more waiting`,
+    says:
+      rest.length === 1
+        ? `One more request, from ${dayNamed(oldest.at).toLowerCase()}.`
+        : `The oldest is from ${dayNamed(oldest.at).toLowerCase()}.`,
+    // Home's way to the queue, which is now a place rather than a dialog.
+    actions: [{ label: "Go through them", primary: true, act: goToTheQueue }],
+  });
 }
 
 /** Waiting on somebody's mailbox, said on Home.
@@ -807,6 +933,14 @@ async function setWatch(button, on) {
   await refresh();
 }
 
+/** How long a nudge that ended stays on screen.
+ *
+ * Four seconds: long enough that an offer disappearing reads as the offer
+ * ending rather than the panel dropping it, short enough that a day of them
+ * never becomes the wall of unpressable history an operator found themselves
+ * scrolling past on a page none of it was about. */
+const JUST_ENDED_MS = 4_000;
+
 /** A run the backend is performing, possibly started somewhere else.
  *
  * Stoppable from here because this is where somebody sees it happening.
@@ -853,9 +987,18 @@ function performing(status) {
           await refresh();
         },
       },
+      // The run is on Steel, not in this tab: this is where to see it.
+      ...(run.liveViewUrl
+        ? [
+            {
+              label: "Watch it run",
+              act: () => void chrome.tabs.create({ url: run.liveViewUrl }),
+            },
+          ]
+        : []),
       // Where the run actually is. Two routes because there are two id
       // spaces: `/jobs/runs/{id}` reads a workflow-run id (`source: "rig"`,
-      // the name the channel gave it) and `/runs/{id}` a skill-run id. The
+      // the watched run's own record) and `/runs/{id}` a skill-run id. The
       // backend keeps them apart on purpose, so a workflow-run id sent to
       // `/runs/` is not a type error -- it is looked up in the skill-run
       // repository, found missing, and drawn as a run that does not exist.
@@ -1024,8 +1167,43 @@ function madeCard(run, wrote, ending) {
   );
   holder.append(steps);
 
+  // What takes it back, where this tenant has been seen doing it.
+  //
+  // The rig's result card has never offered one. The reason was written into
+  // this file -- "a run the rig drove has neither a reversal nor anywhere to
+  // send It's wrong" -- and it was true: the backend answered an id and could
+  // not say which record a press would address, so a button here would have
+  // been a button that deletes something nobody named.
+  //
+  // It can say now. `undoes_by` is the record as the warehouse named it, and
+  // `undo` is the mined job whose own evidence shows somebody deleting records
+  // of this kind. Both, or neither: a press that cannot name what it removes
+  // is not a press anybody consented to.
+  const back =
+    run.undo && run.undoes_by ? Object.entries(run.undoes_by)[0] : null;
+  if (back) {
+    const says = document.createElement("p");
+    says.className = "detail";
+    says.dataset.kind = "undo";
+    // Named before the press and not after it, which is ADR 014's rule for the
+    // skill reversal beside this one: the operator reads what it will do.
+    says.textContent = `“Undo it” runs a job that deletes ${back[0]} ${back[1]}.`;
+    holder.append(says);
+  }
+
   const row = document.createElement("div");
   row.className = "row";
+  if (back) {
+    const undo = document.createElement("button");
+    undo.type = "button";
+    undo.className = "quiet";
+    undo.textContent = "Undo it";
+    undo.addEventListener("click", () => {
+      undo.disabled = true;
+      void undoTheRun(run, back, undo);
+    });
+    row.append(undo);
+  }
   const ok = document.createElement("button");
   ok.type = "button";
   ok.textContent = "OK";
@@ -1048,6 +1226,71 @@ function tookBack(run) {
     ? `This took back what run ${run.undoes_run} made.`
     : `This was taking back what run ${run.undoes_run} made, and did not finish` +
         ` — that record is still there.`;
+}
+
+/** One press that runs the same job again, with the values it already had. */
+function tryAgainRow(run) {
+  const row = document.createElement("div");
+  row.className = "row";
+  const again = document.createElement("button");
+  again.type = "button";
+  again.textContent = "Try it again";
+  again.addEventListener("click", async () => {
+    again.disabled = true;
+    try {
+      const started = await ask({
+        kind: "retry-rig-run",
+        workflowId: run.workflow_id,
+        values: run.values || {},
+        items: run.items || [],
+        // Which run this presses again, so two panels are one retry.
+        retryOf: run.id,
+      });
+      if (started?.ok === false) {
+        again.disabled = false;
+        said(started.error || "that job could not be started");
+        return;
+      }
+      said("trying it again");
+      goToTheRun();
+    } catch (error) {
+      again.disabled = false;
+      said(`that job could not be started: ${error.message}`);
+    }
+  });
+  row.append(again);
+  return row;
+}
+
+/** Start the job that takes back what this run made.
+ *
+ * An ordinary rig run of an ordinary mined job, started with the one value that
+ * names the record -- not a special path, and deliberately so: the delete goes
+ * through the same ladder, the same write gate and the same belts as any other
+ * job, and an undo that skipped them would be the one write in this system
+ * nobody checked.
+ */
+async function undoTheRun(run, [field, names], button) {
+  try {
+    const started = await ask({
+      kind: "undo-rig-run",
+      workflowId: run.undo,
+      values: { [field]: names },
+      // Which run this takes back. Two panels showing one card would otherwise
+      // press two deletes at one record; the backend refuses the second.
+      undoesRun: run.id,
+    });
+    if (started?.ok === false) {
+      button.disabled = false;
+      said(started.error || "that job could not be started");
+      return;
+    }
+    said(`taking back ${field} ${names}`);
+    goToTheRun();
+  } catch (error) {
+    button.disabled = false;
+    said(error.message);
+  }
 }
 
 /** The operator has read it. Clears only the copy this panel draws -- the run
@@ -1155,20 +1398,36 @@ function howItEnded(run) {
  * cannot become the card. */
 const K_WHY = 120;
 
-/** What the last run made.
+/** One item's values, in a sentence: `name: value, name: value`.
+ *
+ * All that survives of the sentence-to-skill box, which went with the mining
+ * offers that opened it. The undo line still needs it: what a reversal is
+ * about to delete has to be readable before the press, and this is the only
+ * place those identifiers appear.
+ */
+function describeItem(item) {
+  return Object.entries(item)
+    .map(([name, value]) => `${name}: ${value}`)
+    .join(", ");
+}
+
+/** What the last run made, and how to take it back.
  *
  * It asks nothing. "Did that come out right?" is a survey and surveys go
- * unanswered. Silence means it was fine. A run nobody touched is judged as it
- * is today.
+ * unanswered; an undo is a thing they wanted, so pressing it costs them
+ * nothing to be honest about -- which is exactly what makes it the better
+ * signal.
+ *
+ * Silence means it was fine. A run nobody touched is judged as it is today.
  *
  * Never claims more than the run's own record does. `derived` is read only
  * for a run that actually succeeded -- a run that failed partway through may
  * still have read something back before it did, and showing that as "Created
  * ..." would be the panel saying the write happened when the run's own status
- * says it did not.
- *
- * Nothing here starts a run: no Undo, no Try again. A run is started by the
- * backend, from the conversation, and this browser only watches it.
+ * says it did not. `run.reversal` is already null for anything but a
+ * succeeded run (the backend never computes an undo for one -- see
+ * `GET /runs/{id}` in `runs.py`), so nothing extra is needed to keep "Undo
+ * that" off a failed run; this only has to get the *title* right.
  */
 function finished(status) {
   const run = status.finished;
@@ -1272,14 +1531,52 @@ function finished(status) {
           .join(" \u00b7 ");
       card.append(named);
     }
+    // And one press to try it again, where trying again is safe.
+    //
+    // A run stops for reasons that have nothing to do with the job -- a
+    // session that expired, a tab closed, a browser that could not be reached
+    // -- and the offer that started it is spent, so the request sat there
+    // until somebody noticed and sent the mail again. Measured on the
+    // deployment 2026-09-19: a run stopped on a sign-in page and this card
+    // offered a person nothing at all.
+    //
+    // `try_again` is the backend's answer, not this card's guess: it is true
+    // only where nothing the run did may have landed. A second press after a
+    // write nobody could confirm is two records.
+    if (run.try_again && run.workflow_id) card.append(tryAgainRow(run));
     return card;
   }
   const ok = run.status === "succeeded";
   const made = ok ? Object.entries(run.derived || {}) : [];
   const actions = [];
-  // Once a run has been called wrong the backend refuses a second one
-  // outright (a run may be called wrong only once), so a card that has
-  // already recorded one must not go on offering a press guaranteed to fail.
+  const notes = [];
+  if (ok && run.reversal) {
+    actions.push({
+      label: "Undo that",
+      primary: true,
+      act: (button) => undoRun(button, run),
+    });
+    // What the press is about to delete, named before it is pressed.
+    //
+    // One press is the design and stays one press. But the reversal is a
+    // DELETE skill whose steps and values are rendered nowhere -- this button
+    // is the only place it ever appears -- and ADR 014's argument for a press
+    // promoting a version is that the operator read what it would do. Nobody
+    // could read this. `removes` is the delete step's own intent and
+    // `parameters` are the identifiers the run read back, which together are
+    // the whole of what the reversal will address; said on the card so it is
+    // in front of the operator before the click rather than explained after
+    // it. `||` because a finished-run row stored by an older worker has
+    // neither field, and a card with no undo line is better than one saying
+    // "undefined".
+    const removes = run.reversal.removes || "Take back what this run made";
+    const which = describeItem(run.reversal.parameters || {});
+    notes.push(`“Undo that” will: ${removes}${which ? ` — ${which}` : ""}`);
+  }
+  // Once a run has been called wrong -- through this button or "Undo that"
+  // above -- the backend refuses a second one outright (a run may be called
+  // wrong only once), so a card that has already recorded one must not go on
+  // offering a press guaranteed to fail.
   if (ok && !run.wrongBecause) {
     actions.push({
       label: "It's wrong — I'll fix it",
@@ -1293,8 +1590,60 @@ function finished(status) {
         : "Finished. I can't show you what it made — nothing was read back."
       : "The last run failed.",
     says: ok ? null : run.failure || null,
+    notes,
     actions,
   });
+}
+
+/** The two things "Undo that" means: the record that the operator asked for a
+ * reversal, and the reversal itself. `run-wrong` first and awaited before the
+ * reversal starts -- what counts against a skill is whether the operator
+ * asked to take it back, and that has to land even where starting the
+ * reversal in this browser goes on to fail (a tab that has since closed, say).
+ *
+ * Skipped when `run.wrongBecause` is already set -- this run has already been
+ * called wrong once, whether by this button on an earlier press that failed
+ * partway through, or by "It's wrong" below, and the backend refuses a second
+ * one. What is retried here is only what could still be outstanding: starting
+ * the reversal itself.
+ *
+ * `run.reversal.skill_id` and `.parameters` came back from the backend
+ * already computed (`RunModel.reversal`, see the interfaces this task was
+ * handed) -- nothing here decides what would undo a run, only that this is
+ * the moment to run it.
+ */
+async function undoRun(button, run) {
+  button.disabled = true;
+  try {
+    if (!run.wrongBecause) {
+      // `keepForRetry` is what tells the worker this press, unlike "It's
+      // wrong" below, still has a second step after the record lands --
+      // starting the reversal, on this same line -- so the row must survive
+      // to be retried if that fails. See `afterRunWrong` in `state.js`.
+      await ask({
+        kind: "run-wrong",
+        runId: run.id,
+        because: "undone by the operator",
+        keepForRetry: true,
+      });
+    }
+    // Pinned to the version `reversal_for` validated -- `skill.runnable`, the
+    // one place "may this skill actually be asked to run" is answered. Without
+    // it the press ran whatever version happened to be newest by the time it
+    // landed, which is neither the version that was checked nor one anybody
+    // was shown; the backend refuses that outright now rather than running it.
+    // Run by the backend in a browser it owns, never this one.
+    await ask({
+      kind: "run-skill",
+      skillId: run.reversal.skill_id,
+      parameters: run.reversal.parameters,
+      version: run.reversal.version,
+    });
+    said("undoing it — a new run is reversing this one");
+  } catch (error) {
+    said(error.message);
+  }
+  await refresh();
 }
 
 /** No note is asked for here -- see this file's header and `finished()`'s own
@@ -1476,6 +1825,34 @@ async function fetchLearned() {
   }
 }
 
+/** "Run it here", off a learned job.
+ *
+ * By id, through the worker, and not as a sentence in the conversation. The
+ * title was typed into the composer at first, which reads well until the
+ * tenant holds three jobs called "Log in to Keycloak" -- then the press comes
+ * back as "did you mean this one, this one, or that one", about a card the
+ * operator had just pressed. The card knows which job it is.
+ *
+ * A job short of a required value parks and asks in the conversation, which
+ * is where that question belongs; writes still wait for approval.
+ */
+async function runHere(job, button) {
+  if (button) button.disabled = true;
+  try {
+    const started = await ask({ kind: "run-workflow", workflowId: job.id });
+    if (!started?.ok) {
+      if (button) button.disabled = false;
+      said(started?.error || "nothing happened");
+      return;
+    }
+    said(`started ${job.title} — watching it below`);
+  } catch (error) {
+    if (button) button.disabled = false;
+    said(error.message);
+  }
+  await refresh();
+}
+
 async function refresh() {
   void fetchLearned();
   const status = await ask({ kind: "status" });
@@ -1513,6 +1890,14 @@ async function refresh() {
         status.performing = rig
           ? {
               ...status.performing,
+              // Which job it is, off the row rather than the worker: the
+              // worker knows a run id and nothing about what that run is for,
+              // and the offers list has to be able to ask "is this the job
+              // that is already happening?" before it draws a Yes beside it.
+              workflowId: run.workflow_id || null,
+              // Where the backend says this run can be watched: Steel's own
+              // view of the run's tab. Empty when it has none.
+              liveViewUrl: run.live_view_url || "",
               // The rig plans one step at a time, so there is no total to
               // count towards and the card says "step 3" rather than
               // "step 3 of 7". `rigRun` maps the row; `steps` is what it has
@@ -1745,11 +2130,22 @@ function theNav() {
  * switching pane changes nothing `show()`'s signature can see.
  */
 function paintPanes() {
+  // Everything open, not only what was MISSED.
+  //
+  // The count used to mean "arrived while you were not looking", which was the
+  // right number when everything waiting was on Home and the badge only said
+  // you had not been there. Home keeps one now, so what the badge is for is
+  // the size of the queue behind the tray -- and a queue that counted only the
+  // ones you had never seen would say six, then four, then nothing, while six
+  // requests sat there unanswered.
+  const missed = (lastStatus?.nudges || []).filter(
+    (one) => one.state === "open",
+  ).length;
   // Only when it would say something different. This runs on every push from
   // the worker -- a status lands every couple of seconds -- and rebuilding two
   // buttons that often is how a control comes to flicker under the cursor
   // that is about to press it.
-  const now = pane;
+  const now = `${pane}:${missed}`;
   if (now === panesDrawn) {
     // The tabs are what is unchanged. Which half is on screen is asserted
     // every time: it is one property write per element, and an early return
@@ -1760,8 +2156,9 @@ function paintPanes() {
   panesDrawn = now;
   theNav().replaceChildren(
     panes(pane, {
+      waiting: missed,
       onPick: (picked) => {
-        // Three places and one action. Starting a conversation is the action,
+        // Four places and one action. Starting a conversation is the action,
         // and it leaves you in Chat.
         if (picked === "new") return void freshThread();
         if (picked === pane) return;
@@ -1771,6 +2168,11 @@ function paintPanes() {
         // Tasks is the one that has to go and ask. Everything else is drawn
         // from what this panel is already holding.
         if (picked === "tasks") void drawTasks();
+        // Arriving at the queue redraws it whatever it last held: `showPane`
+        // leaves an unchanged backlog alone so the controls in it survive a
+        // poll, and somebody who walked away mid-confirmation and came back
+        // should find the pane as it is rather than as they left it.
+        if (picked === "waiting") paintBacklog(true);
       },
     }),
   );
@@ -1874,6 +2276,58 @@ function _note(text) {
   return said;
 }
 
+/** What nobody has answered, at the full width of the panel.
+ *
+ * Drawn from the status this panel already has rather than fetched: these are
+ * this browser's own offers, held in `chrome.storage`, and the panel is the
+ * same browser. Nothing to wait for, so it is painted on every pass -- which
+ * is what makes a request answered on Home disappear from here without
+ * anybody leaving the pane.
+ */
+let backlogDrawn = null;
+
+function paintBacklog(again = false) {
+  const into = $("backlog");
+  const open = (lastStatus?.nudges || []).filter((one) => one.state === "open");
+  // Only when it would say something different -- the guard the banner and the
+  // ledger both keep, for the reason they keep it. This pane is repainted on
+  // every push from the worker, and replacing its children each time takes
+  // whatever state the controls in it are holding: the second press of a
+  // "Dismiss all 34" lands on a button the poll rebuilt half a second ago, so
+  // the confirmation could never be reached and the only way to clear a
+  // backlog was still one card at a time.
+  const now = open.map((one) => `${one.id}:${one.at}`).join(",");
+  if (!again && now === backlogDrawn) return;
+  backlogDrawn = now;
+  const drawn = pending(open, { onPress: answered, onClear: clearBacklog });
+  // Nothing waiting is a sentence, not an empty pane. A place somebody
+  // navigated to has to say what it is even when it holds nothing -- an empty
+  // one reads as a surface that failed to load.
+  into.replaceChildren(drawn || _note("Nothing is waiting on you."));
+}
+
+/** A day of requests, or all of them, dismissed together.
+ *
+ * One message and not one per id: the worker holds the whole queue under a
+ * single storage key, so thirty-four `drop-nudge` calls are thirty-four
+ * read-modify-writes of it. Each reports its own fate on the other side, which
+ * is the part that has to stay per request.
+ */
+async function clearBacklog(ids) {
+  try {
+    const got = await ask({ kind: "drop-nudges", nudgeIds: ids });
+    said(
+      got?.dropped
+        ? `dismissed ${got.dropped} \u2014 nothing ran`
+        : "nothing to dismiss",
+    );
+  } catch (error) {
+    said(error.message);
+  }
+  await refresh();
+  paintBacklog(true);
+}
+
 /** How many runs the Tasks pane asks for. The console is where a log is read. */
 const K_HISTORY = 12;
 
@@ -1968,21 +2422,88 @@ function showPane() {
   // costs nothing, and an early return that skipped it would leave a pane
   // hidden after anything else touched it.
   for (const id of ["today", "cards"]) $(id).hidden = pane !== "home";
+  // The banner is Home's, and only when it has something in it.
+  $("waiting").hidden = pane !== "home" || !$("waiting").childElementCount;
   for (const id of ["thread", "here"]) $(id).hidden = pane !== "chat";
+  $("backlog").hidden = pane !== "waiting";
   $("tasks").hidden = pane !== "tasks";
   // The composer is in none of these lists. One box, always there: an operator
   // who thinks of something while looking at their cards should not have to
   // find another tab before they can say it -- and a question from a run
   // arrives in the conversation, so the box they answer in belongs under their
   // hand wherever they are standing.
+  //
+  // `paintBacklog` here and not only on the press: the queue is live. A
+  // request answered on Home, or one that arrives while somebody is reading
+  // this pane, has to change what the pane says without them leaving it.
+  if (pane === "waiting") paintBacklog();
+}
+
+/** Whether the waiting banner is open, in THIS window of the panel.
+ *
+ * Not stored: it is a fact about a person looking at a panel right now, not
+ * about the browser. A second window of the panel is a second pair of eyes and
+ * gets its own answer, and both are folded again next time it opens -- which is
+ * the state somebody coming back to the panel should find.
+ */
+let waitingOpen = false;
+
+/** What the banner was last drawn from, so an unchanged one is left alone --
+ * with whatever somebody has typed into it, and without a live region
+ * repeating itself every two seconds. */
+let waitingDrawn = null;
+
+/** Redraw the banner, and nothing else.
+ *
+ * Its own painter rather than part of `show()` because opening it changes
+ * nothing `show()`'s signature can see: the thread is the same, the cards are
+ * the same, and the guard there would return before drawing a thing. The
+ * toggle calls this directly.
+ */
+function paintWaiting() {
+  const missed = (lastStatus?.nudges || []).filter(
+    (nudge) => nudge.state === "open" && nudge.missed,
+  );
+  // Only when it would say something different. The panel repaints on every
+  // push from the worker, and rebuilding these cards each time would take the
+  // half-typed value in one of them with it -- the defect the ledger's own
+  // redraw guard exists for, in a place that has boxes to type into.
+  //
+  // It is also what keeps the live region quiet: `#waiting` announces what
+  // changes inside it, and replacing identical children every two seconds is a
+  // screen reader saying "3 requests arrived" all afternoon.
+  const now = `${waitingOpen}|${missed.map((one) => `${one.id}:${one.state}`).join(",")}`;
+  if (now === waitingDrawn) return;
+  waitingDrawn = now;
+  const banner = waiting(missed, {
+    open: waitingOpen,
+    onToggle: (open) => {
+      waitingOpen = open;
+      paintWaiting();
+    },
+    card: (one) => nudging(one, answered),
+  });
+  $("waiting").replaceChildren(...(banner ? [banner] : []));
+  $("waiting").hidden = !banner || pane !== "home";
 }
 
 function show(thread, { asked = false } = {}) {
-  // The local half belongs in the signature, not only in the draw below it:
-  // it changes without the thread changing, and a signature built from the
-  // thread alone computed the same answer every poll and never redrew it.
-  //
-  // An answer to a question is drawn from that local half.
+  // The local half belongs in the signature, not only in the draw below it.
+  // It was built from the thread alone, and a rig offer writes nothing to the
+  // thread -- `considerOffer` stores a nudge and prompts on the page. So an
+  // offer made while the thread was quiet was never drawn here: every poll
+  // computed the same signature and returned, and the card appeared only when
+  // something unrelated changed the thread. Found on 2026-09-14 by a browser
+  // that made an offer the panel never showed.
+  const mine = (lastStatus?.nudges || [])
+    .map(
+      (nudge) =>
+        `${nudge.id}:${nudge.state}:${nudge.missed ? "m" : ""}:${nudge.k ?? ""}`,
+    )
+    .join(",");
+  // An answer to a question is drawn from the same local half, and changes
+  // without the thread changing -- the same defect the nudges above were found
+  // to have: every poll computed the same signature and returned.
   // NOT `answered`: that is the press handler this function hands to the
   // ledger twenty lines down, and a local of the same name shadowed it -- so
   // `onPress` was a string, and every press in the thread threw
@@ -2004,7 +2525,7 @@ function show(thread, { asked = false } = {}) {
   // on screen. The look's own timestamp is what moves it: once per look, not
   // once per poll.
   const waitingOn = `${lastStatus?.mail?.awaiting?.at || ""}:${lastStatus?.mail?.lookedAt || ""}:${lastStatus?.mail?.looking ? "r" : ""}`;
-  const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}|${answerSeen}|${missed}|${asking}|${waitingOn}|${hostOf(tabHere.url || "")}`;
+  const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}|${mine}|${answerSeen}|${missed}|${asking}|${waitingOn}|${hostOf(tabHere.url || "")}`;
   if (now === drawn) return;
   if (!asked && drawn !== null && document.activeElement?.tagName === "INPUT")
     return;
@@ -2012,9 +2533,36 @@ function show(thread, { asked = false } = {}) {
   if (thread !== lastThread && (thread.messages || []).length)
     lastThread = thread;
   // What only this browser knows, beside what the server holds: the mails it
-  // recognised. Not written down, and it belongs in the order things happened.
+  // recognised and the prompts it made on the page in front of somebody.
+  // Neither is written down, and both belong in the order things happened.
   const local = {
     offers: lastStatus?.offers || [],
+    // Open ones for THIS tab, and ones that ended in the last few seconds --
+    // nothing else.
+    //
+    // An operator on their login page was shown eleven rows saying "you were
+    // on Create a Work Area" and "you were on Create Customer Type DSS", none
+    // of them about the page in front of them, none of them pressable, from
+    // yesterday. A nudge is a thing offered and then gone; the ledger is for
+    // what was SAID and DECIDED, and an offer nobody answered decided nothing.
+    //
+    // The brief tail is deliberate rather than zero: an offer that vanishes
+    // the instant it expires looks, to somebody who just watched it appear,
+    // like the panel losing it. Four seconds is long enough to see it go.
+    // A card with no tab behind it is not about a tab. A mail arrived while
+    // the operator was somewhere else entirely -- filtered to the tab in front
+    // of them it would never be drawn at all, which is how the first version
+    // of this lost every request it recognised.
+    // Only the ones that have just ENDED. An open offer is a thing to press
+    // and belongs on Home with everything else that is true right now; what
+    // the conversation keeps is the brief tail of one that closed, so somebody
+    // who just watched it go can see that it went rather than wonder where the
+    // panel put it.
+    nudges: (lastStatus?.nudges || []).filter(
+      (nudge) =>
+        nudge.state !== "open" &&
+        Date.now() - (nudge.endedAt || 0) < JUST_ENDED_MS,
+    ),
     answer: lastStatus?.answer || null,
     nearMisses: lastStatus?.nearMisses || [],
     waiting: lastStatus?.waiting || [],
@@ -2110,10 +2658,10 @@ async function say(text, answering) {
   thinking(text);
   let answered;
   try {
-    // `tabId` so an answer to a question is kept against the tab the operator
-    // is working in. `answering` binds a press to the question it was
-    // pressed under, so the door acts on that question's offer and never on a
-    // newer one.
+    // `tabId` so an offer the sentence turns into is drawn beside the tab the
+    // operator is working in -- `show` only draws an OPEN nudge for this tab.
+    // `answering` binds a press to the question it was pressed under, so the
+    // door acts on that question's offer and never on a newer one.
     answered = await ask({
       kind: "thread-say",
       threadId,
@@ -2158,6 +2706,17 @@ function startedByTheAnswer(thread) {
   return false;
 }
 
+/** Go to the queue, which is a place.
+ *
+ * The mirror of `goToTheConversation`, and it exists for its reason: a
+ * transition with only an outbound half leaves somebody somewhere they cannot
+ * see what they just did.
+ */
+function goToTheQueue() {
+  pane = "waiting";
+  paintPanes();
+}
+
 /** Show the half of the panel a run is drawn in.
  *
  * The mirror of `goToTheConversation`, and it exists for the same reason: a
@@ -2193,15 +2752,36 @@ function thinking(text) {
  * The message is a thing that was said; this press is the authorisation.
  * Nothing here runs because a message asked for it.
  *
- * No path below starts a run in this browser. A yes is said into the
- * conversation, and the backend starts the run it answers.
+ * Every path below is the rig's. The mining pipeline's own offer -- "you've
+ * done this 4 times, want me to do the next one?" -- is gone: it offered to
+ * teach a SKILL from recordings, which is not the system this browser offers,
+ * and the rig already holds that work as a job with steps. The ledger no
+ * longer draws those messages at all.
  */
 async function answered(answer, message, where, button, values) {
+  // An offer the rig made about the job in front of somebody. Its two answers
+  // are its own -- `nudge-answer` is the backend nudge's -- because the worker
+  // reports one fate per path, and an offer that took both would be counted
+  // twice.
+  if (answer === "start-rig-run" || answer === "drop-nudge") {
+    return answeredOffer(answer, message, button, values);
+  }
+  // The same yes, for an offer that cannot simply run. Nothing starts: the
+  // question lands in this conversation, the operator answers it in words, and
+  // the answer that completes the set starts the job on the press they have
+  // just given. The card draws no boxes for exactly this reason.
+  if (answer === "ask-about-offer") return askAboutOffer(message, button);
   // The mail to whoever asked, sent or let go. Nothing leaves the mailbox
   // without this press, and this press sends nothing but the words already on
   // screen: the backend re-reads them from the thread.
   if (answer === "send-draft") return sendTheDraft(message, button);
   if (answer === "drop-draft") return dropTheDraft(button);
+  // "Always, here." A rule rather than a run: nothing starts now, and the next
+  // time this operator lands on the page this offer is about, their own
+  // browser starts the job. Kept out of `answeredOffer` because that function
+  // reports an offer's FATE, and making a rule is not one of the three -- the
+  // offer in front of them is still theirs to answer either way.
+  if (answer === "do-this-here") return madeARule(message, button);
   // Which of the two jobs they meant. Said back into the conversation as the
   // job's own name rather than started here: the door then reads a sentence
   // with no ambiguity left in it, and the offer it makes is the ordinary one.
@@ -2224,6 +2804,45 @@ async function answered(answer, message, where, button, values) {
   // rather than the ones the mail happened to fill.
   if (decision.kind === "mail_match")
     return firedFromMail(decision, answer, button, values);
+}
+
+/** The rig's offer, answered.
+ *
+ * The values are the ones on the card: the prefix read some off the page and
+ * the operator typed the rest, and both are in front of them when they press.
+ * The run is started in the worker, which holds the credential; this is the
+ * press that authorises it.
+ *
+ * Either way it ends by drawing the thread again from scratch. The card
+ * disables itself on the press, so leaving it there after a refusal would leave
+ * a dead offer under the cursor -- and the offer is still open in the worker
+ * when a start is refused, so what belongs on screen is the card as it now is,
+ * not the spent one.
+ */
+async function answeredOffer(answer, nudge, button, values) {
+  button.disabled = true;
+  try {
+    if (answer === "drop-nudge") {
+      await ask({ kind: "drop-nudge", nudgeId: nudge.id });
+      said("dismissed \u2014 nothing ran");
+    } else {
+      const got = await ask({
+        kind: "start-rig-run",
+        nudgeId: nudge.id,
+        values: values?.values || {},
+      });
+      said(
+        got.ok
+          ? "started \u2014 watching it below"
+          : got.error || "nothing started",
+      );
+    }
+  } catch (error) {
+    said(error.message);
+  }
+  await refresh();
+  drawn = null;
+  await conversation();
 }
 
 /** Send the drafted mail, having read it.
@@ -2264,6 +2883,39 @@ async function sendTheDraft(message, button) {
 async function dropTheDraft(button) {
   button.disabled = true;
   said("left it with you");
+}
+
+/** An offer that needs something decided, handed to the conversation.
+ *
+ * The offer stays open in the worker rather than being reported answered: it
+ * has not been accepted or dismissed, it has been taken up, and the thing that
+ * ends it is the run that starts when the last question is answered. Reporting
+ * a fate here would close it under somebody mid-sentence.
+ */
+async function askAboutOffer(nudge, button) {
+  button.disabled = true;
+  try {
+    const got = await ask({ kind: "ask-about-offer", nudgeId: nudge.id });
+    // "Asked below", and never the question itself.
+    //
+    // `got.asked` is the whole question, and the question is already a message
+    // in the thread this press walks them to -- so echoing it here drew it
+    // twice, once as the thing that was said and once as a grey line under it.
+    // Measured on the deployment 2026-09-22 at 15:00: two copies of "I can
+    // also set Department and Manufacturer ... What should it be?", one of
+    // them unanswerable.
+    //
+    // The line's job is what just happened, and what just happened is that a
+    // question was asked where they are about to be taken.
+    said(got.ok ? "asked below" : got.error || "nothing to ask");
+  } catch (error) {
+    said(error.message);
+  }
+  await refresh();
+  // And take them to it. The question is asked in the conversation, the card
+  // they pressed is on Home, and writing the one without going to the other is
+  // indistinguishable from nothing happening.
+  goToTheConversation();
 }
 
 /** A fire waiting on somebody, answered from the panel.
@@ -2322,6 +2974,31 @@ async function answeredWaiting(answer, card, button) {
   await refresh();
   drawn = null;
   await conversation();
+}
+
+/** "Do this here", answered from the ledger.
+ *
+ * The page is the offer's, chosen in the worker: a rule made about whichever
+ * tab the panel happens to be docked beside is a rule about the wrong page
+ * that fires forever after.
+ */
+async function madeARule(nudge, button) {
+  try {
+    const got = await ask({ kind: "do-this-here", nudgeId: nudge.id });
+    if (got.ok) {
+      said(`from now on this runs when you land on ${got.page}`);
+      return;
+    }
+    // The card said "every time you land here" on the press. It is not true,
+    // so it is taken back rather than left standing.
+    button.disabled = false;
+    button.textContent = "Always on this page";
+    said(got.error || "no rule was made");
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = "Always on this page";
+    said(error.message);
+  }
 }
 
 /** A matched mail, answered from the ledger.

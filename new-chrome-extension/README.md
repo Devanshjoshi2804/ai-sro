@@ -1,9 +1,9 @@
 # SRO Chrome extension
 
-Continuous observation, in the operator's own Chrome. It records and it
-watches; it never starts or drives a run. The backend starts every run -- a yes
-in the conversation, a mail it acts on, a press in the console -- and Steel runs
-it.
+Continuous observation, in the operator's own Chrome. It records, recognises
+the job the operator is doing, offers it, and watches the run. It never drives
+a step: every press -- a card's Yes, Run it here, Try it again, Undo it -- is a
+call to the backend, which starts the run and has Steel do it.
 
 Read first:
 
@@ -77,8 +77,10 @@ failed attempts and the picture is dropped, loudly — the options page says so.
 
 Clicking the toolbar button opens a panel docked beside the tab. It is not a
 second console: it renders natively only what needs `chrome.*` or the current
-tab -- the REC state, pause, the run the backend is performing with a way to
-stop it, purge, and what was learned narrowed to the tab's host --
+tab -- the REC state, pause, offers for the job on the page and the requests
+mail brought in, the run the backend is performing with a way to stop it and a
+link to watch it on Steel, purge, and what was learned narrowed to the tab's
+host --
 and links out to the console for everything else, so no review screen exists
 twice.
 
@@ -109,13 +111,17 @@ the deleting — and forgets it was asked after five seconds.
 ## No command channel
 
 This extension used to dial `WS /v1/agents/{device_id}/commands` and perform
-runs in the operator's own tab -- `ui.perform`, `http.send`, `navigate` -- and
-to start runs itself from offers it made off the operator's gestures, from
-page rules, and from Retry, Undo and Run buttons. That was a second engine
-beside the backend's, and on QA (2026-09-28) it turned one yes into three
-runs, started a job because somebody opened their mail, and stopped most of
-its own runs by losing the tab. All of it is gone. A run is asked for in the
-conversation and started by the backend; the panel draws it and can stop it.
+runs in the operator's own tab -- `ui.perform`, `http.send`, `navigate`. That
+was a second engine beside the backend's, and on QA (2026-09-28) it stopped
+most of its own runs by losing the tab. It is gone, with the `debugger`
+permission.
+
+What stays is the offer. A recognised walk, a page a rule is about and a mail
+the backend read each become a card that asks; nothing starts without a press.
+A press goes to `POST /v1/workflow-runs` naming its offer -- the card's own, or
+the reply's or the mail's where the conversation asks about the same thing --
+and the backend starts one run per offer, so a card and a yes in the thread
+are one run.
 
 ## Working without the backend
 

@@ -47,10 +47,12 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 // instead of eating the file.
 const SOURCE = [
   readFileSync(path.join(here, "result.js"), "utf-8"),
+  readFileSync(path.join(here, "nudge.js"), "utf-8"),
   readFileSync(path.join(here, "ledger.js"), "utf-8"),
   readFileSync(path.join(here, "strip.js"), "utf-8"),
   readFileSync(path.join(here, "today.js"), "utf-8"),
   readFileSync(path.join(here, "run-card.js"), "utf-8"),
+  readFileSync(path.join(here, "waiting.js"), "utf-8"),
   readFileSync(path.join(here, "panes.js"), "utf-8"),
   readFileSync(path.join(here, "pending.js"), "utf-8"),
   // After `pending.js`, which it reads the day names out of, and before
@@ -323,13 +325,14 @@ function panel(status, here = null, replies = {}) {
     // A press in the profile menu, the way the strip hands it over.
     menu: (action) => sandbox.menu(action),
     // Standing in the conversation, which is where an operator who has just
-    // answered a question is.
+    // answered a question is. What arrives on Home while they are here is the
+    // case `justArrived` exists for.
     toChat: () => vm.runInContext('pane = "chat"; paintPanes();', sandbox),
     // Exposed so a test can simulate the panel's own two-second poll --
     // `refresh()` calling `render(status)` again with nothing changed --
     // separately from whatever else a click already triggered.
     render: sandbox.render,
-    // The press path, as the ledger calls it. Reached here
+    // The nudge and offer press path, as the ledger calls it. Reached here
     // rather than through a rendered card because the thread is drawn from a
     // separate fetch: what is under test is which message a press sends, and
     // that is this function whatever drew the button.
@@ -341,10 +344,20 @@ function panel(status, here = null, replies = {}) {
     focus: (el) => {
       sandbox.document.activeElement = el;
     },
-    // The ledger's LOCAL half: what this browser holds that lives in no
+    // The ledger's LOCAL half: the offers this browser made, which live in no
     // thread. Set and redrawn the way a poll does it -- `refresh()` stores the
     // status, `conversation()` calls `show` with whatever thread it fetched.
-    // This is how a press in the ledger is actually reached -- the handler
+    // An offer arriving, as the worker actually delivers one: a status push
+    // carrying the nudges, and then whatever the thread happens to say. Both,
+    // because an open offer is drawn on HOME -- it is a thing to press, not a
+    // thing that was said -- and the thread is what `show` draws.
+    offerLocally: (nudges, thread) => {
+      sandbox.render({ ...status, nudges });
+      sandbox.show(thread);
+    },
+    // The same half, for whatever else lives in it. `offerLocally` names the
+    // one field it sets; this draws the thread from the whole local status,
+    // which is how a press in the ledger is actually reached -- the handler
     // the ledger gets is chosen inside `show`, and calling the exported
     // `answered` directly cannot tell whether it did.
     locally: (status, thread) => {
@@ -407,7 +420,7 @@ test("arriving on the conversation arrives at the end of it", async () => {
   // Nothing in this panel has ever scrolled, so Chat showed the OLDEST message
   // with the newest below the fold. The thing you came to read was the one
   // place the panel did not put you.
-  const { ids } = panel({ deviceId: "dev-1" });
+  const { ids } = panel({ deviceId: "dev-1", nudges: [] });
   const tab = (which) => navTab(ids, which).listeners[0];
   // Once, to make the scroller: this fake document builds an element the first
   // time somebody asks for it by id.
@@ -427,6 +440,65 @@ test("arriving on the conversation arrives at the end of it", async () => {
   );
 });
 
+test("a press whose answer is a question takes them to where it was asked", async () => {
+  // The question landed in the thread and the operator was left on Home, where
+  // no part of a conversation is on screen. Seen on the deployment 2026-09-18,
+  // twice: it is indistinguishable from the press doing nothing, and the
+  // sentence it wrote is one nobody ever read.
+  const nudge = {
+    id: "n_ask",
+    source: "rig",
+    state: "open",
+    k: 0,
+    at: "2026-09-18T09:31:00Z",
+    title: "Create a Customer Type",
+    workflowId: "wfl_1",
+    values: { "Customer Type": "NEWSROTEST" },
+    items: [],
+    missing: [],
+    tooLong: { "Customer Type": 4 },
+  };
+  const { ids, render, sent } = panel(
+    { deviceId: "dev-1", nudges: [nudge] },
+    null,
+    {
+      "ask-about-offer": {
+        ok: true,
+        asked: "Customer Type takes 4 characters. What should it be?",
+      },
+      thread: { id: "thr_1", messages: [] },
+    },
+  );
+  render({ deviceId: "dev-1", nudges: [nudge] });
+
+  // Home, which is where the cards are and where the press happens.
+  assert.equal(ids["thread"].hidden, true, "the panel did not start on Home");
+
+  const card = [...(ids["cards"].kids || [])];
+  const yes = (function find(el) {
+    if (String(el?.textContent || "").trim() === "Yes, do it") return el;
+    for (const kid of el?.kids || []) {
+      const got = find(kid);
+      if (got) return got;
+    }
+    return null;
+  })({ kids: card });
+  assert.ok(yes, "no Yes on the card");
+  yes.listeners[0]();
+  await new Promise((done) => setImmediate(done));
+
+  // It asked, and it took them to the asking.
+  assert.ok(
+    sent.some((one) => one.kind === "ask-about-offer"),
+    "the press did not ask",
+  );
+  assert.equal(
+    ids["thread"].hidden,
+    false,
+    "left them on Home, reading nothing",
+  );
+});
+
 test("a sentence shows the moment it is sent, not when the answer lands", async () => {
   // What a sentence costs varies from nothing to several seconds: an answer to
   // a standing question is decided without a model call, a sentence the
@@ -434,7 +506,7 @@ test("a sentence shows the moment it is sent, not when the answer lands", async 
   // box emptied and nothing else changed, so the one thing the operator knew
   // for certain -- that they pressed send -- was the one thing on screen that
   // disagreed.
-  const { ids } = panel({ deviceId: "dev-1" }, null, {
+  const { ids } = panel({ deviceId: "dev-1", nudges: [] }, null, {
     thread: { id: "thr_1", messages: [] },
     // An answer that never comes, which is the whole window under test.
     "thread-say": new Promise(() => {}),
@@ -477,7 +549,7 @@ test("the answer replaces the sentence rather than standing beside it", async ()
   // while the echo is still set: the sentence appears twice, once as the thing
   // that landed and once as the thing still in flight, until some later poll
   // happens to redraw.
-  const { ids } = panel({ deviceId: "dev-1" }, null, {
+  const { ids } = panel({ deviceId: "dev-1", nudges: [] }, null, {
     thread: { id: "thr_1", messages: [] },
     "thread-say": {
       id: "thr_1",
@@ -540,7 +612,7 @@ test("the last answer takes them to where the run they just started is drawn", a
   // says what it is doing is on Home. Without this the operator answers the
   // last question and sits in the conversation while the job they have just
   // finished authorising runs somewhere they are not looking.
-  const { ids } = panel({ deviceId: "dev-1" }, null, {
+  const { ids } = panel({ deviceId: "dev-1", nudges: [] }, null, {
     thread: { id: "thr_1", messages: [] },
     "thread-say": {
       id: "thr_1",
@@ -602,7 +674,7 @@ test("a job offered but not started is not something to go and watch", async () 
   // arriving late", and it is what the worker starts a run on. A `job`
   // decision WITHOUT it is an offer -- a card to press, nothing running -- so
   // moving them to watch it would be moving them to watch nothing.
-  const { ids } = panel({ deviceId: "dev-1" }, null, {
+  const { ids } = panel({ deviceId: "dev-1", nudges: [] }, null, {
     thread: { id: "thr_1", messages: [] },
     "thread-say": {
       id: "thr_1",
@@ -660,7 +732,7 @@ test("a job offered but not started is not something to go and watch", async () 
 test("an answer that is not the last one leaves them where they are", async () => {
   // Only the answer that STARTS something moves them. A conversation that
   // jumped to Home after every sentence would be unusable.
-  const { ids } = panel({ deviceId: "dev-1" }, null, {
+  const { ids } = panel({ deviceId: "dev-1", nudges: [] }, null, {
     thread: { id: "thr_1", messages: [] },
     "thread-say": {
       id: "thr_1",
@@ -713,14 +785,14 @@ test("an answer that is not the last one leaves them where they are", async () =
 test("a status landing does not move the view out from under them", async () => {
   // Somebody who has scrolled up is reading something, and the worker pushes a
   // status every couple of seconds.
-  const { ids, render } = panel({ deviceId: "dev-1" });
+  const { ids, render } = panel({ deviceId: "dev-1", nudges: [] });
   navTab(ids, "chat").listeners[0]();
   const scroll = ids["scroll"];
   scroll.scrollHeight = 2400;
   scroll.clientHeight = 600;
   scroll.scrollTop = 300;
 
-  render({ deviceId: "dev-1" });
+  render({ deviceId: "dev-1", nudges: [] });
 
   assert.equal(scroll.scrollTop, 300);
 });
@@ -756,7 +828,7 @@ test("it opens on Home, with the conversation one tap away", async () => {
   // wants from them, which is a glance. A conversation is something you go to,
   // and opening on it puts a text box in front of a person whose actual
   // question is "did it work".
-  const { ids } = panel({ deviceId: "dev-1" });
+  const { ids } = panel({ deviceId: "dev-1", nudges: [] });
 
   assert.equal(ids["cards"].hidden, false);
   assert.equal(
@@ -775,7 +847,7 @@ test("it opens on Home, with the conversation one tap away", async () => {
 });
 
 test("the other half hides the cards and brings the composer", async () => {
-  const { ids } = panel({ deviceId: "dev-1" });
+  const { ids } = panel({ deviceId: "dev-1", nudges: [] });
   const chat = navTab(ids, "chat");
 
   chat.listeners[0]();
@@ -784,6 +856,115 @@ test("the other half hides the cards and brings the composer", async () => {
   assert.ok(!ids["ask-bar"]?.hidden);
   assert.equal(ids["cards"].hidden, true);
   assert.equal(ids["today"].hidden, true);
+});
+
+test("a request waiting is not drawn while the conversation is showing", async () => {
+  // The banner is Home's. What says so anywhere else is the count on the tray,
+  // which is where everything waiting now lives -- Home keeps the newest one
+  // and the rest are behind that door, so a count on Home would be counting
+  // things that are not on it.
+  const { ids } = panel({
+    deviceId: "dev-1",
+    nudges: [
+      {
+        id: "n_mail",
+        source: "rig",
+        state: "open",
+        missed: true,
+        tabId: null,
+        title: "Create a Customer Type",
+        workflowId: "wfl_1",
+        k: 0,
+        values: {},
+        missing: [],
+        parameters: [],
+        at: new Date().toISOString(),
+      },
+    ],
+  });
+  const chat = navTab(ids, "chat");
+
+  chat.listeners[0]();
+
+  assert.equal(ids["waiting"].hidden, true);
+  assert.match(
+    words(navTab(ids, "waiting")),
+    /1/,
+    "nothing on Chat said a request was waiting",
+  );
+});
+
+test("a request that waited is in the banner and nowhere else", async () => {
+  // Two places is one an operator answers twice. The banner holds what arrived
+  // while nobody was looking; the stream below holds what is true right now.
+  const { ids } = panel({
+    deviceId: "dev-1",
+    nudges: [
+      {
+        id: "n_mail",
+        source: "rig",
+        state: "open",
+        missed: true,
+        tabId: null,
+        title: "Create a Customer Type",
+        workflowId: "wfl_1",
+        k: 0,
+        values: { "Customer Type": "GPX" },
+        missing: [],
+        parameters: [],
+        at: new Date().toISOString(),
+      },
+    ],
+  });
+
+  assert.equal(
+    ids["waiting"].hidden,
+    false,
+    "nothing said anything was waiting",
+  );
+  assert.match(words(ids["waiting"]), /1 request arrived while you were away/);
+  assert.doesNotMatch(
+    words(ids["cards"]),
+    /Create a Customer Type/,
+    "drawn in both places",
+  );
+});
+
+test("an unchanged banner is left alone, with whatever was typed into it", async () => {
+  // The panel repaints on every push from the worker. Rebuilding these cards
+  // each time takes the half-typed value in one of them with it -- the defect
+  // the ledger's own redraw guard exists for, in a place with boxes to type
+  // into -- and replaces identical children under a live region, which is a
+  // screen reader saying "1 request arrived" all afternoon.
+  const status = {
+    deviceId: "dev-1",
+    nudges: [
+      {
+        id: "n_mail",
+        source: "rig",
+        state: "open",
+        missed: true,
+        tabId: null,
+        title: "Create a Customer Type",
+        workflowId: "wfl_1",
+        k: 0,
+        values: {},
+        missing: ["Customer Type"],
+        parameters: [],
+        at: new Date().toISOString(),
+      },
+    ],
+  };
+  const { ids, render } = panel(status);
+  const drawn = ids["waiting"].kids[0];
+
+  render(status);
+
+  assert.strictEqual(
+    ids["waiting"].kids[0],
+    drawn,
+    "the banner was rebuilt for nothing",
+  );
 });
 
 test("the placeholder goes in the thread, not over every pane in the panel", async () => {
@@ -795,7 +976,7 @@ test("the placeholder goes in the thread, not over every pane in the panel", asy
   //
   // The fake document here hands out an isolated node per id, so it cannot
   // see that nesting: what it CAN see is which container was written to.
-  const { ids } = panel({ deviceId: "dev-1" }, null, {
+  const { ids } = panel({ deviceId: "dev-1", nudges: [] }, null, {
     thread: new Promise(() => {}),
   });
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -811,7 +992,7 @@ test("a pane that is fetching shows the shape of what is coming, not a blank", a
   // trips take, and then jumps. These are the lines themselves, greyed, so the
   // pane has its layout before the data lands.
   const { ids } = panel(
-    { deviceId: "dev-1" },
+    { deviceId: "dev-1", nudges: [] },
     null,
     // A worker that has not answered yet, which is the state being drawn.
     { "recent-runs": new Promise(() => {}) },
@@ -833,7 +1014,7 @@ test("a pane that is fetching shows the shape of what is coming, not a blank", a
 });
 
 test("and it is gone the moment the answer is", async () => {
-  const { ids } = panel({ deviceId: "dev-1" }, null, {
+  const { ids } = panel({ deviceId: "dev-1", nudges: [] }, null, {
     "recent-runs": [
       {
         id: "run_1",
@@ -856,6 +1037,123 @@ test("and it is gone the moment the answer is", async () => {
   };
   walk(ids["tasks"]);
   assert.deepEqual(stillLoading, [], "the placeholder outlived the answer");
+});
+
+test("the queue is live: what is answered elsewhere leaves the pane somebody is standing on", async () => {
+  // Standing on Waiting is not a snapshot. A request answered on Home, in
+  // another window of this panel, or by the operator doing the thing
+  // themselves, has to leave this list without anybody navigating away -- and
+  // one that arrives has to appear.
+  //
+  // This is the property the redraw guard has to keep while it stops the poll
+  // replacing the pane: skip the redraw when nothing changed, never when
+  // something did.
+  const waiting = (id) => ({
+    id,
+    source: "rig",
+    state: "open",
+    tabId: null,
+    title: "Create a Customer Type",
+    workflowId: "wfl_1",
+    k: 0,
+    values: {},
+    missing: [],
+    parameters: [],
+    at: new Date().toISOString(),
+  });
+  const { ids, render } = panel({
+    deviceId: "dev-1",
+    nudges: [waiting("n_1"), waiting("n_2")],
+  });
+
+  navTab(ids, "waiting").listeners[0]();
+  assert.match(words(ids["backlog"]), /2 requests waiting/);
+
+  // Answered somewhere else, and the worker says so on its next push.
+  render({ deviceId: "dev-1", nudges: [waiting("n_1")] });
+
+  assert.match(
+    words(ids["backlog"]),
+    /1 request waiting/,
+    "the pane went on showing a request that had already been answered",
+  );
+
+  // And one that arrives while they are reading.
+  render({
+    deviceId: "dev-1",
+    nudges: [waiting("n_1"), waiting("n_2"), waiting("n_3")],
+  });
+
+  assert.match(words(ids["backlog"]), /3 requests waiting/);
+});
+
+test("a month of requests is cleared from the pane it is read in, once it has asked", async () => {
+  // The requirement, in the operator's words: a queue holds things a week old
+  // and older, a month is not unusual, and it has to be clearable in bulk.
+  // One message for the lot -- the worker keeps them under a single storage
+  // key -- and it asks before it sends, because a dismissal is a fate and a
+  // fate is counted.
+  const waiting = (id, daysAgo) => ({
+    id,
+    source: "rig",
+    state: "open",
+    tabId: null,
+    title: "Create a Customer Type",
+    workflowId: "wfl_1",
+    k: 0,
+    values: {},
+    missing: [],
+    parameters: [],
+    at: new Date(Date.now() - daysAgo * 86400000).toISOString(),
+  });
+  const status = {
+    deviceId: "dev-1",
+    nudges: [waiting("n_1", 30), waiting("n_2", 2), waiting("n_3", 0)],
+  };
+  const { ids, sent, render } = panel(status);
+
+  navTab(ids, "waiting").listeners[0]();
+  const button = (matches) => {
+    const found = [];
+    const walk = (el) => {
+      if (el?.tag === "button" && matches(el.textContent || "")) found.push(el);
+      for (const kid of el?.kids || []) walk(kid);
+    };
+    walk(ids["backlog"]);
+    return found[0];
+  };
+
+  const all = button((said) => said === "Dismiss all 3");
+  assert.ok(all, "a month-deep queue with no way to put it down");
+  all.listeners[0]();
+  assert.deepEqual(sentOf(sent, "drop-nudges"), [], "cleared on one press");
+
+  // And now the panel's own poll lands, saying exactly what it said before.
+  // This pane used to be replaced on every one of those -- every two seconds
+  // -- so the second press of a confirmation could never be reached and a
+  // backlog could still only be cleared one card at a time.
+  render(status);
+  assert.ok(
+    button((said) => /^sure\?/.test(said)),
+    "a poll rebuilt the pane out from under the confirmation",
+  );
+
+  all.listeners[0]();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(sentOf(sent, "drop-nudges"), [
+    { kind: "drop-nudges", nudgeIds: ["n_1", "n_2", "n_3"] },
+  ]);
+  assert.deepEqual(
+    sentOf(sent, "drop-nudge"),
+    [],
+    "a batch went as one message per card after all",
+  );
+});
+
+test("nothing waiting leaves no banner behind", async () => {
+  const { ids } = panel({ deviceId: "dev-1", nudges: [] });
+
+  assert.equal(ids["waiting"].hidden, true);
 });
 
 test("a match that is short of a required value says so, and cannot be run", async () => {
@@ -1363,7 +1661,7 @@ test("the collapsed row still says whether this tab is evidence", async () => {
   assert.match(said, /wms\.example/);
 });
 
-test("it shows what it made, and offers nothing to start", async () => {
+test("it shows what it made and offers to take it back", async () => {
   const { cards } = panel(
     {
       deviceId: "dev-1",
@@ -1383,9 +1681,7 @@ test("it shows what it made, and offers nothing to start", async () => {
 
   const said = cards.map(words).join(" ");
   assert.ok(/NDPCK/.test(said), "it did not show what it made");
-  // A reversal is the backend's to start, from the conversation: this
-  // browser starts no run of its own, an undo included.
-  assert.ok(!/Undo that/i.test(said), "an undo was offered from this browser");
+  assert.ok(/Undo that/i.test(said), "no undo was offered when one exists");
   assert.ok(
     !/come out right/i.test(said),
     "it is still asking a survey question",
@@ -1588,6 +1884,7 @@ test("a run that stopped for a password says so, and never shows the vault key",
     {
       deviceId: "dev-1",
       capturing: true,
+      channel: "open",
       finished: {
         id: "run_1",
         source: "rig",
@@ -1622,6 +1919,7 @@ test("a write nobody could confirm says that, not the url it read", () => {
     {
       deviceId: "dev-1",
       capturing: true,
+      channel: "open",
       finished: {
         id: "run_1",
         source: "rig",
@@ -1664,6 +1962,7 @@ test("what was learned here is not offered while a run is going", () => {
   const status = {
     deviceId: "dev-1",
     capturing: true,
+    channel: "open",
     watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
   };
   const here = { id: 7, host: "wms.example", url: "https://wms.example/portal" };
@@ -1698,6 +1997,7 @@ test("a card rises once, not on every poll", async () => {
   const status = {
     deviceId: "dev-1",
     capturing: true,
+    channel: "open",
     watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
   };
   const drawn = panel(status, {
@@ -1728,6 +2028,7 @@ test("a panel with nothing on it says so", () => {
     {
       deviceId: "dev-1",
       capturing: true,
+      channel: "open",
       watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
     },
     { id: 7, host: "wms.example", url: "https://wms.example/portal" },
@@ -1740,6 +2041,7 @@ test("a panel with nothing on it says so", () => {
     {
       deviceId: "dev-1",
       capturing: true,
+      channel: "open",
       offers: [OFFER],
       watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
     },
@@ -1755,6 +2057,7 @@ test("the run happening now leads, and what is offered follows it", () => {
     {
       deviceId: "dev-1",
       capturing: true,
+      channel: "open",
       offers: [OFFER],
       performing: { runId: "run-9", kind: "rig", since: new Date().toISOString(), step: 1 },
     },
@@ -1811,14 +2114,25 @@ test("what was learned on this system is on Home, and only here", async () => {
     "the panel never asked what was learned",
   );
 
-  // And nothing on it starts a run: a job is asked for in the conversation,
-  // and the backend starts it.
+  // And the press starts THAT job, by id.
+  //
+  // It typed the title into the composer at first, which reads well until the
+  // tenant holds three jobs called "Log in to Keycloak": the press came back
+  // as "did you mean this one, this one, or that one" about the card they had
+  // just pressed.
   const card = [...drawn.ids["cards"].kids].find((one) =>
     words(one).includes("Learned from what you do here"),
   );
+  const run = buttons(card).find((b) => /Run it here/.test(b.textContent));
+  run.listeners[0]();
+  await settled();
+  assert.deepEqual(sentOf(drawn.sent, "run-workflow"), [
+    { kind: "run-workflow", workflowId: "wfl_1" },
+  ]);
   assert.deepEqual(
-    buttons(card).map((b) => b.textContent),
-    ["Review in console ↗"],
+    sentOf(drawn.sent, "say"),
+    [],
+    "the press went through the conversation as a sentence",
   );
 });
 
@@ -2197,6 +2511,48 @@ test("a run that came up short takes the operator to the question", async () => 
   assert.equal(ids["cards"].hidden, true);
 });
 
+test("undo records the ask and starts the reversal skill, nothing else", async () => {
+  // The two things "Undo that" means: the record that the operator asked for
+  // a reversal, and the reversal run itself -- and nothing besides those two
+  // messages, because everything the reversal needs (the skill, its
+  // parameters) came back from the backend already computed.
+  const { cards, sent } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [
+        { tabId: 7, host: "wms.example", since: new Date().toISOString() },
+      ],
+      finished: {
+        id: "run-1",
+        status: "succeeded",
+        derived: { operation: "NDPCK" },
+        reversal: { skill_id: "skl-2", parameters: { operation_id: "NDPCK" } },
+      },
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+  const card = cards.find((c) => words(c).includes("NDPCK"));
+  const [undo] = buttons(card);
+  assert.strictEqual(undo.textContent, "Undo that");
+
+  await undo.listeners[0]();
+
+  assert.deepStrictEqual(sentOf(sent, "run-wrong"), [
+    {
+      kind: "run-wrong",
+      runId: "run-1",
+      because: "undone by the operator",
+      keepForRetry: true,
+    },
+  ]);
+  const [ran] = sentOf(sent, "run-skill");
+  assert.strictEqual(ran.skillId, "skl-2");
+  assert.deepStrictEqual(ran.parameters, { operation_id: "NDPCK" });
+  // Run by the backend in a browser it owns: no device, never this one.
+  assert.strictEqual(ran.deviceId, undefined, "the reversal was sent to run in this browser");
+});
+
 test("'it's wrong' records why without offering a run it cannot take back", async () => {
   const { cards, sent } = panel(
     {
@@ -2272,10 +2628,14 @@ test("a run that failed is not shown as though it made something", async () => {
   );
 });
 
-test("a run already called wrong offers no second way to call it wrong", async () => {
-  // The backend refuses a second `run-wrong` for one run, so a card that has
-  // recorded one must not go on offering a press guaranteed to fail.
-  const { cards } = panel(
+test("a run already called wrong keeps its retry, not a second way to call it wrong", async () => {
+  // Round 1 review: the worker used to delete the finished-run row the moment
+  // `run-wrong` was accepted. If starting the reversal then failed (a tab
+  // closed, a network blip), the card vanished on refresh with a marked-wrong
+  // run, nothing reversed, and no way back to retry. The worker now keeps the
+  // row and marks it `wrongBecause`; this is the panel half -- retry the
+  // reversal without recording a second, refused `run-wrong`.
+  const { cards, sent } = panel(
     {
       deviceId: "dev-1",
       capturing: true,
@@ -2287,7 +2647,7 @@ test("a run already called wrong offers no second way to call it wrong", async (
         status: "succeeded",
         derived: { operation: "NDPCK" },
         reversal: { skill_id: "skl-2", parameters: { operation_id: "NDPCK" } },
-        wrongBecause: "the operator said this was wrong",
+        wrongBecause: "undone by the operator",
       },
     },
     { id: 7, host: "wms.example", url: "https://wms.example/portal" },
@@ -2298,8 +2658,24 @@ test("a run already called wrong offers no second way to call it wrong", async (
     !/I'll fix it/i.test(words(card)),
     "a run already called wrong still offered a second way to call it wrong",
   );
-  assert.deepEqual(buttons(card), [], "a card with nothing left to do offered a press");
+  const [undo] = buttons(card);
+  assert.strictEqual(undo.textContent, "Undo that");
+
+  await undo.listeners[0]();
+
+  assert.deepStrictEqual(
+    sentOf(sent, "run-wrong"),
+    [],
+    "an already-recorded run was called wrong a second time, which the backend refuses",
+  );
+  const [ran] = sentOf(sent, "run-skill");
+  assert.strictEqual(
+    ran.skillId,
+    "skl-2",
+    "retrying the undo did not start the reversal",
+  );
 });
+
 /** Every element of one tag under `el` -- the disclosure tests need to know
  * that the steps are *inside* a `details`, which `words()` alone cannot say
  * because it flattens the whole tree into one string. */
@@ -2340,6 +2716,63 @@ function previewableVersion(overrides = {}) {
     ...overrides,
   };
 }
+
+test("undo says what it is about to delete, and pins the version it was offered", async () => {
+  // "Undo that" routes through the same press as any other run, and the
+  // reversal skill's steps and values are rendered nowhere -- this button is
+  // the only place it ever appears. ADR 014's argument for a press promoting
+  // a version is that the operator read what it would do; nobody could read
+  // this. One press is the design and stays one press, but one press with no
+  // idea what is about to be deleted is not something this design ever argued
+  // for.
+  const { cards, sent } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [
+        { tabId: 7, host: "wms.example", since: new Date().toISOString() },
+      ],
+      finished: {
+        id: "run-1",
+        status: "succeeded",
+        derived: { operation: "NDPCK" },
+        reversal: {
+          skill_id: "skl-undo",
+          version: 2,
+          removes: "Delete the work operation",
+          parameters: { operation_id: "NDPCK" },
+        },
+      },
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const card = cards.find((c) => words(c).includes("NDPCK"));
+  const said = words(card);
+  assert.match(
+    said,
+    /Delete the work operation/,
+    "the undo never named what it would remove",
+  );
+  assert.match(
+    said,
+    /operation_id: NDPCK/,
+    "the undo never named which record",
+  );
+
+  const [undo] = buttons(card).filter(
+    (button) => button.textContent === "Undo that",
+  );
+  await undo.listeners[0]();
+
+  const [ran] = sentOf(sent, "run-skill");
+  assert.strictEqual(ran.skillId, "skl-undo");
+  assert.strictEqual(
+    ran.version,
+    2,
+    "the undo ran whatever version was newest, not the one it was offered",
+  );
+});
 
 test("sending with Enter paints the answer, with the cursor still in the box", async () => {
   // The primary way anybody sends a chat message. The redraw a poll makes must
@@ -2400,6 +2833,125 @@ test("a new sentence clears the line about what just happened", async () => {
   );
 });
 
+test("yes on a rig offer sends the run with the values typed on the card", async () => {
+  // The offer card is the panel's only path to starting a rig run, and this is
+  // the message it must send: `start-rig-run`, never `nudge-answer`. The worker
+  // reports one fate per path, so an offer that sent both would be counted
+  // twice.
+  const { sent, answered } = panel({ deviceId: "dev-1" });
+  const nudge = {
+    id: "n_1",
+    source: "rig",
+    state: "open",
+    title: "Create Work Area",
+    k: 2,
+  };
+  const button = node("button");
+
+  await answered("start-rig-run", nudge, node("li"), button, {
+    values: { description: "x" },
+  });
+
+  assert.deepEqual(sentOf(sent, "start-rig-run"), [
+    { kind: "start-rig-run", nudgeId: "n_1", values: { description: "x" } },
+  ]);
+  assert.deepEqual(
+    sentOf(sent, "nudge-answer"),
+    [],
+    "the offer answered down two paths at once",
+  );
+  assert.equal(button.disabled, true, "the pressed button stayed live");
+});
+
+test("no thanks on a rig offer drops it and starts nothing", async () => {
+  const { sent, answered } = panel({ deviceId: "dev-1" });
+  const nudge = {
+    id: "n_2",
+    source: "rig",
+    state: "open",
+    title: "Create Work Area",
+    k: 2,
+  };
+
+  await answered("drop-nudge", nudge, node("li"), node("button"));
+
+  assert.deepEqual(sentOf(sent, "drop-nudge"), [
+    { kind: "drop-nudge", nudgeId: "n_2" },
+  ]);
+  assert.deepEqual(
+    sentOf(sent, "start-rig-run"),
+    [],
+    "saying no started a run",
+  );
+  assert.deepEqual(sentOf(sent, "nudge-answer"), []);
+});
+
+test("an offer made while the thread is quiet is still drawn", async () => {
+  // `show` redrew only when the THREAD changed, and its signature was built
+  // from the thread alone. A rig offer is local -- `considerOffer` stores a
+  // nudge and prompts on the page, and writes nothing to the thread -- so an
+  // offer made while nobody was talking was stored, prompted, and never drawn
+  // in the panel. Every poll computed the same signature and returned.
+  //
+  // Found by a browser on 2026-09-14: the worker matched a shape, made the
+  // offer, and the ledger stayed empty. Neither side's tests could see it --
+  // the worker's prove the match, the panel's drew their own fixtures.
+  const thread = {
+    id: "thr-1",
+    messages: [{ id: "m1", speaker: "system", text: "hello" }],
+  };
+  const { ids, offerLocally } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [
+        { tabId: 7, host: "wms.example", since: new Date().toISOString() },
+      ],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+    { thread },
+  );
+  // The load's own `conversation()`, which draws once with no offer in hand.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  offerLocally(
+    [
+      {
+        id: "n-1",
+        source: "rig",
+        state: "open",
+        tabId: 7,
+        k: 2,
+        title: "Create a Work Area",
+        values: { workArea: "NEWTESTS" },
+        missing: [],
+        parameters: ["workArea"],
+      },
+    ],
+    thread,
+  );
+
+  // On HOME, which is where a thing to press belongs. It used to be drawn in
+  // the conversation, interleaved with what was said -- right when the panel
+  // was one column, wrong the moment it became two: splitting it left Home
+  // empty and put the card a person was waiting to press behind the other tab.
+  assert.match(
+    words(ids["cards"]),
+    /Create a Work Area/,
+    "the offer was never drawn: the thread had not changed",
+  );
+  assert.match(
+    words(ids["cards"]),
+    /finish it/i,
+    "drawn, but not as something to answer",
+  );
+  assert.doesNotMatch(
+    words(ids["said"]),
+    /Create a Work Area/,
+    "drawn in both places",
+  );
+});
+
 test("the same thread and the same offers are not redrawn", async () => {
   // The guard is worth keeping: a redraw replaces the composer and takes
   // whatever somebody was half way through typing with it. Widening the
@@ -2408,13 +2960,15 @@ test("the same thread and the same offers are not redrawn", async () => {
     id: "thr-1",
     messages: [{ id: "m1", speaker: "system", text: "hello" }],
   };
-  const { ids, locally } = panel({ deviceId: "dev-1" }, null, { thread });
+  const { ids, offerLocally } = panel({ deviceId: "dev-1" }, null, { thread });
   await new Promise((resolve) => setTimeout(resolve, 0));
 
-  const status = { deviceId: "dev-1", nearMisses: [], waiting: [] };
-  locally(status, thread);
+  const nudges = [
+    { id: "n-1", source: "rig", state: "open", tabId: 7, k: 2, title: "A job" },
+  ];
+  offerLocally(nudges, thread);
   const first = ids["said"].kids[0];
-  locally(status, thread);
+  offerLocally(nudges, thread);
 
   assert.strictEqual(
     ids["said"].kids[0],
@@ -2552,6 +3106,79 @@ test("pressing Yes on a rule that fired actually answers it", async () => {
   ]);
 });
 
+test("a card that arrives while the operator is reading the conversation fetches them", async () => {
+  // An answer that comes back by mail lands on Home. The person who asked for
+  // it is in the conversation, where they answered the question -- so the card
+  // they have been waiting for appeared behind the other tab, with nothing
+  // anywhere to say it had. Seen on the deployment 2026-09-18.
+  const nudge = {
+    id: "mail_1",
+    source: "rig",
+    state: "open",
+    kind: "mail",
+    title: "Create a Customer Type",
+    workflowId: "wfl_1",
+    values: { "Customer Type": "N056" },
+    items: [],
+    missing: [],
+  };
+  const { ids, render, toChat } = panel({ deviceId: "dev-1", nudges: [] });
+
+  render({ deviceId: "dev-1", nudges: [] });
+  // Reading the conversation, which is where the question was answered.
+  toChat();
+  assert.equal(
+    ids["thread"].hidden,
+    false,
+    "the panel is not on the conversation",
+  );
+
+  // Twice: the cards column is drawn from the PREVIOUS status, so a nudge
+  // reaches the screen on the poll after the one that carried it.
+  render({ deviceId: "dev-1", nudges: [nudge] });
+  render({ deviceId: "dev-1", nudges: [nudge] });
+
+  assert.equal(
+    ids["thread"].hidden,
+    true,
+    "the card arrived and nobody was sent to it",
+  );
+  // By what it says, not where it is: what is wrong and what is running are
+  // laid down above what is offered.
+  const card = (ids["cards"].kids || []).find((one) =>
+    words(one).includes("Create a Customer Type"),
+  );
+  assert.equal(
+    card?.dataset?.fresh,
+    "1",
+    "nothing says which card is the new one",
+  );
+});
+
+test("every card is new to a panel that has just opened, and none of them shouts", async () => {
+  const nudge = {
+    id: "mail_1",
+    source: "rig",
+    state: "open",
+    kind: "mail",
+    title: "Create a Customer Type",
+    workflowId: "wfl_1",
+    values: {},
+    items: [],
+    missing: [],
+  };
+  const { ids, render } = panel({ deviceId: "dev-1", nudges: [nudge] });
+
+  render({ deviceId: "dev-1", nudges: [nudge] });
+
+  const [card] = [...(ids["cards"].kids || [])];
+  assert.strictEqual(
+    card?.dataset?.fresh,
+    undefined,
+    "an open panel lit a card nothing did to",
+  );
+});
+
 test("a mail waiting on somebody is on Home as well as in the conversation", async () => {
   // The two panes answer two different questions and this is an answer to
   // both: the conversation says what was said, Home says what is true now.
@@ -2629,6 +3256,156 @@ test("a wait that only the clock moves still redraws the conversation", async ()
   assert.match(words(ids["said"]), /reading the mailbox/);
 });
 
+test("Home keeps one request and counts the rest", async () => {
+  // Home had eleven cards on it: two of them the same request twice, four
+  // from earlier in the day, and the one that had just arrived at the bottom.
+  // A panel that exists to say "here is the thing that needs you" was saying
+  // it eleven times, which is the same as not saying it. Deployment
+  // 2026-09-18.
+  const hour = 3600000;
+  const many = [0, 1, 2, 3].map((n) => ({
+    id: `n${n}`,
+    source: "rig",
+    state: "open",
+    tabId: null,
+    k: 0,
+    title: "Create a Customer Type",
+    workflowId: "wfl_1",
+    values: { "Customer Type": `G${n}` },
+    items: [],
+    missing: [],
+    at: new Date(Date.now() - n * hour).toISOString(),
+  }));
+  const { cards, render } = panel({ deviceId: "dev-1", nudges: many });
+  render({ deviceId: "dev-1", nudges: many });
+
+  const said = cards.map(words).join(" | ");
+  // The newest, and only it.
+  assert.match(said, /Customer Type: G0|G0/);
+  assert.doesNotMatch(
+    said,
+    /G3/,
+    "Home drew the oldest request as well as the newest",
+  );
+  // And a way to the others, as one line rather than three more cards.
+  assert.match(said, /3 more waiting/);
+});
+
+test("a rig run that can be taken back offers it, and names what it removes", async () => {
+  // The rig's result card has never had an undo, and the reason was written
+  // into panel.js: "a run the rig drove has neither a reversal nor anywhere to
+  // send It's wrong". It was true -- the backend answered an id and could not
+  // say which record a press would address.
+  const { cards } = panel({
+    deviceId: "dev-1",
+    finished: {
+      id: "run_1",
+      source: "rig",
+      status: "held",
+      values: { "Customer Type": "GGD" },
+      steps: [],
+      needs: [],
+      undo: "wfl_delete",
+      undoes_by: { customerType: "GGD" },
+    },
+  });
+
+  const card = cards.find((one) => words(one).includes("Undo it"));
+  assert.ok(card, "a run that can be taken back offered nothing");
+  // The BUTTON, not the sentence about it. The note says "Undo it" too, so a
+  // search over the card's words passes with the button gone -- which is how
+  // this test first passed against a card that only talked about undoing.
+  assert.ok(
+    pressable(card, "Undo it"),
+    "the card said it could and gave nothing to press",
+  );
+  // Named BEFORE the press, which is ADR 014's rule for the skill reversal
+  // beside this one: the operator reads what it will do.
+  assert.match(words(card), /deletes customerType GGD/);
+});
+
+test("pressing undo says which run it takes back", async () => {
+  // The two runs are one piece of work. Without the id the delete goes off
+  // alone: a second panel showing the same card presses it again, and the
+  // second delete is addressed to a record the first one removed.
+  const { cards, sent } = panel({
+    deviceId: "dev-1",
+    finished: {
+      id: "run_1",
+      source: "rig",
+      status: "held",
+      values: { "Customer Type": "GGD" },
+      steps: [],
+      needs: [],
+      undo: "wfl_delete",
+      undoes_by: { customerType: "GGD" },
+    },
+  });
+
+  const card = cards.find((one) => pressable(one, "Undo it"));
+  await pressable(card, "Undo it").listeners[0]();
+
+  const press = sent.find((one) => one.kind === "undo-rig-run");
+  assert.ok(press, "the undo told the worker nothing");
+  assert.strictEqual(press.workflowId, "wfl_delete");
+  assert.deepEqual(press.values, { customerType: "GGD" });
+  assert.strictEqual(press.undoesRun, "run_1");
+});
+
+test("a run that stopped without writing offers one press to try it again", async () => {
+  // The deployment's dead end, 2026-09-19: a run stopped on a sign-in page,
+  // the offer that started it was spent, and the card offered a person nothing
+  // but OK -- so the request sat there until somebody re-sent the mail.
+  const { cards, sent } = panel({
+    deviceId: "dev-1",
+    finished: {
+      id: "run_1",
+      source: "rig",
+      status: "stopped",
+      workflow_id: "wfl_1",
+      values: { "Customer Type": "GZ1" },
+      items: [],
+      steps: [],
+      needs: [],
+      try_again: true,
+    },
+  });
+
+  const card = cards.find((one) => pressable(one, "Try it again"));
+  assert.ok(card, "a run that can be tried again offered nothing");
+
+  await pressable(card, "Try it again").listeners[0]();
+
+  const press = sent.find((one) => one.kind === "retry-rig-run");
+  assert.ok(press, "the press started nothing");
+  assert.strictEqual(press.workflowId, "wfl_1");
+  assert.deepEqual(press.values, { "Customer Type": "GZ1" });
+});
+
+test("a run whose write may be in the warehouse offers no second press", async () => {
+  // `try_again` is the backend's answer and this card does not second-guess
+  // it: a press after a write nobody could confirm is two records.
+  const { cards } = panel({
+    deviceId: "dev-1",
+    finished: {
+      id: "run_1",
+      source: "rig",
+      status: "stopped",
+      workflow_id: "wfl_1",
+      values: {},
+      items: [],
+      steps: [],
+      needs: [],
+      try_again: false,
+    },
+  });
+
+  assert.equal(
+    cards.map((one) => pressable(one, "Try it again")).find(Boolean),
+    undefined,
+  );
+});
+
 test("an undo run's own card says which run it took back", async () => {
   // The two are one piece of work. A delete that worked is quietly right
   // either way; a delete that did NOT is what this is for -- the card that
@@ -2669,6 +3446,62 @@ test("an undo that did not finish says the record is still there", async () => {
   const said = cards.map(words).join(" | ");
   assert.match(said, /that record is still there/);
 });
+
+test("a rig run with no undo behind it offers none", async () => {
+  const { cards } = panel({
+    deviceId: "dev-1",
+    finished: {
+      id: "run_1",
+      source: "rig",
+      status: "held",
+      values: { "Customer Type": "GGD" },
+      steps: [],
+      needs: [],
+    },
+  });
+
+  assert.equal(
+    cards.map((one) => pressable(one, "Undo it")).find(Boolean),
+    undefined,
+  );
+});
+
+test("an undo that cannot name the record is not offered", async () => {
+  // Both or neither: a press that cannot say what it removes is not a press
+  // anybody consented to.
+  const { cards } = panel({
+    deviceId: "dev-1",
+    finished: {
+      id: "run_1",
+      source: "rig",
+      status: "held",
+      values: { "Customer Type": "GGD" },
+      steps: [],
+      needs: [],
+      undo: "wfl_delete",
+    },
+  });
+
+  assert.equal(
+    cards.map((one) => pressable(one, "Undo it")).find(Boolean),
+    undefined,
+  );
+});
+
+/** A button on this card with exactly that label, or nothing.
+ *
+ * By the element and never by the card's words: a note that TALKS about a
+ * press reads the same as a press to anything searching text, and a card that
+ * only talks about undoing is exactly the card this must not accept. */
+function pressable(el, label) {
+  if (el?.tag === "button" && String(el.textContent || "").trim() === label)
+    return el;
+  for (const kid of el?.kids || []) {
+    const found = pressable(kid, label);
+    if (found) return found;
+  }
+  return null;
+}
 
 test("a run that has ended is not drawn as one that is performing", async () => {
   // Measured on the deployment 2026-09-20: `run_83efedf5` stopped at 13:35:55
@@ -2719,10 +3552,110 @@ test("and one that is still running still is", async () => {
   );
 });
 
-test("no press in the panel starts a run from this browser; a yes is said to the backend", async () => {
-  // One engine. The backend starts every run and Steel runs it; this browser
-  // watches. A panel that could start a run of its own is the second engine
-  // that turned one yes into three runs on QA, 2026-09-28.
+test("the job that is running is not also offered", () => {
+  // A card offering to do what is already being done is a card whose Yes
+  // starts it a second time -- and on `Delete a Customer Type` that is two
+  // deletes of one record.
+  //
+  // Measured on the deployment 2026-09-22 at 15:57: "Delete a Customer Type —
+  // NEX. Want me to do it?" with a live Yes, directly above "A run is
+  // performing here" for that same job. The mail path has had this guard
+  // since it was written; the rig's own offers never consulted anything.
+  const offer = {
+    id: "n_same",
+    source: "rig",
+    state: "open",
+    k: 0,
+    at: "2026-09-22T15:57:00Z",
+    title: "Delete a Customer Type",
+    workflowId: "wfl_delete",
+    values: { "Customer Type": "NEX" },
+    items: [],
+    missing: [],
+  };
+  const { ids, render } = panel({ deviceId: "dev-1", nudges: [offer] });
+
+  render({
+    deviceId: "dev-1",
+    nudges: [offer],
+    performing: { runId: "run_1", source: "rig", workflowId: "wfl_delete" },
+  });
+
+  assert.doesNotMatch(
+    words(ids["cards"]),
+    /Want me to do it/,
+    "a Yes was drawn for the job already running",
+  );
+});
+
+test("a different job is still offered while one runs", () => {
+  // The guard is about THIS job, not about running at all. An operator
+  // watching one run is still someone who can be asked about another.
+  const offer = {
+    id: "n_other",
+    source: "rig",
+    state: "open",
+    k: 0,
+    at: "2026-09-22T15:57:00Z",
+    title: "Create a Customer Type",
+    workflowId: "wfl_create",
+    values: {},
+    items: [],
+    missing: [],
+  };
+  const { ids, render } = panel({ deviceId: "dev-1", nudges: [offer] });
+
+  render({
+    deviceId: "dev-1",
+    nudges: [offer],
+    performing: { runId: "run_1", source: "rig", workflowId: "wfl_delete" },
+  });
+
+  assert.match(words(ids["cards"]), /Create a Customer Type/);
+});
+
+test("a Steel run's card links to where it can be watched, and nothing else opens it", async () => {
+  // The run is on Steel, not in this tab, so the operator watches it there:
+  // the backend reads the run's own live view off its lease and puts it on
+  // the run it serves. Only a run that has one gets the link.
+  const view = "https://steel.example/v1/sessions/debug?pageId=tab-9&interactive=false";
+  const it = panel({ deviceId: "dev-1" }, null, {
+    status: {
+      deviceId: "dev-1",
+      performing: { runId: "run_live", source: "rig", kind: "rig", step: 1 },
+    },
+    run: { id: "run_live", outcome: "running", steps: [{}], live_view_url: view },
+  });
+
+  const cards = await it.refresh();
+  const card = cards.find((one) => words(one).includes("is performing here"));
+  const watch = buttons(card).find((b) => b.textContent === "Watch it run");
+  assert.ok(watch, "the run card has no way to watch the run");
+  await watch.listeners[0]();
+
+  assert.deepEqual(it.opened, [view]);
+});
+
+test("a run with nowhere to watch offers no Watch", async () => {
+  const it = panel({ deviceId: "dev-1" }, null, {
+    status: {
+      deviceId: "dev-1",
+      performing: { runId: "run_live", source: "rig", kind: "rig", step: 1 },
+    },
+    run: { id: "run_live", outcome: "running", steps: [{}] },
+  });
+
+  const cards = await it.refresh();
+  const card = cards.find((one) => words(one).includes("is performing here"));
+
+  assert.ok(!buttons(card).some((b) => b.textContent === "Watch it run"));
+});
+
+test("every press on a card is a call to the backend, and a yes is said to the conversation", async () => {
+  // The panel is the product's interface (2026-09-28): Run it here, Try it
+  // again and Do it stay. Each is a message to the worker, which calls a
+  // backend route; the backend starts the run on Steel. Nothing the panel
+  // sends drives a step in this tab.
   const status = {
     deviceId: "dev-1",
     capturing: true,
@@ -2736,8 +3669,6 @@ test("no press in the panel starts a run from this browser; a yes is said to the
       items: [],
       steps: [],
       needs: [],
-      undo: "wfl_delete",
-      undoes_by: { customerType: "GGD" },
       try_again: true,
     },
   };
@@ -2749,7 +3680,6 @@ test("no press in the panel starts a run from this browser; a yes is said to the
       runs: { total: 2, held: 2, stale: 0, earned: false, proven: 1, needed: 3 },
     },
   ];
-  // A job the backend asks about before it runs: the ledger's Do it.
   const asked = {
     id: "msg_confirm",
     speaker: "assistant",
@@ -2761,43 +3691,46 @@ test("no press in the panel starts a run from this browser; a yes is said to the
   const drawn = panel(
     status,
     { id: 7, host: "wms.example", url: "https://wms.example/portal" },
-    { status, "learned-jobs": { jobs }, thread, "thread-say": thread },
+    {
+      status,
+      "learned-jobs": { jobs },
+      thread,
+      "thread-say": thread,
+      "retry-rig-run": { ok: true, run_id: "run_2" },
+      "run-workflow": { ok: true, run_id: "run_3" },
+    },
   );
   await drawn.refresh();
   await settled();
 
   const home = [...(drawn.ids["expanded"]?.kids || []), ...drawn.ids["cards"].kids];
-  const offered = home.flatMap(buttons).map((b) => b.textContent);
-  assert.ok(offered.includes("OK") || offered.length, "Home drew nothing to press");
-  for (const label of offered) {
-    assert.doesNotMatch(
-      label,
-      /Run it here|Try it again|Undo it|Undo that/,
-      `Home offers "${label}", a run this browser would start`,
-    );
-  }
+  const press = async (label) => {
+    const button = home.flatMap(buttons).find((b) => b.textContent === label);
+    assert.ok(button, `Home offers no "${label}"`);
+    await button.listeners[0]();
+    await settled();
+  };
+  await press("Try it again");
+  await press("Run it here");
   const doIt = buttons(drawn.ids["said"]).find((b) => b.textContent === "Do it");
-  assert.ok(doIt, "the conversation drew no Do it for the job it asked about");
   await doIt.listeners[0]();
   await settled();
 
-  const starts = drawn.sent
-    .map((one) => one.kind)
-    .filter((kind) =>
-      [
-        "start-rig-run",
-        "run-workflow",
-        "retry-rig-run",
-        "undo-rig-run",
-        "run-skill",
-        "do-this-here",
-      ].includes(kind),
-    );
-  assert.deepEqual([...starts], [], "the panel asked this browser to start a run");
+  assert.deepEqual(sentOf(drawn.sent, "retry-rig-run"), [
+    {
+      kind: "retry-rig-run",
+      workflowId: "wfl_1",
+      values: { "Customer Type": "GGD" },
+      items: [],
+      retryOf: "run_1",
+    },
+  ]);
+  assert.deepEqual(sentOf(drawn.sent, "run-workflow"), [
+    { kind: "run-workflow", workflowId: "wfl_1" },
+  ]);
   assert.deepEqual(
     sentOf(drawn.sent, "thread-say").map((one) => [one.text, one.answering]),
     [["yes", "msg_confirm"]],
-    "the yes was not said to the backend's conversation",
   );
 });
 

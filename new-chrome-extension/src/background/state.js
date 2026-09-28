@@ -29,6 +29,8 @@ const KEYS = {
   grants: "sro.grants",
   watches: "sro.watches",
   offers: "sro.offers",
+  nudges: "sro.nudges",
+  tails: "sro.tails",
   watched: "sro.watched",
   alwaysWatch: "sro.alwaysWatch",
   paused: "sro.paused",
@@ -44,6 +46,7 @@ const KEYS = {
   question: "sro.question",
   activeRun: "sro.activeRun",
   answer: "sro.answer",
+  arrivals: "sro.arrivals",
   nearMisses: "sro.nearMisses",
   said: "sro.said",
   repaired: "sro.repaired",
@@ -57,9 +60,8 @@ const KEYS = {
 /** Keys this extension used to write and no longer does.
  *
  * The rig's URL, the tenant's rig bearer and the rig's last refusal; the
- * demonstration a browser was in the middle of; the per-page mutes nothing
- * ever wrote; and the offers, gesture tails and page rules this browser held
- * while it still started runs of its own. They were in `KEYS`, so `forget()` took them at
+ * demonstration a browser was in the middle of; and the per-page mutes
+ * nothing ever wrote. They were in `KEYS`, so `forget()` took them at
  * sign-out; dropped from `KEYS` they would sit in `chrome.storage.local`
  * forever on every browser that ever had one -- including the rig's tenant
  * bearer, which is a credential this extension no longer has any door to
@@ -72,9 +74,7 @@ export const RETIRED_KEYS = [
   "sro.teaching",
   "sro.muted",
   "sro.treeTimes",
-  "sro.nudges",
-  "sro.tails",
-  "sro.arrivals",
+  // Navigations a page rule had fired on. A rule offers now, and never fires.
   "sro.arrived",
 ];
 
@@ -120,13 +120,41 @@ export const state = {
   consoleUrl: () => read(KEYS.consoleUrl, DEFAULT_CONSOLE_URL),
   setConsoleUrl: (url) => write(KEYS.consoleUrl, url.replace(/\/+$/, "")),
 
+  /** The tabs the operator asked to be watched, newest first. Each is
+   * `{ tabId, host, since }`.
+   *
+   * Nothing is watched by default and nothing is inferred: what a person is
+   * working in is a thing only that person knows, and every rule this system
+   * tried to guess it by -- our own origins, the tenant's host list -- was
+   * either wrong about a tab or silently right about the wrong one.
+   *
+   * A tab id, not a host: the operator points at the window in front of them,
+   * and it keeps being that window when the application navigates to a
+   * different host mid-task, which every SSO flow does. */
+  /** Prompts this browser is holding, and the pages the operator said no to.
+   *
+   * Browser-held on purpose: a nudge lives about ninety seconds, only an answer
+   * produces anything durable, and the thread is the record of what was decided
+   * rather than of what was asked and ignored. */
+  nudges: () => read(KEYS.nudges, []),
+  setNudges: (nudges) => write(KEYS.nudges, nudges),
+
   /** The last question this browser asked of the systems, and what came back.
    *
-   * One, not a list: a second question supersedes the first. An answer is worth holding across a worker eviction -- the
+   * One, not a list: a second question supersedes the first, the way a second
+   * nudge does. An answer is worth holding across a worker eviction -- the
    * operator asked it seconds ago and is reading it -- and worth nothing the
    * next morning, which is what `askedAt` lets the panel decide. */
   answer: () => read(KEYS.answer, null),
   setAnswer: (answer) => write(KEYS.answer, answer),
+
+  /** The pages this browser offers a job on, from the backend that keeps them.
+   *
+   * Held here for the same reason the watches are: the rule is evaluated where
+   * the operator is. `{ id, page, workflowId, values }`: what to offer, and
+   * with which values. An offer, never a start. */
+  arrivals: () => read(KEYS.arrivals, []),
+  setArrivals: (arrivals) => write(KEYS.arrivals, arrivals),
 
   /** Rules that almost fired, so a miss is not silent.
    *
@@ -150,17 +178,14 @@ export const state = {
   repaired: () => read(KEYS.repaired, []),
   setRepaired: (tabIds) => write(KEYS.repaired, tabIds),
 
-  /** The tabs the operator asked to be watched, newest first. Each is
-   * `{ tabId, host, since }`.
+  /** The last few gestures on each watched tab, by tab id.
    *
-   * Nothing is watched by default and nothing is inferred: what a person is
-   * working in is a thing only that person knows, and every rule this system
-   * tried to guess it by -- our own origins, the tenant's host list -- was
-   * either wrong about a tab or silently right about the wrong one.
-   *
-   * A tab id, not a host: the operator points at the window in front of them,
-   * and it keeps being that window when the application navigates to a
-   * different host mid-task, which every SSO flow does. */
+   * Here rather than in a module variable because MV3 evicts the worker between
+   * events: a tail held in memory would be empty again by the second keystroke,
+   * which is the exact moment a job becomes recognisable. */
+  tails: () => read(KEYS.tails, {}),
+  setTails: (tails) => write(KEYS.tails, tails),
+
   watched: () => read(KEYS.watched, []),
   setWatched: (tabs) => write(KEYS.watched, tabs),
 
@@ -288,19 +313,21 @@ export const state = {
   shotTimes: () => read(KEYS.shotTimes, []),
   setShotTimes: (times) => write(KEYS.shotTimes, times),
 
-  /** The last run this panel watched finish, and what it made -- `{ id,
-   * status, derived, failure, at, wrongBecause? }`, or null. In storage
+  /** The last run this browser finished, and what it made -- `{ id, status,
+   * derived, reversal, failure, at, wrongBecause? }`, or null. In storage
    * rather than a module variable for the reason this whole file exists: the
    * worker is evicted between the run finishing and the operator opening the
    * panel to look, and a card that forgot itself between those two moments is
    * a card that never existed as far as the operator is concerned. `status`,
-   * `derived` and `failure` are copied in whole from `RunModel`
+   * `derived`, `reversal` and `failure` are copied in whole from `RunModel`
    * -- see `service-worker.js`'s own note on why they can only be asked for,
    * never computed here. `at` is this browser's own clock, read once when the
    * row is written, and is what `finishedRun()` below measures a lifetime
-   * against. `wrongBecause` is copied from the run: a run already called
-   * wrong is not offered "It's wrong" again, because the backend refuses a
-   * second one outright. */
+   * against. `wrongBecause` is set once `panel.js` has already told the
+   * backend this run was wrong -- present so a `run-wrong` that already
+   * landed is never sent twice (the backend refuses a second one outright),
+   * while whatever is still left to do (starting a reversal) stays retryable
+   * rather than the whole row being deleted the moment the record lands. */
   finishedRun: () => read(KEYS.finishedRun, null),
 
   /** The question this operator has not answered, read off their own
@@ -340,13 +367,22 @@ export async function capturing() {
   return { on: true, because: "" };
 }
 
-/** How long the last finished run's card stays, and why an hour.
+/** How long the last finished run stays offerable, and why an hour rather
+ * than the thirty seconds `RUN_QUIET_MS` uses to call a run quiet.
  *
- * It has to be measured against the operator, not the run: they may not open
- * the panel again until after a break, and a card that vanished while they
- * were away would be silence pretending to mean "it was fine" when nobody
- * ever looked. An hour survives an ordinary break -- a delivery to unload, a
- * meeting, a late lunch -- and does not outlive the shift it was made in.
+ * That thirty seconds answers a different question -- "is this still
+ * happening" -- and is right to be short: a stale "running" card is a lie
+ * about the present. This is "can this still be taken back", and has to be
+ * measured against the operator, not the run: they may not open the panel
+ * again until after a break, and a card that vanished while they were away
+ * would be silence pretending to mean "it was fine" when nobody ever looked.
+ *
+ * An hour is chosen as the defensible middle of an operator's day: long
+ * enough to survive an ordinary break -- a delivery to unload, a meeting, a
+ * late lunch -- short enough that the offer does not outlive the shift it was
+ * made in. Past that point an undo is not "take this back", it is "reverse
+ * work whatever came after it may already depend on", and the honest answer
+ * is the same silence a run nobody ever touched gets: judged as it stands.
  */
 const FINISHED_RUN_MS = 60 * 60_000;
 
@@ -378,7 +414,7 @@ export async function finishedRun() {
  * a survivor could be. Close the laptop before `RUN_QUIET_MS` lands and
  * reopen it a day later, and the first heartbeat after `onStartup` would
  * confirm a run that went quiet yesterday and write a brand-new hour of
- * card for it -- exactly the staleness `FINISHED_RUN_MS` exists to
+ * "Undo that" for it -- exactly the staleness `FINISHED_RUN_MS` exists to
  * keep a *stored* `finishedRun` from having. An `activeRun` older than that
  * limit has already missed the same window, so `"stale"` is answered without
  * ever asking the backend.
@@ -394,4 +430,34 @@ export function activeRunAge(active, now, quietMs) {
   if (quietFor < quietMs) return "wait";
   if (quietFor > FINISHED_RUN_MS) return "stale";
   return "confirm";
+}
+
+/** What a finished-run row should become once `POST /runs/{id}/wrong` has
+ * been accepted for it -- kept, amended, or dropped entirely. Pure and
+ * exported on its own, separate from the two `chrome.storage` calls around
+ * it in `service-worker.js`'s `run-wrong` case, so the one decision that
+ * matters here has exactly one place to be right and a self-check that does
+ * not need `chrome.*` to run it.
+ *
+ * Round 2 review: this used to be keyed on whether `held.reversal` existed,
+ * on the theory that a run with nothing to undo has nothing left to do once
+ * it is called wrong. That is true for "It's wrong -- I'll fix it", but that
+ * button is offered on *every* succeeded run regardless of whether one also
+ * has a reversal (see `panel.js`'s `finished()`), and keying on `reversal`
+ * alone kept the row -- and "Undo that" -- alive for an hour after an
+ * operator pressed "I'll fix it" on a run that happened to have one too.
+ * Pressing "Undo that" then would reverse the very correction the card had
+ * just told them to make by hand and asked us to learn from: worse than the
+ * wrong record it replaces, because it destroys the evidence the operator
+ * was just asked to produce, right after telling them the matter was closed.
+ *
+ * So this is keyed on which button was pressed, carried as `keepForRetry` --
+ * true only from `panel.js`'s `undoRun`, which still has a second step left
+ * after this one (starting the reversal, which can fail on its own) and
+ * needs the row to retry it. `wasWrong` never sets it, whether or not the run
+ * it is answering for happens to have a reversal: from that press on, the
+ * operator's own hands are the correction, and the card ends.
+ */
+export function afterRunWrong(held, because, keepForRetry) {
+  return keepForRetry ? { ...held, wrongBecause: because } : null;
 }

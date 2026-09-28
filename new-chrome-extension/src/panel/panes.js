@@ -6,9 +6,9 @@
 // types stacked in one place, where a card about a run happening now sits
 // between two sentences somebody typed an hour ago.
 //
-// So: **Home** is what is true right now -- the day, the cards, the run.
-// **Chat** is what was said -- the conversation, and the box you type into is
-// under both of them. **Recent tasks** is what ran lately.
+// So: **Home** is what is true right now -- the day, what is waiting, the
+// cards, the run. **Chat** is what was said -- the conversation, and the box
+// you type into is under both of them.
 //
 // **Icons, in the strip, not a row of their own.** Two word-tabs across the
 // top spent a whole row of a 360-pixel panel saying where you are, above a
@@ -21,33 +21,42 @@
 // the system is doing or wants from them, which is a glance; a conversation is
 // something you go to.
 //
+// **The count says what is waiting, and only that.** A count on Home while you
+// are reading Chat is the one thing a person on the wrong pane needs to know.
+// Nothing counts on Chat: a message that arrived is in a conversation that is
+// not going anywhere, and a badge for it is a notification about something
+// nobody has to act on.
+//
 // Pure over what it is given. Which pane is showing lives in the panel, which
 // is where a fact about one window of it belongs.
 
-/** The three places, in the order they are read. */
-export const PANES = ["home", "chat", "tasks"];
+/** The four places, in the order they are read. */
+export const PANES = ["home", "chat", "waiting", "tasks"];
 
 /** Every control in the cluster, in order.
  *
- * `pane` is set on the three that are PLACES. New is the only one that is not:
+ * `pane` is set on the four that are PLACES. New is the only one that is not:
  * starting a conversation is something you do, and it leaves you in Chat.
  *
- * **Tasks was an overlay, and that was wrong.** The argument for it was that
- * it is a thing you glance at and leave, and a pane is somewhere a person can
- * be left -- come back tomorrow and find the panel showing last week. What it
- * produced was a dialog over the pane behind it, with a ✕ to find, and Recent
- * tasks drew its lines straight through the conversation underneath.
+ * **Waiting and Tasks were overlays, and that was wrong.** The argument for it
+ * was that both are things you glance at and leave, and a pane is somewhere a
+ * person can be left -- come back tomorrow and find the panel showing last
+ * week. What it produced was a dialog over the pane behind it, with a ✕ to
+ * find, at whatever size the stylesheet gave it: a queue of one drew a card
+ * and two thirds of empty black, and Recent tasks drew its lines straight
+ * through the conversation underneath.
  *
  * Being left somewhere is a real risk and it is the cheaper one. The panel
  * opens on Home every time it is opened -- `pane` is not stored -- so the
  * worst case is a person who walked away from Tasks and comes back to it in
- * the same sitting, one press from everything else. Against that: a surface
- * the full width of the panel, reachable by the same control as the other
- * two, with nothing to dismiss.
+ * the same sitting, one press from everything else. Against that: two
+ * surfaces that are the full width of the panel, reachable by the same
+ * control as the other two, with nothing to dismiss.
  */
 const CONTROLS = [
   { key: "home", pane: true, glyph: "⌂", says: "Home" },
   { key: "chat", pane: true, glyph: "☷", says: "Chat" },
+  { key: "waiting", pane: true, glyph: "▤", says: "Waiting for you" },
   { key: "tasks", pane: true, glyph: "⏱", says: "Recent tasks" },
   { key: "new", glyph: "＋", says: "New conversation" },
 ];
@@ -55,9 +64,13 @@ const CONTROLS = [
 /**
  * The cluster.
  *
- * `onPick` is told which control was pressed: `home`, `chat`, `tasks`, `new`.
+ * `waiting` is how many requests nobody has answered; it draws on Home and
+ * only while Home is not the pane you are on -- a count beside the thing you
+ * are already looking at is a number describing the screen to itself.
+ *
+ * `onPick` is told which control was pressed: `home`, `chat`, `history`, `new`.
  */
-export function panes(showing, { onPick } = {}) {
+export function panes(showing, { waiting = 0, onPick } = {}) {
   const row = document.createElement("div");
   row.className = "panes";
   row.setAttribute("role", "tablist");
@@ -80,6 +93,26 @@ export function panes(showing, { onPick } = {}) {
       // control in one sentence.
       tab.setAttribute("role", "tab");
       tab.setAttribute("aria-selected", String(key === showing));
+    }
+    // The count rides on Waiting, and on Waiting only.
+    //
+    // It was on Home, and drawn only while you were on Chat -- which was right
+    // when everything waiting WAS on Home. It is not any more: Home keeps the
+    // newest one and the rest are in here, so a number on Home would be
+    // counting things that are not on it.
+    //
+    // Not while you are standing on it. A badge on the pane you are reading is
+    // a number describing the screen to itself, and one that stays lit while
+    // somebody works through the queue in front of it is a number they learn
+    // to stop believing.
+    if (key === "waiting" && waiting > 0 && showing !== "waiting") {
+      const count = document.createElement("span");
+      count.className = "pane-count";
+      count.textContent = String(waiting);
+      // Said as well as shown. A number sitting on a glyph reads as a badge
+      // and nothing else; this is what it means.
+      tab.setAttribute("aria-label", `Waiting for you, ${waiting}`);
+      tab.append(count);
     }
     tab.addEventListener("click", () => onPick?.(key));
     row.append(tab);

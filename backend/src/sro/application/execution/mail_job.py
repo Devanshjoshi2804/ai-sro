@@ -26,24 +26,30 @@ from sro.application.shared.asking import ask
 from sro.domain.chat.asking import said_yes, the_request
 from sro.domain.chat.thread import Speaker
 from sro.domain.execution.mail_job import (
+    DRAFT_QUESTIONS,
     DRAFTED,
     K_SEND_WINDOW_S,
     K_SENT_THREADS,
     MAIL_BODY,
+    ON_A_MAIL,
+    SEND_A_MAIL,
+    WHICH_MAIL,
     Allowed,
     JobRecipient,
+    built_in,
     check_draft,
+    is_mail_only,
     mailboxes,
     named_in,
     sent_from,
 )
 from sro.domain.execution.progress import Progress
-from sro.domain.execution.waiting import read_wait
+from sro.domain.execution.waiting import as_said, read_wait, waiting_on
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Gesture
 from sro.domain.prompts.write_mail import WRITE_MAIL
 from sro.domain.shared.identifiers import PrincipalId
-from sro.domain.skill.workflow import Workflow
+from sro.domain.skill.workflow import Workflow, ordered_cites
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +60,11 @@ K_BODY = 2000
 AWAITING_THE_PRESS = "drafted — read it in the conversation and press Send it"
 
 WHAT_IT_SAYS = "What should the mail say?"
+
+WHICH_ONE = (
+    "Which mail is this about? Say words that find it in your mailbox -- who sent it, "
+    "or words from its subject."
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -196,10 +207,18 @@ async def _allowed(
 ) -> Allowed:
     to: set[str] = set()
     bcc: set[str] = set()
-    clicks = sent_from(workflow, by_id)
+    shown = [workflow]
+    if built_in(workflow.id, ctx.tenant_id.value) is not None:
+        shown, by_id = await _mail_jobs(ctx, uow)
+    clicks = [click for job in shown for click in sent_from(job, by_id)]
     seen: Counter[str] = Counter()
     for clicked, named in clicks:
-        threads = named or await _sent_around(ctx, tools, clicked)
+        threads = named or await _mails_found(
+            ctx,
+            tools,
+            f"in:sent after:{math.floor(clicked - K_SEND_WINDOW_S)} "
+            f"before:{math.ceil(clicked + K_SEND_WINDOW_S)}",
+        )
         seen.update(named=bool(named), looked=not named)
         since = datetime.fromtimestamp(clicked, UTC) - K_REMEMBER
         read = [one for thread in threads for one in await _conversation(ctx, tools, thread)]
@@ -234,18 +253,26 @@ async def _allowed(
         seen["one"],
     )
     async with uow as unit:
-        confirmed = await unit.workflows.recipients_for(ctx.tenant_id, workflow.id)
-    to.update(one.address for one in confirmed)
+        for one in {workflow.id, *(job.id for job in shown)}:
+            confirmed = await unit.workflows.recipients_for(ctx.tenant_id, one)
+            to.update(named.address for named in confirmed)
     return Allowed(to=frozenset(to), bcc=frozenset(bcc - to))
 
 
-async def _sent_around(ctx: RequestContext, tools: ToolCaller, clicked: float) -> tuple[str, ...]:
-    window = (
-        f"in:sent after:{math.floor(clicked - K_SEND_WINDOW_S)} "
-        f"before:{math.ceil(clicked + K_SEND_WINDOW_S)}"
-    )
+async def _mail_jobs(
+    ctx: RequestContext, uow: UnitOfWork
+) -> tuple[list[Workflow], dict[str, Gesture]]:
+    async with uow as unit:
+        known = await unit.workflows.known(ctx.tenant_id)
+        cites = tuple(sorted({one for job in known for one in ordered_cites(job)}))
+        seen = await unit.gestures.gestures_for(ctx.tenant_id, ids=cites) if cites else ()
+    by_id = {gesture.id: gesture for gesture in seen}
+    return [job for job in known if is_mail_only(job, by_id)], by_id
+
+
+async def _mails_found(ctx: RequestContext, tools: ToolCaller, words: str) -> tuple[str, ...]:
     found = await _answer(
-        ctx, tools, "search_threads", {"query": window, "limit": str(K_SENT_THREADS)}
+        ctx, tools, "search_threads", {"query": words, "limit": str(K_SENT_THREADS)}
     )
     rows = found.get("messages")
     threads = [
@@ -316,7 +343,9 @@ async def draft_the_mail_job(
     shown: Mapping[str, str] | None = None,
 ) -> WorkflowRun:
     waiting = read_wait(run.awaiting) if run.awaiting else None
-    thread = waiting.thread if waiting else ""
+    thread = waiting.thread if waiting and workflow.id != SEND_A_MAIL else ""
+    if workflow.id in ON_A_MAIL and not thread:
+        return await _ask(ctx, uow, run, WHICH_MAIL, WHICH_ONE, clock=clock, ids=ids)
     written = await write_the_mail(
         ctx,
         workflow,
@@ -422,12 +451,13 @@ async def redraft_the_mail_job(
 ) -> WorkflowRun:
     progress = Progress.of(run.progress)
     asking = progress.asking
-    if asking.get("kind") not in ("recipient", MAIL_BODY) or not asking.get("answered"):
+    if asking.get("kind") not in DRAFT_QUESTIONS or not asking.get("answered"):
         return run
     await keep_the_named(ctx, uow, workflow.id, asking, at=clock.now())
     said = asking.get("said", "")
+    which = asking.get("kind") == WHICH_MAIL
     shown = json.loads(asking["draft"]) if said_yes(said) and asking.get("draft") else None
-    if said and shown is None:
+    if said and shown is None and not which:
         progress.told.append(said)
     was, progress.asking = run.progress, {}
     async with uow as unit:
@@ -438,6 +468,12 @@ async def redraft_the_mail_job(
     if not taken:
         return run
     run.progress = progress.as_json()
+    if which:
+        found = await _mails_found(ctx, tools, said)
+        if len(found) != 1:
+            asked = f"{len(found)} mail(s) in your mailbox matched those words. {WHICH_ONE}"
+            return await _ask(ctx, uow, run, WHICH_MAIL, asked, clock=clock, ids=ids)
+        run.awaiting = as_said(waiting_on(SERVER, found[0], now=clock.now()))
     return await draft_the_mail_job(
         ctx,
         run,

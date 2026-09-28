@@ -54,7 +54,7 @@ from sro.domain.chat.standing import last_run, of_the_run, stands
 from sro.domain.chat.thread import Message, MessageId, Said, Speaker, Thread, ThreadId
 from sro.domain.execution.compose import alias_map
 from sro.domain.execution.field_classes import field_classes
-from sro.domain.execution.mail_job import MAIL_BODY
+from sro.domain.execution.mail_job import DRAFT_QUESTIONS, built_ins
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
 from sro.domain.execution.workflow_run import WorkflowRun, answers_for
@@ -239,10 +239,7 @@ class Converse:
 
     async def _open_in_words(self, ctx: RequestContext, asked: Message) -> bool:
         decision = asked.decision or {}
-        if decision.get("kind") != "run_asks" or decision.get("asks") not in (
-            "recipient",
-            MAIL_BODY,
-        ):
+        if decision.get("kind") != "run_asks" or decision.get("asks") not in DRAFT_QUESTIONS:
             return False
         async with self._uow as uow:
             run = await uow.workflow_runs.get(ctx.tenant_id, str(decision.get("run_id") or ""))
@@ -803,7 +800,13 @@ class Converse:
         self, ctx: RequestContext, *, thread_id: ThreadId, text: str, placed: Understood
     ) -> Thread:
         async with self._uow as uow:
-            known = {one.id: one for one in await uow.workflows.known(ctx.tenant_id)}
+            known = {
+                one.id: one
+                for one in (
+                    *await uow.workflows.known(ctx.tenant_id),
+                    *built_ins(ctx.tenant_id.value),
+                )
+            }
             title = known[placed.workflow_id].title if placed.workflow_id in known else "That job"
             things = len(placed.items)
             if not placed.sure:

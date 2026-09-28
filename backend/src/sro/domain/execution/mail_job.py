@@ -77,6 +77,47 @@ MAIL_BODY: Final = "mail_body"
 
 DRAFTED = "mail_draft"
 
+WHICH_MAIL: Final = "which_mail"
+
+DRAFT_QUESTIONS: Final = ("recipient", MAIL_BODY, WHICH_MAIL)
+
+SEND_A_MAIL: Final = "mail_send"
+
+REPLY_TO_A_MAIL: Final = "mail_reply"
+
+FORWARD_A_MAIL: Final = "mail_forward"
+
+ON_A_MAIL: Final = frozenset({REPLY_TO_A_MAIL, FORWARD_A_MAIL})
+
+_BUILT_IN: Final = {
+    SEND_A_MAIL: ("Send an email", "writes a new email to whoever the operator names"),
+    REPLY_TO_A_MAIL: ("Reply to an email", "answers the email in the conversation"),
+    FORWARD_A_MAIL: (
+        "Forward an email",
+        "passes the email in the conversation, and what it said, on to whoever the operator names",
+    ),
+}
+
+
+def built_in(workflow_id: str, tenant: str) -> Workflow | None:
+    said = _BUILT_IN.get(workflow_id)
+    if said is None:
+        return None
+    title, does = said
+    return Workflow(
+        id=workflow_id,
+        tenant=tenant,
+        title=title,
+        narrative=does,
+        steps=[Step(order=0, says=title, system=f"https://{min(MAILBOXES)}")],
+        signs_in=False,
+        signs_out=False,
+    )
+
+
+def built_ins(tenant: str) -> tuple[Workflow, ...]:
+    return tuple(one for key in _BUILT_IN if (one := built_in(key, tenant)) is not None)
+
 
 @dataclass(frozen=True, slots=True)
 class JobRecipient:

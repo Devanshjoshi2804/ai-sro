@@ -16,7 +16,7 @@ from sro.domain.execution.belts import RunProof, state_verified
 from sro.domain.execution.compose import normal
 from sro.domain.execution.lanes import K_BROKEN_COOL_DOWN, Broken, Lane
 from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
-from sro.domain.execution.mail_job import JobRecipient
+from sro.domain.execution.mail_job import JobRecipient, built_in
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.observation.identity import ShapeKey
 from sro.domain.observation.mining import MiningPass
@@ -239,6 +239,8 @@ class SqlWorkflowRepository(WorkflowRepository):
         )
 
     async def get(self, tenant_id: TenantId, workflow_id: str, *, lock: bool = False) -> Workflow:
+        if (made := built_in(workflow_id, tenant_id.value)) is not None:
+            return made
         query = (
             select(WorkflowRow)
             .where(

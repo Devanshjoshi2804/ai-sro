@@ -12,7 +12,7 @@ from sro.domain.execution.evidence import locators_for, primary_gesture, recorde
 from sro.domain.execution.field_classes import FieldClass, field_classes, labelled
 from sro.domain.execution.lanes import Broken, Lane, accepts, lanes_for
 from sro.domain.execution.learned_step import LearnedStep
-from sro.domain.execution.mail_job import sends_mail
+from sro.domain.execution.mail_job import built_in, sends_mail
 from sro.domain.execution.verified_writes import VerifiedWrite, verified_write_for
 from sro.domain.observation.gesture import Gesture
 from sro.domain.observation.trim import body_key_set
@@ -110,7 +110,7 @@ def compile_job(
                         f"the form its save shows has no {name} field any more",
                     )
                 )
-        elif primary is None:
+        elif primary is None and built_in(workflow.id, workflow.tenant) is None:
             reasons.append(
                 Reason("no_lane", step.order, f"has no evidence a browser can act on: {step.says}")
             )

@@ -26,6 +26,7 @@ from sro.application.skill.job_facts import job_facts
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.request import Candidate
 from sro.domain.execution.field_classes import field_classes
+from sro.domain.execution.mail_job import built_ins
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel, KnowledgeEntry, KnowledgeId
 from sro.domain.observation.gesture import Action, Gesture, Target
 from sro.domain.prompts.read_request import READ_REQUEST
@@ -42,6 +43,9 @@ from tests.unit.runtime_support import save_job, save_step
 # `sro.domain.skill.learned.demanded` -- and an unmarked fixture is a fixture
 # about an optional field, which is a different test.
 TENANT = TenantId("acme")
+
+BUILT_IN_IDS = tuple(one.id for one in built_ins(TENANT.value))
+"""Every chat reading is also offered the built-in mail actions (M4)."""
 
 NOW = datetime(2025, 2, 11, 23, tzinfo=UTC)
 """The rig's clock through all of this, and deliberately not today: a row
@@ -460,8 +464,9 @@ async def test_the_examples_are_read_off_the_gestures_the_jobs_cite() -> None:
         uow, tenant_id=TENANT, utterance="new client for Coventry", asker=asker, now=NOW
     )
 
-    (job,) = _candidates(asker)
+    job, *mail_actions = _candidates(asker)
     assert job["asked_by"] == ["please create a client for the Coventry dock"]
+    assert [one["id"] for one in mail_actions] == list(BUILT_IN_IDS)
 
 
 async def test_a_request_naming_a_field_this_job_has_no_parameter_for_says_which() -> None:
@@ -665,7 +670,7 @@ async def test_only_the_canonical_copy_of_a_duplicated_job_reaches_the_reader() 
 
     await read_utterance(uow, tenant_id=TENANT, utterance="new customer type", asker=asker, now=NOW)
 
-    assert [one["id"] for one in _candidates(asker)] == ["wfl_canonical"]
+    assert [one["id"] for one in _candidates(asker)] == ["wfl_canonical", *BUILT_IN_IDS]
 
 
 async def test_a_value_the_form_it_goes_to_no_longer_has_is_caught_when_offered() -> None:

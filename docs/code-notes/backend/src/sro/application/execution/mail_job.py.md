@@ -15,7 +15,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/execution/mai
 > Nothing here sends. The tool caller is used to READ the conversation, and the
 > only write is into the operator's own thread.
 
-## module, [line 50](../../../../../../../backend/src/sro/application/execution/mail_job.py#L50): Note on the line above
+## module, [line 56](../../../../../../../backend/src/sro/application/execution/mail_job.py#L56): Note on the line above
 
 Code: `K_MESSAGES = 5`
 
@@ -23,18 +23,18 @@ Code: `K_MESSAGES = 5`
 > reply answers what was said last; a thread three weeks deep is not context,
 > it is noise the model will quote from.
 
-## module, [line 52](../../../../../../../backend/src/sro/application/execution/mail_job.py#L52): Note on the line above
+## module, [line 58](../../../../../../../backend/src/sro/application/execution/mail_job.py#L58): Note on the line above
 
 Code: `K_BODY = 2000`
 
 > How much of one message it reads. Enough for a request and its quoted
 > history to be recognisable; a newsletter is not what is being answered.
 
-## `Written`, [line 60](../../../../../../../backend/src/sro/application/execution/mail_job.py#L60): Docstring
+## `Written`, [line 71](../../../../../../../backend/src/sro/application/execution/mail_job.py#L71): Docstring
 
 > One mail, as the model wrote it and as it will be sent.
 
-## `write_the_mail`, [line 79](../../../../../../../backend/src/sro/application/execution/mail_job.py#L79): Docstring
+## `write_the_mail`, [line 90](../../../../../../../backend/src/sro/application/execution/mail_job.py#L90): Docstring
 
 > The mail this job sends, or why it could not be written.
 >
@@ -74,7 +74,7 @@ Code: `K_BODY = 2000`
 > starter `mail_body` on the last two: the draft path, and the tool lane on
 > Steel. Nothing is sent either way. The log line carries counts only.
 
-## `Unwritten`, [line 75](../../../../../../../backend/src/sro/application/execution/mail_job.py#L75): Docstring
+## `Unwritten`, [line 86](../../../../../../../backend/src/sro/application/execution/mail_job.py#L86): Docstring
 
 > A draft refused for a value in its body nobody gave: the reason, carrying the
 > refused `draft` (to, subject, body). The draft path shows it in its
@@ -82,14 +82,14 @@ Code: `K_BODY = 2000`
 > never becomes the request, which would hand mail-borne words to the trusted
 > block (S4 round 1, C1).
 
-## `Unaddressed`, [line 71](../../../../../../../backend/src/sro/application/execution/mail_job.py#L71): Docstring
+## `Unaddressed`, [line 82](../../../../../../../backend/src/sro/application/execution/mail_job.py#L82): Docstring
 
 > A draft refused for who it goes to: the reason, marked so the run asks the
 > operator who the mail goes to rather than failing the step -- the tool lane on
 > Steel, `draft_the_mail_job` on the draft path. A `str`, so the extension's
 > legacy `_through_the_mailbox`, which QA no longer runs, still just stops on it.
 
-## `_allowed`, [line 190](../../../../../../../backend/src/sro/application/execution/mail_job.py#L190): Docstring
+## `_allowed`, [line 201](../../../../../../../backend/src/sro/application/execution/mail_job.py#L201): Docstring
 
 > Who this job may write to besides the conversation: for each Send its
 > evidence pressed, the To, Cc and Bcc of the one SENT message in the threads
@@ -118,7 +118,7 @@ Code: `K_BODY = 2000`
 > SENT mails in the window, and clicks that found none, more than one, or
 > exactly one. Addresses never reach it.
 
-## `send_the_mail`, [line 263](../../../../../../../backend/src/sro/application/execution/mail_job.py#L263): Docstring
+## `send_the_mail`, [line 290](../../../../../../../backend/src/sro/application/execution/mail_job.py#L290): Docstring
 
 > Send it, and say what Gmail answered: its id, or why it did not go.
 >
@@ -129,14 +129,14 @@ Code: `K_BODY = 2000`
 > (`Written.named`) are kept on the job, confirmed by the run's principal --
 > the starter on Steel. Never before: a mail that did not go names nobody.
 
-## `MailHand`, [line 297](../../../../../../../backend/src/sro/application/execution/mail_job.py#L297): Docstring
+## `MailHand`, [line 324](../../../../../../../backend/src/sro/application/execution/mail_job.py#L324): Docstring
 
 > A run's way to write and send a mail through the mailbox's API, for a
 > step that sends one in a job that does other things too. `write` takes the
 > operator's own request (`LaneContext.request` on Steel; the legacy extension
 > runtime passes none).
 
-## `draft_the_mail_job`, [line 305](../../../../../../../backend/src/sro/application/execution/mail_job.py#L305): Docstring
+## `draft_the_mail_job`, [line 332](../../../../../../../backend/src/sro/application/execution/mail_job.py#L332): Docstring
 
 > Write the mail this job sends and park the run on the operator's press.
 >
@@ -152,17 +152,17 @@ Code: `K_BODY = 2000`
 > draft they said yes to. The card carries `named`, the addresses kept once the
 > press sends it.
 
-## `_conversation`, [line 389](../../../../../../../backend/src/sro/application/execution/mail_job.py#L389): Docstring
+## `_conversation`, [line 418](../../../../../../../backend/src/sro/application/execution/mail_job.py#L418): Docstring
 
 > The messages of the conversation this job answers, oldest first.
 
-## `_answer`, [line 396](../../../../../../../backend/src/sro/application/execution/mail_job.py#L396): Docstring
+## `_answer`, [line 425](../../../../../../../backend/src/sro/application/execution/mail_job.py#L425): Docstring
 
 > One call to the mailbox, read as a JSON object. A mailbox that cannot be
 > reached, or an answer that is not JSON, reads as empty -- the callers grant
 > nobody or read no conversation from it -- and only the tool's name is logged.
 
-## `draft_the_mail_job`, [line 358](../../../../../../../backend/src/sro/application/execution/mail_job.py#L358): Comment
+## `draft_the_mail_job`, [line 387](../../../../../../../backend/src/sro/application/execution/mail_job.py#L387): Comment
 
 Code: `speaker=Speaker.SYSTEM,`
 
@@ -170,14 +170,14 @@ Code: `speaker=Speaker.SYSTEM,`
 > the assistant's question should be would eat the operator's next
 > sentence.
 
-## `draft_the_mail_job`, [line 368](../../../../../../../backend/src/sro/application/execution/mail_job.py#L368): Comment
+## `draft_the_mail_job`, [line 397](../../../../../../../backend/src/sro/application/execution/mail_job.py#L397): Comment
 
 Code: `"job": workflow.id,`
 
 > What makes this the job's own mail rather than a question to
 > whoever asked: `SendTheDraft` finishes the run on it.
 
-## `redraft_the_mail_job`, [line 411](../../../../../../../backend/src/sro/application/execution/mail_job.py#L411): Docstring
+## `redraft_the_mail_job`, [line 440](../../../../../../../backend/src/sro/application/execution/mail_job.py#L440): Docstring
 
 > The operator answered who a drafted run's mail goes to, or what it says: keep
 > any address on the job, take the question by a compare-and-set on the run's
@@ -190,13 +190,13 @@ Code: `"job": workflow.id,`
 > run stopped with the address already kept, so running the job again goes
 > through without asking.
 
-## `keep_the_named`, [line 467](../../../../../../../backend/src/sro/application/execution/mail_job.py#L467): Docstring
+## `keep_the_named`, [line 503](../../../../../../../backend/src/sro/application/execution/mail_job.py#L503): Docstring
 
 > The one writer of a job recipient, for both runtimes: each address the
 > operator's answer named, with who named it and when. An upsert, so carrying an
 > answer out twice keeps one row.
 
-## `the_operator_s_words`, [line 455](../../../../../../../backend/src/sro/application/execution/mail_job.py#L455): Docstring
+## `the_operator_s_words`, [line 491](../../../../../../../backend/src/sro/application/execution/mail_job.py#L491): Docstring
 
 > What the run's starter typed for it in their own panel (`the_request`): read
 > from the thread that holds the run's offer, and only one the starter opened
@@ -206,7 +206,7 @@ Code: `"job": workflow.id,`
 > its offer, which is never a thread message, so it has none: a request relayed
 > from mail never becomes trusted.
 
-## `_ask`, [line 483](../../../../../../../backend/src/sro/application/execution/mail_job.py#L483): Docstring
+## `_ask`, [line 519](../../../../../../../backend/src/sro/application/execution/mail_job.py#L519): Docstring
 
 > The draft path's questions, `recipient` and `mail_body`: the run stops (holding no browser, as a
 > draft waiting on its press does), with the question on its progress and a

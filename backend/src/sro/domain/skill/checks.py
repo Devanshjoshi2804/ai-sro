@@ -10,6 +10,7 @@ from sro.domain.observation.identity import K_MIN_SHARED_STEPS, screen_of, targe
 from sro.domain.observation.window import Window
 from sro.domain.recording.background import is_background_traffic
 from sro.domain.shared.hosts import origin_of
+from sro.domain.skill.learned import TYPING
 from sro.domain.skill.workflow import Step, Workflow, cited_ids, ordered_cites
 
 K_MIN_COVERAGE = 0.5
@@ -151,7 +152,9 @@ def bindable(workflow: Workflow, gestures: Mapping[str, Gesture]) -> set[str]:
         bindable.update(step.parameters)
         for cite in step.cites:
             gesture = gestures.get(cite)
-            target = gesture.action.target if gesture else None
+            if gesture is None or gesture.action.kind not in TYPING:
+                continue
+            target = gesture.action.target
             component = target.component if target else None
             for name in (
                 component.item_id if component else None,

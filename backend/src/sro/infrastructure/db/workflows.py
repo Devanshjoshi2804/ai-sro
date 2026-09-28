@@ -344,6 +344,35 @@ class SqlWorkflowRepository(WorkflowRepository):
         )
         return True
 
+    async def placed_on(self, tenant_id: TenantId, workflow_id: str) -> tuple[str, ...]:
+        rows = await self._session.execute(
+            select(WorkflowPlacementRow.gesture_id)
+            .where(
+                WorkflowPlacementRow.tenant_id == tenant_id.value,
+                WorkflowPlacementRow.workflow_id == workflow_id,
+            )
+            .order_by(WorkflowPlacementRow.gesture_id)
+        )
+        return tuple(rows.scalars())
+
+    async def behind_the_rule(self, rule: int) -> tuple[Workflow, ...]:
+        query = (
+            select(WorkflowRow)
+            .where(
+                WorkflowRow.retired_at.is_(None),
+                WorkflowRow.signs_in.is_not(None),
+                WorkflowRow.signs_out.is_not(None),
+                or_(WorkflowRow.parameters_rule.is_(None), WorkflowRow.parameters_rule < rule),
+            )
+            .order_by(WorkflowRow.tenant_id, WorkflowRow.created_at, WorkflowRow.id)
+            .execution_options(populate_existing=True)
+        )
+        rows = (await self._session.execute(query)).scalars().all()
+        if not rows:
+            return ()
+        steps = await self._steps_of([row.id for row in rows])
+        return tuple(_row_to_workflow(row, steps[row.id]) for row in rows)
+
     async def tabs_undecided(self) -> tuple[Workflow, ...]:
         untabbed = select(WorkflowStepRow.workflow_id).where(WorkflowStepRow.tab.is_(None))
         query = (
@@ -357,6 +386,18 @@ class SqlWorkflowRepository(WorkflowRepository):
             return ()
         steps = await self._steps_of([row.id for row in rows])
         return tuple(_row_to_workflow(row, steps[row.id]) for row in rows)
+
+    async def ruled(self, tenant_id: TenantId, workflow_id: str, rule: int) -> bool:
+        moved = await self._session.execute(
+            update(WorkflowRow)
+            .where(
+                WorkflowRow.tenant_id == tenant_id.value,
+                WorkflowRow.id == workflow_id,
+                or_(WorkflowRow.parameters_rule.is_(None), WorkflowRow.parameters_rule < rule),
+            )
+            .values(parameters_rule=rule)
+        )
+        return cast(CursorResult[Any], moved).rowcount > 0
 
     async def decide_tab(self, tenant_id: TenantId, workflow_id: str, order: int, tab: str) -> bool:
         owned = select(WorkflowRow.id).where(

@@ -2120,8 +2120,14 @@ class FakeGestureRepository:
         # second reading: the row is replaced, not appended to.
         self.read_at[intent.gesture_id] = datetime.now(tz=UTC)
 
-    async def intents_for(self, tenant_id: TenantId) -> tuple[Intent, ...]:
-        return tuple(intent for intent in self.intents.values() if intent.tenant == tenant_id.value)
+    async def intents_for(
+        self, tenant_id: TenantId, *, ids: tuple[str, ...] | None = None
+    ) -> tuple[Intent, ...]:
+        return tuple(
+            intent
+            for intent in self.intents.values()
+            if intent.tenant == tenant_id.value and (ids is None or intent.gesture_id in ids)
+        )
 
     async def intents_since(self, tenant_id: TenantId, *, since: str) -> tuple[Intent, ...]:
         # On instants, never on the ISO text: the store compares timestamps,
@@ -2635,6 +2641,9 @@ class FakeWorkflowRepository:
         """(tenant, gesture) -> the job a folded doing was placed against."""
         """Retired jobs by id, as the store's ``retired_at``: the row stays,
         and a re-save does not bring it back."""
+        self.rules: dict[str, int] = {}
+        """Job id -> the parameters rule last applied to it, as the store's
+        ``parameters_rule``; absent is NULL."""
         self.save_kills = False
         """The next `save` is the statement that fails, and kills the session."""
         self._saved = count()
@@ -2746,6 +2755,27 @@ class FakeWorkflowRepository:
         row.signs_out = signs_out
         return True
 
+    async def placed_on(self, tenant_id: TenantId, workflow_id: str) -> tuple[str, ...]:
+        return tuple(
+            sorted(
+                one
+                for (tenant, one), job in self.placements.items()
+                if tenant == tenant_id.value and job == workflow_id
+            )
+        )
+
+    async def behind_the_rule(self, rule: int) -> tuple[Workflow, ...]:
+        found = [
+            row
+            for row in self.rows.values()
+            if row.id not in self.retired
+            and row.signs_in is not None
+            and row.signs_out is not None
+            and self.rules.get(row.id, 0) < rule
+        ]
+        found.sort(key=lambda row: (row.tenant, self._created[row.id], row.id))
+        return tuple(deepcopy(row) for row in found)
+
     async def tabs_undecided(self) -> tuple[Workflow, ...]:
         found = [
             row
@@ -2754,6 +2784,13 @@ class FakeWorkflowRepository:
         ]
         found.sort(key=lambda row: (row.tenant, self._created[row.id], row.id))
         return tuple(deepcopy(row) for row in found)
+
+    async def ruled(self, tenant_id: TenantId, workflow_id: str, rule: int) -> bool:
+        row = self.rows.get(workflow_id)
+        if row is None or row.tenant != tenant_id.value or self.rules.get(workflow_id, 0) >= rule:
+            return False
+        self.rules[workflow_id] = rule
+        return True
 
     async def decide_tab(self, tenant_id: TenantId, workflow_id: str, order: int, tab: str) -> bool:
         row = self.rows.get(workflow_id)

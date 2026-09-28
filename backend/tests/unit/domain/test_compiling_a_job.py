@@ -9,7 +9,13 @@ from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.observation.gesture import Gesture, Outline, OutlineField, Target
 from sro.domain.skill.aliases import JobAlias
 from sro.domain.skill.workflow import Step, Workflow
-from tests.unit.runtime_support import GMAIL, mail_send_step, proven_write_step, save_step
+from tests.unit.runtime_support import (
+    GMAIL,
+    mail_send_step,
+    proven_write_step,
+    save_step,
+    type_then_save_step,
+)
 
 
 def _job(*steps: Step, parameters: Sequence[dict[str, object]] = ()) -> Workflow:
@@ -58,6 +64,21 @@ def test_a_required_parameter_no_step_fills_does_not_compile() -> None:
     got = compile_job(job, by_id, learned={}, ledger=(), broken=())
 
     assert not got.runnable and _codes(got) == ["unbound_parameter"]
+
+
+def test_a_required_parameter_is_filled_by_the_control_a_step_types_under_its_name() -> None:
+    """A parameter learned from the typing lives on the job and names the
+    control; the run fills it by that name, so it is bound without a step
+    listing it."""
+    step, by_id = type_then_save_step()
+    job = _job(
+        replace(step, parameters=[]),
+        parameters=[{"name": "Kind", "names": ["Kind", "Customer Type"], "required": True}],
+    )
+
+    assert "unbound_parameter" not in _codes(
+        compile_job(job, by_id, learned={}, ledger=(), broken=())
+    )
 
 
 def test_an_optional_parameter_no_step_fills_is_not_a_reason() -> None:

@@ -167,3 +167,7 @@ Code: `signs_out: bool | None = None`
 > A sign-in or a sign-out: the session broker's work, never a request's.
 > The one place the rule lives, so the candidate list and the chore check
 > cannot disagree about which verdict counts.
+> The typed-values rule mints a chore no parameters (`learn_parameters`)
+> and the mining eval builds no case from one (M3 reads this, not a hook
+> of its own).
+

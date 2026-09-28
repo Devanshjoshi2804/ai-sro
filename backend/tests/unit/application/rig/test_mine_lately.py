@@ -26,6 +26,7 @@ from sro.domain.observation.gesture import Action, Gesture, GestureBatch, PageMa
 from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
+from sro.domain.skill.learned import K_PARAMETERS_RULE
 from sro.domain.skill.workflow import Step, Workflow
 from sro.whose import about, whose
 from tests.unit.domain.rig.conftest import gestures as _gestures
@@ -679,6 +680,7 @@ async def test_nothing_undecided_reads_no_gestures() -> None:
     await _recorded(uow, "acme", taken=NOW - timedelta(hours=2))
     await _mined(uow, "acme", left_out=0, at=NOW - timedelta(hours=1))
     await uow.workflows.save(_job_citing("acme", signs_in=False, signs_out=False))
+    uow.workflows.rules["wfl_acme"] = K_PARAMETERS_RULE
 
     await _swept(uow, _Passes())
 

@@ -740,6 +740,8 @@ class WorkflowRow(Base):
     signs_in: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     signs_out: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
+    parameters_rule: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     same_as: Mapped[str | None] = mapped_column(String(64))
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

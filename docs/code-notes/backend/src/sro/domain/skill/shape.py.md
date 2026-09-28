@@ -117,7 +117,7 @@ Code: `quiet_until: str | None = None`
 > the extension would fill the search box and stop. Only the step whose
 > `parameters` names this one is asked.
 
-## `walkable`, [line 90](../../../../../../../backend/src/sro/domain/skill/shape.py#L90): Docstring
+## `walkable`, [line 92](../../../../../../../backend/src/sro/domain/skill/shape.py#L92): Docstring
 
 > The cited pairs the extension can actually match on.
 >
@@ -127,7 +127,7 @@ Code: `quiet_until: str | None = None`
 > Dropped before both the shape and the parameter indices are computed, so
 > `at` indexes the very list the extension walks.
 
-## `resumes_at`, [line 94](../../../../../../../backend/src/sro/domain/skill/shape.py#L94): Docstring
+## `resumes_at`, [line 96](../../../../../../../backend/src/sro/domain/skill/shape.py#L96): Docstring
 
 > Which step a browser that matched `matched` shape entries is in.
 >
@@ -146,13 +146,13 @@ Code: `quiet_until: str | None = None`
 >
 > Zero for a tail that matched nothing, which is a run from the top.
 
-## `shape_of`, [line 104](../../../../../../../backend/src/sro/domain/skill/shape.py#L104): Docstring
+## `shape_of`, [line 106](../../../../../../../backend/src/sro/domain/skill/shape.py#L106): Docstring
 
 > One workflow as the extension needs it, or None when it cannot be
 > served: nothing cited, a start its own evidence never names, or too short a
 > walk to ever be offered.
 
-## `where_steps_moved`, [line 140](../../../../../../../backend/src/sro/domain/skill/shape.py#L140): Docstring
+## `where_steps_moved`, [line 142](../../../../../../../backend/src/sro/domain/skill/shape.py#L142): Docstring
 
 > Which `ord` each of a job's steps has after the job grew.
 >
@@ -187,7 +187,7 @@ Code: `quiet_until: str | None = None`
 > mapping, and its learning is dropped: the step is gone, and a locator for
 > a step nobody performs is a locator nobody can check.
 
-## `_did`, [line 182](../../../../../../../backend/src/sro/domain/skill/shape.py#L182): Docstring
+## `_did`, [line 184](../../../../../../../backend/src/sro/domain/skill/shape.py#L184): Docstring
 
 > What one step did, as the shape key says it: which control, on which
 > screen, touched how -- in the order it happened.
@@ -207,11 +207,13 @@ Code: `for index, (gesture, _) in enumerate(cited):`
 > A parameter learned across doings (`parameters_across`) is recorded on
 > the workflow and on no step: it is named after the control it was typed
 > into, so the control with that name, typing one of its values, is where
-> it sits. Narrower than a value scan -- the search box is not named
+> it sits. By `same_control`, so a parameter stored under the control's
+> itemId (named so before M3 round 1 took the itemId out of the names) is
+> still found by the control's key. Narrower than a value scan -- the search box is not named
 > `workArea` -- and without it every learned parameter had no index and
 > no offer could lift its value from a tail.
 
-## `resumes_at`, [line 100](../../../../../../../backend/src/sro/domain/skill/shape.py#L100): Comment
+## `resumes_at`, [line 102](../../../../../../../backend/src/sro/domain/skill/shape.py#L102): Comment
 
 Code: `_, step = walk[min(matched, len(walk)) - 1]`
 
@@ -219,7 +221,7 @@ Code: `_, step = walk[min(matched, len(walk)) - 1]`
 > so it cannot overrun, but this is a number off the wire and the cost of
 > believing a bad one is an IndexError in the middle of a press.
 
-## `shape_of`, [line 108](../../../../../../../backend/src/sro/domain/skill/shape.py#L108): Comment
+## `shape_of`, [line 110](../../../../../../../backend/src/sro/domain/skill/shape.py#L110): Comment
 
 Code: `return None`
 
@@ -243,7 +245,7 @@ Code: `return None`
 > sign-in job by the host it stands on. It stops them being OFFERED,
 > which is the only place they cost anybody anything.
 
-## `shape_of`, [line 115](../../../../../../../backend/src/sro/domain/skill/shape.py#L115): Comment
+## `shape_of`, [line 117](../../../../../../../backend/src/sro/domain/skill/shape.py#L117): Comment
 
 Code: `starts_on = page_of(first.page_url or first.url)`
 
@@ -261,7 +263,7 @@ Code: `starts_on = page_of(first.page_url or first.url)`
 > `run_workflow`, and that one still carries the whole url because a
 > warehouse addresses its screens by fragment.
 
-## `shape_of`, [line 116](../../../../../../../backend/src/sro/domain/skill/shape.py#L116): Comment
+## `shape_of`, [line 118](../../../../../../../backend/src/sro/domain/skill/shape.py#L118): Comment
 
 Code: `hosts = sorted(stood_on(workflow, by_id))`
 
@@ -270,7 +272,7 @@ Code: `hosts = sorted(stood_on(workflow, by_id))`
 > beacon is not one of them -- it put `https://play.google.com` on a
 > warehouse job's shape, served to every browser in the tenant.
 
-## `shape_of`, [line 117](../../../../../../../backend/src/sro/domain/skill/shape.py#L117): Comment
+## `shape_of`, [line 119](../../../../../../../backend/src/sro/domain/skill/shape.py#L119): Comment
 
 Code: `if system_of(starts_on) not in hosts:`
 
@@ -278,7 +280,7 @@ Code: `if system_of(starts_on) not in hosts:`
 > which is the frame's. When they disagree the extension would be sent
 > to open an origin no cited gesture ever proved -- so it is not sent.
 
-## `shape_of`, [line 119](../../../../../../../backend/src/sro/domain/skill/shape.py#L119): Comment
+## `shape_of`, [line 121](../../../../../../../backend/src/sro/domain/skill/shape.py#L121): Comment
 
 Code: `walk = walkable(cited)`
 
@@ -286,7 +288,7 @@ Code: `walk = walkable(cited)`
 > where the job begins is a fact about the recording, not about what can
 > be matched.
 
-## `shape_of`, [line 120](../../../../../../../backend/src/sro/domain/skill/shape.py#L120): Comment
+## `shape_of`, [line 122](../../../../../../../backend/src/sro/domain/skill/shape.py#L122): Comment
 
 Code: `if len(walk) <= K_OFFER_AFTER:`
 
@@ -314,7 +316,7 @@ Code: `if len(walk) <= K_OFFER_AFTER:`
 > cap is what gives this line its exact form: a shape whose floor exceeds
 > its own cap is one the matcher can never reach.
 
-## `shape_of`, [line 135](../../../../../../../backend/src/sro/domain/skill/shape.py#L135): Comment
+## `shape_of`, [line 137](../../../../../../../backend/src/sro/domain/skill/shape.py#L137): Comment
 
 Code: `offer_after=max(K_OFFER_AFTER, min(advice.offer_after, len(walk) - 1)),`
 
@@ -323,14 +325,14 @@ Code: `offer_after=max(K_OFFER_AFTER, min(advice.offer_after, len(walk) - 1)),`
 > `recognise.js` can offer: a job that diverges even there keeps
 > diverging, on record.
 
-## `where_steps_moved`, [line 150](../../../../../../../backend/src/sro/domain/skill/shape.py#L150): Comment
+## `where_steps_moved`, [line 152](../../../../../../../backend/src/sro/domain/skill/shape.py#L152): Comment
 
 Code: `moved[step.order] = same.pop(0)`
 
 > First unclaimed, so a job that does one thing twice keeps both
 > rather than folding two steps onto one.
 
-## `keeping_fields`, [line 154](../../../../../../../backend/src/sro/domain/skill/shape.py#L154): Docstring
+## `keeping_fields`, [line 156](../../../../../../../backend/src/sro/domain/skill/shape.py#L156): Docstring
 
 > `where_steps_moved` for a job that learned fields (X10). A learned field
 > step cites nothing, so no doing re-derives it: it is carried over, in its
@@ -339,7 +341,7 @@ Code: `moved[step.order] = same.pop(0)`
 > field whose write the new shape lost is left out: its parameter stays, and
 > `compose` places the value again from the outline.
 
-## `keeping_fields`, [line 154](../../../../../../../backend/src/sro/domain/skill/shape.py#L154): Note on the function
+## `keeping_fields`, [line 156](../../../../../../../backend/src/sro/domain/skill/shape.py#L156): Note on the function
 
 > A carried field step has no gesture, so it takes the tab of the step before
 > it in the grown job (`main` when it comes first) -- the rule `tab_roles`

@@ -17,6 +17,7 @@ from sro.domain.execution.verified_writes import VerifiedWrite, verified_write_f
 from sro.domain.observation.gesture import Gesture
 from sro.domain.observation.trim import body_key_set
 from sro.domain.skill.aliases import JobAlias
+from sro.domain.skill.checks import bindable
 from sro.domain.skill.learned import demanded
 from sro.domain.skill.tabs import undecided, unresolved
 from sro.domain.skill.workflow import Step, Workflow, field_key
@@ -70,15 +71,17 @@ def compile_job(
 ) -> Compiled:
     reasons: list[Reason] = []
     warnings: list[Reason] = []
-    filled = {name for step in workflow.steps for name in step.parameters}
+    filled = bindable(workflow, by_id)
     said = alias_map(aliases)
     fields = field_classes(workflow, by_id, learned, declared)
     for parameter in workflow.parameters:
         name = parameter.get("name")
         if not isinstance(name, str) or not demanded(parameter):
             continue
+        names = parameter.get("names")
+        called = {name, *(str(one) for one in names)} if isinstance(names, list) else {name}
         aliased = labelled(normal(said.get(normal(name), "")), fields)
-        if name not in filled and (aliased is None or aliased.name not in filled):
+        if not called & filled and (aliased is None or aliased.name not in filled):
             reasons.append(
                 Reason("unbound_parameter", None, f"{name} is required and no step fills it")
             )

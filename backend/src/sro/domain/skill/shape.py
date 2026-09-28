@@ -10,7 +10,7 @@ from sro.domain.execution.what_it_writes import what_it_writes
 from sro.domain.observation.gesture import Gesture
 from sro.domain.observation.identity import shape_key, target_identity
 from sro.domain.shared.hosts import page_of, system_of
-from sro.domain.skill.learned import control_names
+from sro.domain.skill.learned import control_key, control_names, same_control
 from sro.domain.skill.offers import K_OFFER_AFTER, Counsel
 from sro.domain.skill.tabs import MAIN
 from sro.domain.skill.workflow import Step, Workflow, field_key, ordered_cites
@@ -82,7 +82,9 @@ def typed_at(cited: list[tuple[Gesture, Step]], parameter: dict[str, object]) ->
         if name in step.parameters and seen & put_by(gesture):
             return index
     for index, (gesture, _) in enumerate(cited):
-        if name in control_names(gesture) and seen & put_by(gesture):
+        if same_control((name,), control_names(gesture), theirs=control_key(gesture)) and (
+            seen & put_by(gesture)
+        ):
             return index
     return None
 

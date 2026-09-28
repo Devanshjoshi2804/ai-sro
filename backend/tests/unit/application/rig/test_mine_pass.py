@@ -660,7 +660,7 @@ async def test_a_pass_that_runs_returns_every_figure_the_row_records() -> None:
     assert result.kept == 1
     assert [one.workflow_title for one in result.rejections] == ["create a work operation"]
     assert [one.kind for one in result.resolutions] == ["new"]
-    assert result.learned_parameters == 0, "one doing cannot name a parameter"
+    assert result.learned_parameters == 2, "each value its one doing typed is a parameter"
     assert (result.in_tokens, result.out_tokens, result.thought_tokens) == (900, 140, 40)
     assert (result.cost_usd, result.unpriced) == (0.01, False)
     assert result.error is None
@@ -677,7 +677,7 @@ async def test_a_second_doing_of_a_job_is_reported_as_learning_and_not_as_nothin
     original = [_rows(uow)[gesture_id] for gesture_id in ids]
 
     first = await _pass(uow, asker=FakeAsker(_answer(ids))).execute(_ctx())
-    assert (first.kept, first.learned_parameters) == (1, 0)
+    assert (first.kept, first.learned_parameters) == (1, 3)
 
     again_rows = [
         replace(

@@ -11,7 +11,7 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 > recipe (L1). The job is compiled again on every read, so what it says is
 > what the evidence says today.
 
-## `Reason`, [line 26](../../../../../../../backend/src/sro/domain/execution/compiled.py#L26): Docstring
+## `Reason`, [line 27](../../../../../../../backend/src/sro/domain/execution/compiled.py#L27): Docstring
 
 > One reason a job cannot run (or, in `Compiled.warnings`, something a reader
 > should know although it runs), and the step it is about (`None` for the job).
@@ -54,7 +54,7 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 >   write sends a body of captured values runs, and the console says every run
 >   writes the recorded values. A mining-quality case, not a runtime refusal.
 
-## `Compiled`, [line 33](../../../../../../../backend/src/sro/domain/execution/compiled.py#L33): Docstring
+## `Compiled`, [line 34](../../../../../../../backend/src/sro/domain/execution/compiled.py#L34): Docstring
 
 > `runnable` is "no reasons"; warnings never change it. `view` is plain data for
 > reading (`make recipe`, the console): each step's lanes, the lanes known
@@ -64,12 +64,12 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 > limits -- computed by `field_classes` and mirrored into `view["fields"]`
 > for a reader that only sees the wire shape.
 
-## `why_not`, [line 41](../../../../../../../backend/src/sro/domain/execution/compiled.py#L41): Docstring
+## `why_not`, [line 42](../../../../../../../backend/src/sro/domain/execution/compiled.py#L42): Docstring
 
 > The reasons as sentences, "Step N: ..." where a step is named, each said
 > once. What the chat, the mail thread and the start's refusal all say.
 
-## `_ladder`, [line 49](../../../../../../../backend/src/sro/domain/execution/compiled.py#L49): Docstring
+## `_ladder`, [line 50](../../../../../../../backend/src/sro/domain/execution/compiled.py#L50): Docstring
 
 > The ladder the executor would climb, built with the executor's own
 > `lanes_for` and the same three inputs: `sends_mail` for the tool lane, a
@@ -87,7 +87,7 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 > lanes are compared against it in `compile_job`, because `lanes_for` never
 > drops the last lane.
 
-## `compile_job`, [line 59](../../../../../../../backend/src/sro/domain/execution/compiled.py#L59): Docstring
+## `compile_job`, [line 60](../../../../../../../backend/src/sro/domain/execution/compiled.py#L60): Docstring
 
 > `values` and `from_step` are the run's: the start passes its given values
 > and D7's `check_from`, and reasons at steps before `from_step` are dropped,
@@ -106,7 +106,23 @@ Notes for [`backend/src/sro/domain/execution/compiled.py`](../../../../../../../
 > reaches `field_classes` unchanged: the stricter of page and knowledge base
 > wins there, not in this function.
 
-## `compile_job`, [line 80](../../../../../../../backend/src/sro/domain/execution/compiled.py#L80): Comment
+## `compile_job`, [line 74](../../../../../../../backend/src/sro/domain/execution/compiled.py#L74): Comment
+
+Code: `filled = bindable(workflow, by_id)`
+
+> Bound by what the run binds by. `value_for` fills a typed control from the
+> value given under any name the control carries (its item id, field label or
+> accessible name), and a parameter learned from the typing lives on the job,
+> named by those names, with no step listing it. Reading only the steps'
+> `parameters` called every such required parameter unbound, so the moment
+> typed values became parameters (M3) the jobs that gained one stopped being
+> runnable. `bindable` is the same set `undeliverable` checks a proposal
+> against, so the miner and the compiler agree on what can be filled. Only
+> the controls a step types into count (M3 round 1): a required "Customer
+> Type" whose only match was a nav link of that name compiled as bound, and
+> the run then had nowhere to type it.
+
+## `compile_job`, [line 83](../../../../../../../backend/src/sro/domain/execution/compiled.py#L83): Comment
 
 Code: `aliased = labelled(normal(said.get(normal(name), "")), fields)`
 

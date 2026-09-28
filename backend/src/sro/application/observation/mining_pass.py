@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 import secrets
-from collections.abc import Sequence
+from collections import Counter
+from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import datetime
@@ -14,6 +15,7 @@ from sro.application.ports.locks import AccountLocks
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.shared.asking import ask
+from sro.domain.execution.compose import normal
 from sro.domain.execution.uses_edges import uses_edges
 from sro.domain.observation.driving import was_our_own_driving
 from sro.domain.observation.gesture import Gesture, Intent
@@ -37,6 +39,7 @@ from sro.domain.observation.window import (
 )
 from sro.domain.prompts.mine import MINE
 from sro.domain.shared.errors import NotFound
+from sro.domain.shared.hosts import origin_of
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.checks import (
@@ -53,18 +56,32 @@ from sro.domain.skill.checks import (
     validate,
     work_only,
 )
-from sro.domain.skill.learned import LearnedParameter, parameters_across, same_control
+from sro.domain.skill.learned import (
+    K_PARAMETERS_RULE,
+    TYPING,
+    LearnedParameter,
+    Occurrence,
+    control_key,
+    control_names,
+    parameters_across,
+    placed_doings,
+    same_control,
+    typed_across,
+)
 from sro.domain.skill.passwords import with_passwords
 from sro.domain.skill.presses import with_the_press
 from sro.domain.skill.repeats import detect as repeated_block
-from sro.domain.skill.shape import in_time_order, keeping_fields
+from sro.domain.skill.shape import cited_pairs, in_time_order, keeping_fields, typed_at
+from sro.domain.skill.signing_in import Logins, recorded_logins
 from sro.domain.skill.tabs import MAIN, tab_roles
 from sro.domain.skill.umbrella import mining_blocks, workflow_from
-from sro.domain.skill.workflow import Workflow, cited_ids, ordered_cites
+from sro.domain.skill.workflow import Step, Workflow, cited_ids, ordered_cites
 from sro.whose import attribute
 
 __all__ = [
+    "K_BRING_IN_TRIES",
     "MineResult",
+    "bring_in_parameters",
     "decide_tabs",
     "fill_in_passwords",
     "learn_parameters",
@@ -73,7 +90,10 @@ __all__ = [
     "new_pass_id",
     "propose",
     "rekey_workflows",
+    "shipped",
 ]
+
+K_BRING_IN_TRIES = 3
 
 logger = logging.getLogger(__name__)
 
@@ -161,33 +181,43 @@ async def learn_parameters(
     *,
     tenant_id: TenantId,
     known_id: str,
-    proposal: Workflow,
-    by_id: dict[str, Gesture],
-    intents: dict[str, Intent],
+    doings: Sequence[Workflow],
+    by_id: Mapping[str, Gesture],
+    intents: Mapping[str, Intent],
+    logins: Logins,
 ) -> int:
     try:
         stored = await uow.workflows.get(tenant_id, known_id, lock=True)
     except NotFound:
         return 0
-    folded = _folded(stored.parameters)
-    repaired = len(folded) != len(stored.parameters)
+    if stored.signs_in is None or stored.signs_out is None:
+        return 0
+    read = cited_ids(stored).union(*(cited_ids(doing) for doing in doings))
+    if set(await uow.workflows.placed_on(tenant_id, known_id)) <= read:
+        await uow.workflows.ruled(tenant_id, known_id, K_PARAMETERS_RULE)
+    occurrences = [(stored, by_id, intents), *((doing, by_id, intents) for doing in doings)]
+    typed: list[dict[str, object]] = [
+        {"names": list(one.names), "key": one.key, "seen_values": list(one.seen)}
+        for one in typed_across(occurrences)
+    ]
+    tied = _tied(stored.parameters, cited_pairs(stored, by_id))
+    untied, holders = _pools(stored.parameters, typed)
+    folded = _folded(stored.parameters, untied, holders)
+    repaired = tied or len(folded) != len(stored.parameters)
     stored.parameters = folded
 
-    found = parameters_across([(stored, by_id, intents), (proposal, by_id, intents)])
+    found = [] if stored.chore else shipped(occurrences, by_id, logins)
     if not found:
         if repaired:
             await uow.workflows.save(stored)
         return 0
-    by_name = {str(p["name"]): p for p in stored.parameters if "name" in p}
     fresh: list[dict[str, object]] = []
     widened = 0
     named = False
     told = False
     for parameter in found:
-        existing = (
-            by_name.get(parameter.name)
-            or _known_by(parameter, stored.parameters)
-            or _same_control(parameter, stored.parameters)
+        existing = _known_by(parameter, stored.parameters) or _same_control(
+            parameter, untied, holders
         )
         if existing is None:
             fresh.append(
@@ -216,10 +246,42 @@ async def learn_parameters(
             widened += 1
     if not fresh and not widened and not repaired and not named and not told:
         return 0
-    stored.parameters = _folded([*stored.parameters, *fresh])
+    stored.parameters = _folded([*stored.parameters, *fresh], untied, holders)
     stored.generalise_title()
     await uow.workflows.save(stored)
     return len(fresh) + widened
+
+
+def shipped(
+    occurrences: Sequence[Occurrence], by_id: Mapping[str, Gesture], logins: Logins
+) -> list[LearnedParameter]:
+    """Every control the code rule makes a parameter, less the box the recorded
+    sign-in types its username into on the system it signs in to."""
+    read = set().union(*(cited_ids(one) for one, _, _ in occurrences))
+    systems = {origin_of(by_id[one].system or "") for one in read if one in by_id} - {""}
+    return [
+        parameter
+        for parameter in parameters_across(occurrences)
+        if not {(system, normal(name)) for system in systems for name in parameter.names}
+        & logins.labels
+    ]
+
+
+def _tied(parameters: list[dict[str, object]], cited: list[tuple[Gesture, Step]]) -> bool:
+    """Ties each parameter that names no control to the one its step types it
+    into, so it is only ever matched by that control and never by a value."""
+    typing = [pair for pair in cited if pair[0].action.kind in TYPING]
+    tied = False
+    for parameter in parameters:
+        at = None if _controlled(parameter) else typed_at(typing, parameter)
+        if at is None:
+            continue
+        gesture = typing[at][0]
+        names, key = control_names(gesture), control_key(gesture)
+        if names or key:
+            parameter["names"], parameter["key"] = list(names), key
+            tied = True
+    return tied
 
 
 def _names_of(parameter: dict[str, object]) -> list[str]:
@@ -243,17 +305,18 @@ def _known_by(
     return None
 
 
-def _folded(parameters: list[dict[str, object]]) -> list[dict[str, object]]:
+def _folded(
+    parameters: list[dict[str, object]],
+    untied: list[dict[str, object]],
+    holders: list[dict[str, object]],
+) -> list[dict[str, object]]:
     kept: list[dict[str, object]] = []
     for parameter in parameters:
-        names = _names_of(parameter)
-        key = str(parameter.get("key") or "")
         already = next(
             (
                 one
                 for one in kept
-                if same_control(_names_of(one), names, key=str(one.get("key") or ""), theirs=key)
-                or _same_typing(one, parameter)
+                if _one_control(one, parameter) or _held(one, parameter, untied, holders)
             ),
             None,
         )
@@ -261,8 +324,8 @@ def _folded(parameters: list[dict[str, object]]) -> list[dict[str, object]]:
             kept.append(parameter)
             continue
         known = _names_of(already)
-        already["names"] = [*known, *[one for one in names if one not in known]]
-        already["key"] = str(already.get("key") or "") or key
+        already["names"] = [*known, *[one for one in _names_of(parameter) if one not in known]]
+        already["key"] = str(already.get("key") or "") or str(parameter.get("key") or "")
         was, theirs = already.get("seen_values"), parameter.get("seen_values")
         seen = [str(value) for value in was] if isinstance(was, list) else []
         more = [str(value) for value in theirs] if isinstance(theirs, list) else []
@@ -275,22 +338,76 @@ def _values_of(parameter: dict[str, object]) -> set[str]:
     return {str(value) for value in seen} if isinstance(seen, list) else set()
 
 
-def _same_typing(one: dict[str, object], other: dict[str, object]) -> bool:
-    mine, theirs = _values_of(one), _values_of(other)
-    if not mine or not theirs:
+def _controlled(parameter: dict[str, object]) -> bool:
+    return bool(parameter.get("names") or parameter.get("key"))
+
+
+def _one_control(one: dict[str, object], other: dict[str, object]) -> bool:
+    return same_control(
+        _names_of(one),
+        _names_of(other),
+        key=str(one.get("key") or ""),
+        theirs=str(other.get("key") or ""),
+    )
+
+
+def _pools(
+    parameters: list[dict[str, object]], typed: list[dict[str, object]]
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    """Every control known to have typed something: each field the doings
+    typed into, fixed ones included, and each entry naming a control; and the
+    entries naming no control whose name names none of those. An entry named
+    after a control is that control's, never another's by value. Taken once,
+    before any fold changes an entry: an entry folded into a field carries
+    values that field never typed."""
+    holders = [*typed, *(one for one in parameters if _controlled(one))]
+    untied = [
+        one
+        for one in parameters
+        if not _controlled(one) and not any(_one_control(one, held) for held in holders)
+    ]
+    return untied, holders
+
+
+def _held_by(
+    untied: dict[str, object],
+    untieds: list[dict[str, object]],
+    holders: list[dict[str, object]],
+) -> dict[str, object] | None:
+    """The one control that typed this entry's value, when exactly one control
+    typed it and this is the only entry naming no control that holds what that
+    control typed. Otherwise the value cannot say which, and nothing matches."""
+    values = _values_of(untied)
+    typed = [one for one in holders if values & _values_of(one)]
+    if not typed or not all(_one_control(typed[0], one) for one in typed):
+        return None
+    alike = [one for one in untieds if _values_of(one) & _values_of(typed[0])]
+    return typed[0] if len(alike) == 1 and alike[0] is untied else None
+
+
+def _held(
+    one: dict[str, object],
+    other: dict[str, object],
+    untieds: list[dict[str, object]],
+    holders: list[dict[str, object]],
+) -> bool:
+    if _controlled(one) == _controlled(other):
         return False
-    return mine <= theirs or theirs <= mine
+    untied, control = (other, one) if _controlled(one) else (one, other)
+    held = _held_by(untied, untieds, holders)
+    return held is not None and _one_control(held, control)
 
 
 def _same_control(
-    parameter: LearnedParameter, stored: list[dict[str, object]]
+    parameter: LearnedParameter,
+    untieds: list[dict[str, object]],
+    holders: list[dict[str, object]],
 ) -> dict[str, object] | None:
-    wanted = set(parameter.seen)
-    for candidate in stored:
-        was = candidate.get("seen_values")
-        if not isinstance(was, list):
-            continue
-        if wanted and wanted <= {str(value) for value in was}:
+    for candidate in untieds:
+        held = _held_by(candidate, untieds, holders)
+        if held is not None and same_control(
+            _names_of(held), parameter.names, key=str(held.get("key") or ""), theirs=parameter.key
+        ):
             return candidate
     return None
 
@@ -551,6 +668,15 @@ async def _one_pass(
                 proposal.pass_id = pass_id
                 await uow.workflows.save(proposal)
                 kept.append(proposal)
+                result.learned_parameters += await learn_parameters(
+                    uow,
+                    tenant_id=tenant_id,
+                    known_id=proposal.id,
+                    doings=(),
+                    by_id=by_id,
+                    intents=intents,
+                    logins=recorded_logins([*known, *kept], by_id),
+                )
             elif resolution.workflow_id:
                 await uow.workflows.place(
                     tenant_id, resolution.workflow_id, tuple(ordered_cites(proposal))
@@ -560,9 +686,10 @@ async def _one_pass(
                     uow,
                     tenant_id=tenant_id,
                     known_id=resolution.workflow_id,
-                    proposal=proposal,
+                    doings=(proposal,),
                     by_id=by_id,
                     intents=intents,
+                    logins=recorded_logins([*known, *kept], by_id),
                 )
                 if resolution.contains:
                     await _grow(
@@ -635,7 +762,7 @@ def _billed(pass_id: str, tenant_id: TenantId, started_at: str, result: MineResu
 
 
 async def fill_in_passwords(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
-    changed = 0
+    healed: list[Workflow] = []
     by_id = {gesture.id: gesture for gesture in await uow.gestures.gestures_for(tenant_id)}
     for listed in await uow.workflows.known(tenant_id):
         if not evidenced(listed, by_id) or not (
@@ -643,8 +770,25 @@ async def fill_in_passwords(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
         ):
             continue
         workflow = await uow.workflows.get(tenant_id, listed.id, lock=True)
-        changed += await _mend(uow, tenant_id, workflow, by_id)
-    return changed
+        if await _mend(uow, tenant_id, workflow, by_id):
+            healed.append(workflow)
+    if healed:
+        logins = recorded_logins(await uow.workflows.known(tenant_id), by_id)
+        cites = tuple(sorted({one for job in healed for one in ordered_cites(job)}))
+        intents = {
+            one.gesture_id: one for one in await uow.gestures.intents_for(tenant_id, ids=cites)
+        }
+        for workflow in healed:
+            await learn_parameters(
+                uow,
+                tenant_id=tenant_id,
+                known_id=workflow.id,
+                doings=(),
+                by_id=by_id,
+                intents=intents,
+                logins=logins,
+            )
+    return len(healed)
 
 
 async def _mend(
@@ -703,3 +847,50 @@ async def rekey_workflows(uow: UnitOfWork, *, tenant_id: TenantId) -> int:
     if changed:
         await uow.commit()
     return changed
+
+
+async def bring_in_parameters(
+    uow: UnitOfWork, tenant_id: TenantId, jobs: Sequence[Workflow], failed: Counter[str]
+) -> int:
+    known = await uow.workflows.known(tenant_id)
+    placed = {job.id: await uow.workflows.placed_on(tenant_id, job.id) for job in jobs}
+    by_id = await evidence_of(uow, tenant_id, known)
+    missing = tuple(sorted({one for ids in placed.values() for one in ids} - by_id.keys()))
+    if missing:
+        by_id.update(
+            {one.id: one for one in await uow.gestures.gestures_for(tenant_id, ids=missing)}
+        )
+    read = {one for job in jobs for one in ordered_cites(job)}.union(*placed.values())
+    intents = {
+        one.gesture_id: one
+        for one in await uow.gestures.intents_for(tenant_id, ids=tuple(sorted(read)))
+    }
+    logins = recorded_logins(known, by_id)
+    brought = 0
+    for job in jobs:
+        try:
+            held = await uow.workflows.get(tenant_id, job.id, lock=True)
+            if await uow.workflows.ruled(tenant_id, job.id, K_PARAMETERS_RULE):
+                brought += await learn_parameters(
+                    uow,
+                    tenant_id=tenant_id,
+                    known_id=job.id,
+                    doings=placed_doings(held, placed[job.id], by_id, intents),
+                    by_id=by_id,
+                    intents=intents,
+                    logins=logins,
+                )
+            await uow.commit()
+        except NotFound:
+            await uow.rollback()
+        except Exception:
+            await uow.rollback()
+            failed[job.id] += 1
+            logger.exception(
+                "%s: could not bring in its parameters (%d of %d tries%s)",
+                job.title,
+                failed[job.id],
+                K_BRING_IN_TRIES,
+                "; not tried again" if failed[job.id] >= K_BRING_IN_TRIES else "",
+            )
+    return brought

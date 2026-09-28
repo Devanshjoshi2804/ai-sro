@@ -430,6 +430,49 @@ KNOWN_DRIFT = {
 }
 
 
+async def test_0089_leaves_every_job_to_be_brought_in_and_back(postgres_url: str) -> None:
+    """Additive: every stored job arrives with no parameters rule, which is
+    what tells the sweep to bring it in once. The downgrade drops the column
+    and keeps the jobs."""
+    engine = create_async_engine(postgres_url)
+    read = text("SELECT id FROM workflows ORDER BY id")
+    try:
+        async with engine.begin() as connection:
+            await connection.execute(text("DROP SCHEMA public CASCADE"))
+            await connection.execute(text("CREATE SCHEMA public"))
+            await connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        await _alembic(postgres_url, "upgrade", "head")
+        await _alembic(postgres_url, "downgrade", "-1")
+        async with engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "INSERT INTO workflows (id, tenant_id, pass_id, title, narrative, systems,"
+                    " parameters, shape_key, created_at) VALUES ('wfl_old', 'acme', '', '', '',"
+                    " '[]', '[]', '[]', now())"
+                )
+            )
+        await _alembic(postgres_url, "upgrade", "head")
+        async with engine.begin() as connection:
+            upgraded = (
+                await connection.execute(text("SELECT id, parameters_rule FROM workflows"))
+            ).all()
+        await _alembic(postgres_url, "downgrade", "-1")
+        async with engine.begin() as connection:
+            kept = (await connection.execute(read)).scalars().all()
+            columns = {
+                one["name"]
+                for one in await connection.run_sync(
+                    lambda sync: inspect(sync).get_columns("workflows")
+                )
+            }
+        await _alembic(postgres_url, "upgrade", "head")
+    finally:
+        await engine.dispose()
+
+    assert [tuple(row) for row in upgraded] == [("wfl_old", None)]
+    assert kept == ["wfl_old"] and "parameters_rule" not in columns
+
+
 async def test_the_migrated_schema_is_the_schema_the_code_declares(postgres_url: str) -> None:
     """Drift, in both directions, with one known exception.
 

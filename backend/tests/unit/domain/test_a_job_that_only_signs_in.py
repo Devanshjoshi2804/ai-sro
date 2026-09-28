@@ -335,11 +335,14 @@ def test_the_azure_chain_keeps_its_sign_in_steps_and_its_tag() -> None:
     assert signs_in(job, store) is True
 
 
-def test_a_silent_press_on_the_landing_system_before_the_credential_is_not_signing_in() -> None:
+def test_a_silent_press_on_the_landing_system_before_the_credential_is_no_sign_in_step() -> None:
     """Final re-review N-1, 2026-09-24: "Release wave" pressed in the WMS (a
     full-page post the recorder never hears), the session had lapsed, the
-    operator signed in and landed back in the WMS. Mined as one job, the
-    release is not part of signing in, and the job is not a sign-in."""
+    operator signed in and landed back in the WMS. The release is not part
+    of signing in. (Whether the job is a sign-in changed with F4's Google
+    ruling, 2026-09-28: a click on the landing that writes and types nothing
+    is an entry into the sign-in -- see
+    `test_a_silent_click_on_the_landing_before_a_sign_in_is_an_entry`.)"""
     store = {
         "release": _did("release", WMS, 1.0),
         "pw": _typed_secret("pw", KEYCLOAK, 2.0),
@@ -348,7 +351,6 @@ def test_a_silent_press_on_the_landing_system_before_the_credential_is_not_signi
     job = _job("release", "pw", "go")
 
     assert is_sign_in_step(job, job.steps[0], store) is False
-    assert signs_in(job, store) is False
 
 
 def test_a_keycloak_sign_in_stays_a_sign_in() -> None:

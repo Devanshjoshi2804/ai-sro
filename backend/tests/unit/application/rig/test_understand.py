@@ -141,7 +141,7 @@ async def test_the_model_that_named_nothing_still_hands_back_what_it_cost() -> N
         answer = Answer(data=data, cost_usd=0.0003, in_tokens=120)
         got = await understand("x", _jobs(), FakeAsker(answer))
         assert got.workflow_id is None
-        assert got.answer is answer
+        assert (got.answer.cost_usd, got.answer.in_tokens) == (0.0003, 120)
 
     named = Answer(data={"job": "wfl_1", "sure": True, "values": []}, cost_usd=0.0009)
     got = await understand("x", _jobs(), FakeAsker(named))

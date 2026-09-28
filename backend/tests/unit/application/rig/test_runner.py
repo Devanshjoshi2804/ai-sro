@@ -102,6 +102,7 @@ DEVICE = DeviceId("dev_test")
 STARTED = "2026-03-04T10:00:00+00:00"
 
 FLASH = PLAN_STEP.model
+FALLBACK = PLAN_STEP.fallback_model
 
 _HELD = Answer(data={"held": True, "why": ""})
 
@@ -1463,12 +1464,12 @@ async def test_a_step_the_planner_could_not_plan_stops_the_run() -> None:
     uow = await _fixture()
     workflow = await _workflow(uow)
     channel = FakeChannel(_looks(4))
-    asker = FakeAsker(*[Answer(data={"kind": "nope", "why": "no idea"})] * 2)
+    asker = FakeAsker(*[Answer(data={"kind": "nope", "why": "no idea"})] * 3)
 
     run = await _ran(uow, workflow, channel=channel, asker=asker)
 
     assert run.outcome == "stopped"
-    assert [a["model"] for a in asker.asked] == [FLASH, PRO], "step 1 was never planned"
+    assert [a["model"] for a in asker.asked] == [FLASH, FALLBACK, PRO], "step 1 never planned"
     assert not [s for s in channel.sent if s["kind"] == "ui.perform"], "nothing was performed"
     assert run.steps[0].verdict == "failed" and run.steps[0].reason, "it says why"
 
@@ -3873,7 +3874,7 @@ async def test_an_evidence_rung_with_no_plan_is_not_blamed_on_sight() -> None:
     uow = await _fixture()
     workflow = await _workflow(uow)
     channel = FakeChannel(_looks(6))
-    asker = FakeAsker(Answer(error="503 UNAVAILABLE"), Answer(error="503 UNAVAILABLE"))
+    asker = FakeAsker(*[Answer(error="503 UNAVAILABLE")] * 3)
 
     run = await _ran(uow, workflow, channel=channel, asker=asker)
 

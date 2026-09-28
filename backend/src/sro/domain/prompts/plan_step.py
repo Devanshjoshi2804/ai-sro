@@ -26,6 +26,7 @@ PLAN_STEP = Prompt(
     name="plan_step",
     version=1,
     model="gemini-3.8-flash",
+    fallback_model="gemini-3.7-flash",
     thinking=None,
     role=_ROLE,
     task=_TASK,
@@ -68,4 +69,6 @@ PLAN_STEP = Prompt(
     ),
 )
 
-PLAN_STEP_ESCALATED = replace(PLAN_STEP, name="plan_step_escalated", model="gemini-3.1-pro-preview")
+PLAN_STEP_ESCALATED = replace(
+    PLAN_STEP, name="plan_step_escalated", model="gemini-3.1-pro-preview", fallback_model=None
+)

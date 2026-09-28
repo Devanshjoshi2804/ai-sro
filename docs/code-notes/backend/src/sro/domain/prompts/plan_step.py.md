@@ -25,7 +25,7 @@ Code: `PLAN_STEP = Prompt(`
 > The words the model is told are unchanged; the envelope is new, and the first
 > `make eval` on the repair suite measures it.
 
-## module, [line 41](../../../../../../../backend/src/sro/domain/prompts/plan_step.py#L41): Comment
+## module, [line 42](../../../../../../../backend/src/sro/domain/prompts/plan_step.py#L42): Comment
 
 Code: `"properties": {`
 
@@ -48,9 +48,9 @@ Code: `model="gemini-3.8-flash",`
 >
 > It was the setting `gemini_plan_model` until the prompts became records.
 
-## module, [line 71](../../../../../../../backend/src/sro/domain/prompts/plan_step.py#L71): Note on the line above
+## module, [line 72](../../../../../../../backend/src/sro/domain/prompts/plan_step.py#L72): Note on the line above
 
-Code: `PLAN_STEP_ESCALATED = replace(PLAN_STEP, name="plan_step_escalated", model="gemini-3.1-pro-preview")`
+Code: `PLAN_STEP_ESCALATED = replace(`
 
 > What re-plans a step the plan model got wrong. The rig's `rescue_model`
 > (`config.py:45`). The expensive model earns its price here and not above:
@@ -60,3 +60,6 @@ Code: `PLAN_STEP_ESCALATED = replace(PLAN_STEP, name="plan_step_escalated", mode
 > `model` argument, for the reason `SIGHT_ESCALATED` is one: the eval gate
 > measures a record, and one record asked on two models is two things
 > measured as one. The runner climbs `PLAN_STEP`, then this, then `SEE_STEP`.
+>
+> `fallback_model=None` because `replace` would otherwise carry the flash
+> record's fallback onto a pro record: 3.7-flash is no stand-in for pro.

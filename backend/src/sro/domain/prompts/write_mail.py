@@ -26,8 +26,9 @@ Plain text, no placeholders, no signature beyond the operator's name if you know
 
 WRITE_MAIL = Prompt(
     name="write_mail",
-    version=2,
+    version=3,
     model="gemini-3.8-flash",
+    fallback_model="gemini-3.7-flash",
     thinking=None,
     role=_ROLE,
     task=_TASK,
@@ -41,7 +42,7 @@ WRITE_MAIL = Prompt(
         "properties": {
             "to": {"type": "string"},
             "subject": {"type": "string"},
-            "body": {"type": "string"},
+            "body": {"type": "string", "minLength": 1},
             "cited": {
                 "type": "array",
                 "items": {

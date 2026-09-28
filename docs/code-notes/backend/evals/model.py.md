@@ -19,12 +19,12 @@ What a case, a scored case and a suite's report are, and the gate a prompt chang
 > fails the same prompt against itself about half the time. Accuracy and
 > sure-but-wrong stay exact: they are compared on the same frozen cases.
 
-## `Report.load`, [line 62](../../../../backend/evals/model.py#L62): Design
+## `Report.load`, [line 64](../../../../backend/evals/model.py#L64): Design
 
 > A baseline records the sorted ids of the cases it was scored on, so a run
 > is gated only against the same case set.
 
-## `report`, [line 71](../../../../backend/evals/model.py#L71): Design
+## `report`, [line 73](../../../../backend/evals/model.py#L73): Design
 
 > Sure-but-wrong is counted over all cases, not over the sure ones: a prompt
 > that grows less sure and no more right lowers it, and the gate wants that.
@@ -32,7 +32,7 @@ What a case, a scored case and a suite's report are, and the gate a prompt chang
 > timeout, a closed client, a call refused for no tenant) is counted in
 > `errors`, not passed off as an unsure miss.
 
-## `gate`, [line 90](../../../../backend/evals/model.py#L90): Design
+## `gate`, [line 93](../../../../backend/evals/model.py#L93): Design
 
 > Spec §2.2: "A prompt change merges only if accuracy holds or improves,
 > sure-but-wrong does not rise, and cost does not rise."
@@ -41,3 +41,12 @@ What a case, a scored case and a suite's report are, and the gate a prompt chang
 > None), so a failing run is never written as the baseline. A run on a
 > different case set from the baseline's fails without comparing numbers.
 > Returns every broken rule, so one report names all of them.
+
+## `Report`, [line 60](../../../../backend/evals/model.py#L60): Note on the line above
+
+Code: `fallbacks: int = 0`
+
+> How many cases' calls asked the record's fallback model. Reported so a
+> suite shows how often its primary failed; not gated. The gate compares
+> accuracy, sure-but-wrong and cost, and a fallback's cost is already in the
+> cost per case. A baseline written before this field loads as 0.

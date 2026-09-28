@@ -7,7 +7,7 @@ from types import MappingProxyType
 
 from sro.application.ports.model import Asker
 from sro.domain.prompts.record import Prompt, conforms
-from sro.domain.shared.prices import Answer
+from sro.domain.shared.prices import Answer, Effort
 
 logger = logging.getLogger(__name__)
 
@@ -23,14 +23,53 @@ async def ask(
     image: bytes | None = None,
     images: tuple[bytes, ...] = (),
 ) -> Answer:
+    evidence = prompt.evidence(trusted, untrusted)
+    first = await _asked(asker, prompt, prompt.model, prompt.thinking, evidence, image, images)
+    if prompt.fallback_model is None or not _failed(first, prompt.unit):
+        return first
+    logger.warning(
+        "%s v%s: %s failed (%s); asking %s",
+        prompt.name,
+        prompt.version,
+        prompt.model,
+        first.error or ("no answer" if first.data is None else "every item was dropped"),
+        prompt.fallback_model,
+    )
+    effort = None if prompt.thinking == "minimal" else prompt.thinking
+    second = await _asked(asker, prompt, prompt.fallback_model, effort, evidence, image, images)
+    used = first if _failed(second, prompt.unit) else second
+    return replace(
+        used,
+        in_tokens=first.in_tokens + second.in_tokens,
+        out_tokens=first.out_tokens + second.out_tokens,
+        thought_tokens=first.thought_tokens + second.thought_tokens,
+        cost_usd=first.cost_usd + second.cost_usd,
+        unpriced=first.unpriced or second.unpriced,
+        fell_back=True,
+    )
+
+
+def _failed(answer: Answer, unit: str | None) -> bool:
+    return answer.data is None or (answer.dropped > 0 and _many(answer.data, unit) == 0)
+
+
+async def _asked(
+    asker: Asker,
+    prompt: Prompt,
+    model: str,
+    effort: Effort | None,
+    evidence: str,
+    image: bytes | None,
+    images: tuple[bytes, ...],
+) -> Answer:
     answer = await asker.ask(
-        model=prompt.model,
+        model=model,
         instructions=prompt.instructions,
-        evidence=prompt.evidence(trusted, untrusted),
+        evidence=evidence,
         schema=dict(prompt.output_schema),
         image=image,
         images=images,
-        effort=prompt.thinking,
+        effort=effort,
     )
     if answer.data is None:
         return answer

@@ -180,5 +180,12 @@ class Mining:
             for one in proposed
         )
         return Scored(
-            case.id, passed, bool(proposed), answer.cost_usd, latency, answer.data, answer.error
+            case.id,
+            passed,
+            bool(proposed),
+            answer.cost_usd,
+            latency,
+            answer.data,
+            answer.error,
+            answer.fell_back,
         )

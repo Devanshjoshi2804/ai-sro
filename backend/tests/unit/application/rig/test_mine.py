@@ -807,7 +807,7 @@ async def test_a_day_of_refused_calls_does_not_retire_the_pool() -> None:
     so its patience was never spent."""
     uow, ids = await _day()
     await uow.pool.add_unclaimed(TENANT, window_ids=tuple(ids), claimed=frozenset())
-    refused = FakeAsker(*[Answer(error="ServerError: 503 UNAVAILABLE") for _ in range(8)])
+    refused = FakeAsker(*[Answer(error="ServerError: 503 UNAVAILABLE") for _ in range(16)])
 
     for _ in range(8):
         result = await _mine(uow, refused)
@@ -824,14 +824,14 @@ async def test_an_unusable_answer_leaves_its_window_unread() -> None:
     the next pass reads it again rather than calling it mined."""
     uow, ids = await _day()
     unusable = Answer(data={"workflows": "not a list"}, in_tokens=900, cost_usd=0.2)
-    asker = FakeAsker(unusable, _found())
+    asker = FakeAsker(unusable, unusable, _found())
 
     first = await _mine(uow, asker)
     second = await _mine(uow, asker)
 
     assert first.error is not None and "mine v3" in first.error
     assert first.left_out == len(ids)
-    assert len(asker.asked) == 2 and second.window_size == len(ids)
+    assert len(asker.asked) == 3 and second.window_size == len(ids)
     assert {entry.age for entry in await uow.pool.waiting(TENANT)} == {1}
 
 
@@ -842,12 +842,12 @@ async def test_a_window_no_answer_can_read_retires_unminable_and_is_not_billed_a
     on every pass, for ever. It gets K_MINE_ATTEMPTS readings."""
     uow, ids = await _day()
     truncated = Answer(data=None, error="the answer was truncated", in_tokens=5000, cost_usd=0.1)
-    asker = FakeAsker(*[truncated] * (K_MINE_ATTEMPTS + 2))
+    asker = FakeAsker(*[truncated] * (2 * K_MINE_ATTEMPTS + 2))
 
     with caplog.at_level(logging.INFO, logger="sro.application.observation.mining_pass"):
         passes = [await _mine(uow, asker) for _ in range(K_MINE_ATTEMPTS + 1)]
 
-    assert len(asker.asked) == K_MINE_ATTEMPTS
+    assert len(asker.asked) == 2 * K_MINE_ATTEMPTS, "each reading tries the fallback once"
     assert passes[-1].window_size == 0
     gone = {entry.gesture_id: entry.reason for entry in await uow.pool.retired(TENANT)}
     assert gone == dict.fromkeys(ids, RETIRED_UNMINABLE)

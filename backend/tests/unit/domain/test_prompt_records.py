@@ -202,3 +202,36 @@ def test_the_rendered_mining_request_is_pinned() -> None:
         hashlib.sha256(sent.encode()).hexdigest()
         == "271433ab71ada82ba9919252982f6959c44871b808e56c15c82f28a0a18c7732"
     )
+
+
+_ASKED_THROUGH_THE_SHARED_PATH = (
+    MINE,
+    READ_GESTURE,
+    READ_REQUEST,
+    IS_IT_AN_ANSWER,
+    PLAN_LOOKUP,
+    WRITE_MAIL,
+    GATHER,
+    PLAN_STEP,
+    CHECK_SCREEN,
+    CHECK_WAY_THROUGH,
+)
+
+
+@pytest.mark.parametrize("prompt", RECORDS, ids=lambda one: one.name)
+def test_a_flash_record_asked_through_the_shared_path_falls_back_and_no_other_does(
+    prompt: Prompt,
+) -> None:
+    """Decided 2026-09-28 after two QA mail runs came back empty on 3.8-flash.
+    Pro records have none: 3.7-flash is no stand-in for pro. SIGHT is the
+    computer-use record and escalates to pro instead. READ_SENTENCE,
+    EXTRACT_VALUES and TRANSCRIBE are sent by adapters that call the client
+    directly, so a fallback on them would be a field nothing reads."""
+    on_the_path = prompt in _ASKED_THROUGH_THE_SHARED_PATH and prompt.model == _FLASH
+    assert prompt.fallback_model == ("gemini-3.7-flash" if on_the_path else None)
+
+
+def test_an_empty_mail_body_does_not_conform() -> None:
+    """The draft QA saw: every field present, the body empty. It is no draft."""
+    schema = WRITE_MAIL.output_schema
+    assert not conforms({"to": "", "subject": "", "body": "", "cited": []}, schema)

@@ -41,6 +41,7 @@ class Scored:
     latency_s: float
     answer: dict[str, object] | None = None
     error: str | None = None
+    fell_back: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +57,7 @@ class Report:
     p50_s: float
     p95_s: float
     errors: int = 0
+    fallbacks: int = 0
     case_ids: tuple[str, ...] = ()
 
     @classmethod
@@ -83,6 +85,7 @@ def report(suite: str, prompt: Prompt, scored: Sequence[Scored]) -> Report:
         p50_s=_at(latencies, 0.5),
         p95_s=_at(latencies, 0.95),
         errors=sum(one.error is not None for one in scored),
+        fallbacks=sum(one.fell_back for one in scored),
         case_ids=tuple(sorted(one.case_id for one in scored)),
     )
 
@@ -111,9 +114,9 @@ def as_markdown(report: Report, failed: Sequence[str]) -> str:
     rows = [
         f"### make eval — {report.suite}: {report.prompt} v{report.version} on {report.model}",
         "",
-        "| cases | errors | accuracy | sure-but-wrong | cost/case | p50 | p95 |",
-        "|---|---|---|---|---|---|---|",
-        f"| {report.cases} | {report.errors} | {report.accuracy:.1%} | "
+        "| cases | errors | fallbacks | accuracy | sure-but-wrong | cost/case | p50 | p95 |",
+        "|---|---|---|---|---|---|---|---|",
+        f"| {report.cases} | {report.errors} | {report.fallbacks} | {report.accuracy:.1%} | "
         f"{report.sure_but_wrong:.1%} | "
         f"${report.cost_per_case:.5f} | {report.p50_s:.2f} s | {report.p95_s:.2f} s |",
         "",

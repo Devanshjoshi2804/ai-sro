@@ -25,7 +25,7 @@ Code: `model="gemini-3.8-flash",`
 > the thin-gesture picture are live in production: both were missing when
 > that bake-off ran.
 
-## module, [line 32](../../../../../../../backend/src/sro/domain/prompts/read_gesture.py#L32): Comment
+## module, [line 33](../../../../../../../backend/src/sro/domain/prompts/read_gesture.py#L33): Comment
 
 Code: `"properties": {`
 
@@ -39,7 +39,7 @@ Code: `"properties": {`
 > this sequence, and a prompt that asks for one order while the schema
 > imposes another is a prompt arguing with itself.
 
-## module, [line 47](../../../../../../../backend/src/sro/domain/prompts/read_gesture.py#L47): Comment
+## module, [line 48](../../../../../../../backend/src/sro/domain/prompts/read_gesture.py#L48): Comment
 
 Code: `"propertyOrdering": [`
 

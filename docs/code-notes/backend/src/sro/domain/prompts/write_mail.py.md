@@ -15,3 +15,13 @@ Notes on [`backend/src/sro/domain/prompts/write_mail.py`](../../../../../../../b
 > There is no mail suite in the eval (spec §2.2), so this version has no
 > `make eval` report; it merges on its code checks (ruled 2026-09-26), and P5
 > adds a small mail suite.
+
+## module, [line 45](../../../../../../../backend/src/sro/domain/prompts/write_mail.py#L45): Note on the line above
+
+Code: `"body": {"type": "string", "minLength": 1},`
+
+> A draft with an empty body is no draft. Two QA runs on 2026-09-28 got
+> exactly that from 3.8-flash -- every field present, the body empty -- and
+> stopped with "the model said nothing". Schema-valid, it was never a
+> failure the fallback could see. Now it breaks the schema, so it is: the
+> record falls back to 3.7-flash. Version 3 for the schema change.

@@ -39,6 +39,7 @@ class Prompt:
     rules: tuple[str, ...] = ()
     edge_cases: tuple[EdgeCase, ...] = ()
     unit: str | None = None
+    fallback_model: str | None = None
 
     @property
     def instructions(self) -> str:
@@ -120,7 +121,12 @@ def conforms(value: object, schema: Mapping[str, object]) -> bool:
         )
     if kind == "string":
         allowed = schema.get("enum")
-        return isinstance(value, str) and (not isinstance(allowed, list) or value in allowed)
+        shortest = schema.get("minLength", 0)
+        return (
+            isinstance(value, str)
+            and (not isinstance(allowed, list) or value in allowed)
+            and len(value) >= (shortest if isinstance(shortest, int) else 0)
+        )
     if kind == "integer":
         return isinstance(value, int) and not isinstance(value, bool)
     if kind == "number":

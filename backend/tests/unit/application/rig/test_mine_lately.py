@@ -392,14 +392,14 @@ async def test_an_outage_mid_walk_does_not_leave_the_day_unread() -> None:
     One pass that read nothing is an outage, not the end of the day."""
     uow = FakeUnitOfWork()
     await _a_long_day(uow)
-    asker = FakeAsker(READ, CLOSED, *[READ] * 10)
+    asker = FakeAsker(READ, CLOSED, CLOSED, *[READ] * 10)
     passes = _Mines(uow, asker)
 
     swept = [await _swept(uow, passes) for _ in range(7)]
 
     assert [one["acme"].left_out for one in swept[:5]] == [75, 75, 50, 25, 0]
     assert swept[5:] == [{}, {}]
-    assert len(asker.asked) == 5
+    assert len(asker.asked) == 6, "the pass that read nothing asked the fallback too"
 
 
 async def test_errored_passes_in_a_row_stop_the_walk_until_something_arrives() -> None:
@@ -412,7 +412,7 @@ async def test_errored_passes_in_a_row_stop_the_walk_until_something_arrives() -
 
     swept = [await _swept(uow, passes) for _ in range(K_ERRORED_PASSES + 2)]
 
-    assert len(asker.asked) == K_ERRORED_PASSES
+    assert len(asker.asked) == 2 * K_ERRORED_PASSES, "each pass tried the fallback once"
     assert swept[K_ERRORED_PASSES:] == [{}, {}]
 
 

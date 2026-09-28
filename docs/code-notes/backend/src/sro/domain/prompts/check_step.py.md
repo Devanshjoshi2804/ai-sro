@@ -33,7 +33,7 @@ Code: `CHECK_SCREEN = Prompt(`
 > It was `SCREEN_INSTRUCTIONS` in `sro.domain.execution.belts`; the text is
 > verbatim, split at its first blank line into role and task.
 
-## module, [line 77](../../../../../../../backend/src/sro/domain/prompts/check_step.py#L77): Note on the line above
+## module, [line 78](../../../../../../../backend/src/sro/domain/prompts/check_step.py#L78): Note on the line above
 
 Code: `CHECK_WAY_THROUGH = Prompt(`
 

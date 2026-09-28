@@ -506,7 +506,8 @@ async def test_a_model_that_answered_nothing_leaves_the_step_unclear_with_its_er
 
     assert (verdict.state, verdict.by) == ("unclear", "screen")
     assert verdict.reason == "the model returned no candidates"
-    assert verdict.answer is judged, "the verdict carries what the reading cost"
+    assert verdict.answer is not None
+    assert verdict.answer.cost_usd == judged.cost_usd, "the verdict carries what the reading cost"
     assert asker.asked[0]["instructions"], "a model told nothing judges nothing"
 
 

@@ -117,7 +117,23 @@ def _returned(step: Step, by_id: Mapping[str, Gesture], like: Call) -> frozenset
     return None if returned is None else frozenset(returned)
 
 
-def _slots(bodies: list[dict[str, object]]) -> frozenset[str]:
+def _seen_in(taken: set[str], observed: frozenset[str]) -> bool:
+    return bool(taken) and {one.strip().casefold() for one in taken} <= {
+        one.strip().casefold() for one in observed
+    }
+
+
+def _slots(bodies: list[dict[str, object]], seen: Mapping[str, frozenset[str]]) -> frozenset[str]:
+    if len(bodies) == 1:
+        # One demonstration shows nothing varying; a field holding a value the
+        # job's parameter was seen with is that parameter's all the same.
+        return frozenset(
+            key
+            for key, value in bodies[0].items()
+            if isinstance(value, str)
+            and value.strip()
+            and any(_seen_in({value}, observed) for observed in seen.values())
+        )
     if len(bodies) < 2:
         return frozenset()
     shared = set(bodies[0])
@@ -149,11 +165,11 @@ def wanted_by(
     if not bodies:
         return frozenset({owner}) if owner else frozenset()
     owners: set[str] = {owner} if owner else set()
-    for slot in sorted(_slots(bodies)):
+    for slot in sorted(_slots(bodies, seen)):
         taken = _taken(bodies, slot)
         if not taken:
             continue
-        claiming = [name for name, observed in seen.items() if taken <= observed]
+        claiming = [name for name, observed in seen.items() if _seen_in(taken, observed)]
         if len(claiming) == 1:
             owners.add(claiming[0])
     return frozenset(owners)
@@ -172,7 +188,9 @@ def _assigned(
         taken = _taken(bodies, slot)
         if not taken:
             continue
-        owners = [name for name, observed in seen.items() if name in values and taken <= observed]
+        owners = [
+            name for name, observed in seen.items() if name in values and _seen_in(taken, observed)
+        ]
         if len({values[name] for name in owners}) > 1:
             return None
         if owners and not isinstance(bodies[0][slot], str):
@@ -200,7 +218,7 @@ def _owned_by_nobody_given(
     left_out: set[str] = set()
     for slot in slots:
         taken = _taken(bodies, slot)
-        owners = [name for name, observed in seen.items() if taken and taken <= observed]
+        owners = [name for name, observed in seen.items() if _seen_in(taken, observed)]
         if len(owners) == 1 and not values.get(owners[0], "").strip():
             left_out.add(slot)
     return frozenset(left_out)
@@ -261,7 +279,7 @@ def write_plan_for(
     if owner and not values.get(owner, "").strip():
         return None
 
-    slots = _slots(bodies)
+    slots = _slots(bodies, seen)
     echoed = _echoed(step, by_id, call)
     also = _undemonstrated(
         {**keys, **learned},

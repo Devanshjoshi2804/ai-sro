@@ -15,6 +15,7 @@ from sro.application.ports.locks import AccountBusy
 from sro.application.ports.page import PageGone
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
+from sro.application.runtime.api_lane import replay_of
 from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.executor import StepExecutor
 from sro.application.runtime.fill_field import Filled, FillField
@@ -48,6 +49,7 @@ from sro.domain.execution.progress import Progress, StepMark
 from sro.domain.execution.takeover import OPERATOR
 from sro.domain.execution.waiting import read_wait
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
+from sro.domain.execution.write_plan import scaffolding_for
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.identifiers import PrincipalId
 from sro.domain.skill.aliases import JobAlias
@@ -218,6 +220,14 @@ class RunSteps:
                     workflow.id,
                     {one.order: cites_key(one) for one in ordered},
                     now=self._clock.now(),
+                )
+            carried = _carried_by(workflow, ordered, index, values, lane, by_id)
+            if carried is not None:
+                skip = StepResult(
+                    "read", Lane.API, f"not needed: step {carried}'s proven call sends its values"
+                )
+                return await self._advance(
+                    ctx, run, progress, step, ordered, index, skip, verdict="not_needed"
                 )
             adding, stopped = await self._fill_for(ctx, run, progress, ordered, index, values, lane)
             if stopped is not None:
@@ -851,6 +861,26 @@ class RunSteps:
                 ctx.tenant_id, ids=tuple(sorted(cited_ids(workflow)))
             )
         return run, workflow, {one.id: one for one in cited}
+
+
+def _carried_by(
+    workflow: Workflow,
+    ordered: list[Step],
+    index: int,
+    values: Mapping[str, str],
+    lane: LaneContext,
+    by_id: Mapping[str, Gesture],
+) -> int | None:
+    """The order of the write this step only prepares, when that write is a
+    proven call the run can send with its values -- a form's tab, its Add and
+    its typing are then not needed, and the call goes first."""
+    step = ordered[index]
+    if writes(step, by_id):
+        return None
+    write = next((one for one in ordered[index + 1 :] if writes(one, by_id)), None)
+    if write is None or step.order not in scaffolding_for(workflow, by_id, write_step=write.order):
+        return None
+    return write.order if replay_of(write, values, lane) is not None else None
 
 
 def _demanded(workflow: Workflow) -> set[str]:

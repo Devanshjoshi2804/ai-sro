@@ -22,6 +22,7 @@ from tests.unit.runtime_support import (
     mail_send_step,
     operator_did,
     posted,
+    proven_write_step,
     save_step,
     steel_run,
     two_saves,
@@ -599,6 +600,41 @@ async def test_a_required_field_named_by_its_id_is_asked_for_never_skipped() -> 
     outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
 
     assert outcome.asking and world.lanes.ui.calls == 0
+
+
+async def test_the_steps_that_only_fill_a_proven_call_are_not_needed() -> None:
+    """Greyorange, 2026-09-28: Create a Customer Type's Save is a proven POST,
+    yet the Steel run walked the form -- tab, Add, typing -- and stopped when a
+    field would not take the value. A step that only fills the form of a proven
+    call the run can send with its values is not needed; the call goes first."""
+    typing, typed = type_step()
+    save, saved, _ = proven_write_step(read_back=None)
+    job = replace(
+        WORKFLOW,
+        steps=[replace(typing, order=0), replace(save, order=1)],
+        parameters=[{"name": "Customer Type", "seen_values": ["GT0", "GT1"]}],
+    )
+    world = await steel_run(
+        steps=[(typing, typed), (save, saved)], job=job, values={"Customer Type": "GT2"}
+    )
+    await world.uow.workflows.remember_write(
+        TENANT,
+        method="POST",
+        path_pattern="/api/customer-types",
+        origin="https://wms.example",
+        run_id="run_proof",
+        workflow_id=job.id,
+        verified_by="status",
+        at="2026-09-21T18:36:07+00:00",
+    )
+    world.lanes.api.answers(StepResult("done", Lane.API))
+
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert (world.lanes.ui.calls, world.lanes.api.calls) == (0, 1)
+    run = await world.saved_run()
+    assert [(one.of_step, one.verdict) for one in run.steps] == [(0, "not_needed"), (1, "held")]
 
 
 FORM = "https://wms.example/app/customer-types/new"

@@ -28,6 +28,7 @@ from sro.domain.chat.thread import Speaker
 from sro.domain.execution.mail_job import (
     DRAFTED,
     K_SEND_WINDOW_S,
+    K_SENT_THREADS,
     MAIL_BODY,
     Allowed,
     JobRecipient,
@@ -197,7 +198,9 @@ async def _allowed(
     bcc: set[str] = set()
     clicks = sent_from(workflow, by_id)
     seen: Counter[str] = Counter()
-    for clicked, threads in clicks:
+    for clicked, named in clicks:
+        threads = named or await _sent_around(ctx, tools, clicked)
+        seen.update(named=bool(named), looked=not named)
         since = datetime.fromtimestamp(clicked, UTC) - K_REMEMBER
         read = [one for thread in threads for one in await _conversation(ctx, tools, thread)]
         sent = [
@@ -209,20 +212,20 @@ async def _allowed(
             and not await is_ours(uow, ctx, one, since=since)
         ]
         seen.update(threads=len(threads), messages=len(read), in_window=len(sent))
-        seen[
-            "no thread" if not threads else "none" if not sent else "several" if sent[1:] else "one"
-        ] += 1
+        seen["none" if not sent else "several" if sent[1:] else "one"] += 1
         if len(sent) != 1:
             continue
         for key, into in (("to", to), ("cc", to), ("bcc", bcc)):
             into.update(mailboxes(str(sent[0].get(key) or "")) or ())
     logger.info(
-        "%s: %s: %d Send click(s): %d named no thread, %d thread(s) read, %d message(s), "
-        "%d sent in the window; %d found no sent mail, %d found more than one, %d granted",
+        "%s: %s: %d Send click(s): %d named no thread, %d looked up in Sent, %d thread(s) read, "
+        "%d message(s), %d sent in the window; %d found no sent mail, %d found more than one, "
+        "%d granted",
         ctx.tenant_id.value,
         workflow.id,
         len(clicks),
-        seen["no thread"],
+        len(clicks) - seen["named"],
+        seen["looked"],
         seen["threads"],
         seen["messages"],
         seen["in_window"],
@@ -234,6 +237,23 @@ async def _allowed(
         confirmed = await unit.workflows.recipients_for(ctx.tenant_id, workflow.id)
     to.update(one.address for one in confirmed)
     return Allowed(to=frozenset(to), bcc=frozenset(bcc - to))
+
+
+async def _sent_around(ctx: RequestContext, tools: ToolCaller, clicked: float) -> tuple[str, ...]:
+    window = (
+        f"in:sent after:{math.floor(clicked - K_SEND_WINDOW_S)} "
+        f"before:{math.ceil(clicked + K_SEND_WINDOW_S)}"
+    )
+    found = await _answer(
+        ctx, tools, "search_threads", {"query": window, "limit": str(K_SENT_THREADS)}
+    )
+    rows = found.get("messages")
+    threads = [
+        str((await _answer(ctx, tools, "get_message", {"id": row["id"]})).get("thread_id") or "")
+        for row in (rows if isinstance(rows, list) else ())
+        if isinstance(row, dict) and isinstance(row.get("id"), str)
+    ]
+    return tuple(dict.fromkeys(one for one in threads if one))
 
 
 def _seconds(value: object) -> float:
@@ -369,19 +389,23 @@ async def draft_the_mail_job(
 async def _conversation(
     ctx: RequestContext, tools: ToolCaller, thread: str
 ) -> list[dict[str, object]]:
+    rows = (await _answer(ctx, tools, "get_thread", {"id": thread})).get("messages")
+    return [one for one in rows if isinstance(one, dict)] if isinstance(rows, list) else []
+
+
+async def _answer(
+    ctx: RequestContext, tools: ToolCaller, tool: str, arguments: Mapping[str, str]
+) -> dict[str, object]:
     try:
-        answered = await tools.call(
-            ctx.tenant_id, ctx.principal_id, SERVER, "get_thread", {"id": thread}
-        )
+        answered = await tools.call(ctx.tenant_id, ctx.principal_id, SERVER, tool, arguments)
     except ToolsUnavailable as gone:
-        logger.info("%s: the conversation could not be read: %s", ctx.tenant_id.value, gone)
-        return []
+        logger.info("%s: the mailbox could not answer %s: %s", ctx.tenant_id.value, tool, gone)
+        return {}
     try:
         said = json.loads(answered.text)
     except ValueError:
-        return []
-    rows = said.get("messages") if isinstance(said, dict) else None
-    return [one for one in rows if isinstance(one, dict)] if isinstance(rows, list) else []
+        return {}
+    return said if isinstance(said, dict) else {}
 
 
 async def redraft_the_mail_job(

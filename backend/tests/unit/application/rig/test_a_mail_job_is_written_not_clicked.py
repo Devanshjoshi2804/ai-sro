@@ -471,7 +471,8 @@ async def test_the_operators_send_already_read_by_the_look_is_still_granted() ->
     assert isinstance(await _write(mailbox, "vendor@supplier.example", uow=uow), Written)
 
 
-async def test_a_send_whose_call_names_no_thread_grants_nobody() -> None:
+async def test_a_send_whose_call_names_no_thread_and_sent_holds_nothing_grants_nobody() -> None:
+    """M4: such a click is looked up in Sent; this mailbox's Sent holds nothing."""
     mailbox = _Mailbox([_sent_copy(to="vendor@supplier.example")])
     msg_only = {"g-send": _pressed_send('[["msg-f:1845678901234500001"],["msg-a:r-44556677"]]')}
     assert isinstance(await _write(mailbox, "vendor@supplier.example", by_id=msg_only), Unaddressed)
@@ -789,9 +790,14 @@ async def test_an_empty_draft_on_the_new_flash_is_written_again_on_the_older_one
         (
             {"g-send": _pressed_send('[["msg-f:1845678901234500001"]]')},
             [_sent_copy(to="vendor@supplier.example")],
-            "1 Send click(s): 1 named no thread, 0 thread(s) read",
+            "1 Send click(s): 1 named no thread, 1 looked up in Sent, 0 thread(s) read",
         ),
-        (None, [], "1 Send click(s): 0 named no thread, 1 thread(s) read, 0 message(s)"),
+        (
+            None,
+            [],
+            "1 Send click(s): 0 named no thread, 0 looked up in Sent, 1 thread(s) read, "
+            "0 message(s)",
+        ),
         (
             None,
             [_sent_copy(sent=False, to="vendor@supplier.example")],

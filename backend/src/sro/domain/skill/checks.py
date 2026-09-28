@@ -315,11 +315,14 @@ def signs_in_to(workflow: Workflow, gestures: Mapping[str, Gesture]) -> tuple[st
     last = max(gesture.at for gesture in typed)
     ends = max(gestures[one].at for one in ordered_cites(workflow) if one in gestures)
     streams = {gesture.stream_id for gesture in typed}
+    tabs = {gesture.tab_id for gesture in typed}
     after = sorted(
         (
             gesture
             for gesture in gestures.values()
-            if gesture.stream_id in streams and last <= gesture.at <= ends + K_SITTING_GAP_S
+            if gesture.stream_id in streams
+            and (None in tabs or gesture.tab_id in tabs)
+            and last <= gesture.at <= ends + K_SITTING_GAP_S
         ),
         key=lambda gesture: (gesture.at, gesture.id),
     )

@@ -30,7 +30,7 @@ Code: `_DEFAULT_PORTS = {"http": "80", "https": "443"}`
 > `config._origins_of` keeps the same map for the same reason and cannot be
 > imported here: the domain reads settings through arguments or not at all.
 
-## module, [line 593](../../../../../../../backend/src/sro/domain/skill/checks.py#L593): Note on the line above
+## module, [line 596](../../../../../../../backend/src/sro/domain/skill/checks.py#L596): Note on the line above
 
 Code: `K_SITTING_GAP_S = 600.0`
 
@@ -216,7 +216,7 @@ Code: `K_SITTING_GAP_S = 600.0`
 > hold none -- including a Warehouse Equipment Type job whose span is 52
 > gestures wide.
 
-## `is_sign_in_step`, [line 504](../../../../../../../backend/src/sro/domain/skill/checks.py#L504): Docstring
+## `is_sign_in_step`, [line 507](../../../../../../../backend/src/sro/domain/skill/checks.py#L507): Docstring
 
 > Whether this step's own evidence proves it is part of signing in, and so
 > not a write. Three shapes, and nothing else:
@@ -294,41 +294,44 @@ Code: `K_SITTING_GAP_S = 600.0`
 > Read off the doing, not the citations: the model summarises a sign-in as
 > the typing (the deployment's `Log in to Keycloak` is two typed values), so
 > the submit and what followed it are uncited. They are on the same tab,
-> within one sitting of the job's last cited gesture. The landing is the
+> within one sitting of the job's last cited gesture -- the tab is checked,
+> not assumed: on greyorange (2026-09-28) the operator clicked in Gmail in
+> another tab ten seconds after the Sign In, and a stream-wide read landed the
+> sign-in on mail.google.com, so Steel found no sign-in for the warehouse. The landing is the
 > first host the operator did anything on afterwards, because the submit's
 > own page marks stop part-way down a redirect chain -- measured on the
 > deployment's Azure chain, the Sign In's last mark is the identity chooser,
 > and the warehouse only shows up on the click after it. The submit's last
 > foreign mark stands in when nothing was done afterwards.
 
-## `credentials_typed`, [line 347](../../../../../../../backend/src/sro/domain/skill/checks.py#L347): Docstring
+## `credentials_typed`, [line 350](../../../../../../../backend/src/sro/domain/skill/checks.py#L350): Docstring
 
 > How many steps of this job type each credential field, keyed by the field's
 > screen and identity. The mining pass's `_grow` refuses a doing that types a
 > credential the job does not -- a password added to a job that had none, or
 > a second, different one (a second factor) added to a job that had one.
 
-## `_in_time`, [line 359](../../../../../../../backend/src/sro/domain/skill/checks.py#L359): Docstring
+## `_in_time`, [line 362](../../../../../../../backend/src/sro/domain/skill/checks.py#L362): Docstring
 
 > What this job cites, once each, in the order the operator did it. The
 > model's step order is not time order: the Azure chain cites its first
 > password again in a later step.
 
-## `_split`, [line 369](../../../../../../../backend/src/sro/domain/skill/checks.py#L369): Docstring
+## `_split`, [line 372](../../../../../../../backend/src/sro/domain/skill/checks.py#L372): Docstring
 
 > The chain (see `_chain`), whether it left the host, and what the job cites
 > after the leave. Leaving is `_left`, the one place that decides it, so
 > `_split`, `_leaves_at`, `signs_in_to`, `_only_signs_in` and
 > `is_sign_in_step` agree on where a sign-in left.
 
-## `_chain`, [line 364](../../../../../../../backend/src/sro/domain/skill/checks.py#L364): Docstring
+## `_chain`, [line 367](../../../../../../../backend/src/sro/domain/skill/checks.py#L367): Docstring
 
 > The sign-in chain: from the first credential gesture this job cites to the
 > first gesture after it that left its host (`_left`), and whether it got
 > there. What comes after that gesture happened on the landed page
 > and is outside the chain.
 
-## `_only_signs_in`, [line 456](../../../../../../../backend/src/sro/domain/skill/checks.py#L456): Docstring
+## `_only_signs_in`, [line 459](../../../../../../../backend/src/sro/domain/skill/checks.py#L459): Docstring
 
 > Whether the chain holds nothing but signing in.
 >
@@ -349,7 +352,7 @@ Code: `K_SITTING_GAP_S = 600.0`
 > which is a refused attempt. Without a leave there is no successful sign-in
 > for either to belong to, and a same-host press is the PIN shape.
 
-## `_lands_on`, [line 479](../../../../../../../backend/src/sro/domain/skill/checks.py#L479): Note
+## `_lands_on`, [line 482](../../../../../../../backend/src/sro/domain/skill/checks.py#L482): Note
 
 > The host a sign-in lands on: `signs_in_to`'s `worked` half, read off
 > what the operator did after the credential left its host, falling back
@@ -359,36 +362,36 @@ Code: `K_SITTING_GAP_S = 600.0`
 > session was signed back into is work. (Until F4 any press refused it,
 > final re-review N-1; see `_only_signs_in` for the ruling that narrowed it.)
 
-## `_leaves_at`, [line 484](../../../../../../../backend/src/sro/domain/skill/checks.py#L484): Docstring
+## `_leaves_at`, [line 487](../../../../../../../backend/src/sro/domain/skill/checks.py#L487): Docstring
 
 > When the chain left the host, or None when it never did.
 
-## `_on_the_credential`, [line 489](../../../../../../../backend/src/sro/domain/skill/checks.py#L489): Docstring
+## `_on_the_credential`, [line 492](../../../../../../../backend/src/sro/domain/skill/checks.py#L492): Docstring
 
 > A click or a key press on the secret-marked input itself: the recorder's
 > mark is on the box, not on a typed value.
 
-## `_typed_the_credential`, [line 494](../../../../../../../backend/src/sro/domain/skill/checks.py#L494): Docstring
+## `_typed_the_credential`, [line 497](../../../../../../../backend/src/sro/domain/skill/checks.py#L497): Docstring
 
 > A secret typed -- the only thing that can follow a refused attempt.
 
-## `_acts`, [line 498](../../../../../../../backend/src/sro/domain/skill/checks.py#L498): Docstring
+## `_acts`, [line 501](../../../../../../../backend/src/sro/domain/skill/checks.py#L501): Docstring
 
 > Anything but typing a value. Typing changes a field; everything else --
 > clicking, pressing, choosing, uploading -- can submit. Except a click on the
 > password box, which focuses it: the deployment's operators click into the
 > box before typing, and each of those clicks counted as a possible submit.
 
-## `_carries_the_credential`, [line 536](../../../../../../../backend/src/sro/domain/skill/checks.py#L536): Docstring
+## `_carries_the_credential`, [line 539](../../../../../../../backend/src/sro/domain/skill/checks.py#L539): Docstring
 
 > Whether any gesture this step cites bears the recorder's secret mark.
 
-## `_after_the_credential`, [line 540](../../../../../../../backend/src/sro/domain/skill/checks.py#L540): Docstring
+## `_after_the_credential`, [line 543](../../../../../../../backend/src/sro/domain/skill/checks.py#L543): Docstring
 
 > Whether the step just before this one, in the job's order, typed the
 > credential on the same host this step is on.
 
-## `work_only`, [line 553](../../../../../../../backend/src/sro/domain/skill/checks.py#L553): Docstring
+## `work_only`, [line 556](../../../../../../../backend/src/sro/domain/skill/checks.py#L556): Docstring
 
 > Strike the systems that were never the work, and refuse a job with none
 > left. None when it may be kept, as `validate` answers.
@@ -434,11 +437,11 @@ Code: `K_SITTING_GAP_S = 600.0`
 > somebody has to keep, wrong for every customer running an SSO nobody here
 > has heard of.
 
-## `_sittings`, [line 596](../../../../../../../backend/src/sro/domain/skill/checks.py#L596): Docstring
+## `_sittings`, [line 599](../../../../../../../backend/src/sro/domain/skill/checks.py#L599): Docstring
 
 > Consecutive runs of `times`, split wherever the pause is long enough.
 
-## `one_occurrence`, [line 606](../../../../../../../backend/src/sro/domain/skill/checks.py#L606): Docstring
+## `one_occurrence`, [line 609](../../../../../../../backend/src/sro/domain/skill/checks.py#L609): Docstring
 
 > Strike every citation but one doing's, in place.
 >
@@ -578,14 +581,14 @@ Code: `coverage=sum(1 for d in deciles if d > 0) / min(10, n),`
 > four parts and can only ever land in four deciles, so dividing by ten
 > reported a FULLY cited short window at 0.4 -- under K_MIN_COVERAGE.
 
-## `work_only`, [line 558](../../../../../../../backend/src/sro/domain/skill/checks.py#L558): Comment
+## `work_only`, [line 561](../../../../../../../backend/src/sro/domain/skill/checks.py#L561): Comment
 
 Code: `last = {system: index for index, system in enumerate(order)}`
 
 > Last occurrence per system: what matters is whether the job carried on
 > after this system the LAST time it was on it, not the first.
 
-## `work_only`, [line 566](../../../../../../../backend/src/sro/domain/skill/checks.py#L566): Comment
+## `work_only`, [line 569](../../../../../../../backend/src/sro/domain/skill/checks.py#L569): Comment
 
 Code: `during = _during(workflow, gestures)`
 
@@ -621,7 +624,7 @@ Code: `during = _during(workflow, gestures)`
 > refused here as "not a job"; the sweep's `signs_in` flags it a chore
 > instead.
 
-## `work_only`, [line 583](../../../../../../../backend/src/sro/domain/skill/checks.py#L583): Comment
+## `work_only`, [line 586](../../../../../../../backend/src/sro/domain/skill/checks.py#L586): Comment
 
 Code: `if workflow.systems and not kept:`
 
@@ -749,7 +752,7 @@ Code: `_SIGN_OUT = re.compile(r"(?<![a-z0-9])(?:log[\s_-]?(?:out|off)|sign[\s_-]
 > recording `aria-controls` / `aria-owns` and matching them to an ancestor of
 > the control.
 
-## `_left`, [line 382](../../../../../../../backend/src/sro/domain/skill/checks.py#L382): Note on the function
+## `_left`, [line 385](../../../../../../../backend/src/sro/domain/skill/checks.py#L385): Note on the function
 
 > Whether the operator left this gesture's host right after it: the browser
 > was sent elsewhere (`passed_through`), or -- when the recorder captured no
@@ -786,7 +789,7 @@ Code: `_SIGN_OUT = re.compile(r"(?<![a-z0-9])(?:log[\s_-]?(?:out|off)|sign[\s_-]
 > recorder did capture where it went. Nothing after a sign-in form proves
 > nothing, and the job stays unmarked.
 
-## `_stream_of`, [line 412](../../../../../../../backend/src/sro/domain/skill/checks.py#L412): Note on the function
+## `_stream_of`, [line 415](../../../../../../../backend/src/sro/domain/skill/checks.py#L415): Note on the function
 
 > Every loaded gesture on this one's stream, in time order, ties broken by
 > id. "Before" (`_arrived`) is read on the stream, not the tab: QA's Google
@@ -798,12 +801,12 @@ Code: `_SIGN_OUT = re.compile(r"(?<![a-z0-9])(?:log[\s_-]?(?:out|off)|sign[\s_-]
 > other gestures, 0.9 s at 2,000 + 20,000, before this round). Group by
 > stream once per `judged` call if a sitting grows past that.
 
-## `_arrived`, [line 419](../../../../../../../backend/src/sro/domain/skill/checks.py#L419): Note on the function
+## `_arrived`, [line 422](../../../../../../../backend/src/sro/domain/skill/checks.py#L422): Note on the function
 
 > The run of gestures on this one's host that ends at it, and everything the
 > stream did before that run.
 
-## `_identifies`, [line 431](../../../../../../../backend/src/sro/domain/skill/checks.py#L431): Note on the function
+## `_identifies`, [line 434](../../../../../../../backend/src/sro/domain/skill/checks.py#L434): Note on the function
 
 > A value typed into a field the page marks as the user's identity:
 > `autocomplete` naming `username` or `email` (Google's identifier box says
@@ -812,7 +815,7 @@ Code: `_SIGN_OUT = re.compile(r"(?<![a-z0-9])(?:log[\s_-]?(?:out|off)|sign[\s_-]
 > recorder) and the ingest keeps (`rig_wire.Target.attributes`, redacted by
 > key name only).
 
-## `_its_own_writes`, [line 440](../../../../../../../backend/src/sro/domain/skill/checks.py#L440): Note on the function
+## `_its_own_writes`, [line 443](../../../../../../../backend/src/sro/domain/skill/checks.py#L443): Note on the function
 
 > The sign-in's own successful writes: `_did_business` gestures on the host
 > the chain left from, in the run on that host (same stream) that ends where

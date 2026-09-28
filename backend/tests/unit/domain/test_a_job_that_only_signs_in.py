@@ -481,3 +481,16 @@ def test_a_press_back_on_the_credential_host_after_the_leave_untags_the_job() ->
     }
 
     assert signs_in(_job("a", "b", "c"), store) is False
+
+
+def test_a_sign_in_lands_where_its_own_tab_went_not_where_another_tab_was_used() -> None:
+    """Greyorange, 2026-09-28: the Sign In's redirect was recorded only as far as
+    the identity provider, the operator clicked in Gmail in another tab ten
+    seconds later, and the sign-in's own tab reached the warehouse after that.
+    The sign-in lands on the warehouse, not on the mail another tab was showing."""
+    store = _azure_store()
+    store["submit"] = _left(_did("submit", KEYCLOAK, 7.0), B2C)
+    store["mail"] = replace(_did("mail", "https://mail.example", 17.0), tab_id=2)
+    store["landed"] = _did("landed", WMS, 26.0)
+
+    assert signs_in_to(_azure_job(), store) == ("keycloak.example", "wms.example")

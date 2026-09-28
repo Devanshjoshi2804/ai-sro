@@ -98,6 +98,7 @@ from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.waiting import Durably, asks_a_person
 from sro.domain.execution.workflow_run import (
     ENDED,
+    OfferTaken,
     WorkflowRun,
     already_running,
     end_the_steps,
@@ -1516,6 +1517,7 @@ class FakeBrowserPool:
         self.down: set[str] = set()
         self.unknown: set[str] = set()
         self.closes_hang = False
+        self.viewers: dict[str, str] = {}
         self.session_id = "ses_1"
         self._next = count(1)
 
@@ -1548,6 +1550,9 @@ class FakeBrowserPool:
             and (url, context_id) not in self.closed
             and context_id not in self.dead
         )
+
+    async def live_view_url(self, container_url: str, session_id: str) -> str | None:
+        return self.viewers.get(container_url)
 
     async def cdp_url(self, container_url: str) -> str:
         if container_url in self.down:
@@ -2375,11 +2380,19 @@ class FakeWorkflowRunRepository:
             )
             if clash is not None:
                 raise Conflict(already_running(run.device_id, clash.id))
-        if run.offer is not None and any(
-            held.id != run.id and held.tenant == run.tenant and held.offer == run.offer
-            for held in self.rows.values()
-        ):
-            raise Conflict(f"the offer {run.offer} has already started a run")
+        taken = next(
+            (
+                held.id
+                for held in self.rows.values()
+                if run.offer is not None
+                and held.id != run.id
+                and held.tenant == run.tenant
+                and held.offer == run.offer
+            ),
+            None,
+        )
+        if taken is not None:
+            raise OfferTaken(str(run.offer), taken)
         kept = deepcopy(run)
         # Both clocks as the store hands them back, not as the caller spelled
         # them: `started_at` is what three reads order on.

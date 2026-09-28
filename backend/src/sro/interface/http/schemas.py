@@ -18,6 +18,7 @@ from sro.application.analytics.audit import Audit, AuditedRun
 from sro.application.analytics.summary import Summary
 from sro.application.capture.devices import DeviceLine
 from sro.application.chat.from_the_mail import LookedInTheMail
+from sro.application.chat.mailbox import mail_key
 from sro.application.chat.understand import Understood
 from sro.application.execution.effects import can_try_again
 from sro.application.execution.mail_job import K_BODY
@@ -2701,10 +2702,9 @@ class StartWorkflowRunRequest(BaseModel):
     * **`device_id` stays in the body**, unlike `/v1/offers`, which dropped it
       because a browser proves itself with `X-Device-Secret`. An offer is
       evidence *about* the browser that showed it, so a browser it merely named
-      would be a shift nobody worked. A press *names the browser to drive*, and
-      the screen somebody presses on is not always the browser the job runs in
-      -- a supervisor's console holds the tenant's credential and no extension
-      of its own. The tenant's browsers are the tenant's to drive.
+      would be a shift nobody worked. A press *names the browser that pressed*
+      -- which a Steel tenant's run never drives: `StartWorkflowRun` picks the
+      executor by tenant, and the device only records who pressed.
 
     `live` defaults to false and `allow_focus` to true, both the rig's: a
     missing `live` is not a caller who forgot, it is the default this system
@@ -2763,11 +2763,13 @@ class StartWorkflowRunRequest(BaseModel):
     not a mail offer, which is most of them."""
 
     offer: str = Field(default="", max_length=128)
-    """The conversation message this press answers, where it answers one.
+    """The offer this press answers: a conversation message, a mail's key, or
+    the panel's own card.
 
     A run records it under a unique index, so a second start of the same offer
-    -- a second panel, a typed yes beside a press -- is a 409 rather than a
-    second live write. Empty for a press that answers no question."""
+    -- a second panel, a typed yes beside a press -- is answered 200 with the
+    run the first one started, never a second live write. Empty for a press
+    that answers no offer."""
 
     live: bool = False
     allow_focus: bool = True
@@ -2999,8 +3001,18 @@ class WorkflowRunModel(BaseModel):
     failed undo has to be readable as *run_abc is still out there* rather than
     as a job that failed on its own. Null on every run that is not an undo."""
 
+    live_view_url: str | None = None
+    """Where to watch a Steel run's own tab, view-only, while it holds a live
+    browser. Null otherwise, and on every list row: only the one-run read asks
+    Steel. The viewer's address and the tab, never a CDP url."""
+
     @classmethod
-    def of(cls, run: WorkflowRun, undo: tuple[str, str, str] | None = None) -> WorkflowRunModel:
+    def of(
+        cls,
+        run: WorkflowRun,
+        undo: tuple[str, str, str] | None = None,
+        live_view_url: str | None = None,
+    ) -> WorkflowRunModel:
         return cls(
             id=run.id,
             tenant=run.tenant,
@@ -3032,6 +3044,7 @@ class WorkflowRunModel(BaseModel):
             undoes_by={undo[1]: undo[2]} if undo else None,
             undoes_run=run.undoes_run,
             try_again=can_try_again(run),
+            live_view_url=live_view_url or None,
         )
 
 
@@ -3090,6 +3103,11 @@ class MailOfferModel(BaseModel):
     title: str
     values: dict[str, str]
     missing: list[str]
+    offer: str = ""
+    """The offer's own name, which a start of it sends back: the mail door's
+    start and the question it asks carry the same one, so a card pressed in the
+    panel and a yes in the thread answer to one run."""
+
     subject: str = ""
     """What the request was called, so a conversation about it can say which.
 
@@ -3201,6 +3219,11 @@ class AskAboutOfferRequest(BaseModel):
 
     watched: bool = True
 
+    offer: str = ""
+    """The offer's own name, where it has one -- a mail's, or the question a
+    reply already asked. The question this asks carries it, so its answer and
+    any other start of the same offer land on one run."""
+
 
 class AskAboutOfferResponse(BaseModel):
     """What was asked, so the panel can say something happened.
@@ -3253,6 +3276,7 @@ class FromTheMailResponse(BaseModel):
             offered=[
                 MailOfferModel(
                     message=one.message,
+                    offer=mail_key(one.message),
                     workflow_id=one.workflow_id,
                     title=one.title,
                     values=dict(one.values),

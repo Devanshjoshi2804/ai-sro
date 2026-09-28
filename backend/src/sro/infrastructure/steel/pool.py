@@ -48,5 +48,8 @@ class SteelPool:
     async def contexts(self, container_url: str) -> frozenset[str]:
         return await self._clients[container_url].contexts()
 
+    async def live_view_url(self, container_url: str, session_id: str) -> str | None:
+        return await self._clients[container_url].live_view_url(BrowserSessionId(session_id))
+
     async def cdp_url(self, container_url: str) -> str:
         return await self._clients[container_url].debugger_url(BrowserSessionId(container_url))

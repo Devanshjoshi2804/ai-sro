@@ -57,7 +57,7 @@ from sro.domain.execution.field_classes import field_classes
 from sro.domain.execution.mail_job import DRAFT_QUESTIONS, built_in, built_ins
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
-from sro.domain.execution.workflow_run import WorkflowRun, answers_for
+from sro.domain.execution.workflow_run import OfferTaken, WorkflowRun, answers_for
 from sro.domain.lookup.asking import is_a_question
 from sro.domain.observation.attempts import DONE, FAILED, REFUSED
 from sro.domain.shared.errors import Conflict, DomainError
@@ -729,6 +729,9 @@ class Converse:
         except _Closed:
             return await self._closed_now(ctx, thread_id, text, offer)
         except (DomainError, RunRefused, OverCap, AskerUnavailable) as refusal:
+            # A press on this offer's card got there first: the yes is answered
+            # with that run, which the panel then watches.
+            taken = refusal.run_id if isinstance(refusal, OfferTaken) else ""
             try:
                 async with self._uow as uow:
                     thread = await self._answered_in(
@@ -738,8 +741,14 @@ class Converse:
                         text=text,
                         asked=asked,
                         answering=answering,
-                        said=f"Nothing was started: {refusal}.",
-                        decision=decision,
+                        said=(
+                            f"{job.title} is already running."
+                            if taken
+                            else f"Nothing was started: {refusal}."
+                        ),
+                        decision={**decision, "resume": True, "run_id": taken}
+                        if taken
+                        else decision,
                     )
                     await uow.commit()
             except _Closed:

@@ -16,6 +16,7 @@ from sro.domain.execution.workflow_run import (
     ENDED,
     SETTLED,
     Executor,
+    OfferTaken,
     RunStep,
     WorkflowRun,
     already_running,
@@ -198,7 +199,12 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
         except IntegrityError as clash:
             if _ONE_PER_OFFER in str(getattr(clash, "orig", clash)):
                 await self._session.rollback()
-                raise Conflict(f"the offer {run.offer} has already started a run") from clash
+                taken = await self._session.scalar(
+                    select(WorkflowRunRow.id).where(
+                        WorkflowRunRow.tenant_id == run.tenant, WorkflowRunRow.offer == run.offer
+                    )
+                )
+                raise OfferTaken(str(run.offer), str(taken)) from clash
             if _ONE_RUNNING not in str(getattr(clash, "orig", clash)):
                 raise
             await self._session.rollback()

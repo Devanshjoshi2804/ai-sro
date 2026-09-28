@@ -616,6 +616,18 @@ async def test_the_operator_s_mail_to_a_colleague_is_asked_about_and_never_run()
     assert world.durable.runs_started == []
 
 
+async def test_the_mail_card_and_its_question_carry_one_offer_name() -> None:
+    """The panel draws a card for a mail it was asked about (E2). Its press
+    and a yes to the question must land on one run, so both say one name."""
+    world = await mail_world(sure=True, values=EVERY_VALUE, steel=True)
+    mailbox = _addressed(OPERATOR, "Colleague <colleague@example.com>")
+
+    looked = await world.look(mailbox, _sure()).execute(CTX)
+
+    (wired,) = FromTheMailResponse.of(looked).offered
+    assert wired.offer and wired.offer == (await _should_we(world))["offer"]
+
+
 async def test_a_quoted_reply_on_a_thread_with_a_run_is_asked_about_not_run_again() -> None:
     world = await mail_world(sure=True, values=EVERY_VALUE, steel=True, thread="t-9")
     await world.from_the_mail.execute(CTX)

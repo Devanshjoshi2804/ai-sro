@@ -21,8 +21,7 @@ from sro.application.intent.resolve import ResolveIntent
 from sro.application.knowledge.retrieve import Retrieve
 from sro.domain.chat.asking import Pending
 from sro.domain.chat.thread import Message, MessageId, Speaker, Thread, ThreadId
-from sro.domain.execution.workflow_run import WorkflowRun
-from sro.domain.shared.errors import Conflict
+from sro.domain.execution.workflow_run import OfferTaken, WorkflowRun
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from sro.infrastructure.system import UuidFactory
 from tests import factories as f
@@ -169,8 +168,10 @@ async def test_two_starts_of_one_offer_make_one_run(
 
     done = await asyncio.gather(start(), start(), return_exceptions=True)
 
-    assert sorted(type(one).__name__ for one in done) == ["Conflict", "WorkflowRun"], done
-    assert any(isinstance(one, Conflict) for one in done)
+    assert sorted(type(one).__name__ for one in done) == ["OfferTaken", "WorkflowRun"], done
+    (won,) = [one for one in done if isinstance(one, WorkflowRun)]
+    (lost,) = [one for one in done if isinstance(one, OfferTaken)]
+    assert lost.run_id == won.id, "the second start is not told the run it lost to"
     async with SqlUnitOfWork(session_factory) as uow:
         assert len(await uow.workflow_runs.for_workflow(f.TENANT, "wfl_ct")) == 1
 

@@ -4,6 +4,7 @@ import logging
 import math
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import datetime
+from urllib.parse import urlencode
 
 from sro.application.chat.announce import SayWhatHappened
 from sro.application.chat.read_threads import ReadThreads
@@ -31,6 +32,7 @@ from sro.application.observation.register import refuse_unless_itself
 from sro.application.ports.channel import Channel
 from sro.application.ports.durable import DurableExecution
 from sro.application.ports.model import Asker, asker_or_refuse
+from sro.application.ports.pool import BrowserPool
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.vault import CredentialVault
@@ -46,12 +48,13 @@ from sro.domain.chat.asking import (
     still_to_ask,
 )
 from sro.domain.chat.thread import Speaker
+from sro.domain.execution.account import LIVE
 from sro.domain.execution.compiled import why_not
 from sro.domain.execution.field_classes import field_classes
 from sro.domain.execution.gathering import Gathered
 from sro.domain.execution.learned_step import limits_for
 from sro.domain.execution.mail_job import built_in, is_mail_only
-from sro.domain.execution.progress import run_budget
+from sro.domain.execution.progress import Progress, run_budget
 from sro.domain.execution.takeover import Took, take_over
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.waiting import as_said, waiting_on
@@ -70,7 +73,7 @@ from sro.domain.shared.identifiers import DeviceId, PrincipalId
 from sro.domain.skill.learned import demanded, offerable
 from sro.domain.skill.reversals import addresses, asks_for, identifies, undoes
 from sro.domain.skill.shape import resumes_at
-from sro.domain.skill.workflow import Workflow, cited_ids, ordered_cites
+from sro.domain.skill.workflow import MAIN, Workflow, cited_ids, ordered_cites
 
 __all__ = [
     "AbortWorkflowRun",
@@ -682,8 +685,29 @@ class ListWorkflowRuns:
 
 
 class GetWorkflowRun:
-    def __init__(self, uow: UnitOfWork) -> None:
+    def __init__(self, uow: UnitOfWork, *, pool: BrowserPool | None = None) -> None:
         self._uow = uow
+        self._pool = pool
+
+    async def live_view_for(self, ctx: RequestContext, run: WorkflowRun) -> str:
+        progress = Progress.of(run.progress)
+        tab = progress.tabs.get(MAIN, "")
+        if self._pool is None or run.executor != "steel" or run.outcome != "running" or not tab:
+            return ""
+        async with self._uow as uow:
+            lease = await uow.browser_sessions.get_lease(ctx.tenant_id, progress.lease)
+        if lease is None or lease.state not in LIVE:
+            return ""
+        try:
+            viewer = await self._pool.live_view_url(lease.container_url, lease.steel_session_id)
+        except Exception:
+            # A link to watch by is never worth failing the read of the run.
+            logger.warning("%s: no live view for its Steel session", run.id, exc_info=True)
+            return ""
+        if not viewer:
+            return ""
+        joiner = "&" if "?" in viewer else "?"
+        return f"{viewer}{joiner}{urlencode({'pageId': tab, 'interactive': 'false'})}"
 
     async def execute(self, ctx: RequestContext, *, run_id: str) -> WorkflowRun:
         async with self._uow as uow:

@@ -417,26 +417,32 @@ async def test_the_last_answer_starts_the_run_under_the_offer_s_own_key() -> Non
     assert run is not None and run.offer == "mail:the-request"
 
 
-async def test_an_offer_that_already_started_a_run_is_said_and_not_started_again() -> None:
+async def test_a_yes_to_an_offer_the_card_already_started_answers_that_run() -> None:
+    """The panel's card for this reply pressed first (E2): the yes is told the
+    run the press made, so the panel watches one run, and nothing starts twice."""
     world = await _World().ready()
     converse = world.converse()
     thread_id, offer = await world.offered(converse)
-    await world.start.execute(
+    pressed = await world.start.execute(
         CTX,
         workflow_id=JOB,
         device_id=None,
         values={"Customer Type": "GT2"},
         live=True,
         allow_focus=False,
-        offer=offer.id.value,
+        # The offer's name as the panel reads it off the reply: the decision's
+        # own, or the question's id -- `_offer_of`'s rule.
+        offer=str((offer.decision or {}).get("offer") or offer.id.value),
     )
 
     said = await converse.execute(CTX, thread_id=thread_id, text="yes", answering=offer.id.value)
 
-    assert len(await world.runs()) == 1
-    assert said.messages[-1].text.startswith("Nothing was started: ")
-    assert "already started a run" in said.messages[-1].text
-    assert not any(m.text.startswith("Running ") for m in said.messages)
+    assert await world.runs() == [pressed.id]
+    assert world.durable.runs_started == [], "the yes handed the pressed run on a second time"
+    last = said.messages[-1]
+    assert last.text == f"{world.title} is already running."
+    assert (last.decision or {}).get("run_id") == pressed.id
+    assert not any(m.text.startswith("Nothing was started") for m in said.messages)
 
 
 async def test_a_colleague_s_yes_in_the_opener_s_thread_starts_no_run() -> None:

@@ -1843,6 +1843,10 @@ export interface paths {
          *     itself -- nobody is awaiting this, so a run left `running` would be swept
          *     only by `fail_orphans` at the next process start, which is a restart away
          *     and not a moment away.
+         *
+         *     A second start of one `offer` -- the chat's yes and the panel's card, two
+         *     panels, a double press -- answers 200 with the run the first one made, and
+         *     starts nothing.
          */
         post: operations["start_workflow_run_v1_workflow_runs_post"];
         delete?: never;
@@ -2169,6 +2173,11 @@ export interface components {
              * @default true
              */
             watched: boolean;
+            /**
+             * Offer
+             * @default
+             */
+            offer: string;
         };
         /**
          * AskAboutOfferResponse
@@ -3126,6 +3135,11 @@ export interface components {
             /** Missing */
             missing: string[];
             /**
+             * Offer
+             * @default
+             */
+            offer: string;
+            /**
              * Subject
              * @default
              */
@@ -3982,10 +3996,9 @@ export interface components {
          *     * **`device_id` stays in the body**, unlike `/v1/offers`, which dropped it
          *       because a browser proves itself with `X-Device-Secret`. An offer is
          *       evidence *about* the browser that showed it, so a browser it merely named
-         *       would be a shift nobody worked. A press *names the browser to drive*, and
-         *       the screen somebody presses on is not always the browser the job runs in
-         *       -- a supervisor's console holds the tenant's credential and no extension
-         *       of its own. The tenant's browsers are the tenant's to drive.
+         *       would be a shift nobody worked. A press *names the browser that pressed*
+         *       -- which a Steel tenant's run never drives: `StartWorkflowRun` picks the
+         *       executor by tenant, and the device only records who pressed.
          *
          *     `live` defaults to false and `allow_focus` to true, both the rig's: a
          *     missing `live` is not a caller who forgot, it is the default this system
@@ -4660,6 +4673,8 @@ export interface components {
             try_again: boolean;
             /** Undoes Run */
             undoes_run?: string | null;
+            /** Live View Url */
+            live_view_url?: string | null;
         };
         /**
          * WorkflowRunStepModel

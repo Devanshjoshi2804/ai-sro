@@ -913,7 +913,7 @@ class Container:
         return ListWorkflowRuns(self.unit_of_work())
 
     def get_workflow_run(self) -> GetWorkflowRun:
-        return GetWorkflowRun(self.unit_of_work())
+        return GetWorkflowRun(self.unit_of_work(), pool=self.pool)
 
     def abort_workflow_run(self) -> AbortWorkflowRun:
         return AbortWorkflowRun(

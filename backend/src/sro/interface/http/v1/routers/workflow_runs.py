@@ -35,10 +35,11 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query, Response, status
 
 from sro.application.chat.mailbox import SERVER
 from sro.domain.execution.takeover import Took
+from sro.domain.execution.workflow_run import OfferTaken
 from sro.domain.observation.attempts import DONE, NOTHING
 from sro.domain.shared.identifiers import DeviceId
 from sro.interface.http.asking import AskingDeviceDep
@@ -103,6 +104,7 @@ async def start_workflow_run(
     body: StartWorkflowRunRequest,
     container: ContainerDep,
     ctx: ContextDep,
+    response: Response,
     x_device_secret: DeviceSecretDep = "",
 ) -> WorkflowRunModel:
     """Start one run of a mined job, and answer with the row it claimed.
@@ -124,25 +126,34 @@ async def start_workflow_run(
     itself -- nobody is awaiting this, so a run left `running` would be swept
     only by `fail_orphans` at the next process start, which is a restart away
     and not a moment away.
+
+    A second start of one `offer` -- the chat's yes and the panel's card, two
+    panels, a double press -- answers 200 with the run the first one made, and
+    starts nothing.
     """
     starter = container.start_workflow_run()
-    claimed = await starter.execute(
-        ctx,
-        workflow_id=body.workflow_id,
-        device_id=DeviceId(body.device_id) if body.device_id else None,
-        values=body.values,
-        items=body.items,
-        live=body.live,
-        allow_focus=body.allow_focus,
-        watched=body.watched,
-        from_step=body.from_step,
-        matched=body.matched,
-        took_over=Took(**body.took_over.model_dump()) if body.took_over else None,
-        device_secret=x_device_secret,
-        conversation=(SERVER, body.mail_thread),
-        undoes_run=body.undoes_run,
-        offer=body.offer,
-    )
+    try:
+        claimed = await starter.execute(
+            ctx,
+            workflow_id=body.workflow_id,
+            device_id=DeviceId(body.device_id) if body.device_id else None,
+            values=body.values,
+            items=body.items,
+            live=body.live,
+            allow_focus=body.allow_focus,
+            watched=body.watched,
+            from_step=body.from_step,
+            matched=body.matched,
+            took_over=Took(**body.took_over.model_dump()) if body.took_over else None,
+            device_secret=x_device_secret,
+            conversation=(SERVER, body.mail_thread),
+            undoes_run=body.undoes_run,
+            offer=body.offer,
+        )
+    except OfferTaken as taken:
+        response.status_code = status.HTTP_200_OK
+        reader = container.get_workflow_run()
+        return WorkflowRunModel.of(await reader.execute(ctx, run_id=taken.run_id))
     container.pursuits.spawn(starter.perform(ctx, claimed))
     await container.record_attempt().execute(
         ctx,
@@ -213,7 +224,9 @@ async def get_workflow_run(
     """
     reader = container.get_workflow_run()
     run = await reader.execute(ctx, run_id=run_id)
-    return WorkflowRunModel.of(run, await reader.undo_for(ctx, run))
+    return WorkflowRunModel.of(
+        run, await reader.undo_for(ctx, run), await reader.live_view_for(ctx, run)
+    )
 
 
 @router.post("/workflow-runs/{run_id}/abort", status_code=status.HTTP_202_ACCEPTED)

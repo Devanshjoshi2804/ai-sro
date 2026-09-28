@@ -741,7 +741,9 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
         unpriced=True,
     )
 
-    on_the_wire = WorkflowRunModel.of(run).model_dump()
+    on_the_wire = WorkflowRunModel.of(
+        run, live_view_url="https://steel.example/v1/sessions/debug?pageId=t-1"
+    ).model_dump()
 
     assert on_the_wire == {
         "id": "run_abc",
@@ -825,6 +827,7 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
         "undoes_run": "run_before",
         # This one HELD: there is nothing to try again.
         "try_again": False,
+        "live_view_url": "https://steel.example/v1/sessions/debug?pageId=t-1",
     }
 
 

@@ -556,3 +556,25 @@ async def test_the_request_name_survives_the_trip_to_the_question(
     # And it reached the thread, not just the response.
     threads = await uow.threads.list_for_tenant(TENANT, limit=1)
     assert threads and threads[0].messages[-1].text == asked
+
+
+async def test_a_card_asked_about_keeps_its_offer_s_name(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, held: Workflow
+) -> None:
+    """A mail card pressed while the thread already asks about that mail (E2):
+    the question the press asks carries the mail's offer, so its answer and a
+    yes to the first question start under one name -- one run, not two."""
+    answered = await client.post(
+        "/v1/chat/about-an-offer",
+        json={
+            "workflow_id": "wfl_1",
+            "title": "Create a Customer Type",
+            "values": {"Customer Type": "GT2"},
+            "missing": ["Customer Type Description"],
+            "offer": "mail:m-1",
+        },
+    )
+
+    assert answered.status_code == 200, answered.text
+    threads = await uow.threads.list_for_tenant(TENANT, limit=1)
+    assert (threads[0].messages[-1].decision or {}).get("offer") == "mail:m-1"

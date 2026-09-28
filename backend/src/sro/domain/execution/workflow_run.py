@@ -5,6 +5,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Literal
 
+from sro.domain.shared.errors import Conflict
 from sro.domain.skill.workflow import Workflow
 
 OUTCOMES = ("running", "held", "stopped", "refused", "aborted", "failed")
@@ -27,6 +28,14 @@ VERDICTS = (
 
 def already_running(device_id: str, run_id: str | None) -> str:
     return f"{device_id} is already running {run_id or 'a run this press cannot see'}"
+
+
+class OfferTaken(Conflict):
+    """A second start of one offer. The run the first start made is the answer."""
+
+    def __init__(self, offer: str, run_id: str) -> None:
+        super().__init__(f"the offer {offer} has already started a run")
+        self.run_id = run_id
 
 
 def new_run_id() -> str:

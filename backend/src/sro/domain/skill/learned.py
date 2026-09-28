@@ -24,6 +24,33 @@ def demanded(parameter: Mapping[str, object]) -> bool:
     return any(str(one).rstrip().endswith(K_REQUIRED_MARK) for one in listed)
 
 
+def called(parameter: Mapping[str, object]) -> frozenset[str]:
+    """Every name a job's parameter goes by: its own, the labels it was seen
+    under, its field key, and the control's id inside that key -- a mined step
+    may name the field by any of them."""
+    names = parameter.get("names")
+    listed = [str(one) for one in names] if isinstance(names, list | tuple) else []
+    key = str(parameter.get("key") or "")
+    return frozenset(
+        one
+        for one in (str(parameter.get("name") or ""), *listed, key, key.rpartition("-")[2])
+        if one
+    )
+
+
+def by_every_name(
+    parameters: Sequence[Mapping[str, object]], values: Mapping[str, str]
+) -> dict[str, str]:
+    """The values, each also under every other name its parameter goes by."""
+    given = dict(values)
+    for parameter in parameters:
+        value = next((values[one] for one in called(parameter) if one in values), None)
+        if value is not None:
+            for one in called(parameter):
+                given.setdefault(one, value)
+    return given
+
+
 def offerable(
     parameters: Sequence[Mapping[str, object]], values: Mapping[str, str]
 ) -> tuple[tuple[str, str], ...]:

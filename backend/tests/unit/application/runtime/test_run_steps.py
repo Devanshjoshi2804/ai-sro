@@ -553,6 +553,54 @@ async def test_a_required_value_nobody_gave_is_asked_for_never_guessed() -> None
     assert "Customer Type" in progress.asking["text"]
 
 
+async def test_a_value_given_by_its_label_reaches_a_step_that_names_the_field_by_its_id() -> None:
+    """Greyorange, 2026-09-28: the job's steps named the field by the control's
+    id (customerType) and the operator's value came by its label (Customer
+    Type); the run skipped the typing as "no value was given" and pressed Save
+    without it."""
+    step, by_id = type_step()
+    step = replace(step, order=0, parameters=["customerType"])
+    job = replace(
+        WORKFLOW,
+        steps=[step],
+        parameters=[
+            {
+                "name": "Customer Type",
+                "key": "customertype-customerType",
+                "names": ["Customer Type", "customertype-customerType", "Customer Type*"],
+            }
+        ],
+    )
+    world = await steel_run(steps=[(step, by_id)], job=job, values={"Customer Type": "SRT3"})
+    world.lanes.ui.answers(StepResult("done", Lane.UI))
+
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert world.lanes.ui.calls == 1
+    assert [one.verdict for one in (await world.saved_run()).steps] == ["held"]
+
+
+async def test_a_required_field_named_by_its_id_is_asked_for_never_skipped() -> None:
+    step, by_id = type_step()
+    step = replace(step, order=0, parameters=["customerType"])
+    job = replace(
+        WORKFLOW,
+        steps=[step],
+        parameters=[
+            {
+                "name": "Customer Type",
+                "key": "customertype-customerType",
+                "names": ["Customer Type", "customertype-customerType", "Customer Type*"],
+            }
+        ],
+    )
+    world = await steel_run(steps=[(step, by_id)], job=job, values={})
+
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert outcome.asking and world.lanes.ui.calls == 0
+
+
 FORM = "https://wms.example/app/customer-types/new"
 
 

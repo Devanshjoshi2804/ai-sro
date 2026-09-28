@@ -314,11 +314,11 @@ Code: `if kind == "field":`
 > step, which has no composed field to re-place -- offers the field itself,
 > to try again. The question never carries the value.
 
-## `_fields_for`, [line 900](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L900): Note
+## `_fields_for`, [line 896](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L896): Note
 
 > The learned field steps filled this run just before the write at `index`.
 
-## `_settle_fields`, [line 912](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L912): Note
+## `_settle_fields`, [line 908](../../../../../../../backend/src/sro/application/runtime/run_steps.py#L908): Note
 
 > Each field filled for this write takes `done` and its key only when the write
 > is `done` and its own call carried the key; it becomes `failed` when the write

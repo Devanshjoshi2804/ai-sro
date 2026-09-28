@@ -51,7 +51,7 @@ from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.identifiers import PrincipalId
 from sro.domain.skill.aliases import JobAlias
-from sro.domain.skill.learned import demanded
+from sro.domain.skill.learned import by_every_name, called, demanded
 from sro.domain.skill.tabs import MAIN
 from sro.domain.skill.workflow import Step, Workflow, cited_ids, field_key
 
@@ -141,7 +141,7 @@ class RunSteps:
         if run.outcome != "running" or index >= len(ordered):
             return StepOutcome(more=False)
         step = ordered[index]
-        values = {**run.values, **progress.read}
+        values = by_every_name(workflow.parameters, {**run.values, **progress.read})
         if progress.written(step.order):
             done = StepResult("done", Lane.UI, "already done")
             by = progress.marks[step.order].lane
@@ -854,11 +854,7 @@ class RunSteps:
 
 
 def _demanded(workflow: Workflow) -> set[str]:
-    return {
-        str(parameter["name"])
-        for parameter in workflow.parameters
-        if parameter.get("name") and demanded(parameter)
-    }
+    return {name for one in workflow.parameters if demanded(one) for name in called(one)}
 
 
 def _ordered(workflow: Workflow) -> list[Step]:

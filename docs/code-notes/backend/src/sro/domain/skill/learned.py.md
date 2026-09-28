@@ -73,7 +73,7 @@ Code: `K_REQUIRED_MARK = "*"`
 > already carry. The flag wins where both speak, because a later pass may
 > have learnt from a refusal what no label ever said.
 
-## `offerable`, [line 27](../../../../../../../backend/src/sro/domain/skill/learned.py#L27): Docstring
+## `offerable`, [line 54](../../../../../../../backend/src/sro/domain/skill/learned.py#L54): Docstring
 
 > The fields a job can fill that nobody has to, with what each was last
 > time, for the ones this run has no value for.
@@ -83,7 +83,7 @@ Code: `K_REQUIRED_MARK = "*"`
 > suggestion. Most recent, because `seen` is in the order the occurrences
 > were seen and the newest is the likeliest to still be right.
 
-## `LearnedParameter`, [line 44](../../../../../../../backend/src/sro/domain/skill/learned.py#L44): Docstring
+## `LearnedParameter`, [line 71](../../../../../../../backend/src/sro/domain/skill/learned.py#L71): Docstring
 
 > One thing a job takes as input, and what it has been given so far.
 >
@@ -91,7 +91,7 @@ Code: `K_REQUIRED_MARK = "*"`
 > backend's own, declared on a skill; this one is the difference between two
 > doings, and the two must not be mistaken for each other.
 
-## `LearnedParameter`, [line 45](../../../../../../../backend/src/sro/domain/skill/learned.py#L45): Note on the line above
+## `LearnedParameter`, [line 72](../../../../../../../backend/src/sro/domain/skill/learned.py#L72): Note on the line above
 
 Code: `name: str`
 
@@ -100,14 +100,14 @@ Code: `name: str`
 > Named after the form rather than after the value, because `activityCode`
 > says what it is and `TEST1` says what it was once.
 
-## `LearnedParameter`, [line 47](../../../../../../../backend/src/sro/domain/skill/learned.py#L47): Note on the line above
+## `LearnedParameter`, [line 74](../../../../../../../backend/src/sro/domain/skill/learned.py#L74): Note on the line above
 
 Code: `seen: tuple[str, ...]`
 
 > Every value observed, in the order the occurrences were seen. Two
 > different values is the evidence that this varies at all.
 
-## `LearnedParameter`, [line 49](../../../../../../../backend/src/sro/domain/skill/learned.py#L49): Note on the line above
+## `LearnedParameter`, [line 76](../../../../../../../backend/src/sro/domain/skill/learned.py#L76): Note on the line above
 
 Code: `key: str = ""`
 
@@ -116,7 +116,7 @@ Code: `key: str = ""`
 > it, because two fields can share a label and two fields cannot share an
 > itemId. Empty where no recording of this control carried one.
 
-## `LearnedParameter`, [line 51](../../../../../../../backend/src/sro/domain/skill/learned.py#L51): Note on the line above
+## `LearnedParameter`, [line 78](../../../../../../../backend/src/sro/domain/skill/learned.py#L78): Note on the line above
 
 Code: `in_all: bool = True`
 
@@ -127,7 +127,7 @@ Code: `in_all: bool = True`
 > that does not need it, and a run taking that route must not be stopped for
 > want of a value. See `_not_given`, which is where the difference is felt.
 
-## `LearnedParameter`, [line 53](../../../../../../../backend/src/sro/domain/skill/learned.py#L53): Note on the line above
+## `LearnedParameter`, [line 80](../../../../../../../backend/src/sro/domain/skill/learned.py#L80): Note on the line above
 
 Code: `said: bool | None = None`
 
@@ -137,7 +137,7 @@ Code: `said: bool | None = None`
 > recorder captured it, which is why `required` still falls back to reading
 > the star out of `names`.
 
-## `LearnedParameter`, [line 61](../../../../../../../backend/src/sro/domain/skill/learned.py#L61): Note on the line above
+## `LearnedParameter`, [line 88](../../../../../../../backend/src/sro/domain/skill/learned.py#L88): Note on the line above
 
 Code: `names: tuple[str, ...] = ()`
 
@@ -156,7 +156,7 @@ Code: `names: tuple[str, ...] = ()`
 > this, which is why the matching that uses it still falls back to the value
 > evidence.
 
-## `control_names`, [line 64](../../../../../../../backend/src/sro/domain/skill/learned.py#L64): Docstring
+## `control_names`, [line 91](../../../../../../../backend/src/sro/domain/skill/learned.py#L91): Docstring
 
 > Every name this control answers to: its label, then its accessible name.
 >
@@ -168,12 +168,12 @@ Code: `names: tuple[str, ...] = ()`
 > review found item_id ranked above the accessible name, so a box with a label
 > but no accessible name was asked for by its id.
 
-## `control_name`, [line 79](../../../../../../../backend/src/sro/domain/skill/learned.py#L79): Docstring
+## `control_name`, [line 106](../../../../../../../backend/src/sro/domain/skill/learned.py#L106): Docstring
 
 > What one control is called, where one name is wanted. The first of
 > `control_names`, which is the readable one.
 
-## `control_key`, [line 84](../../../../../../../backend/src/sro/domain/skill/learned.py#L84): Docstring
+## `control_key`, [line 111](../../../../../../../backend/src/sro/domain/skill/learned.py#L111): Docstring
 
 > The page's own name for this control -- its ExtJS itemId -- or "".
 >
@@ -181,7 +181,7 @@ Code: `names: tuple[str, ...] = ()`
 > answers "which control is this" rather than "what is it called". Two
 > fields can share a label; two fields do not share an itemId.
 
-## `same_control`, [line 91](../../../../../../../backend/src/sro/domain/skill/learned.py#L91): Docstring
+## `same_control`, [line 118](../../../../../../../backend/src/sro/domain/skill/learned.py#L118): Docstring
 
 > Whether these name one control.
 >
@@ -204,19 +204,19 @@ Code: `names: tuple[str, ...] = ()`
 > does that, for parameters stored before any of this was recorded, and it
 > merges two controls that happened to vary over one set.
 
-## `_Put`, [line 100](../../../../../../../backend/src/sro/domain/skill/learned.py#L100): Docstring
+## `_Put`, [line 127](../../../../../../../backend/src/sro/domain/skill/learned.py#L127): Docstring
 
 > One value a doing put into one control, with every name that control
 > had in THAT recording.
 
-## `_Put`, [line 104](../../../../../../../backend/src/sro/domain/skill/learned.py#L104): Note on the line above
+## `_Put`, [line 131](../../../../../../../backend/src/sro/domain/skill/learned.py#L131): Note on the line above
 
 Code: `required: bool | None = None`
 
 > What the page said about this control in THIS recording, or None where
 > it said nothing.
 
-## `_by_control`, [line 107](../../../../../../../backend/src/sro/domain/skill/learned.py#L107): Docstring
+## `_by_control`, [line 134](../../../../../../../backend/src/sro/domain/skill/learned.py#L134): Docstring
 
 > What this doing put into each control it typed into.
 >
@@ -225,7 +225,7 @@ Code: `required: bool | None = None`
 > prose freshly each time, and a step index is its opinion. The control is
 > the evidence.
 
-## `_page_said`, [line 140](../../../../../../../backend/src/sro/domain/skill/learned.py#L140): Docstring
+## `_page_said`, [line 167](../../../../../../../backend/src/sro/domain/skill/learned.py#L167): Docstring
 
 > Whether the page said this control must be filled, in this recording.
 >
@@ -240,7 +240,7 @@ Code: `required: bool | None = None`
 > to the star in the names: the evidence already in the store has to go on
 > answering.
 
-## `parameters_across`, [line 152](../../../../../../../backend/src/sro/domain/skill/learned.py#L152): Docstring
+## `parameters_across`, [line 179](../../../../../../../backend/src/sro/domain/skill/learned.py#L179): Docstring
 
 > Every control the doings typed that is not proven constant.
 >
@@ -253,13 +253,13 @@ Code: `required: bool | None = None`
 > refuses a secret gesture. A recorded sign-in's username and a chore are the
 > caller's to leave out (`learn_parameters`), because only it knows the jobs.
 
-## `_controls`, [line 161](../../../../../../../backend/src/sro/domain/skill/learned.py#L161): Docstring
+## `_controls`, [line 188](../../../../../../../backend/src/sro/domain/skill/learned.py#L188): Docstring
 
 > One walk over the doings that marks each control a parameter or a constant. `seen` keeps each
 > value once, in the order the doings came: from three doings a value can
 > repeat, and a range is a set of what it has been.
 
-## `_told_apart`, [line 209](../../../../../../../backend/src/sro/domain/skill/learned.py#L209): Docstring
+## `_told_apart`, [line 236](../../../../../../../backend/src/sro/domain/skill/learned.py#L236): Docstring
 
 > Two controls that share a label are called by the names that differ.
 >
@@ -275,7 +275,7 @@ Code: `required: bool | None = None`
 > `in_all` and what the page said: a told-apart control became "in every
 > doing" and "nobody said", and lost the key a later doing is matched on.
 
-## `placed_doings`, [line 221](../../../../../../../backend/src/sro/domain/skill/learned.py#L221): Docstring
+## `placed_doings`, [line 248](../../../../../../../backend/src/sro/domain/skill/learned.py#L248): Docstring
 
 > The other doings of a stored job, rebuilt from the gestures placed on it.
 >
@@ -290,7 +290,7 @@ Code: `required: bool | None = None`
 > control look varied, never constant: it errs toward a parameter, the
 > default. The job's own cites are left out; they are doing one.
 
-## `LearnedParameter.required`, [line 56](../../../../../../../backend/src/sro/domain/skill/learned.py#L56): Docstring
+## `LearnedParameter.required`, [line 83](../../../../../../../backend/src/sro/domain/skill/learned.py#L83): Docstring
 
 > Whether the PAGE says this field must be filled.
 >
@@ -327,7 +327,7 @@ Code: `required: bool | None = None`
 > that refused a create for the want of a field, which is evidence
 > nothing can argue with -- and which this cannot learn until it happens.
 
-## `_by_control`, [line 110](../../../../../../../backend/src/sro/domain/skill/learned.py#L110): Comment
+## `_by_control`, [line 137](../../../../../../../backend/src/sro/domain/skill/learned.py#L137): Comment
 
 Code: `acted: list[tuple[str, Gesture]] = []`
 
@@ -337,7 +337,7 @@ Code: `acted: list[tuple[str, Gesture]] = []`
 > model happened to list second". Measured: 0 of 66 real steps cite out of
 > order, so this changes nothing today and stops depending on that.
 
-## `_by_control`, [line 124](../../../../../../../backend/src/sro/domain/skill/learned.py#L124): Comment
+## `_by_control`, [line 142](../../../../../../../backend/src/sro/domain/skill/learned.py#L142): Comment
 
 Code: `continue`
 
@@ -345,7 +345,7 @@ Code: `continue`
 > gesture when it is secret, so this is where that refusal keeps a
 > password out of a skill's parameters.
 
-## `_by_control`, [line 122](../../../../../../../backend/src/sro/domain/skill/learned.py#L122): Comment
+## `_by_control`, [line 149](../../../../../../../backend/src/sro/domain/skill/learned.py#L149): Comment
 
 Code: `names = control_names(gesture)`
 
@@ -360,7 +360,7 @@ Code: `names = control_names(gesture)`
 > asked for "ges_..." and, with the page's required flag, the job stopped
 > compiling (M3 review #3).
 
-## `_by_control`, [line 126](../../../../../../../backend/src/sro/domain/skill/learned.py#L126): Comment
+## `_by_control`, [line 153](../../../../../../../backend/src/sro/domain/skill/learned.py#L153): Comment
 
 Code: `typed = str(gesture.action.value).strip() if gesture.action.value else ""`
 
@@ -382,14 +382,14 @@ Code: `typed = str(gesture.action.value).strip() if gesture.action.value else ""
 > become a parameter's first seen value. The fallback predates M3 and is
 > kept; it is noted here because its reach grew (M3 review #12).
 
-## `_by_control`, [line 133](../../../../../../../backend/src/sro/domain/skill/learned.py#L133): Comment
+## `_by_control`, [line 160](../../../../../../../backend/src/sro/domain/skill/learned.py#L160): Comment
 
 Code: `found = [`
 
 > Last wins, as it did when this was a dict: a control typed twice in
 > one doing keeps the latest value.
 
-## `_controls`, [line 164](../../../../../../../backend/src/sro/domain/skill/learned.py#L164): Comment
+## `_controls`, [line 191](../../../../../../../backend/src/sro/domain/skill/learned.py#L191): Comment
 
 Code: `for nth, doing in enumerate(doings):`
 
@@ -406,7 +406,7 @@ Code: `for nth, doing in enumerate(doings):`
 > What has gone is the accident of WHICH doing a control first appeared
 > in. (The bar itself changed on 2026-09-27: see `parameters_across`.)
 
-## `_controls`, [line 196](../../../../../../../backend/src/sro/domain/skill/learned.py#L196): Comment
+## `_controls`, [line 223](../../../../../../../backend/src/sro/domain/skill/learned.py#L223): Comment
 
 Code: `name=names[0],`
 
@@ -414,7 +414,7 @@ Code: `name=names[0],`
 > is what the next doing is matched on, so a control
 > recorded either way is recognised either way.
 
-## `_controls`, [line 201](../../../../../../../backend/src/sro/domain/skill/learned.py#L201): Comment
+## `_controls`, [line 228](../../../../../../../backend/src/sro/domain/skill/learned.py#L228): Comment
 
 Code: `said=next((one for one in said if one is not None), None),`
 

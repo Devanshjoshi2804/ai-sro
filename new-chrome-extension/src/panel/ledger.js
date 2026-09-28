@@ -58,10 +58,6 @@ const KINDS = {
     { answer: "run", label: "Run it", quiet: false },
     { answer: "no", label: "Not now", quiet: true },
   ],
-  nudge: [
-    { answer: "do", label: "Do it", quiet: false },
-    { answer: "not-here", label: "Not for this page", quiet: true },
-  ],
   mail_draft: [
     { answer: "send-draft", label: "Send it", quiet: false },
     {
@@ -129,14 +125,12 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
   const spent = alreadyAnswered(messages);
   const offers = local?.offers || [];
 
-  // The server's thread and what only this browser knows, in one order. A nudge
-  // is never written down -- it lives about ninety seconds, and a conversation
-  // full of them is noise -- but the operator reads one place, and things that
-  // happened belong in the order they happened.
+  // The server's thread and what only this browser knows, in one order: the
+  // operator reads one place, and things that happened belong in the order
+  // they happened.
   const entries = [
     // Not the mining candidates. This deployment runs the rig: a job it has
-    // mined is offered by the rig's own paths -- a prefix match while somebody
-    // works, a page rule they made, a job a card asks about -- and the older
+    // mined is asked about in the conversation by the backend, and the older
     // pipeline's "you've done this 4 times, want me to do the next one?" is an
     // offer to teach a SKILL from recordings, which is not the system this
     // browser drives any more. An operator pressed one and got "the doings
@@ -148,7 +142,6 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
     ...messages
       .filter((message) => message.decision?.kind !== "offer")
       .map((message) => ({ at: message.said_at, message })),
-    ...(local?.nudges || []).map((nudge) => ({ at: nudge.at, nudge })),
     ...(local?.answer
       ? [{ at: at(local.answer.askedAt), answer: local.answer }]
       : []),
@@ -183,9 +176,7 @@ export function ledger(thread, local = {}, { onPress, runs } = {}) {
             ? waitingOnYou(entry.waiting, onPress)
             : entry.sending
               ? sending(entry.sending)
-              : entry.awaiting
-                ? waitingOnAMailbox(entry.awaiting)
-                : nudging(entry.nudge, onPress);
+              : waitingOnAMailbox(entry.awaiting);
     const minute = hhmm(entry.at);
     // One cell per entry, filled only when the minute changes. Repeating 12:04
     // against three things said in the same minute is noise exactly where the
@@ -432,22 +423,6 @@ export function waitingOnYou(card, onPress) {
     item.append(shown);
   }
 
-  // The page this card is about is not open any more.
-  //
-  // An operator signed in, the run took the tab off the login page, and this
-  // card was still here asking whether to sign in. Pressing it started a run
-  // with nowhere to go -- "no tab is open on keycloak-...", a red cross, and
-  // eighteen seconds of a model working out that there was nothing to work
-  // on. So it keeps its words and loses its buttons, the same rule an offer
-  // about another system follows.
-  if (card.still_there === false) {
-    const gone = document.createElement("p");
-    gone.className = "detail";
-    gone.textContent = "You have moved on from that page — nothing to do here.";
-    item.append(gone);
-    return item;
-  }
-
   const yes = document.createElement("button");
   yes.type = "button";
   yes.textContent = "Yes, do it";
@@ -572,330 +547,6 @@ export function alreadyAnswered(messages) {
     }
   }
   return done;
-}
-
-/** The names whose value this job's own box will not hold, with the limit.
- *
- * Pairs rather than the raw map, and only where there is actually a value too
- * long for one: a limit is known for plenty of fields nobody has overfilled,
- * and a card that recited every one of them would be reading out the manual.
- */
-function _tooLong(nudge) {
-  return Object.entries(nudge.tooLong || {}).filter(([name, limit]) => {
-    const was = String(nudge.values?.[name] ?? "");
-    return was && was.length > limit;
-  });
-}
-
-export function nudging(nudge, onPress) {
-  if (nudge.source === "rig" && nudge.state === "open")
-    return offeringToFinish(nudge, onPress);
-  const item = document.createElement("li");
-  item.className = "message";
-  item.dataset.speaker = "system";
-  item.dataset.kind = "nudge";
-  item.dataset.state = nudge.state || "open";
-  if (nudge.id) item.dataset.id = nudge.id;
-
-  const what = document.createElement("p");
-  what.className = "what";
-  what.textContent =
-    nudge.state === "by-hand"
-      ? `${nudge.title} \u2014 you did it yourself`
-      : nudge.state === "open"
-        ? `${nudge.title} \u2014 you have done this here before`
-        : `You were on ${nudge.title}`;
-  item.append(what);
-
-  // Only while it is still asking. A nudge ends three ways and two of them are
-  // not answers -- they did the task themselves, or they went somewhere else --
-  // and a prompt still offering to do a task already done is the failure the
-  // ninety-second life exists to avoid.
-  if (nudge.state === "open") {
-    item.append(pressing(KINDS.nudge, nudge, item, onPress));
-  }
-  return item;
-}
-
-/** The rig's own offer: what it read, what it still needs, and the two answers.
- *
- * A backend nudge says "you have done this here before" and offers to do the
- * next one. This one is about the job in front of somebody right now -- half
- * typed, or just arrived at -- so it says back what it read off the page, asks
- * for the rest, and offers to finish. The fields are the reason it is an offer
- * and not a run: nothing starts until every blank the job needs has something
- * in it, because a run that stops at the first empty box is worse than never
- * having offered.
- *
- * Its Yes is `start-rig-run` and its No is `drop-nudge`. The worker reports one
- * fate per path, and an offer that reported two is one the rig cannot count.
- */
-function offeringToFinish(nudge, onPress) {
-  const item = document.createElement("li");
-  item.className = "message";
-  item.dataset.speaker = "system";
-  item.dataset.kind = "nudge";
-  item.dataset.state = "open";
-  item.dataset.id = nudge.id;
-
-  const typed = Object.values(nudge.values || {}).join(", ");
-  // How many things this one press would do.
-  //
-  // "Add these three equipment types" is one job done three times, and the
-  // person pressing has to be told that before they press: one press, three
-  // records, and a warehouse record cannot be un-created. Said in the
-  // sentence rather than under it, because a count below the button is a
-  // count somebody reads after deciding.
-  const things = (nudge.items || []).length;
-  const what = document.createElement("p");
-  what.className = "what";
-  what.textContent =
-    // A job already under way, and what has gone into it so far -- where
-    // anything has. `k` counts the steps the operator has done, and a run can
-    // have reached its second step without a value being typed into either:
-    // that read "Forward an Email \u2014 , so far. Want me to finish it?" on
-    // the deployment, 2026-09-18, a dangling comma where the values were.
-    nudge.k > 0 && typed
-      ? `${nudge.title} \u2014 ${typed}, so far. Want me to finish it?`
-      : nudge.k > 0
-        ? `${nudge.title} \u2014 already started. Want me to finish it?`
-        : things > 1
-          ? `${nudge.title}, for ${things} things \u2014 want me to do them?`
-          : // What this press would create, where it is known.
-            //
-            // An offer read out of a mail carries the values now -- the look
-            // gathers them before offering, because nobody can consent to a
-            // write they cannot see. Four of these stacked up on the deployment,
-            // 2026-09-18, every one of them "Create a Customer Type -- want me
-            // to do it?", and there was nothing on any of them to tell one
-            // request from another or to check a reading against.
-            typed
-            ? `${nudge.title} \u2014 ${typed}. Want me to do it?`
-            : `${nudge.title} \u2014 want me to do it?`;
-  item.append(what);
-
-  // And which things, in the order they would be done. What a person is being
-  // asked to authorise is these records and not a number.
-  if (things > 1) {
-    const listed = document.createElement("p");
-    listed.className = "detail";
-    listed.textContent = (nudge.items || [])
-      .map((one) => Object.values(one).join(" "))
-      .join(" \u00b7 ");
-    item.append(listed);
-  }
-
-  // No boxes. Not for what is missing, not for what will not fit.
-  //
-  // The card used to grow one text input per name it still wanted, and then a
-  // second kind for a value the box would not hold, pre-filled with the number
-  // beside it. `asking.py` has the long version of what is wrong with the
-  // first: it asks everybody for what the run usually finds by itself, and on
-  // `Create a Customer Type` it drew FOUR boxes for two values, because that
-  // job declares each field twice -- the label a person reads and the body key
-  // a form posts. Seen on the deployment, 2026-09-18.
-  //
-  // The second kind was better and still the same shape: a form, inside a
-  // card, inside a panel that is already a conversation.
-  //
-  // So a press that cannot start the job asks in the conversation instead, one
-  // question at a time, in words -- and the answer that lands last starts the
-  // run on the press already given. That loop is
-  // `converse._answer_the_question` and it was built for the run path long
-  // before the card could reach it.
-  const overlong = _tooLong(nudge);
-  const sortItOut = (nudge.missing || []).length > 0 || overlong.length > 0;
-
-  // What this job's boxes are known not to hold, said before the press.
-  //
-  // The limit was learnt by an earlier run or read off the form the operator
-  // actually uses, so it is known NOW -- and somebody deciding is owed it
-  // while they are deciding, not in the middle of a form. Said rather than
-  // enforced with an input: the press hands it to the conversation, which asks
-  // for a shorter one and will not take an answer that is still too long.
-  for (const [name, limit] of overlong) {
-    const asking = document.createElement("p");
-    asking.className = "detail";
-    asking.dataset.kind = "too-long";
-    const now = String(nudge.values?.[name] ?? "").length;
-    asking.textContent =
-      `${name} takes ${limit} characters and this is ${now}. ` +
-      `Press yes and I will ask you for a shorter one.`;
-    item.append(asking);
-  }
-
-  // What the request asked for that this job cannot write, before the press.
-  //
-  // A job's parameters are what two demonstrations proved VARY, and the form
-  // has far more fields than that -- so "code GV3, description X, Department
-  // Inbound" is a perfectly reasonable request, and this made a record with no
-  // Department in it and said nothing. The run says so afterwards, and after
-  // the press is after the record.
-  //
-  // Said and not enforced, like the limit above it: the job is still worth
-  // doing for the two fields it does hold, and what somebody needs is to know
-  // before they press that the third is not coming.
-  if ((nudge.unasked || []).length) {
-    const cannot = document.createElement("p");
-    cannot.className = "detail";
-    cannot.dataset.kind = "unasked";
-    cannot.textContent =
-      `This job cannot set ${nudge.unasked.join(", ")}. ` +
-      `It will write the rest.`;
-    item.append(cannot);
-  }
-
-  // A request the operator sent to somebody else: their job, not ours, so it
-  // never started by itself. Say who, and ask.
-  if ((nudge.sentTo || []).length) {
-    const theirs = document.createElement("p");
-    theirs.className = "detail";
-    theirs.dataset.kind = "sent-to";
-    theirs.textContent = `You sent this to ${nudge.sentTo.join(", ")}. Should we do it?`;
-    item.append(theirs);
-  }
-
-  // And what it could ALSO set, which nobody has to answer.
-  //
-  // The line above says what this job CANNOT set. This one says what it can
-  // set and was not asked to -- a field the page does not mark required, so
-  // the run no longer stops for it and no longer types an empty value into
-  // it. Said here because a request that supplied everything required never
-  // produces a question, and the question is the only other place these are
-  // offered: on the path an operator who works from their mailbox actually
-  // uses, this is the one chance to say so.
-  //
-  // Said and not asked. The boxes the job's own parameters draw are where a
-  // value goes; this only tells somebody the boxes are worth filling.
-  if ((nudge.offers || []).length) {
-    const also = document.createElement("p");
-    also.className = "detail";
-    also.dataset.kind = "offers";
-    const named = nudge.offers.map(([name]) => name);
-    const seen = nudge.offers
-      .filter(([, was]) => (was || "").trim())
-      .map(([name, was]) => `${name}: ${was}`);
-    also.textContent =
-      `It can also set ${named.join(", ")}` +
-      (seen.length ? ` — last time ${seen.join("; ")}` : "") +
-      `. Leave them blank and it will run without.`;
-    item.append(also);
-  }
-
-  // What the press would WRITE, before it is pressed.
-  //
-  // The two lines above say what this job cannot set and what will not fit;
-  // neither says the act. A person pressing yes is agreeing to a record being
-  // made in a warehouse, and until this the card named the values and left the
-  // thing itself unsaid. Read off the job's own evidence -- one line per
-  // writing step, so a job with two writes in it reads as two.
-  for (const write of nudge.writes || []) {
-    if (!write?.does || !write?.record) continue;
-    const doing = document.createElement("p");
-    doing.className = "detail";
-    doing.dataset.kind = "writes";
-    // The host and not the whole origin: `https://` in the middle of a
-    // sentence is noise a person has to read past.
-    const where = write.on
-      ? ` on ${String(write.on).replace(/^https?:\/\//, "")}`
-      : "";
-    // "a addresses record" is what the store's own names do to a sentence:
-    // the record is called whatever the endpoint is called, and four of this
-    // tenant's eight begin with a vowel.
-    const a = /^[aeiou]/i.test(write.record) ? "an" : "a";
-    doing.textContent = `It will ${write.does} ${a} ${write.record} record${where}.`;
-    item.append(doing);
-  }
-
-  const yes = document.createElement("button");
-  yes.type = "button";
-  yes.textContent = nudge.k > 0 ? "Yes, finish it" : "Yes, do it";
-  const no = document.createElement("button");
-  no.type = "button";
-  no.className = "quiet";
-  no.textContent = "No thanks";
-
-  // Always pressable. The press means "deal with this", and what it costs is
-  // either a run or a question -- never a disabled button with nothing in the
-  // card that tells somebody how to get past it.
-  // One press ends the card. The ledger does not redraw when an offer is
-  // answered, so without this the buttons of a refused offer are still live
-  // under the operator's cursor -- and "No thanks" then "Yes" is a run started
-  // on an offer already reported dismissed, which is two fates for one offer.
-  // The worker refuses that as well; this is the half that keeps the panel from
-  // ever asking.
-  let ended = false;
-  const settle = () => {
-    yes.disabled = ended;
-    no.disabled = ended;
-  };
-  settle();
-  yes.addEventListener("click", () => {
-    if (ended) return;
-    ended = true;
-    settle();
-    // Two ends to one press, and the card decides which by what it already
-    // knows: a job holding everything it needs runs, and one short of a value
-    // -- or carrying one its own box will not take -- becomes a question in
-    // the conversation. Both are the same yes.
-    onPress?.(
-      sortItOut ? "ask-about-offer" : "start-rig-run",
-      nudge,
-      item,
-      yes,
-      {
-        values: {},
-      },
-    );
-  });
-  no.addEventListener("click", () => {
-    if (ended) return;
-    ended = true;
-    settle();
-    onPress?.("drop-nudge", nudge, item, no);
-  });
-
-  // The third answer, and a different kind of answer: yes to THIS one, no to
-  // this one, and a standing rule. It writes the rule rather than starting a
-  // run -- nothing happens now -- so it does not end the card: somebody can
-  // make the rule and still press Yes for the doing in front of them.
-  //
-  // **Only where landing on a page is what the offer is about.**
-  //
-  // The gate was "does this offer name a page", and every offer does: a mined
-  // job carries the screen it was recorded starting on. So a request that
-  // arrived by MAIL -- one customer type, one code, asked for once -- was
-  // offering to run itself every time somebody opened the Customer Types
-  // screen, for ever. Asked about it on 2026-09-18, and the honest answer was
-  // that the button should not have been there.
-  //
-  // A mail-driven offer carries the conversation it came from. That is the
-  // difference between "this is what I do when I get here" and "somebody asked
-  // for this one thing".
-  const always = document.createElement("button");
-  always.type = "button";
-  always.className = "quiet";
-  // What it will do, in the words of the thing it does. "Always, here" reads
-  // as a place and says nothing about a rule being written, which is what it
-  // writes -- and a person who has to press a button to find out what it means
-  // has been given a button that means nothing.
-  always.textContent = "Always on this page";
-  always.title = nudge.startsOn
-    ? `Make a rule: whenever you open ${nudge.startsOn}, offer this job without waiting to be asked.`
-    : "Make a rule: whenever you open this page, offer this job without waiting to be asked.";
-  always.addEventListener("click", () => {
-    if (ended) return;
-    always.disabled = true;
-    always.textContent = "every time you land here";
-    onPress?.("do-this-here", nudge, item, always);
-  });
-
-  const row = document.createElement("div");
-  row.className = "row";
-  row.append(yes, no);
-  if (nudge.startsOn && !nudge.thread) row.append(always);
-  item.append(row);
-  return item;
 }
 
 function saying(

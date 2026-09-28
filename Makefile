@@ -251,12 +251,6 @@ mutants-backend: ## Mutation score for the bridge and the ladder, against their 
 	$(BACKEND) uv run mutmut export-cicd-stats
 	$(BACKEND) uv run python scripts/mutation_floor.py
 
-# Beside the rig's rather than replacing it: the same measurement from the
-# other store, so the two can be read against each other until phase 7 deletes
-# the rig and its target with it.
-offer-replay: ## Would the offer name the right job? The store's gestures through the real matcher, no browser
-	$(BACKEND) uv run python scripts/dry_run.py --replay /tmp/offer-replay.json > /dev/null && node ../new-chrome-extension/scripts/offer-replay.mjs /tmp/offer-replay.json
-
 measure: ## What this system has actually done, and what every number stands on
 	@# Reads only. Every line carries a standing -- warehouse, mail, local,
 	@# recorded, none -- because the argument about whether this direction is
@@ -295,11 +289,9 @@ test-extension: ## The extension's own self-checks, in plain node
 	@# file and reads its exit code. Verified in both directions: 0 when green,
 	@# 1 for a `node:test` failure AND 1 for a plain script that throws.
 	@#
-	@# One process per file also retires two ordering traps the old serial run
-	@# had: `commands.js`'s `abort()` poisoned a run id in module scope with no
-	@# undo, so the Stop tests had to run last, and `shapesFor`'s five-minute
-	@# module-scope cache meant only the first test in the process could pin a
-	@# shapes request. Neither survives a fresh process per file.
+	@# One process per file also means no suite inherits another's module
+	@# scope -- a cache or a flag one file leaves behind never decides the
+	@# order the next file's tests have to run in.
 	cd new-chrome-extension && node --test "**/*.test.?(c|m)js"
 
 smoke: ## Does a DEPLOYMENT work from outside itself: make smoke at=http://host:8088 [DOCKER="sudo docker"]

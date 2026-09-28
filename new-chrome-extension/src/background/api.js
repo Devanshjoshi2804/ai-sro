@@ -112,24 +112,11 @@ export function asPanelRun(run) {
     // records -- a whitelist nobody adds to is a card that silently draws
     // nothing and looks like code that was never changed.
     values: run.values || {},
-    // And what takes it back. Added here, in `finishing.js`, and drawn on
-    // the card -- all three, because this is the whitelist whose own comment
-    // above records what happens when one of them is forgotten: a card that
-    // silently draws nothing and looks like code nobody changed.
-    undo: run.undo || null,
-    undoes_by: run.undoes_by || null,
-    // And, the other way round, which run THIS one takes back -- so an undo
-    // that failed reads as the record still being out there rather than as
-    // a job that failed on its own.
+    // Which run THIS one takes back, where it is an undo the backend started
+    // -- so an undo that failed reads as the record still being out there
+    // rather than as a job that failed on its own.
     undoes_run: run.undoes_run || null,
-    // Whether a person may simply press it again: the run stopped and
-    // nothing it did may have landed. The backend decides it -- a second
-    // press after a write nobody could confirm is two records.
-    try_again: Boolean(run.try_again),
-    // And which job to press: `values` and `items` were already here, and
-    // this is the third thing a press needs. The run's own conversation is
-    // deliberately not carried -- a retry that comes up short asks in the
-    // panel, where the person who pressed it is.
+    // Which job it was, so a list of runs can put the job's title on it.
     workflow_id: run.workflow_id || "",
     // WHEN it ran. The fourth thing this whitelist was missing, found the way
     // the paragraph above says they are found: `Recent tasks` drew twelve
@@ -255,13 +242,13 @@ export const api = {
       { method: "POST", body: values },
     ),
 
-  /** One run, for the panel to say what is happening in this browser.
+  /** One skill run, for the panel to say what is happening.
    *
-   * The worker knows a run is driving a tab and knows its id; what it is called,
-   * which rung it is on and how far through it is are the run's own record. */
+   * The worker knows a run's id; what it is called, which rung it is on and
+   * how far through it is are the run's own record. */
   run: (runId) => call(`/v1/runs/${encodeURIComponent(runId)}`),
 
-  /** A workflow run this browser is performing, in the panel's vocabulary.
+  /** A workflow run the operator is watching, in the panel's vocabulary.
    *
    * `/v1/workflow-runs/{id}`, not `/v1/runs/{id}`: on this host `/v1/runs`
    * already means a *skill* run, `sro.domain.execution.run.Run`, keyed on a
@@ -286,7 +273,7 @@ export const api = {
   rigRun: async (runId) =>
     asPanelRun(await call(`/v1/workflow-runs/${encodeURIComponent(runId)}`)),
 
-  /** Stop a workflow run this browser is driving. It takes effect at the next
+  /** Stop a workflow run the operator is watching. It takes effect at the next
    * step: a gesture already sent cannot be recalled from a warehouse.
    *
    * **No `device_id`, and no body at all.** The rig's abort took one naming the
@@ -300,117 +287,6 @@ export const api = {
     call(`/v1/workflow-runs/${encodeURIComponent(runId)}/abort`, {
       method: "POST",
     }),
-
-  /** Every job this tenant has proved, with the shape each one has. Read on a
-   * five-minute cache by the worker: a shape changes when a job is mined, not
-   * when somebody types.
-   *
-   * `?device_id=` is not decoration and it is not optional: a job's rest is per
-   * browser -- three refusals quiet it for the browser that refused and for
-   * nobody else -- so a browser served another browser's list spends or earns a
-   * colleague's rest, and nothing anywhere goes red. It rides the query beside
-   * `X-Device-Secret` in the headers because `asking_device` wants both
-   * together; half a pair is a 404, which here means `[]`, which here means an
-   * extension that has silently stopped recognising anything.
-   *
-   * `call` for the headers and a `try` around it for the rule: `[]` on every
-   * failure and never a throw. This is read on the gesture path, where a
-   * backend that is down must cost the operator nothing at all -- the one
-   * reason it is not a bare `call`. */
-  shapes: async (deviceId) => {
-    try {
-      const query = deviceId
-        ? `?device_id=${encodeURIComponent(deviceId)}`
-        : "";
-      const answered = await call(`/v1/shapes${query}`);
-      // `can_find` rides along: whether a run can go and find a value nobody
-      // typed is a fact about the deployment, and a browser building an offer
-      // out of these shapes cannot know it any other way.
-      // `takes_over` likewise: whether a press here is run on the server,
-      // which reads what the operator already did from their uploads.
-      return {
-        shapes: answered.shapes || [],
-        canFind: Boolean(answered.can_find),
-        takesOver: Boolean(answered.takes_over),
-      };
-    } catch {
-      return { shapes: [], canFind: false, takesOver: false };
-    }
-  },
-
-  /** How an offer ended -- taken, dismissed, done by hand, walked away from.
-   *
-   * The one measurement that says whether recognising a job early was worth
-   * doing, which is why every fate is reported and not just the ones that
-   * became runs. */
-  reportOffer: async ({ device_id: deviceId, ...rest }) => {
-    // Every read inside the guard, the settings read included: this is called
-    // with `void` from paths that must not fail, and a rejected storage read
-    // outside the `try` is an unhandled rejection rather than a lost record.
-    //
-    // Returns whether the fate actually landed. It still never throws -- the
-    // `void` callers are unchanged -- but the answer is no longer thrown away.
-    // This had no status check at all: `await fetch(...)`, result discarded, so
-    // a 4xx and a success were the same nothing. That matters more than it
-    // looks, because the docstring above is right that this is the one
-    // measurement saying whether recognising a job early was worth doing, and
-    // the old `catch` comment calling the record "a nicety" contradicted it
-    // three lines down.
-    //
-    // The 403 an earlier note here warned was coming is closed rather than
-    // arrived: `call` is the one place `X-Device-Secret` is built, and
-    // `?device_id=` goes beside it. Half a pair is `asking_device`'s 404, so
-    // neither half is optional.
-    //
-    // **The browser rides the query, not the body.** The rig read a `device_id`
-    // out of the body; `/v1/offers` refuses a request naming no browser with a
-    // 403 and writes nothing, because an offer is evidence *about* the browser
-    // that showed it -- one a body merely named could spend a colleague's
-    // rest, or earn it. Lifted out of the caller's record here rather than at
-    // the call site: `service-worker.js`'s `report` writes one record of what
-    // happened, and which part of the wire each field rides on is this file's
-    // business.
-    try {
-      await call(
-        `/v1/offers${deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : ""}`,
-        {
-          method: "POST",
-          body: rest,
-        },
-      );
-      return true;
-    } catch {
-      // The offer already happened; losing the record must not break the path
-      // that reported it. Said as `false` rather than swallowed, so a caller
-      // that wants to count what was lost can.
-      return false;
-    }
-  },
-
-  /** They said yes. The backend starts the job from the step they have reached,
-   * and answers with the row it claimed -- `id`, not the rig's `{run_id}`.
-   *
-   * `/v1/workflow-runs`, not `/v1/runs`, which on this host starts a *skill*
-   * run from a preview and would refuse a workflow id outright.
-   *
-   * **Which browser to drive is a body field here, and it is the one call in
-   * this file where that is right.** Everywhere else `?device_id=` names the
-   * browser *asking*; a press names the browser to *drive*, and the screen
-   * somebody presses on is not always it -- a supervisor's console holds the
-   * tenant's credential and no extension of its own. `StartWorkflowRunRequest`
-   * is where that is written down.
-   *
-   * No `started_by`: the backend reads who authorised it off the credential,
-   * and a request that says who authorised it is a signature nobody checked. */
-  rigStart: (body) => call("/v1/workflow-runs", { method: "POST", body }),
-
-  /** Ask, in the operator's own conversation, for what an offer still needs.
-   *
-   * Nothing runs. What comes back is the question that was asked, or `""` for
-   * an offer that turned out to need nothing -- which the caller should then
-   * simply start. */
-  askAboutOffer: (body) =>
-    call("/v1/chat/about-an-offer", { method: "POST", body }),
 
   /** Send the drafted mail the operator has just read.
    *
@@ -435,7 +311,7 @@ export const api = {
   /** Every job this tenant has mined, with how far each is toward writing on
    * its own (`runs.proven` of `runs.needed`). For the panel's learned-job
    * card; `?device_id=` because the route refuses a browser named without its
-   * secret, the same pair `shapes` sends. */
+   * secret -- `asking_device` wants the query and `X-Device-Secret` together. */
   workflows: async (deviceId) => {
     const query = deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : "";
     const answered = await call(`/v1/workflows${query}`);
@@ -500,9 +376,9 @@ export const api = {
   skill: (skillId) => call(`/v1/skills/${encodeURIComponent(skillId)}`),
 
   /** The person this ran for says the result was wrong -- reached by pressing
-   * "Undo that" or "It's wrong, I'll fix it", things they wanted anyway,
-   * which is why it can be trusted the way a survey answer could not be. See
-   * `panel.js`'s `undoRun` and `wasWrong`. */
+   * "It's wrong, I'll fix it", a thing they wanted anyway, which is why it can
+   * be trusted the way a survey answer could not be. See `panel.js`'s
+   * `wasWrong`. */
   runWrong: (runId, because) =>
     call(`/v1/runs/${encodeURIComponent(runId)}/wrong`, {
       method: "POST",
@@ -520,8 +396,8 @@ export const api = {
 
   /** One sentence, through the one door that decides what kind it is.
    *
-   * The backend answers `{kind: "job"|"lookup"}` -- an instruction becomes an
-   * offer somebody presses, a question is gone and looked up. The rule that
+   * The backend answers `{kind: "job"|"lookup"}`. Only a lookup is read here:
+   * an instruction is the conversation's to act on. The rule that
    * decides lives there and not here on purpose: a rule with a copy in two
    * languages drifts on one of them. */
   ask: (said) => call("/v1/ask", { method: "POST", body: { said } }),
@@ -585,45 +461,6 @@ export const api = {
       method: "POST",
     }),
 
-  /** The pages this browser starts a job on.
-   *
-   * Asked for separately from the watches rather than as "this browser's
-   * rules", because the browser does two different things with them: a watch
-   * is matched against a mail and OFFERS what it found, an arrival is matched
-   * against the page in front of somebody and STARTS something. */
-  arrivals: (deviceId) =>
-    call(`/v1/agents/${encodeURIComponent(deviceId)}/arrivals`),
-
-  /** "Do this here": the rule itself, written down.
-   *
-   * An ordinary trigger, which is why there is no special door for it -- the
-   * kind and the page are what make it one. `authorized_by` is true because
-   * the operator is standing there saying so, and the backend takes the name
-   * off the credential rather than off this body.
-   */
-  makeArrival: ({ workflow_id, device_id, page, values }) =>
-    call("/v1/triggers", {
-      method: "POST",
-      body: {
-        workflow_id,
-        device_id,
-        kind: "arrival",
-        arrival: { page },
-        parameters: values || {},
-        authorized_by: true,
-      },
-    }),
-
-  /** The operator arrived. No press: they pressed once, when they made the
-   * rule. The url goes with it so the backend can check the rule is about the
-   * page this browser says it is on -- a browser that got that wrong would
-   * otherwise start a live run in somebody's window on a page nobody chose. */
-  arrivalFire: (deviceId, triggerId, url) =>
-    call(
-      `/v1/agents/${encodeURIComponent(deviceId)}/arrivals/${encodeURIComponent(triggerId)}/fire`,
-      { method: "POST", body: { url } },
-    ),
-
   /** One question, asked of every system that could answer it.
    *
    * Straight at the lookup door rather than through `/v1/ask`: this is used
@@ -641,30 +478,10 @@ export const api = {
       body: answering ? { text, answering } : { text },
     }),
 
-  /** The press. Promotes the version a preview just showed and starts it in
-   * the operator's own browser in one call -- see ADR 014 and
-   * `RunFromPreview`. Refused for a looped skill with a sentence written for
-   * an operator to read, which the panel shows rather than swallows.
+  /** Ask the backend to stop a skill run the operator is watching.
    *
-   * `version` is the one the panel rendered, and is what makes ADR 014's
-   * central claim true rather than merely stated: the backend runs that
-   * version and refuses the press outright where the skill has been taught
-   * again since, instead of quietly running whichever version happens to be
-   * newest by the time the press lands. */
-  runFromPreview: (skillId, parameters, deviceId, intent, version) =>
-    call(`/v1/skills/${encodeURIComponent(skillId)}/runs/from-preview`, {
-      method: "POST",
-      body: { parameters, device_id: deviceId, intent, version },
-    }),
-
-  /** Ask the backend to stop stepping a run it is performing in this browser.
-   *
-   * The other half of the Stop button. `commands.js`'s `abort` makes this
-   * browser refuse every later command for the run, which is immediate and is
-   * why it is still done first -- but the backend goes on stepping regardless,
-   * sending each next command into a browser that answers `aborted`, so a run
-   * the operator stopped kept running until it ran out of steps. Two
-   * implementations of stopping, one of which the operator could not reach.
+   * The Stop button. The backend drives the run, so stopping it is the
+   * backend's to do; this browser only carries the press.
    *
    * A 409 is swallowed, and only a 409. That is the backend saying there was
    * nothing left to stop -- the run already ended, or it is not one this

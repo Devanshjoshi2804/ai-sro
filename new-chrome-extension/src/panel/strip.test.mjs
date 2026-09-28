@@ -21,7 +21,7 @@ install();
 const { needsAPress, strip } = await import("./strip.js");
 
 const HERE = { tabId: 1, host: "bf56-kms-wms-web-np2.jdadelivers.com" };
-const STEADY = { deviceId: "dev-1", capturing: true, channel: "open", watched: [{ tabId: 1 }] };
+const STEADY = { deviceId: "dev-1", capturing: true, watched: [{ tabId: 1 }] };
 
 const tests = [];
 const test = (name, fn) => tests.push([name, fn]);
@@ -48,29 +48,17 @@ test("a tab nobody is watching is still a line, not a wall", () => {
   assert.match(words(chip), /not watched/);
 });
 
-test("the four states that have something to press open themselves", () => {
+test("the three states that have something to press open themselves", () => {
   // Each of these is a thing only the operator can fix, and each of them used
   // to be a grey sentence somewhere with nothing to press.
   assert.equal(needsAPress({ ...STEADY, deviceId: "" }, HERE), "not-connected");
   assert.equal(needsAPress({ ...STEADY, grantExpired: true }, HERE), "grant");
-  assert.equal(
-    needsAPress({ ...STEADY, channel: "closed", performing: { runId: "run-1" } }, HERE),
-    "channel",
-  );
   assert.equal(needsAPress({ ...STEADY, excludedHere: true }, HERE), "excluded");
 
   const drawn = strip({ ...STEADY, grantExpired: true }, HERE, {});
   const chip = drawn.kids.find((kid) => kid.className === "chip");
   assert.equal(chip.dataset.open, "true");
   assert.equal(chip.dataset.why, "grant");
-});
-
-test("a closed channel with no run to perform is not worth interrupting anybody for", () => {
-  // The channel is closed whenever the worker sleeps, which is most of the day.
-  // It matters when something is trying to drive this browser and cannot; on
-  // its own it is a line, and saying otherwise would make the panel cry wolf
-  // hourly.
-  assert.equal(needsAPress({ ...STEADY, channel: "closed" }, HERE), null);
 });
 
 test("the housekeeping is under the profile, not under the composer", () => {

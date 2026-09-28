@@ -115,15 +115,20 @@ test("a job never run is at its second rung", () => {
   assert.equal(card.dataset.tone, "live");
 });
 
-test("one primary press per card, and the press names the job", () => {
-  const pressed = [];
-  const card = learned([job("a"), job("b")], { onRun: (one) => pressed.push(one.id) });
-  const runs = card.kids
+test("a learned job offers review, never a run from this browser", () => {
+  // One engine: a job is run by asking for it in the conversation, and the
+  // backend starts it. A Run button here was a second way in.
+  const reviewed = [];
+  const card = learned([job("a"), job("b")], { onReview: (one) => reviewed.push(one.id) });
+  const rows = card.kids
     .filter((kid) => kid.className === "job")
-    .map((one) => one.kids.find((kid) => kid.className === "row").kids[0]);
-  assert.deepEqual(runs.map((button) => button.className), ["", "quiet"]);
-  runs[1].listeners.click[0]();
-  assert.deepEqual(pressed, ["b"]);
+    .map((one) => one.kids.find((kid) => kid.className === "row").kids);
+  assert.deepEqual(
+    rows.map((row) => row.map((button) => button.textContent)),
+    [["Review in console ↗"], ["Review in console ↗"]],
+  );
+  rows[1][0].listeners.click[0]();
+  assert.deepEqual(reviewed, ["b"]);
 });
 
 test("a backend that does not say how far along it is gets no invented number", () => {

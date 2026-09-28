@@ -28,7 +28,7 @@ Code: `SIGHT = Prompt(`
 > `gemini-2.5-computer-use-preview` still answers, and this one accepts the
 > same tool while being the model everything else already uses.
 
-## module, [line 51](../../../../../../../backend/src/sro/domain/prompts/sight.py#L51): Note on the line above
+## module, [line 67](../../../../../../../backend/src/sro/domain/prompts/sight.py#L67): Note on the line above
 
 Code: `SIGHT_ESCALATED = replace(SIGHT, name="sight_escalated", model="gemini-3.1-pro-preview")`
 

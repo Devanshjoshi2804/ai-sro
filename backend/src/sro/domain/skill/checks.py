@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from urllib.parse import urlsplit
 
-from sro.domain.execution.evidence import writes
+from sro.domain.execution.evidence import READ_METHODS, writes
 from sro.domain.observation.gesture import Gesture, passed_through
 from sro.domain.observation.identity import K_MIN_SHARED_STEPS, screen_of, target_identity
 from sro.domain.observation.window import Window
@@ -208,7 +208,14 @@ _SIGNED_OUT_PAGE = re.compile(
 
 def signs_out(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
     cited = _in_time(workflow, gestures)
-    control = next((one for one in reversed(cited) if _ends_the_session(one)), None)
+    control = next(
+        (
+            one
+            for index, one in reversed(list(enumerate(cited)))
+            if _ends_the_session(one, cited[index + 1 :])
+        ),
+        None,
+    )
     if control is None:
         return False
     if not all(_only_reaches(one, control) for one in cited if one.at < control.at):
@@ -229,7 +236,7 @@ def signs_out(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
             and gesture.tab_id == control.tab_id
             and control.at < gesture.at <= cited[-1].at + K_SITTING_GAP_S
         ),
-        key=lambda gesture: gesture.at,
+        key=lambda gesture: (gesture.at, gesture.id),
         default=None,
     )
     return _lands_signed_out(control) or (
@@ -237,7 +244,7 @@ def signs_out(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
     )
 
 
-def _ends_the_session(gesture: Gesture) -> bool:
+def _ends_the_session(gesture: Gesture, then: list[Gesture]) -> bool:
     if gesture.action.kind not in ("click", "press"):
         return False
     target = gesture.action.target
@@ -248,8 +255,9 @@ def _ends_the_session(gesture: Gesture) -> bool:
     marks = [mark.url for mark in gesture.page_events if mark.url]
     return (
         bool(marks)
-        and _signed_out_page(marks[-1])
+        and _lands_on_a_signed_out_page(marks[-1])
         and not _signed_out_page(gesture.page_url or gesture.url or "")
+        and not any(_typed_the_credential(one) for one in then)
     )
 
 
@@ -259,11 +267,14 @@ def _only_reaches(gesture: Gesture, control: Gesture) -> bool:
         return True
     if action.kind not in ("click", "press") or action.value or _signed_in_here(gesture):
         return False
-    if any(not is_background_traffic(call.url) for call in gesture.requests):
+    calls = [call for call in gesture.requests if not is_background_traffic(call.url)]
+    if any(call.method.upper() not in READ_METHODS for call in calls):
         return False
-    if any(mark.page_kind in ("navigated", "load") for mark in gesture.page_events):
-        return False
-    return _opens(gesture, control)
+    if _signed_out_page(gesture.page_url or gesture.url or "") or any(
+        mark.page_kind in ("navigated", "load") for mark in gesture.page_events
+    ):
+        return True
+    return not calls and _opens(gesture, control)
 
 
 def _opens(gesture: Gesture, control: Gesture) -> bool:
@@ -280,6 +291,11 @@ def _opens(gesture: Gesture, control: Gesture) -> bool:
 
 def _signed_out_page(url: str) -> bool:
     return bool(_SIGNED_OUT_PAGE.search(urlsplit(url).path))
+
+
+def _lands_on_a_signed_out_page(url: str) -> bool:
+    segments = [one for one in urlsplit(url).path.split("/") if one]
+    return bool(segments) and bool(_SIGNED_OUT_PAGE.search(segments[-1]))
 
 
 def _lands_signed_out(gesture: Gesture) -> bool:
@@ -305,7 +321,7 @@ def signs_in_to(workflow: Workflow, gestures: Mapping[str, Gesture]) -> tuple[st
             for gesture in gestures.values()
             if gesture.stream_id in streams and last <= gesture.at <= ends + K_SITTING_GAP_S
         ),
-        key=lambda gesture: gesture.at,
+        key=lambda gesture: (gesture.at, gesture.id),
     )
     leave = next((index for index, one in enumerate(after) if _left(one, gestures)), None)
     if leave is None:
@@ -366,29 +382,59 @@ def _split(
 def _left(gesture: Gesture, gestures: Mapping[str, Gesture]) -> bool:
     if passed_through(gesture):
         return True
-    if gesture.page_events:
-        return False
     here = origin_of(gesture.system or "")
-    after = min(
+    if gesture.page_events or not here:
+        return False
+    stream = _stream_of(gesture, gestures)
+    after = next(
         (
             one
-            for one in _tab_of(gesture, gestures)
-            if gesture.at <= one.at <= gesture.at + K_SITTING_GAP_S
+            for one in stream
+            if one.id != gesture.id
+            and one.tab_id == gesture.tab_id
+            and gesture.at <= one.at <= gesture.at + K_SITTING_GAP_S
         ),
-        key=lambda one: one.at,
-        default=None,
+        None,
     )
-    return after is not None and origin_of(after.system or "") not in ("", here)
+    there = origin_of(after.system or "") if after is not None else ""
+    if there in ("", here):
+        return False
+    _, came = _arrived(gesture, stream)
+    return there in {origin_of(one.system or "") for one in came} and all(
+        _identifies(one)
+        for one in stream
+        if origin_of(one.system or "") == here
+        and one.action.kind in TYPING
+        and not _signed_in_here(one)
+    )
 
 
-def _tab_of(gesture: Gesture, gestures: Mapping[str, Gesture]) -> list[Gesture]:
-    return [
-        one
-        for one in gestures.values()
-        if one is not gesture
-        and one.stream_id == gesture.stream_id
-        and one.tab_id == gesture.tab_id
-    ]
+def _stream_of(gesture: Gesture, gestures: Mapping[str, Gesture]) -> list[Gesture]:
+    return sorted(
+        (one for one in gestures.values() if one.stream_id == gesture.stream_id),
+        key=lambda one: (one.at, one.id),
+    )
+
+
+def _arrived(gesture: Gesture, stream: list[Gesture]) -> tuple[list[Gesture], list[Gesture]]:
+    here = origin_of(gesture.system or "")
+    end = next(index for index, one in enumerate(stream) if one.id == gesture.id)
+    start = end
+    while start > 0 and origin_of(stream[start - 1].system or "") == here:
+        start -= 1
+    return stream[start : end + 1], stream[:start]
+
+
+_IDENTITY_TOKENS = frozenset({"username", "email"})
+
+
+def _identifies(gesture: Gesture) -> bool:
+    target = gesture.action.target
+    if gesture.action.kind not in TYPING or target is None:
+        return False
+    marks = target.attributes
+    tokens = set(str(marks.get("autocomplete") or "").lower().split())
+    return bool(tokens & _IDENTITY_TOKENS) or str(marks.get("type") or "").lower() == "email"
 
 
 def _its_own_writes(workflow: Workflow, gestures: Mapping[str, Gesture]) -> set[str]:
@@ -396,27 +442,23 @@ def _its_own_writes(workflow: Workflow, gestures: Mapping[str, Gesture]) -> set[
     if not left:
         return set()
     leave = chain[-1]
-    here = origin_of(leave.system or "")
-    before = sorted(
-        (one for one in _tab_of(leave, gestures) if one.at <= leave.at),
-        key=lambda one: one.at,
-        reverse=True,
+    run, came = _arrived(leave, _stream_of(leave, gestures))
+    starts = [one.at for one in run if _signed_in_here(one) or _identifies(one)]
+    secret = [one.at for one in run if _signed_in_here(one)]
+    if not came or not came[-1].system or not starts or not secret:
+        return set()
+    submit = min(
+        (one.at for one in run if _acts(one) and one.at >= max(secret)), default=max(secret)
     )
-    run = [leave]
-    for one in before:
-        if origin_of(one.system or "") != here:
-            return (
-                {gesture.id for gesture in run if _did_business(gesture)} if one.system else set()
-            )
-        run.append(one)
-    return set()
+    return {one.id for one in run if starts[0] <= one.at <= submit and _did_business(one)}
 
 
 def _only_signs_in(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
     chain, left, after = _split(workflow, gestures)
     lands = _lands_on(workflow, gestures)
     if chain and any(
-        _acts(one) and origin_of(one.system or "") == lands
+        origin_of(one.system or "") == lands
+        and (_did_business(one) or one.action.kind in TYPING or bool(one.action.value))
         for one in _in_time(workflow, gestures)
         if one.at < chain[0].at
     ):

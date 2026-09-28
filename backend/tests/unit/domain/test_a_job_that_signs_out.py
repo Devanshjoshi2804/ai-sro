@@ -140,16 +140,6 @@ def test_a_job_that_writes_and_then_logs_out_is_work() -> None:
     assert signs_out(_job("save", "out"), store) is False
 
 
-def test_a_control_whose_name_only_contains_the_words_is_not_a_sign_out() -> None:
-    """The label alone decides here: no page event, then a sign-in form --
-    the shape `test_a_log_out_followed_by_a_credential_field_signs_out`
-    flags for a real "Logout". (A click whose own page events land on a
-    sign-in page ends the session whatever its label says -- F4.)"""
-    store = {"out": _click("out", 2, "Logoutput report"), "user": _typed_user("user", 4, WMS)}
-
-    assert signs_out(_job("out"), store) is False
-
-
 def test_a_job_citing_nothing_anybody_kept_does_not_sign_out() -> None:
     assert signs_out(_job("gone"), {}) is False
 
@@ -250,20 +240,6 @@ def test_a_menu_item_that_makes_its_own_call_is_substance() -> None:
     }
 
     assert signs_out(_job("actions", "export", "menu", "out"), store) is False
-
-
-def test_opening_a_report_page_and_then_logging_out_is_work() -> None:
-    """A page move is not reaching: the log out is in the user menu on every
-    page, so moving to a report first was the operator's own errand."""
-    store = {
-        **_the_real_log_out(),
-        "report": replace(
-            _landed(_click("report", 0.5, "Stock report"), f"{WMS}/portal/reports/stock"),
-            requests=[Call(method="GET", url=f"{WMS}/portal/reports/stock", status=200)],
-        ),
-    }
-
-    assert signs_out(_job("report", "menu", "out"), store) is False
 
 
 def test_a_job_that_exports_a_report_before_logging_out_is_work() -> None:

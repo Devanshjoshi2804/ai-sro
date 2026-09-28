@@ -8,13 +8,21 @@ advertises a capability that does not exist.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 from sro.application.context import RequestContext
 from sro.application.intent.next_steps import SuggestNext
+from sro.application.shared.refusals import OverCap
 from sro.domain.shared.identifiers import PrincipalId, TenantId
+from sro.domain.shared.prices import price
+from sro.infrastructure.gemini.intent import GeminiIntentParser
+from sro.infrastructure.gemini.metered import Meter, Metered
+from sro.whose import about
 from tests import factories as f
-from tests.unit.fakes import FakeUnitOfWork
+from tests.unit.application.test_resolve_intent import _Models
+from tests.unit.fakes import FakeClock, FakeUnitOfWork
 
 CTX = RequestContext(tenant_id=TenantId("acme"), principal_id=PrincipalId("clerk"))
 
@@ -95,3 +103,27 @@ class TestEarningASuggestion:
             )
             == ()
         )
+
+
+async def test_a_tenant_at_the_days_cap_gets_the_cap_refusal_not_unphrased_suggestions(
+    uow: FakeUnitOfWork,
+) -> None:
+    """Phrasing failing is not an outage, but the day's cap is a refusal: it
+    reaches the caller as on every other `ask` path, through the real parser."""
+    models = _Models()
+    spend = FakeUnitOfWork()
+    meter = Meter(lambda: spend, clock=FakeClock(), cap_usd=price("gemini-3.8-flash", 100, 25) / 2)
+    parser = GeminiIntentParser(
+        client=Metered(SimpleNamespace(aio=SimpleNamespace(models=models)), meter)
+    )
+
+    with about(tenant="acme"), pytest.raises(OverCap):
+        await SuggestNext(uow, parser).after(
+            CTX,
+            system="blue_yonder",
+            entity="supplier",
+            values={"countryName": ("CAN", "USA")},
+            rows=239,
+        )
+
+    assert models.called == 1

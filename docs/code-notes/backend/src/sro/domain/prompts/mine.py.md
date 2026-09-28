@@ -78,7 +78,7 @@ Code: `model="gemini-3.8-flash",`
 > the `thinking` note below -- cited and not copied, because a
 > measurement kept in two places is one that drifts.
 
-## module, [line 57](../../../../../../../backend/src/sro/domain/prompts/mine.py#L57): Note on the line above
+## module, [line 58](../../../../../../../backend/src/sro/domain/prompts/mine.py#L58): Note on the line above
 
 Code: `thinking="medium",`
 
@@ -106,14 +106,14 @@ Code: `thinking="medium",`
 > made without them -- and because the first was recorded for one model and not
 > applied to the one actually configured, which is how the $2.00 was spent.
 
-## module, [line 71](../../../../../../../backend/src/sro/domain/prompts/mine.py#L71): Comment
+## module, [line 72](../../../../../../../backend/src/sro/domain/prompts/mine.py#L72): Comment
 
 Code: `"properties": {`
 
 > cites before says: identifying the evidence before
 > composing the answer measurably beats the reverse.
 
-## module, [line 94](../../../../../../../backend/src/sro/domain/prompts/mine.py#L94): Comment
+## module, [line 95](../../../../../../../backend/src/sro/domain/prompts/mine.py#L95): Comment
 
 Code: `"parameters": {`
 
@@ -128,7 +128,7 @@ Code: `"parameters": {`
 > empty every time, on jobs whose evidence plainly showed
 > four different customer types being typed.
 
-## module, [line 116](../../../../../../../backend/src/sro/domain/prompts/mine.py#L116): Comment
+## module, [line 117](../../../../../../../backend/src/sro/domain/prompts/mine.py#L117): Comment
 
 Code: `"unplaced": {"type": "array", "items": {"type": "string"}},`
 

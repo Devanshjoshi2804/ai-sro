@@ -13,6 +13,8 @@ from dataclasses import asdict, replace
 from datetime import UTC, datetime
 from typing import Any
 
+import pytest
+
 from sro.application.chat.understand import (
     K_A_CHORE,
     Understood,
@@ -137,11 +139,16 @@ async def test_a_value_the_model_invented_a_name_for_leaves_its_parameter_missin
 
 async def test_the_model_that_named_nothing_still_hands_back_what_it_cost() -> None:
     """Every reading is billed, and a refusal is one too."""
-    for data in (None, {"job": "wfl_nope", "sure": True, "values": []}):
-        answer = Answer(data=data, cost_usd=0.0003, in_tokens=120)
-        got = await understand("x", _jobs(), FakeAsker(answer))
-        assert got.workflow_id is None
-        assert got.answer is answer
+    failed = Answer(data=None, error="not json", cost_usd=0.0003, in_tokens=120)
+    again = Answer(data=None, error="not json", cost_usd=0.0005, in_tokens=80)
+    got = await understand("x", _jobs(), FakeAsker(failed, again))
+    assert got.workflow_id is None
+    assert (got.answer.cost_usd, got.answer.in_tokens) == (pytest.approx(0.0008), 200)
+
+    refused = Answer(data={"job": "wfl_nope", "sure": True, "values": []}, cost_usd=0.0003)
+    got = await understand("x", _jobs(), FakeAsker(refused))
+    assert got.workflow_id is None
+    assert got.answer is refused
 
     named = Answer(data={"job": "wfl_1", "sure": True, "values": []}, cost_usd=0.0009)
     got = await understand("x", _jobs(), FakeAsker(named))

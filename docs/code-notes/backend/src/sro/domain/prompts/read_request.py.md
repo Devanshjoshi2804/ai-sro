@@ -30,7 +30,7 @@ Code: `not give. A value stated against a name -- "customer type :- RRF", "code:
 > so the model does not spend its answer on them. The fourth edge case is the
 > real Customer Type message that was asked "which job?" against Reply to Email.
 
-## module, [line 68](../../../../../../../backend/src/sro/domain/prompts/read_request.py#L68): Comment
+## module, [line 69](../../../../../../../backend/src/sro/domain/prompts/read_request.py#L69): Comment
 
 Code: `"sure": {"type": "boolean"},`
 
@@ -48,7 +48,7 @@ Code: `"sure": {"type": "boolean"},`
 > of these jobs plainly. `also` is what it nearly said instead, which
 > is what a person is asked to choose between.
 
-## module, [line 70](../../../../../../../backend/src/sro/domain/prompts/read_request.py#L70): Comment
+## module, [line 71](../../../../../../../backend/src/sro/domain/prompts/read_request.py#L71): Comment
 
 Code: `"values": {"type": "array", "items": _VALUE},`
 
@@ -59,7 +59,7 @@ Code: `"values": {"type": "array", "items": _VALUE},`
 > value is exactly that. Found the first time this door met the real
 > API, which it had shipped without ever doing.
 
-## module, [line 71](../../../../../../../backend/src/sro/domain/prompts/read_request.py#L71): Comment
+## module, [line 72](../../../../../../../backend/src/sro/domain/prompts/read_request.py#L72): Comment
 
 Code: `"items": {`
 

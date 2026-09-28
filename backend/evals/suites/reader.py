@@ -119,4 +119,5 @@ class Reader:
             latency,
             got.answer.data,
             got.answer.error,
+            got.answer.fell_back,
         )

@@ -30,6 +30,7 @@ GATHER = Prompt(
     name="gather",
     version=1,
     model="gemini-3.8-flash",
+    fallback_model="gemini-3.7-flash",
     thinking=None,
     role=_ROLE,
     task=_TASK,

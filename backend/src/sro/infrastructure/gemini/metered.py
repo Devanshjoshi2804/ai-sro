@@ -12,7 +12,7 @@ from uuid import uuid4
 from sro.application.intent.spend import over_cap
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
-from sro.application.shared.refusals import OverCap
+from sro.application.shared.refusals import OverCap, Unattributed
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import ModelSpend, is_priced, price
 from sro.whose import whose
@@ -22,10 +22,6 @@ logger = logging.getLogger(__name__)
 K_CHARS_PER_TOKEN = 4
 
 _NOT_THE_CALLER = ("/sro/infrastructure/", "/asyncio/", "contextlib")
-
-
-class Unattributed(Exception):
-    pass
 
 
 class Meter:

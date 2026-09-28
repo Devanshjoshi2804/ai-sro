@@ -110,11 +110,11 @@ async def write_the_mail(
             ),
         },
     )
-    data: Mapping[str, object] = written.data or {}
-    to = " ".join(str(data.get("to") or "").split())
-    body = str(data.get("body") or "").strip()
-    if not body:
+    if written.data is None:
         return f"the mail could not be written: {written.error or 'the model said nothing'}"
+    data: Mapping[str, object] = written.data
+    to = " ".join(str(data.get("to") or "").split())
+    body = str(data["body"]).strip()
     cited = data.get("cited")
     checked = check_draft(
         to=to,

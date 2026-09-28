@@ -16,6 +16,7 @@ class Replayed:
         schema: dict[str, object],
         image: bytes | None = None,
         images: tuple[bytes, ...] = (),
+        audio: tuple[bytes, str] | None = None,
         effort: Effort | None = None,
     ) -> Answer:
         return Answer(data=self._answer)

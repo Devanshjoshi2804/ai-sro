@@ -22,7 +22,7 @@ Comments and docstrings for [`backend/src/sro/infrastructure/gemini/metered.py`]
 > `GeminiInterpreter` is deliberately not metered: its callers (induction and
 > the old candidate naming) are being deleted.
 
-## `Meter.check`, [line 37](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L37): Docstring
+## `Meter.check`, [line 33](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L33): Docstring
 
 > The cap, asked before every call, for the tenant the work is attributed to
 > (`sro.whose`). Over it, `OverCap` is raised in place of the call, which every
@@ -38,14 +38,14 @@ Comments and docstrings for [`backend/src/sro/infrastructure/gemini/metered.py`]
 > knowledge CLIs. A negative cap -- the shipped default -- is then answered
 > without a query.
 
-## `_caller`, [line 129](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L129): Docstring
+## `_caller`, [line 125](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L125): Docstring
 
 > Who wanted the refused call: the nearest frame outside the adapters, the
 > metered client and asyncio -- the use case, as `module.function`. The refusal
 > and over-cap lines carry it with the model, so a log line says which part of
 > the system hit the cap on which model.
 
-## `Meter.record`, [line 52](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L52): Docstring
+## `Meter.record`, [line 48](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L48): Docstring
 
 > One `model_spend` row per answered call, in its own unit of work: the money
 > was spent whether or not the caller's transaction commits.
@@ -60,14 +60,14 @@ Comments and docstrings for [`backend/src/sro/infrastructure/gemini/metered.py`]
 > A write that fails is logged and swallowed: the caller already has an answer
 > that was paid for, and losing it as well would be the worse outcome.
 
-## `Metered`, [line 85](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L85): Docstring
+## `Metered`, [line 81](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L81): Docstring
 
 > Stands where `genai.Client` stood, exposing the two methods the adapters use
 > under the same path: `client.aio.models.generate_content` and
 > `client.aio.models.embed_content`. Failed calls are not billed -- they raise
 > before `record` -- and a retry that answers is billed once for that answer.
 
-## `Metered.__init__`, [line 87](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L87): Comment
+## `Metered.__init__`, [line 83](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L83): Comment
 
 Code: `self._client = client`
 
@@ -78,14 +78,14 @@ Code: `self._client = client`
 > scripts and evals) had every model call fail with "Cannot send a request,
 > as the client has been closed".
 
-## `Metered.generate_content`, [line 97](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L97): Comment
+## `Metered.generate_content`, [line 93](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L93): Comment
 
 Code: `tools = getattr(usage, "tool_use_prompt_token_count", None) or 0`
 
 > The computer-use driver's tool prompt is input the model is billed for, and
 > it is reported beside the prompt, not inside it.
 
-## `Metered.embed_content`, [line 109](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L109): Comment (debt)
+## `Metered.embed_content`, [line 105](../../../../../../../backend/src/sro/infrastructure/gemini/metered.py#L105): Comment (debt)
 
 Code: `sent = sum(len(str(one)) for one in contents)`
 

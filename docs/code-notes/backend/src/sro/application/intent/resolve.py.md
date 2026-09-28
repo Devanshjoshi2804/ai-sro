@@ -11,7 +11,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/intent/resolv
 > for a task we are sure about, and it must never stand in for being unsure which
 > task was asked for.
 
-## module, [line 27](../../../../../../../backend/src/sro/application/intent/resolve.py#L27): Note on the line above
+## module, [line 28](../../../../../../../backend/src/sro/application/intent/resolve.py#L28): Note on the line above
 
 Code: `_READ_FLOOR = 0.5`
 
@@ -22,7 +22,7 @@ Code: `_READ_FLOOR = 0.5`
 > which is worse, and is meant to be. Reading a sentence literally is an honest
 > kind of worse; pretending to understand it is not.
 
-## module, [line 29](../../../../../../../backend/src/sro/application/intent/resolve.py#L29): Note on the line above (debt)
+## module, [line 30](../../../../../../../backend/src/sro/application/intent/resolve.py#L30): Note on the line above (debt)
 
 Code: `_LIBRARY_PAGE = 200`
 
@@ -31,7 +31,7 @@ Code: `_LIBRARY_PAGE = 200`
 > ponytail: when a library outgrows one page, this becomes a query -- the ranking
 > is already a pure function of (skills, utterance), so only the fetch moves.
 
-## `Resolution`, [line 35](../../../../../../../backend/src/sro/application/intent/resolve.py#L35): Note on the line above
+## `Resolution`, [line 36](../../../../../../../backend/src/sro/application/intent/resolve.py#L36): Note on the line above
 
 Code: `verb: str = ""`
 
@@ -39,34 +39,34 @@ Code: `verb: str = ""`
 > mistakes it for a value: "count the addresses" is not a question about a
 > field called Count Type.
 
-## `Resolution`, [line 37](../../../../../../../backend/src/sro/application/intent/resolve.py#L37): Note on the line above
+## `Resolution`, [line 38](../../../../../../../backend/src/sro/application/intent/resolve.py#L38): Note on the line above
 
 Code: `matched: Candidate | None = None`
 
 > The one skill this asks for, if exactly one does.
 
-## `Resolution`, [line 39](../../../../../../../backend/src/sro/application/intent/resolve.py#L39): Note on the line above
+## `Resolution`, [line 40](../../../../../../../backend/src/sro/application/intent/resolve.py#L40): Note on the line above
 
 Code: `choices: tuple[Candidate, ...] = ()`
 
 > Offered when two candidates are too close to separate. Choosing for the
 > operator here is the wrong-match failure with extra steps.
 
-## `Resolution`, [line 41](../../../../../../../backend/src/sro/application/intent/resolve.py#L41): Note on the line above
+## `Resolution`, [line 42](../../../../../../../backend/src/sro/application/intent/resolve.py#L42): Note on the line above
 
 Code: `missing_parameters: tuple[str, ...] = ()`
 
 > Declared inputs with no value yet. A run cannot start without them, and
 > asking is cheaper than a half-performed task.
 
-## `Resolution`, [line 43](../../../../../../../backend/src/sro/application/intent/resolve.py#L43): Note on the line above
+## `Resolution`, [line 44](../../../../../../../backend/src/sro/application/intent/resolve.py#L44): Note on the line above
 
 Code: `runnable: bool = False`
 
 > Whether the matched version may be performed at all. A `recorded` skill
 > has not been reviewed by anybody.
 
-## `Resolution`, [line 45](../../../../../../../backend/src/sro/application/intent/resolve.py#L45): Note on the line above
+## `Resolution`, [line 46](../../../../../../../backend/src/sro/application/intent/resolve.py#L46): Note on the line above
 
 Code: `confident: bool = False`
 
@@ -74,7 +74,7 @@ Code: `confident: bool = False`
 > match is still offered -- it is probably right -- but as a question, because
 > a partial match on a warehouse write is how the wrong thing gets done fast.
 
-## `Resolution`, [line 47](../../../../../../../backend/src/sro/application/intent/resolve.py#L47): Note on the line above
+## `Resolution`, [line 48](../../../../../../../backend/src/sro/application/intent/resolve.py#L48): Note on the line above
 
 Code: `pursuit: Pursuit | None = None`
 
@@ -82,20 +82,20 @@ Code: `pursuit: Pursuit | None = None`
 > to be worked out on the screen. Never a dead end -- a person put in front of
 > an unfamiliar screen does not refuse, and neither should this.
 
-## `Resolution`, [line 49](../../../../../../../backend/src/sro/application/intent/resolve.py#L49): Note on the line above
+## `Resolution`, [line 50](../../../../../../../backend/src/sro/application/intent/resolve.py#L50): Note on the line above
 
 Code: `proposal: Proposal | None = None`
 
 > When no skill matched: what the knowledge base says such a task would
 > involve, with its sources. Never executed as though it were taught.
 
-## `Resolution`, [line 51](../../../../../../../backend/src/sro/application/intent/resolve.py#L51): Note on the line above
+## `Resolution`, [line 52](../../../../../../../backend/src/sro/application/intent/resolve.py#L52): Note on the line above
 
 Code: `question: str | None = None`
 
 > What to ask, when the honest answer is a question.
 
-## `Resolution`, [line 53](../../../../../../../backend/src/sro/application/intent/resolve.py#L53): Note on the line above
+## `Resolution`, [line 54](../../../../../../../backend/src/sro/application/intent/resolve.py#L54): Note on the line above
 
 Code: `items: tuple[dict[str, str], ...] = ()`
 
@@ -103,13 +103,13 @@ Code: `items: tuple[dict[str, str], ...] = ()`
 > six SKUs" is six. Shown as a table and confirmed before anything is sent,
 > because getting this wrong is not a wrong answer, it is six wrong writes.
 
-## `Resolution`, [line 55](../../../../../../../backend/src/sro/application/intent/resolve.py#L55): Note on the line above
+## `Resolution`, [line 56](../../../../../../../backend/src/sro/application/intent/resolve.py#L56): Note on the line above
 
 Code: `note: str = ""`
 
 > What the extraction could not resolve.
 
-## `_names_another`, [line 242](../../../../../../../backend/src/sro/application/intent/resolve.py#L242): Docstring
+## `_names_another`, [line 245](../../../../../../../backend/src/sro/application/intent/resolve.py#L245): Docstring
 
 > Whether this sentence is plainly about something else.
 >
@@ -117,16 +117,16 @@ Code: `note: str = ""`
 > for a transport mode and then said "actually, release the wave" means the
 > second thing. What is not allowed is a pinned skill quietly swallowing it.
 
-## `_describe`, [line 256](../../../../../../../backend/src/sro/application/intent/resolve.py#L256): Docstring
+## `_describe`, [line 259](../../../../../../../backend/src/sro/application/intent/resolve.py#L259): Docstring
 
 > Name plus what distinguishes it. Three skills called "Release Wave" are
 > told apart by their facility, which is exactly why the key has one.
 
-## `ResolveIntent._read`, [line 65](../../../../../../../backend/src/sro/application/intent/resolve.py#L65): Docstring
+## `ResolveIntent._read`, [line 66](../../../../../../../backend/src/sro/application/intent/resolve.py#L66): Docstring
 
 > What the sentence means, or nothing when there is nobody to ask.
 
-## `ResolveIntent._nothing_taught`, [line 195](../../../../../../../backend/src/sro/application/intent/resolve.py#L195): Docstring
+## `ResolveIntent._nothing_taught`, [line 198](../../../../../../../backend/src/sro/application/intent/resolve.py#L198): Docstring
 
 > No skill was taught for this. Ask the knowledge base, not the ladder.
 >
@@ -134,7 +134,7 @@ Code: `note: str = ""`
 > vision sorts it out. That is a confident wrong action; a proposal the
 > operator can read is a slow correct one.
 
-## `ResolveIntent.execute`, [line 98](../../../../../../../backend/src/sro/application/intent/resolve.py#L98): Comment
+## `ResolveIntent.execute`, [line 101](../../../../../../../backend/src/sro/application/intent/resolve.py#L101): Comment
 
 Code: `reading = await self._read(utterance, after)`
 
@@ -148,7 +148,7 @@ Code: `reading = await self._read(utterance, after)`
 > exist and discarded where it names something that does not, so a
 > misreading costs a clarifying question rather than a wrong write.
 
-## `ResolveIntent.execute`, [line 100](../../../../../../../backend/src/sro/application/intent/resolve.py#L100): Comment
+## `ResolveIntent.execute`, [line 103](../../../../../../../backend/src/sro/application/intent/resolve.py#L103): Comment
 
 Code: `pending = next((s for s in skills if pinned and s.id.value == pinned), None)`
 
@@ -158,7 +158,7 @@ Code: `pending = next((s for s in skills if pinned and s.id.value == pinned), No
 > question again -- which is how a system teaches people not to answer
 > its questions.
 
-## `ResolveIntent.execute`, [line 102](../../../../../../../backend/src/sro/application/intent/resolve.py#L102): Comment
+## `ResolveIntent.execute`, [line 105](../../../../../../../backend/src/sro/application/intent/resolve.py#L105): Comment
 
 Code: `asking = reading.wants == "ask" if reading.confidence >= _READ_FLOOR else asks(utterance)`
 
@@ -166,7 +166,7 @@ Code: `asking = reading.wants == "ask" if reading.confidence >= _READ_FLOOR else
 > a question never matches a skill that writes, and which sentences are
 > questions is something a model reads better than a phrase list.
 
-## `ResolveIntent.execute`, [line 103](../../../../../../../backend/src/sro/application/intent/resolve.py#L103): Comment
+## `ResolveIntent.execute`, [line 106](../../../../../../../backend/src/sro/application/intent/resolve.py#L106): Comment
 
 Code: `subject = reading.entity if reading.confidence >= _READ_FLOOR else ""`
 
@@ -174,7 +174,7 @@ Code: `subject = reading.entity if reading.confidence >= _READ_FLOOR else ""`
 > skill that explains the verb and not the subject answers about the
 > wrong thing, however well it scores.
 
-## `ResolveIntent.execute`, [line 105](../../../../../../../backend/src/sro/application/intent/resolve.py#L105): Comment
+## `ResolveIntent.execute`, [line 108](../../../../../../../backend/src/sro/application/intent/resolve.py#L108): Comment
 
 Code: `interrupted = (`
 
@@ -190,7 +190,7 @@ Code: `interrupted = (`
 > pattern-matched: a pinned skill that writes has no business answering
 > a question, however the question happens to be phrased.
 
-## `ResolveIntent.execute`, [line 118](../../../../../../../backend/src/sro/application/intent/resolve.py#L118): Comment
+## `ResolveIntent.execute`, [line 121](../../../../../../../backend/src/sro/application/intent/resolve.py#L121): Comment
 
 Code: `if not candidates and after and (reading.continues or refers_back(utterance)):`
 
@@ -200,7 +200,7 @@ Code: `if not candidates and after and (reading.continues or refers_back(utteran
 > shown. The previous sentence supplies the subject; this one still has
 > to match something, so nothing is invented -- only remembered.
 
-## `ResolveIntent.execute`, [line 121](../../../../../../../backend/src/sro/application/intent/resolve.py#L121): Comment
+## `ResolveIntent.execute`, [line 124](../../../../../../../backend/src/sro/application/intent/resolve.py#L124): Comment
 
 Code: `if (`
 
@@ -214,7 +214,7 @@ Code: `if (`
 > synonyms to everybody except a string comparison, and gating them on
 > the verb sent every question to the planner.
 
-## `ResolveIntent.execute`, [line 140](../../../../../../../backend/src/sro/application/intent/resolve.py#L140): Comment
+## `ResolveIntent.execute`, [line 143](../../../../../../../backend/src/sro/application/intent/resolve.py#L143): Comment
 
 Code: `if ambiguous(candidates) and not carrying_on:`
 
@@ -223,7 +223,7 @@ Code: `if ambiguous(candidates) and not carrying_on:`
 > answered. Offering a choice here made the operator pick the same
 > skill again and lose what they had just typed.
 
-## `ResolveIntent.execute`, [line 153](../../../../../../../backend/src/sro/application/intent/resolve.py#L153): Comment
+## `ResolveIntent.execute`, [line 156](../../../../../../../backend/src/sro/application/intent/resolve.py#L156): Comment
 
 Code: `understood = reading.confidence >= _READ_FLOOR and (`
 
@@ -234,7 +234,7 @@ Code: `understood = reading.confidence >= _READ_FLOOR and (`
 > because "show" and "all" appear in no objective key -- hedging at the
 > operator about words the reading had already resolved.
 
-## `ResolveIntent.execute`, [line 155](../../../../../../../backend/src/sro/application/intent/resolve.py#L155): Comment
+## `ResolveIntent.execute`, [line 158](../../../../../../../backend/src/sro/application/intent/resolve.py#L158): Comment
 
 Code: `or (asking and not writes(best.version))`
 
@@ -243,14 +243,14 @@ Code: `or (asking and not writes(best.version))`
 > them, and hedging about the word "count" is hedging about a
 > synonym the reading already resolved.
 
-## `ResolveIntent.execute`, [line 167](../../../../../../../backend/src/sro/application/intent/resolve.py#L167): Comment
+## `ResolveIntent.execute`, [line 170](../../../../../../../backend/src/sro/application/intent/resolve.py#L170): Comment
 
 Code: `items: tuple[dict[str, str], ...] = ()`
 
 > Values second, and only for the skill that was chosen. Asking a model
 > which skill to run is the wrong-match failure with a model attached.
 
-## `ResolveIntent._nothing_taught`, [line 199](../../../../../../../backend/src/sro/application/intent/resolve.py#L199): Comment
+## `ResolveIntent._nothing_taught`, [line 202](../../../../../../../backend/src/sro/application/intent/resolve.py#L202): Comment
 
 Code: `pursuit = Pursuit.of(ctx, compose(utterance, proposal))`
 
@@ -258,7 +258,7 @@ Code: `pursuit = Pursuit.of(ctx, compose(utterance, proposal))`
 > a goal, and the browser is driven toward it -- slowly, watched, and
 > captured, so the next time it is a taught skill over the API.
 
-## `ResolveIntent._nothing_taught`, [line 202](../../../../../../../backend/src/sro/application/intent/resolve.py#L202): Comment
+## `ResolveIntent._nothing_taught`, [line 205](../../../../../../../backend/src/sro/application/intent/resolve.py#L205): Comment
 
 Code: `return Resolution(`
 
@@ -267,7 +267,7 @@ Code: `return Resolution(`
 > Saying "teach me that task" to somebody who asked how many there
 > are would be answering a question with a form.
 
-## `ResolveIntent._nothing_taught`, [line 221](../../../../../../../backend/src/sro/application/intent/resolve.py#L221): Comment
+## `ResolveIntent._nothing_taught`, [line 224](../../../../../../../backend/src/sro/application/intent/resolve.py#L224): Comment
 
 Code: `(pursuit.question if pursuit.goal.facts else None)`
 
@@ -275,7 +275,7 @@ Code: `(pursuit.question if pursuit.goal.facts else None)`
 > is no screen to open and no field to fill, and pointing a model
 > at a blank browser is guessing with extra steps.
 
-## `Resolution`, [line 59](../../../../../../../backend/src/sro/application/intent/resolve.py#L59): Note on the line above
+## `Resolution`, [line 60](../../../../../../../backend/src/sro/application/intent/resolve.py#L60): Note on the line above
 
 Code: `about_what_stands: bool = False`
 
@@ -283,7 +283,7 @@ Code: `about_what_stands: bool = False`
 > is about what stands (F2). Nothing was planned and nothing is proposed; the
 > caller answers from the run or the question.
 
-## `ResolveIntent.execute`, [line 135](../../../../../../../backend/src/sro/application/intent/resolve.py#L135): Comment
+## `ResolveIntent.execute`, [line 138](../../../../../../../backend/src/sro/application/intent/resolve.py#L138): Comment
 
 Code: `if not candidates and not _work_on_a_thing(reading) and standing and await standing():`
 
@@ -305,7 +305,7 @@ Code: `if not candidates and not _work_on_a_thing(reading) and standing and awai
 > sentence that names a job is still that job; with nothing standing, the
 > fallback is what it was.
 
-## `_work_on_a_thing`, [line 233](../../../../../../../backend/src/sro/application/intent/resolve.py#L233): Docstring
+## `_work_on_a_thing`, [line 236](../../../../../../../backend/src/sro/application/intent/resolve.py#L236): Docstring
 
 > The reader, at or above the floor, says the sentence acts on a named thing:
 > `wants == "act"` with a verb and an entity. "create a warehouse zone called
@@ -313,7 +313,7 @@ Code: `if not candidates and not _work_on_a_thing(reading) and standing and awai
 > mail" (`ask`) do not. The reading only ever sends a sentence AWAY from the
 > status line, towards an answer that performs nothing.
 
-## `Resolution`, [line 61](../../../../../../../backend/src/sro/application/intent/resolve.py#L61): Note on the line above
+## `Resolution`, [line 62](../../../../../../../backend/src/sro/application/intent/resolve.py#L62): Note on the line above
 
 Code: `pursuable: bool = False`
 

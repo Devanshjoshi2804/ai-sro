@@ -33,7 +33,7 @@ Code: `K_FENCE = "untrusted"`
 > `output_schema` is a `Mapping` so a record cannot be edited in place;
 > `ask` hands the asker a `dict` copy.
 
-## `Prompt.evidence`, [line 59](../../../../../../../backend/src/sro/domain/prompts/record.py#L59): Docstring
+## `Prompt.evidence`, [line 60](../../../../../../../backend/src/sro/domain/prompts/record.py#L60): Docstring
 
 > The task first, the evidence, then the task again.
 >
@@ -45,20 +45,20 @@ Code: `K_FENCE = "untrusted"`
 > the shape of every prompt: `instructions` opens with the task, and this
 > closes with it, once each.
 
-## `fenced`, [line 89](../../../../../../../backend/src/sro/domain/prompts/record.py#L89): Docstring
+## `fenced`, [line 90](../../../../../../../backend/src/sro/domain/prompts/record.py#L90): Docstring
 
 > A fence the text inside cannot close. Any closing tag in the text is
 > written `<\/untrusted`, so the one closing tag in the block is the one
 > this function wrote. "Any" is `_CLOSES`: case and whitespace do not matter,
 > because a model reads `</UNTRUSTED>` and `</ untrusted>` as the same close.
 
-## `quoted_in`, [line 94](../../../../../../../backend/src/sro/domain/prompts/record.py#L94): Docstring
+## `quoted_in`, [line 95](../../../../../../../backend/src/sro/domain/prompts/record.py#L95): Docstring
 
 > Whether a quote a model cites occurs in what it was given. Whitespace and
 > case are folded, because a model re-wraps and re-cases what it quotes; an
 > empty quote proves nothing and is never "in" anything.
 
-## `conforms`, [line 99](../../../../../../../backend/src/sro/domain/prompts/record.py#L99): Docstring
+## `conforms`, [line 100](../../../../../../../backend/src/sro/domain/prompts/record.py#L100): Docstring
 
 > Whether an answer matches its schema. A miss is no answer (Global Constraint
 > 10): code validates every model answer, and an answer that breaks its schema
@@ -72,7 +72,7 @@ Code: `K_FENCE = "untrusted"`
 > the subset reaches. Upgrade path: `jsonschema`, once a record needs more.
 > Keys the schema does not name are allowed, as Gemini allows them.
 
-## `Prompt.kept`, [line 67](../../../../../../../backend/src/sro/domain/prompts/record.py#L67): Docstring
+## `Prompt.kept`, [line 68](../../../../../../../backend/src/sro/domain/prompts/record.py#L68): Docstring
 
 > The answer with every item of the record's `unit` that breaks its schema
 > dropped, and the rest kept. A record names its unit when its answer is a
@@ -94,3 +94,39 @@ Code: `K_FENCE = "untrusted"`
 > may not be null -- a plan's `kind`, a verdict's `held` -- still makes the
 > whole answer unsure, because the answer means nothing without it. An absent
 > optional field is left absent, not filled in.
+
+## `Prompt`, [line 42](../../../../../../../backend/src/sro/domain/prompts/record.py#L42): Note on the line above
+
+Code: `fallback_model: str | None = None`
+
+> The model `sro.application.shared.asking.ask` asks once more when this
+> record's model fails: the call raised after the asker's own retries, came
+> back with no usable JSON, hit MAX_TOKENS with no data, or every item of the
+> record's `unit` was dropped. A partly valid answer is an answer and is not
+> asked again.
+>
+> Decided 2026-09-28, after two QA mail runs on 3.8-flash spent 1402 of 1414
+> output tokens thinking and wrote an empty draft: every 3.8-flash record
+> that is asked through `ask` falls back to `gemini-3.7-flash`. Pro records
+> have none -- 3.7-flash is no stand-in for pro, and a pro record is itself
+> the escalation. `SIGHT` is the computer-use record and has none: it
+> escalates to pro through `SIGHT_ESCALATED` instead. `READ_SENTENCE`,
+> `EXTRACT_VALUES` and `TRANSCRIBE` are asked through `ask` by their adapters,
+> so they fall back like the rest.
+>
+> Ruled (S3 review, controller ruling R1): not a version bump. The fallback is
+> a runtime retry, not a model change under Global Constraint 9 -- the record
+> is still measured on `model`, and its text and schema are unchanged. The
+> cost is that an answer under an unchanged version may come from 3.7-flash;
+> the eval report's `Scored.fell_back` and `Report.fallbacks` count those, and
+> its markdown shows the count, so a run that leaned on 3.7-flash is visible
+> without changing the gate.
+
+## `conforms`, [line 124](../../../../../../../backend/src/sro/domain/prompts/record.py#L124): Note on the line above
+
+Code: `pattern = schema.get("pattern")`
+
+> A string the schema's `pattern` does not find in does not conform. The
+> model is told the same pattern (Gemini honours `pattern`); this is the
+> check that it kept to it. `re.search`, so a pattern is found anywhere in
+> the string, as JSON Schema means it.

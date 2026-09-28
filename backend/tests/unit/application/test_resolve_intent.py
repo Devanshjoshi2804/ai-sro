@@ -6,15 +6,25 @@ confidently and performing it immediately.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+from typing import Any
+
+import pytest
+
 from sro.application.context import RequestContext
 from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
 from sro.application.knowledge.record_claim import Claim, RecordClaims
 from sro.application.knowledge.retrieve import Retrieve
 from sro.application.ports.intent import Reading
+from sro.application.shared.refusals import OverCap
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel
 from sro.domain.shared.identifiers import SkillId
+from sro.domain.shared.prices import price
 from sro.domain.skill.promotion import PromotionStage
+from sro.infrastructure.gemini.intent import GeminiIntentParser
+from sro.infrastructure.gemini.metered import Meter, Metered
+from sro.whose import about
 from tests import factories as f
 from tests.unit.fakes import (
     FakeClock,
@@ -350,3 +360,42 @@ async def test_only_the_nothing_taught_reply_offers_to_explore() -> None:
 
     assert proposed.pursuable and nothing_known.pursuable
     assert not matched.pursuable and not status.pursuable
+
+
+class _Models:
+    def __init__(self) -> None:
+        self.called = 0
+
+    async def generate_content(self, **_: Any) -> Any:
+        self.called += 1
+        usage = SimpleNamespace(
+            prompt_token_count=100,
+            candidates_token_count=25,
+            thoughts_token_count=0,
+            tool_use_prompt_token_count=None,
+        )
+        return SimpleNamespace(text="{}", usage_metadata=usage, candidates=[])
+
+
+async def test_a_tenant_at_the_days_cap_gets_the_cap_refusal_from_read() -> None:
+    """`ResolveIntent._read` used to swallow every exception from the parser,
+    built for a plain model failure. Now that `read()` goes through the shared
+    `ask`, a tenant at its daily cap must be refused here exactly as every
+    other `ask` caller is refused -- not silently degraded to word-matching."""
+    models = _Models()
+    client = SimpleNamespace(aio=SimpleNamespace(models=models))
+    spend_uow = FakeUnitOfWork()
+    meter = Meter(
+        lambda: spend_uow,
+        clock=FakeClock(),
+        cap_usd=price("gemini-3.8-flash", 100, 25) / 2,
+    )
+    parser = GeminiIntentParser(client=Metered(client, meter))
+    resolver = ResolveIntent(
+        FakeUnitOfWork(), PlanTask(Retrieve(FakeUnitOfWork(), FakeEmbedder())), parser
+    )
+
+    with about(tenant="acme"), pytest.raises(OverCap):
+        await resolver.execute(CTX, utterance="what waves are open")
+
+    assert models.called == 1

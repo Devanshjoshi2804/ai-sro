@@ -4,6 +4,7 @@ from typing import Literal
 
 PRICES: dict[str, tuple[float, float]] = {
     "gemini-3.8-flash": (0.75, 3.75),
+    "gemini-3.7-flash": (0.75, 3.75),
     "gemini-3-flash": (0.50, 3.00),
     "gemini-3.1-flash-lite": (0.25, 1.50),
     "gemini-3.1-pro": (2.00, 12.00),
@@ -69,3 +70,4 @@ class Answer:
     unpriced: bool = False
     error: str | None = None
     dropped: int = 0
+    fell_back: bool = False

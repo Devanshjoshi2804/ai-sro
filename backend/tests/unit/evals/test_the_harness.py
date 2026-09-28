@@ -548,3 +548,18 @@ async def test_a_chore_is_no_mining_case() -> None:
     cases = await Mining().cases(uow, f.TENANT)
 
     assert [one.id for one in cases] == ["wfl_work"]
+
+
+def test_a_report_counts_the_calls_that_fell_back_and_the_gate_ignores_them() -> None:
+    scored = [
+        Scored("a", passed=True, sure=True, cost_usd=0.01, latency_s=1.0, fell_back=True),
+        Scored("b", passed=True, sure=True, cost_usd=0.01, latency_s=1.0),
+    ]
+    now = report("mining", MINE, scored)
+    assert now.fallbacks == 1
+    assert gate(replace(now, fallbacks=0), now) == []
+
+
+async def test_a_suite_carries_the_fallback_off_the_answer() -> None:
+    assert (await Mining().run(_mining_case(), _Refusing())).fell_back
+    assert not (await Mining().run(_mining_case(), Replayed({"workflows": []}))).fell_back

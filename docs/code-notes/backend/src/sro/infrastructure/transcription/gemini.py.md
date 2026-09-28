@@ -10,17 +10,23 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/transcript
 > configured and transcription is switched on. See docs/12-execution-and-agents.md
 > on egress: capture stays in the customer's infrastructure, sending does not.
 
-## `GeminiTranscriber`, [line 13](../../../../../../../backend/src/sro/infrastructure/transcription/gemini.py#L13): Docstring
+## `GeminiTranscriber`, [line 14](../../../../../../../backend/src/sro/infrastructure/transcription/gemini.py#L14): Docstring
 
-> The SDK is imported here rather than at module scope.
+> Asks through `sro.application.shared.asking.ask`, with the audio as
+> `(bytes, mime type)`, so a failure on 3.8-flash is heard once more on
+> 3.7-flash and the segments are checked against `TRANSCRIBE`'s schema.
 >
-> A deployment that never sends anything to a hosted model should not load a
-> hosted model's client to boot, and the composition root imports this module
-> either way.
+> The SDK is still not imported at module scope: `GeminiAsker` imports it
+> inside the call. A deployment that never sends anything to a hosted model
+> should not load a hosted model's client to boot, and the composition root
+> imports this module either way.
 
-## `_parse`, [line 40](../../../../../../../backend/src/sro/infrastructure/transcription/gemini.py#L40): Docstring
+## `GeminiTranscriber.transcribe`, [line 31](../../../../../../../backend/src/sro/infrastructure/transcription/gemini.py#L31): Note on the block below
 
-> Model output is data crossing a trust boundary; a bad shape is silence.
->
-> A demonstration is still perfectly usable without narration, so a malformed
-> response must not fail the upload the operator is waiting on.
+Code: `if answer.data is None:`
+
+> No usable segments from either model -- a call that failed, or an answer
+> that broke `TRANSCRIBE`'s schema (GC 10) -- raises. An empty transcript
+> would say nobody spoke, which nobody knows. The upload the operator is
+> waiting on does not ride on this: `AttachArtifact` keeps the audio and
+> attaches no transcript when this raises.

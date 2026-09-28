@@ -18,6 +18,7 @@ from sro.application.intent.plan_task import PlanTask, Proposal
 from sro.application.intent.pursue import Pursuit, compose
 from sro.application.ports.intent import IntentParser, Reading
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.shared.refusals import OverCap, Unattributed
 from sro.domain.skill.parameter import ParameterKind
 from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.skill import Skill
@@ -67,6 +68,8 @@ class ResolveIntent:
             return Reading()
         try:
             return await self._parser.read(utterance, after=after or "")
+        except (OverCap, Unattributed):
+            raise
         except Exception:
             logger.warning("could not read the request; matching the words instead")
             return Reading()

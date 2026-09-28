@@ -751,3 +751,29 @@ async def test_the_answer_s_resume_redrafts_the_run_s_own_mail_job() -> None:
 
     drafted = [one for one in await _decisions(uow) if one.get("kind") == DRAFTED]
     assert [one["to"] for one in drafted] == ["vendor@supplier.example"]
+
+
+@pytest.mark.parametrize("blank", ["", " \n"], ids=["empty", "whitespace"])
+async def test_an_empty_draft_on_the_new_flash_is_written_again_on_the_older_one(
+    blank: str,
+) -> None:
+    """Two QA runs stopped "the mail could not be written: the model said
+    nothing": 3.8-flash thought for 1402 of 1414 tokens and wrote an empty body."""
+    empty = {"to": "", "subject": "", "body": blank, "cited": []}
+    draft = {"to": "alex.r@example.com", "subject": "Re: x", "body": "NRT2 is set up.", "cited": []}
+    asker = FakeAsker(Answer(data=empty), Answer(data=draft))
+
+    written = await write_the_mail(
+        CTX,
+        _reply_job(),
+        {"Customer Type": "NRT2"},
+        THREAD,
+        by_id={},
+        uow=FakeUnitOfWork(),
+        tools=_Mailbox(),
+        asker=asker,
+    )
+
+    assert [one["model"] for one in asker.asked] == ["gemini-3.8-flash", "gemini-3.7-flash"]
+    assert isinstance(written, Written)
+    assert (written.to, written.body) == ("alex.r@example.com", "NRT2 is set up.")

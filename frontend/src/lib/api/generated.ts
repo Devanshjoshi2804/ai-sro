@@ -1426,6 +1426,9 @@ export interface paths {
          *     a screenshot to a hosted model and back, and running it inside this request
          *     held the whole API until it finished -- which is not a slow endpoint, it is
          *     an outage with a good excuse. What comes back is an address to watch.
+         *
+         *     409 when the caller did not open the thread, checked before anything is
+         *     driven: the pursuit's note is written into this thread when it ends.
          */
         post: operations["pursue_v1_threads__thread_id__pursue_post"];
         delete?: never;

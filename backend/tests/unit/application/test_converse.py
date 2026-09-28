@@ -1598,13 +1598,10 @@ async def test_somebody_else_asking_in_the_thread_is_not_told_the_run() -> None:
     uow = FakeUnitOfWork()
     converse, thread_id = await _running(uow)
     somebody_else = RequestContext(tenant_id=f.TENANT, principal_id=PrincipalId("b@acme.test"))
-    expected = await _as_if_nothing_stood(converse, "check now")
 
     said = await converse.execute(somebody_else, thread_id=thread_id, text="check now")
 
-    last = said.messages[-1].text
-    assert "GGD" not in last and "is running" not in last, last
-    assert last.startswith(expected.question or "?"), last
+    assert said.messages[-1].text == K_NOT_YOURS
 
 
 async def test_the_starter_of_the_run_is_told_it_in_a_thread_somebody_else_opened() -> None:
@@ -1705,6 +1702,7 @@ async def test_somebody_else_under_the_opener_s_offer_does_nothing_to_it(phrase:
     ]
     assert not added[-1].decision
     assert "north yard" not in added[-1].text
+    assert len((await uow.threads.get(CTX.tenant_id, thread_id)).messages) == before
     offer = offered_job(said.messages)
     assert offer is not None and offer.values == {"Description": "north yard"}, (
         "A's offer was changed or taken away"
@@ -1732,6 +1730,7 @@ async def test_somebody_else_under_the_opener_s_question_is_never_its_answer(phr
         (Speaker.ASSISTANT, K_NOT_YOURS),
     ]
     assert reads.asked == [], "B's message was read as a possible answer"
+    assert len((await uow.threads.get(CTX.tenant_id, thread_id)).messages) == before
     waiting = pending_job(said.messages)
     assert waiting is not None and waiting.missing == ("Customer Type",)
     assert not any((m.decision or {}).get("kind") == "job" for m in added)
@@ -1802,7 +1801,7 @@ async def test_an_offer_that_lands_after_the_gate_is_still_not_somebody_else_s(
         (Speaker.OPERATOR, phrase),
         (Speaker.ASSISTANT, K_NOT_YOURS),
     ]
-    offer = offered_job(said.messages)
+    offer = offered_job((await _get(CTX.tenant_id, thread_id)).messages)
     assert offer is not None and offer.values == {"Description": "north yard"}
     assert list(uow.workflow_runs.rows) == []
 
@@ -1827,6 +1826,9 @@ async def test_the_starter_under_somebody_else_s_offer_is_only_told_the_run(phra
     assert not added[-1].decision
     assert reads.asked == []
     assert offered_job(said.messages, offer.value) is not None, "A's offer still stands"
+    assert len((await uow.threads.get(CTX.tenant_id, thread_id)).messages) == before, (
+        "the status line is read-only: nothing is written into A's thread"
+    )
 
 
 async def test_the_starter_s_yes_to_somebody_else_s_offer_is_still_refused() -> None:
@@ -1902,6 +1904,44 @@ async def test_a_run_is_written_only_into_a_thread_its_caller_opened() -> None:
     assert (await uow.threads.get(CTX.tenant_id, thread_id)).messages == before
     bare = await converse.execute(CTX, thread_id=thread_id, text="yes")
     assert bare.messages[-1].text.startswith("Running Create a Warehouse Equipment Type")
+
+
+async def test_somebody_else_s_request_in_an_empty_thread_offers_nothing() -> None:
+    """Invariant 5. With nothing standing, B's message went on to `_carry_on`
+    and B's offer was written into A's empty thread. B is told, and A's thread
+    is not written."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse = _chat(uow)[1]
+    converse._reads_jobs = _PlacesTheJob(_understood("wfl_1", values={"Description": "b's"}))
+    thread_id = (await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)).id
+
+    said = await converse.execute(
+        SOMEBODY_ELSE, thread_id=thread_id, text="create a warehouse equipment type"
+    )
+
+    assert said.messages[-1].text == K_NOT_YOURS
+    assert offered_job(said.messages) is None
+    assert (await uow.threads.get(CTX.tenant_id, thread_id)).messages == ()
+    mine = await converse.execute(
+        CTX, thread_id=thread_id, text="create a warehouse equipment type"
+    )
+    assert offered_job(mine.messages) is not None
+
+
+async def test_a_note_is_written_only_into_a_thread_its_caller_opened() -> None:
+    """Invariant 5. A pursuit's note from B landed in A's thread."""
+    uow = FakeUnitOfWork()
+    converse = _chat(uow)[1]
+    thread_id = (await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)).id
+
+    with pytest.raises(Conflict):
+        await converse.note(SOMEBODY_ELSE, thread_id=thread_id, text="B's pursuit")
+    assert (await uow.threads.get(CTX.tenant_id, thread_id)).messages == ()
+
+    await converse.note(CTX, thread_id=thread_id, text="A's pursuit")
+    said = (await uow.threads.get(CTX.tenant_id, thread_id)).messages
+    assert [one.text for one in said] == ["A's pursuit"]
 
 
 async def test_a_run_is_written_into_the_caller_s_own_thread() -> None:

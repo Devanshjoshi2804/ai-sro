@@ -13,10 +13,15 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.application.chat.announce import SayWhatHappened
+from sro.application.chat.converse import StartThread
 from sro.application.chat.from_the_mail import FromTheMail
-from sro.application.chat.mailbox import K_OURS, elsewhere_key, is_ours, mail_key
+from sro.application.chat.mailbox import K_ELSEWHERE, K_OURS, elsewhere_key, is_ours, mail_key
+from sro.application.chat.read_threads import ReadThreads
+from sro.application.context import RequestContext
 from sro.application.runtime.answer_run import AnswerRun
+from sro.domain.chat.thread import Message, Thread
 from sro.domain.execution.progress import Progress
+from sro.domain.shared.identifiers import PrincipalId
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from tests.unit.application.rig.test_from_the_mail import (
     CTX,
@@ -93,27 +98,47 @@ async def test_two_forgets_racing_on_one_mark_take_it_once(
     assert sorted(await asyncio.gather(_forget(), _forget())) == [False, True]
 
 
+@pytest.mark.parametrize("has_a_thread", [False, True])
 async def test_a_note_that_fails_to_be_said_leaves_its_mark_for_the_retry(
     session_factory: async_sessionmaker[AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+    has_a_thread: bool,
 ) -> None:
-    """The mark is forgotten in the unit of work that says the note, so a
-    failure between the two keeps it, and the retried `finish` tells."""
+    """Invariant 6. The starter's thread is made in its own commit, before the
+    mark is forgotten in the unit that says the note: a failure once the thread
+    exists keeps the mark, and the retried `finish` says the note once, into
+    that one thread."""
     run = await (await _asking_on_t9()).saved_run()
     key = elsewhere_key(run.id, Progress.of(run.progress).asking["id"])
     uow = SqlUnitOfWork(session_factory)
     async with uow as unit:
-        await unit.tool_calls.remember(CTX.tenant_id, key, tool="t", at=datetime.now(tz=UTC))
+        await unit.tool_calls.remember(
+            CTX.tenant_id, key, tool=K_ELSEWHERE, at=datetime.now(tz=UTC)
+        )
         await unit.commit()
-    say = SayWhatHappened(uow, FakeClock(), FakeIdFactory())
+    ids, starter = FakeIdFactory(), RequestContext(CTX.tenant_id, PrincipalId(run.started_by))
+    if has_a_thread:
+        await StartThread(uow, FakeClock(), ids).execute(starter)
+    assert (await ReadThreads(uow).current(starter) is not None) == has_a_thread
+    say = SayWhatHappened(uow, FakeClock(), ids)
+    said = Thread.say
 
-    async def _fails(*args: object, **kwargs: object) -> None:
+    def _fails(self: Thread, message: Message) -> None:
         raise RuntimeError("the thread could not be written")
 
-    say.execute = _fails  # type: ignore[method-assign]
+    monkeypatch.setattr(Thread, "say", _fails)
     with pytest.raises(RuntimeError):
         await say.answered_elsewhere(CTX, run)
+    monkeypatch.setattr(Thread, "say", said)
 
     async with uow as unit:
         assert await unit.tool_calls.held(
             CTX.tenant_id, key, since=datetime.now(tz=UTC) - timedelta(days=1)
         )
+    await say.answered_elsewhere(CTX, run)
+    await say.answered_elsewhere(CTX, run)
+
+    async with uow as unit:
+        mine = await unit.threads.list_for_tenant(CTX.tenant_id, opened_by=starter.principal_id)
+    assert len(mine) == 1
+    assert len([m for m in mine[0].messages if "cannot read" in m.text]) == 1

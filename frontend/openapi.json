@@ -17314,7 +17314,7 @@
           "threads"
         ],
         "summary": "Pursue",
-        "description": "Say go: work a task out on the screen, when nobody has demonstrated it.\n\nAccepted rather than performed. A pursuit is twelve gestures long, each one\na screenshot to a hosted model and back, and running it inside this request\nheld the whole API until it finished -- which is not a slow endpoint, it is\nan outage with a good excuse. What comes back is an address to watch.",
+        "description": "Say go: work a task out on the screen, when nobody has demonstrated it.\n\nAccepted rather than performed. A pursuit is twelve gestures long, each one\na screenshot to a hosted model and back, and running it inside this request\nheld the whole API until it finished -- which is not a slow endpoint, it is\nan outage with a good excuse. What comes back is an address to watch.\n\n409 when the caller did not open the thread, checked before anything is\ndriven: the pursuit's note is written into this thread when it ends.",
         "operationId": "pursue_v1_threads__thread_id__pursue_post",
         "parameters": [
           {

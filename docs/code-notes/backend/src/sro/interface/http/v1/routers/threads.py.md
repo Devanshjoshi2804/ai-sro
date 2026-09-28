@@ -37,7 +37,7 @@ Code: `run_id = container.ids.new_run_id()`
 > Named before it starts, so the console can watch the steps land instead
 > of holding this request open for as long as the warehouse takes.
 
-## `pursue`, [line 135](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L135): Comment
+## `pursue`, [line 139](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L139): Comment
 
 Code: `if (busy := container.pursuits.working()) is not None:`
 
@@ -47,7 +47,7 @@ Code: `if (busy := container.pursuits.working()) is not None:`
 > pursuits then report, separately and truthfully, that the screen would not
 > respond to anything they did.
 
-## `pursue`, [line 142](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L142): Comment
+## `pursue`, [line 146](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L146): Comment
 
 Code: `if goal.changes_the_system and not body.authorized_by:`
 
@@ -55,14 +55,14 @@ Code: `if goal.changes_the_system and not body.authorized_by:`
 > fails a second later reads as "it tried and could not" rather than "you
 > have not confirmed this".
 
-## `pursue.drive`, [line 170](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L170): Comment
+## `pursue.drive`, [line 174](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L174): Comment
 
 Code: `await container.converse().note(`
 
 > The thread outlives the process; the progress does not. What
 > happened has to end up somewhere an operator can read tomorrow.
 
-## `say`, [line 223](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L223): Comment
+## `say`, [line 227](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L227): Comment
 
 Code: `last = thread.messages[-1] if thread.messages else None`
 

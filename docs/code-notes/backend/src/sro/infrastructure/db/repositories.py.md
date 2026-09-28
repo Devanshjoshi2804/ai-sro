@@ -118,7 +118,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/db/reposit
 > The claim is the insert. Two writers racing for one key both try it, the
 > primary key refuses one of them, and that refusal is the answer.
 
-## `SqlUnitOfWork`, [line 1178](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1178): Docstring
+## `SqlUnitOfWork`, [line 1179](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1179): Docstring
 
 > One session per block. The session opens on entry, not on construction,
 > so a unit of work can be built once and used per request.
@@ -147,7 +147,9 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/db/reposit
 > Delete the claim. Tenant-scoped, unlike the session sweep next door:
 > this is somebody's run giving back its own key, not crash recovery.
 > True only for the caller whose delete removed the row: a racing second
-> delete waits on the first one's row lock and removes nothing.
+> delete waits on the first one's row lock and removes nothing. With `tool`,
+> only a row claimed by that tool is removed, in the same statement, so a key
+> another writer replaced is left alone.
 
 ## `SqlRunRepository.in_flight`, [line 290](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L290): Comment
 
@@ -389,14 +391,14 @@ Code: `).returning(ToolCallRow.idempotency_key)`
 > driver's, and asking the statement to return the key it wrote
 > answers the same question in one shape everywhere.
 
-## `SqlUnitOfWork.__aexit__`, [line 1218](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1218): Comment
+## `SqlUnitOfWork.__aexit__`, [line 1219](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1219): Comment
 
 Code: `await session.rollback()`
 
 > At every depth: an inner block that raised must not leave its
 > half-written rows for the outer block to commit.
 
-## `SqlUnitOfWork.commit`, [line 1230](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1230): Comment
+## `SqlUnitOfWork.commit`, [line 1231](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1231): Comment
 
 Code: `await self._require_session().rollback()`
 
@@ -406,7 +408,7 @@ Code: `await self._require_session().rollback()`
 > because it is one: the caller decides whether to redo the work
 > against what is there now or to leave it to whoever comes next.
 
-## `_job_live`, [line 1170](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1170): Note
+## `_job_live`, [line 1171](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1171): Note
 
 > A trigger on a retired job is never chosen: `find` (how a schedule fires)
 > and `list_for_tenant` (how watches and arrivals are picked) both leave it
@@ -454,7 +456,7 @@ Code: `query = query.with_for_update()`
 > Plain reads do not lock: a caller holding its unit of work across a model
 > call would otherwise block every writer of that thread for the call.
 
-## `SqlToolCallRepository.held`, [line 1118](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1118): Note
+## `SqlToolCallRepository.held`, [line 1119](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1119): Note
 
 Code: `ToolCallRow.claimed_at >= since,`
 

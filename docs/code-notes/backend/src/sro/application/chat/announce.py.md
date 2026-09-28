@@ -48,13 +48,20 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/announce
 > this door has ever asked was invisible to the reader that exists to
 > answer it, including the run path's since `5a2d10b1`.
 
-## `SayWhatHappened.answered_elsewhere`, [line 48](../../../../../../../backend/src/sro/application/chat/announce.py#L48): Docstring
+## `SayWhatHappened.answered_elsewhere`, [line 36](../../../../../../../backend/src/sro/application/chat/announce.py#L36): Docstring
 
 > A run's wait ended with its question open, and a reply reached only a
 > colleague's mailbox (the mail door left `elsewhere_key`): the starter is told
 > in their own thread. Two callers can reach it at once, `RunSteps.finish` and
 > a colleague's look that marked the question as the run finished. Forgetting
 > the mark is the compare-and-set: the one that removes the row tells, the
-> other finds nothing. The forget and the note commit in one unit of work, so a
-> note that fails to be said leaves the mark for the retried `finish`
-> (invariants 6 and 12; S1 round 2).
+> other finds nothing. Only a colleague's mark (`K_ELSEWHERE`) is forgotten:
+> the starter's own take leaves `K_TAKEN`, which says nothing.
+>
+> The starter's thread is found or made first, in its own commit
+> (`_thread_for`). Then the forget, the read of the thread, the note and its
+> save commit in one unit of work, so a note that fails to be said leaves the
+> mark for the retried `finish`. Making the thread inside that unit committed
+> the shared session's DELETE early: a starter with no thread yet lost the
+> mark to a failure after `StartThread`, and the retry said nothing
+> (invariants 6 and 12; S1 rounds 2 and 3).

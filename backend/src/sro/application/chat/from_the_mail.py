@@ -12,7 +12,9 @@ from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.announce import SayWhatHappened
 from sro.application.chat.candidates import candidate_of
 from sro.application.chat.mailbox import (
+    K_ELSEWHERE,
     K_REMEMBER,
+    K_TAKEN,
     SERVER,
     elsewhere_key,
     is_ours,
@@ -462,9 +464,8 @@ class FromTheMail:
             await uow.tool_calls.remember(
                 ctx.tenant_id,
                 elsewhere_key(run.id, asking),
-                tool="a reply its starter's own look has to take",
+                tool=K_ELSEWHERE,
                 at=datetime.now(tz=UTC),
-                stale_after=K_REMEMBER,
             )
             await uow.commit()
         async with self._uow as uow:
@@ -482,7 +483,9 @@ class FromTheMail:
     ) -> None:
         asking = Progress.of(run.progress).asking
         async with self._uow as uow:
-            await uow.tool_calls.forget(ctx.tenant_id, elsewhere_key(run.id, asking.get("id", "")))
+            key = elsewhere_key(run.id, asking.get("id", ""))
+            await uow.tool_calls.forget(ctx.tenant_id, key)
+            await uow.tool_calls.remember(ctx.tenant_id, key, tool=K_TAKEN, at=datetime.now(tz=UTC))
             await uow.commit()
         kind = asking.get("kind")
         if kind == "recipient":

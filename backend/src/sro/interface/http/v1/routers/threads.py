@@ -131,7 +131,11 @@ async def pursue(
     a screenshot to a hosted model and back, and running it inside this request
     held the whole API until it finished -- which is not a slow endpoint, it is
     an outage with a good excuse. What comes back is an address to watch.
+
+    409 when the caller did not open the thread, checked before anything is
+    driven: the pursuit's note is written into this thread when it ends.
     """
+    await container.converse().may_start(ctx, thread_id=ThreadId(thread_id))
     if (busy := container.pursuits.working()) is not None:
         raise Conflict(
             f"a pursuit is already working on {busy.goal!r}; there is one browser, "

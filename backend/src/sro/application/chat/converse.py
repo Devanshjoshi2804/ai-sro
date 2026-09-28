@@ -118,7 +118,7 @@ class Converse:
 
     async def note(self, ctx: RequestContext, *, thread_id: ThreadId, text: str) -> None:
         async with self._uow as uow:
-            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            thread = _opened_by_the_caller(ctx, await uow.threads.get(ctx.tenant_id, thread_id))
             thread.say(
                 Message(
                     id=self._ids.new_message_id(),
@@ -146,17 +146,14 @@ class Converse:
         async with self._uow as uow:
             before = await uow.threads.get(ctx.tenant_id, thread_id)
         said_before = before.messages
-        if before.opened_by != ctx.principal_id and (
-            answering is not None
-            or pending_job(said_before) is not None
-            or offered_job(said_before) is not None
-        ):
+        try:
+            _opened_by_the_caller(ctx, before)
+        except Conflict:
             told = None
             if answering is None and pending_job(said_before) is None:
                 told = await self._what_stands(ctx, before)
-            return await self._only_said(
-                ctx, thread_id=thread_id, text=text, said=told or K_NOT_YOURS
-            )
+            self._told(before, text, told or K_NOT_YOURS)
+            return before
         if (
             answering is not None
             and pending_job(said_before, answering) is None
@@ -461,9 +458,8 @@ class Converse:
         async with self._uow as uow:
             thread = await uow.threads.get_for_answer(ctx.tenant_id, thread_id)
             still = asked_under(thread.messages, answering)
-            theirs = thread.opened_by != ctx.principal_id
-            if theirs or still is None or still.id != asked:
-                self._told(thread, text, K_NOT_YOURS if theirs else K_CLOSED)
+            if still is None or still.id != asked:
+                self._told(thread, text, K_CLOSED)
                 await uow.threads.save(thread)
                 await uow.commit()
                 return thread
@@ -561,9 +557,8 @@ class Converse:
         async with self._uow as uow:
             thread = await uow.threads.get_for_answer(ctx.tenant_id, thread_id)
             still = asked_under(thread.messages, answering)
-            theirs = thread.opened_by != ctx.principal_id
-            if theirs or still is None or still.id != asked:
-                self._told(thread, text, K_NOT_YOURS if theirs else K_CLOSED)
+            if still is None or still.id != asked:
+                self._told(thread, text, K_CLOSED)
                 await uow.threads.save(thread)
                 await uow.commit()
                 return thread

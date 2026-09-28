@@ -2725,6 +2725,28 @@ async def test_a_reply_the_starter_s_own_look_took_is_never_told_as_unreadable()
     assert not [one for one in await world.thread_says() if "cannot read" in str(one["text"])]
 
 
+async def test_n1_reverse_order_starter_first_then_colleague() -> None:
+    """N1 in reverse. The starter's own look took the reply (a step question,
+    which mail cannot answer); a colleague's copy, under another message id
+    on the same thread, is read after. The starter's take stands: no note."""
+    world = await _asking_on_t9()
+    run = await world.saved_run()
+    step = {**run.progress, "asking": {**run.progress["asking"], "kind": "step"}}
+    async with world.uow as uow:
+        assert await uow.workflow_runs.record_progress(
+            RUN_CTX.tenant_id, run.id, step, was=run.progress
+        )
+        await uow.commit()
+    mine = _Mailbox(search=_found("m-1"), **{"m-1": _mail("done it", thread="t-9")})
+    theirs = _Mailbox(search=_found("m-2"), **{"m-2": _mail("done it", thread="t-9")})
+    await _look(world.uow, mine, _Reads(), durable=world.durable).execute(RUN_CTX)
+    await _look(world.uow, theirs, _Reads(), durable=world.durable).execute(_colleague())
+
+    await world.run_steps.finish(RUN_CTX, world.run_id)
+
+    assert not [one for one in await world.thread_says() if "cannot read" in str(one["text"])]
+
+
 async def test_a_colleague_s_look_that_lands_during_finish_still_tells_the_starter_once() -> None:
     """The look reads the run still waiting; `finish` then ends it and finds no
     mark; the mark lands after. The look re-reads the run and tells the starter

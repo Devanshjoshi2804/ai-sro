@@ -12,7 +12,9 @@ from sro.domain.execution.account import Account, LeaseState
 from sro.domain.execution.lanes import Broken, Lane, StepResult, Verdict, cites_key
 from sro.domain.execution.progress import Progress, StepMark
 from sro.domain.execution.takeover import OPERATOR, Takeover, Took, take_over
+from sro.domain.observation.gesture import Action, Call, Gesture, Target
 from sro.domain.skill.tabs import MAIN
+from sro.domain.skill.workflow import Step
 from tests.unit.runtime_support import (
     CTX,
     NOW,
@@ -651,6 +653,57 @@ async def test_a_run_that_did_not_finish_says_so() -> None:
     said = [one for thread in world.uow.threads.rows.values() for one in thread.messages]
     assert said and said[-1].decision.get("kind") == "run_done"
     assert "did not finish" in said[-1].text
+
+
+async def test_a_delete_the_recording_watched_succeed_is_sent_by_its_call() -> None:
+    """Greyorange, 2026-09-28: the Undo of a created customer type is the
+    learned Delete, whose DELETE .../customerTypes/{code} the recording watched
+    succeed on six records -- but no run had proven it, so the Steel run would
+    have walked the grid by hand. A path-addressed write the demonstration saw
+    succeed is trusted, as the extension engine always trusted it."""
+    by_id = {
+        f"ges_del_{name}": Gesture(
+            id=f"ges_del_{name}",
+            tenant="acme",
+            stream_id="stream-1",
+            batch_id="batch-1",
+            at=float(nth + 1),
+            url="https://wms.example/app",
+            system="https://wms.example",
+            tab_id=1,
+            frame_url=None,
+            action=Action(
+                kind="click", at=float(nth + 1), target=Target(role="button", name="Delete")
+            ),
+            requests=[
+                Call(
+                    method="DELETE",
+                    url=f"https://wms.example/api/customer-types/{name}",
+                    status=204,
+                    started_at=float(nth + 1),
+                )
+            ],
+        )
+        for nth, name in enumerate(("GT0", "GT1"))
+    }
+    delete = Step(
+        order=0,
+        says="Delete it",
+        system="https://wms.example",
+        cites=list(by_id),
+        parameters=["Customer Type"],
+    )
+    job = replace(
+        WORKFLOW,
+        steps=[delete],
+        parameters=[{"name": "Customer Type", "seen_values": ["GT0", "GT1"]}],
+    )
+    world = await steel_run(steps=[(delete, by_id)], job=job, values={"Customer Type": "GT2"})
+    world.lanes.api.answers(StepResult("done", Lane.API))
+
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert (world.lanes.api.calls, world.lanes.ui.calls) == (1, 0)
 
 
 FORM = "https://wms.example/app/customer-types/new"

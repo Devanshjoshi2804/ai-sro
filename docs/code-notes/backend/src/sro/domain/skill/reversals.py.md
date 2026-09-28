@@ -80,12 +80,12 @@ Code: `REMOVES = frozenset({"DELETE"})`
 > cannot fill from one created record, and guessing which of them wants the
 > id is the wrong kind of guess to make with a DELETE.
 
-## `_record`, [line 43](../../../../../../../backend/src/sro/domain/skill/reversals.py#L43): Docstring
+## `_record`, [line 45](../../../../../../../backend/src/sro/domain/skill/reversals.py#L45): Docstring
 
 > A body's top-level string values, keyed. The envelope first, as
 > everything that reads a Blue Yonder body does.
 
-## `addresses`, [line 61](../../../../../../../backend/src/sro/domain/skill/reversals.py#L61): Docstring
+## `addresses`, [line 63](../../../../../../../backend/src/sro/domain/skill/reversals.py#L63): Docstring
 
 > Which record an undo would address, out of what a run read back.
 >
@@ -110,7 +110,7 @@ Code: `REMOVES = frozenset({"DELETE"})`
 > A wrong guess here removes somebody else's record, which is the one thing
 > an undo must never do.
 
-## `undoes`, [line 79](../../../../../../../backend/src/sro/domain/skill/reversals.py#L79): Docstring
+## `undoes`, [line 81](../../../../../../../backend/src/sro/domain/skill/reversals.py#L81): Docstring
 
 > Which job of this tenant's undoes what `made` creates, if any holds one.
 >
@@ -139,11 +139,11 @@ Code: `REMOVES = frozenset({"DELETE"})`
 > collection a create posts to is structural, and what that member is called
 > is the warehouse's business.
 
-## `_pieces`, [line 98](../../../../../../../backend/src/sro/domain/skill/reversals.py#L98): Docstring
+## `_pieces`, [line 100](../../../../../../../backend/src/sro/domain/skill/reversals.py#L100): Docstring
 
 > A path shape in segments, with the empties dropped.
 
-## `_endpoint`, [line 102](../../../../../../../backend/src/sro/domain/skill/reversals.py#L102): Docstring
+## `_endpoint`, [line 104](../../../../../../../backend/src/sro/domain/skill/reversals.py#L104): Docstring
 
 > The path shape this job's own write goes to, or None.
 >
@@ -152,7 +152,7 @@ Code: `REMOVES = frozenset({"DELETE"})`
 > what the operator did, and a job identified by a telemetry beacon's
 > endpoint would be every job on that host.
 
-## `addresses`, [line 69](../../../../../../../backend/src/sro/domain/skill/reversals.py#L69): Comment
+## `addresses`, [line 71](../../../../../../../backend/src/sro/domain/skill/reversals.py#L71): Comment
 
 Code: `shared = [key for key in by if only.get(key, "").strip()]`
 

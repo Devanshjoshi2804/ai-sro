@@ -292,3 +292,29 @@ def test_an_undo_that_varies_nothing_is_not_a_press_either() -> None:
     """A delete with no parameter is a delete of whatever it was demonstrated
     on, which is somebody else's record now."""
     assert asks_for(_job("wfl_delete", "ges-gone")) is None
+
+
+def test_an_undo_whose_one_value_was_mined_twice_still_asks_for_it() -> None:
+    """Greyorange, 2026-09-28: Delete a Customer Type was mined with two
+    parameters both called Customer Type -- the grid's search filter and a form
+    field from an Add opened and abandoned mid-recording. The undo names one
+    value, the record's Customer Type, so it asks for that; counting entries
+    instead of names left the created SR10 with no Undo at all."""
+    undo = replace(
+        _job("wfl_delete", "g-delete"),
+        parameters=[
+            {"key": "filterComboBox", "name": "Customer Type"},
+            {"key": "customertype-customerType", "name": "Customer Type"},
+        ],
+    )
+
+    assert asks_for(undo) == "Customer Type"
+
+
+def test_an_undo_with_two_different_values_still_asks_for_neither() -> None:
+    undo = replace(
+        _job("wfl_delete", "g-delete"),
+        parameters=[{"name": "Customer Type"}, {"name": "Department"}],
+    )
+
+    assert asks_for(undo) is None

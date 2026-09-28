@@ -49,7 +49,7 @@ from sro.domain.execution.progress import Progress, StepMark
 from sro.domain.execution.takeover import OPERATOR
 from sro.domain.execution.waiting import read_wait
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
-from sro.domain.execution.write_plan import scaffolding_for
+from sro.domain.execution.write_plan import demonstrated_writes, scaffolding_for
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.identifiers import PrincipalId
 from sro.domain.skill.aliases import JobAlias
@@ -474,7 +474,10 @@ class RunSteps:
     ) -> LaneContext:
         learned = await self._teach.locators(ctx, workflow)
         async with self._uow as uow:
-            ledger = await uow.workflows.learned_writes(ctx.tenant_id)
+            proven = await uow.workflows.learned_writes(ctx.tenant_id)
+        # A path-addressed write the recording watched succeed on several
+        # records is trusted too, as the extension engine always trusted it.
+        ledger = (*proven, *demonstrated_writes(workflow, by_id))
         waiting = read_wait(run.awaiting)
         marked: list[Lane] = []
 

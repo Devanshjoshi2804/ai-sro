@@ -174,6 +174,10 @@ class ThreadRepository(Protocol):
         offset: int = 0,
     ) -> tuple[Thread, ...]: ...
 
+    async def holding(
+        self, tenant_id: TenantId, *, opened_by: PrincipalId, message_id: str
+    ) -> Thread | None: ...
+
 
 class ModelCallRepository(Protocol):
     async def add(self, call: ModelCall) -> None: ...

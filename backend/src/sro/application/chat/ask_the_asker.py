@@ -7,18 +7,18 @@ from sro.application.chat.announce import SayWhatHappened
 from sro.application.chat.mailbox import SERVER, NotSent, send_as_this_system
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
+from sro.application.execution.mail_job import keep_the_named
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
 from sro.domain.chat.asking import Pending
 from sro.domain.chat.asking_the_asker import draft_for, worth_asking
 from sro.domain.chat.thread import Message, Speaker, ThreadId
+from sro.domain.execution.mail_job import DRAFTED
 from sro.domain.execution.waiting import read_wait
 from sro.domain.shared.identifiers import PrincipalId
 
 logger = logging.getLogger(__name__)
-
-DRAFTED = "mail_draft"
 
 
 class DraftForTheAsker:
@@ -187,7 +187,7 @@ class SendTheDraft:
             return ""
 
         if job:
-            await self._finish_the_job(ctx, run_id, answered)
+            await self._finish_the_job(ctx, run_id, answered, str(draft.get("named") or ""))
             await self._say(
                 ctx,
                 thread_id,
@@ -211,7 +211,9 @@ class SendTheDraft:
         logger.info("%s: asked %s about %s", ctx.tenant_id.value, to, run_id)
         return to
 
-    async def _finish_the_job(self, ctx: RequestContext, run_id: str, answered: object) -> None:
+    async def _finish_the_job(
+        self, ctx: RequestContext, run_id: str, answered: object, named: str
+    ) -> None:
         if not run_id:
             return
         try:
@@ -234,6 +236,9 @@ class SendTheDraft:
             run.awaiting = None
             await uow.workflow_runs.save(run)
             await uow.commit()
+        if named:
+            by = {"address": named, "by": run.started_by or ""}
+            await keep_the_named(ctx, self._uow, run.workflow_id, by, at=self._clock.now())
 
     async def _claim(self, ctx: RequestContext, message_id: str) -> bool:
         async with self._uow as uow:

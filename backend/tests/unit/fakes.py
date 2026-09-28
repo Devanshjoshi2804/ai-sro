@@ -939,6 +939,20 @@ class FakeThreadRepository:
         rows.sort(key=lambda thread: thread.opened_at, reverse=True)
         return tuple(_copied(one) for one in rows[offset : offset + limit])
 
+    async def holding(
+        self, tenant_id: TenantId, *, opened_by: PrincipalId, message_id: str
+    ) -> Thread | None:
+        return next(
+            (
+                _copied(one)
+                for (tenant, _), one in self.rows.items()
+                if tenant == str(tenant_id)
+                and one.opened_by == opened_by
+                and any(said.id.value == message_id for said in one.messages)
+            ),
+            None,
+        )
+
 
 def _copied(thread: Thread) -> Thread:
     copy = Thread(

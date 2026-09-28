@@ -20,6 +20,7 @@ from sro.application.intent.resolve import ResolveIntent
 from sro.application.knowledge.retrieve import Retrieve
 from sro.domain.chat.asking import NEEDS, Pending, pending_job
 from sro.domain.chat.thread import ThreadId
+from sro.domain.shared.identifiers import PrincipalId
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from sro.infrastructure.system import UuidFactory
 from tests.unit.application.rig.test_from_the_mail import CTX, JOB, _held_in
@@ -100,3 +101,35 @@ async def test_two_presses_where_the_first_ends_the_ask_give_one_note(
         assert note["values"] == {"Customer Type": "GPP"}, "M1: the note keeps the values"
         assert note["dropped"] == ["Customer Type Description"]
         assert pending_job(said) is None, "a note left the ask open"
+
+
+async def test_the_thread_holding_an_offer_is_found_by_its_message_id(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    """S4 M1: a run's request is read from the thread that holds its offer --
+    matched inside the `messages` JSONB, which no type checks -- and only
+    from a thread its starter opened."""
+    thread_id, offer = await _asked(session_factory)
+    newer = await StartThread(SqlUnitOfWork(session_factory), FakeClock(), UuidFactory()).execute(
+        CTX
+    )
+    assert newer.id.value != thread_id
+
+    async with SqlUnitOfWork(session_factory) as uow:
+        found = await uow.threads.holding(
+            CTX.tenant_id, opened_by=CTX.principal_id, message_id=offer
+        )
+        assert found is not None and found.id.value == thread_id
+        assert any(one.id.value == offer for one in found.messages)
+        assert (
+            await uow.threads.holding(
+                CTX.tenant_id, opened_by=PrincipalId("colleague"), message_id=offer
+            )
+            is None
+        ), "a thread somebody else opened is never the starter's request"
+        assert (
+            await uow.threads.holding(
+                CTX.tenant_id, opened_by=CTX.principal_id, message_id="msg_nobody"
+            )
+            is None
+        )

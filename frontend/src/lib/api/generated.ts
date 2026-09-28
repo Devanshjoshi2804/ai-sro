@@ -2097,6 +2097,18 @@ export interface components {
          *     its next run writes to that address without asking. On a mail job drafted
          *     for a press (not on Steel) the run waits `stopped`, holding no browser, and
          *     this answer redrafts it.
+         *
+         *     A mail-body question (`asks: "mail_body"`, "What should the mail say?") is
+         *     a mail job whose mail could not be written: the model wrote no body,
+         *     failed, or put in a value nobody gave. It is answered with the words the
+         *     mail should say (up to 2000 characters; every other answer takes 500), only
+         *     by the operator who started the run; an empty answer is a 409. The words
+         *     are the operator's own, trusted: the mail is written again with them. On a
+         *     mail job drafted for a press the refused draft is shown in the question,
+         *     and `yes` uses exactly that draft, checked again, its recipients still
+         *     ones the mail may go to; either way it is shown again as a draft and
+         *     nothing is sent until its Send is pressed. On Steel the mail is written
+         *     again and sent as the step's write.
          */
         AnswerRunRequest: {
             /** Question Id */

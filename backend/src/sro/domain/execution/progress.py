@@ -44,6 +44,7 @@ class Progress:
     asking: dict[str, str] = field(default_factory=dict)
     composed: list[dict[str, object]] = field(default_factory=list)
     filled: dict[str, str] = field(default_factory=dict)
+    told: list[str] = field(default_factory=list)
 
     @classmethod
     def of(cls, raw: Mapping[str, object] | None) -> Progress:
@@ -60,6 +61,7 @@ class Progress:
             asking=_strings(raw.get("asking")),
             composed=_composed(raw.get("composed")),
             filled=_strings(raw.get("filled")),
+            told=_told(raw.get("told")),
         )
 
     def as_json(self) -> dict[str, object]:
@@ -106,6 +108,10 @@ def _strings(value: object) -> dict[str, str]:
     if not isinstance(value, Mapping):
         return {}
     return {str(key): str(one) for key, one in value.items()}
+
+
+def _told(value: object) -> list[str]:
+    return [str(one) for one in value] if isinstance(value, list) else []
 
 
 def _composed(value: object) -> list[dict[str, object]]:

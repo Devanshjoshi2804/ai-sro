@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+from sro.domain.execution.mail_job import MAIL_BODY
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.workflow_run import WorkflowRun
 
@@ -45,7 +46,7 @@ def asks_a_person(run: WorkflowRun) -> bool:
     return (
         bool(run.needs)
         or (run.outcome == "running" and bool(asking.get("id")))
-        or (run.outcome == "stopped" and asking.get("kind") == "recipient")
+        or (run.outcome == "stopped" and asking.get("kind") in ("recipient", MAIL_BODY))
     )
 
 

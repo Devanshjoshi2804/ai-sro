@@ -20,6 +20,7 @@ from sro.application.capture.devices import DeviceLine
 from sro.application.chat.from_the_mail import LookedInTheMail
 from sro.application.chat.understand import Understood
 from sro.application.execution.effects import can_try_again
+from sro.application.execution.mail_job import K_BODY
 from sro.application.execution.pursuits import PursuitProgress
 from sro.application.execution.reversal import Reversal
 from sro.application.intent.match import Candidate
@@ -27,7 +28,7 @@ from sro.application.lookup.answer import as_seen
 from sro.application.lookup.plan_lookups import Planned
 from sro.application.lookup.run_lookups import Answers, Looked
 from sro.application.observation.read_shots import PlayableShot
-from sro.application.runtime.answer_run import K_ANSWER, WriteVerdict
+from sro.application.runtime.answer_run import WriteVerdict
 from sro.application.skill.read_workflows import CitedEvidence, KnownWorkflow
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread
@@ -2638,10 +2639,22 @@ class AnswerRunRequest(BaseModel):
     its next run writes to that address without asking. On a mail job drafted
     for a press (not on Steel) the run waits `stopped`, holding no browser, and
     this answer redrafts it.
+
+    A mail-body question (`asks: "mail_body"`, "What should the mail say?") is
+    a mail job whose mail could not be written: the model wrote no body,
+    failed, or put in a value nobody gave. It is answered with the words the
+    mail should say (up to 2000 characters; every other answer takes 500), only
+    by the operator who started the run; an empty answer is a 409. The words
+    are the operator's own, trusted: the mail is written again with them. On a
+    mail job drafted for a press the refused draft is shown in the question,
+    and `yes` uses exactly that draft, checked again, its recipients still
+    ones the mail may go to; either way it is shown again as a draft and
+    nothing is sent until its Send is pressed. On Steel the mail is written
+    again and sent as the step's write.
     """
 
     question_id: str
-    value: str = Field(default="", max_length=K_ANSWER)
+    value: str = Field(default="", max_length=K_BODY)
     verdict: WriteVerdict = ""
     """The operator's word on a step the run asked about. `done`: it was done,
     so the step is settled and never tried again. `not_done`: it was not, so

@@ -33,7 +33,9 @@ class NeedsAPerson(DomainError):
         self,
         question: str,
         *,
-        kind: Literal["password", "value", "step", "code", "field", "recipient"] = "step",
+        kind: Literal[
+            "password", "value", "step", "code", "field", "recipient", "mail_body"
+        ] = "step",
     ) -> None:
         super().__init__(question)
         self.question = question
@@ -70,6 +72,7 @@ class LaneContext:
     stop: asyncio.Event
     secret: str | None = field(default=None, repr=False)
     thread: str = ""
+    request: tuple[str, ...] = ()
     about_to_write: Callable[[Lane], Awaitable[None]] = _nothing
     reauthed: bool = False
     adding: Mapping[int, Adding] = field(default_factory=dict)

@@ -9637,7 +9637,11 @@ class _Mailbox:
 
     def hand(self) -> MailHand:
         async def write(
-            workflow: Workflow, values: Mapping[str, str], thread: str, by_id: object
+            workflow: Workflow,
+            values: Mapping[str, str],
+            thread: str,
+            by_id: object,
+            request: object,
         ) -> Written:
             return Written("alex@example.com", "Re: client", "SROCLS8 is set up.", thread, "")
 

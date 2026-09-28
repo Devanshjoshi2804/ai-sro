@@ -16,7 +16,7 @@ Notes on [`backend/src/sro/domain/prompts/write_mail.py`](../../../../../../../b
 > `make eval` report; it merges on its code checks (ruled 2026-09-26), and P5
 > adds a small mail suite.
 
-## module, [line 45](../../../../../../../backend/src/sro/domain/prompts/write_mail.py#L45): Note on the line above
+## module, [line 51](../../../../../../../backend/src/sro/domain/prompts/write_mail.py#L51): Note on the line above
 
 Code: `"body": {"type": "string", "pattern": r"\S"},`
 
@@ -29,5 +29,16 @@ Code: `"body": {"type": "string", "pattern": r"\S"},`
 > `pattern` and not `minLength`: the body must hold something that is not
 > whitespace, which is what `write_the_mail` means by a body. A lone newline
 > from a model that spent its tokens thinking is as empty as `""`. The
-> schema is the one place this is decided; the caller reads "no data" and
-> does not check the body again.
+> schema is the one place a model's body is judged; `write_the_mail` checks
+> again only a draft shown back to it (S4's yes to a refused draft).
+
+## `WRITE_MAIL`, [line 32](../../../../../../../backend/src/sro/domain/prompts/write_mail.py#L32): Note
+
+> Version 4 (S4, merged after S3's version 3) adds `request`, trusted JSON: the words the run's starter typed
+> in their own panel and their answers to its questions. The model is told it is
+> the operator speaking, not mail; an address it names may be written to, the
+> body is what it asks for when the values hold none, and a value from it is
+> cited to message `request`. QA 2026-09-28: `Compose and Send Email` from the
+> operator's own chat came back `to=""`, `body=""` on 3.8-flash and 3.7-flash,
+> with the operator's request never shown. `check_draft` still enforces every
+> rule. No mail suite exists yet, so no `make eval` report (LIVE EVAL owed).

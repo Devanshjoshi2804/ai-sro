@@ -4,10 +4,10 @@ import asyncio
 from collections.abc import Callable, Mapping
 
 from sro.application.context import RequestContext
-from sro.application.execution.mail_job import MailHand, Unaddressed
+from sro.application.execution.mail_job import WHAT_IT_SAYS, MailHand, Unaddressed
 from sro.application.runtime.step import LaneContext, NeedsAPerson, Stopped
-from sro.domain.execution.lanes import Lane, StepResult, fingerprint_of
-from sro.domain.execution.mail_job import sends_mail
+from sro.domain.execution.lanes import Lane, StepResult
+from sro.domain.execution.mail_job import MAIL_BODY, sends_mail
 from sro.domain.skill.workflow import Step
 
 
@@ -23,17 +23,11 @@ class ToolLane:
                 "failed", Lane.TOOL, "this mailbox step sends nothing", never_left=True
             )
         hand = self._hand(ctx.ctx)
-        written = await hand.write(ctx.workflow, values, ctx.thread, ctx.by_id)
+        written = await hand.write(ctx.workflow, values, ctx.thread, ctx.by_id, ctx.request)
         if isinstance(written, Unaddressed):
             raise NeedsAPerson(str(written), kind="recipient")
         if isinstance(written, str):
-            return StepResult(
-                "failed",
-                Lane.TOOL,
-                written,
-                never_left=True,
-                fingerprint=fingerprint_of(Lane.TOOL, "unwritten"),
-            )
+            raise NeedsAPerson(f"{written}. {WHAT_IT_SAYS}", kind=MAIL_BODY)
         ctx.check_stop()
         await ctx.about_to_write(self.lane)
         try:

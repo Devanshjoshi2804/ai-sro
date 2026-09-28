@@ -45,7 +45,7 @@ from sro.application.skill.job_facts import JobFacts, job_facts
 from sro.domain.chat.asking import NEEDS, Pending, question, waiting_on_mail
 from sro.domain.chat.thread import Said, Speaker
 from sro.domain.execution.learned_step import limits_for, too_long
-from sro.domain.execution.mail_job import one_address_in
+from sro.domain.execution.mail_job import MAIL_BODY, one_address_in
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.waiting import read_wait, still_waiting
 from sro.domain.execution.workflow_run import WorkflowRun, answers_for
@@ -241,7 +241,7 @@ class FromTheMail:
         look.read += 1
         back = await self._answering(ctx, thread)
         waits = Progress.of(back.progress).asking.get("kind") if back is not None else None
-        if back is not None and (back.executor == "steel" or waits == "recipient"):
+        if back is not None and (back.executor == "steel" or waits in ("recipient", MAIL_BODY)):
             if not answers_for(back, ctx.principal_id.value):
                 look.theirs += 1
                 await self._elsewhere(ctx, back)

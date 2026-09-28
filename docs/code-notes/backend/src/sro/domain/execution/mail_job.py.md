@@ -22,7 +22,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/execution/mail_job
 > Pure: what counts as a mail job and who may be written to. What the model
 > is asked is the `WRITE_MAIL` record, in `sro.domain.prompts.write_mail`. The reading, the drafting and the sending are the application's.
 
-## module, [line 15](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L15): Note on the line above
+## module, [line 16](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L16): Note on the line above
 
 Code: `MAILBOXES = frozenset({"mail.google.com"})`
 
@@ -30,14 +30,14 @@ Code: `MAILBOXES = frozenset({"mail.google.com"})`
 > `origin_of` answers, scheme and all left off. One, because the connector is
 > Gmail's; a second provider is a second connector before it is a line here.
 
-## module, [line 46](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L46): Note on the line above
+## module, [line 47](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L47): Note on the line above
 
 Code: `MAILBOX_HOSTS = frozenset({"mail.google.com", "outlook.office.com", "outlook.live.com"})`
 
 > Every mailbox a person reads requests in. Wider than `MAILBOXES`, which is
 > only the one the connector can also write through.
 
-## `is_mail_only`, [line 18](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L18): Docstring
+## `is_mail_only`, [line 19](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L19): Docstring
 
 > Whether every step of this job happened in the mailbox.
 >
@@ -46,7 +46,7 @@ Code: `MAILBOX_HOSTS = frozenset({"mail.google.com", "outlook.office.com", "outl
 > a sign-in, a warehouse screen -- is not a mail job: its mail half is read
 > by the gather rung, and the rest is a page that has to be driven.
 
-## `sends_mail`, [line 34](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L34): Docstring
+## `sends_mail`, [line 35](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L35): Docstring
 
 > Whether this step pressed a mailbox's Send button.
 >
@@ -59,13 +59,13 @@ Code: `MAILBOX_HOSTS = frozenset({"mail.google.com", "outlook.office.com", "outl
 > that sends one, clicked a button named `Send (⌘Enter)`, and no other
 > mailbox step did.
 
-## `on_the_mailbox`, [line 42](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L42): Docstring
+## `on_the_mailbox`, [line 43](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L43): Docstring
 
 > Whether this happened on a mailbox's own page -- by where it happened,
 > not by the system it was filed under. `Log in to Google Account` is filed
 > under the mailbox and types its password on `accounts.google.com`.
 
-## `_VALUE_LIKE`, [line 61](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L61): Note on the line above
+## `_VALUE_LIKE`, [line 62](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L62): Note on the line above
 
 Code: `_VALUE_LIKE = re.compile(`
 
@@ -80,14 +80,41 @@ Code: `_VALUE_LIKE = re.compile(`
 > out. Those pass unchecked. The upgrade is a model check of the body against
 > the thread, which the eval would have to measure first.
 
-## `K_SENT_THREADS`, [line 69](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L69): Note on the line above
+## `K_SENT_THREADS`, [line 70](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L70): Note on the line above
 
 Code: `K_SENT_THREADS = 10`
 
 > A send call naming more threads than this is a sync of the mailbox, not the
 > send of one mail, so it grants nobody.
 
-## `K_SEND_WINDOW_S`, [line 71](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L71): Note on the line above
+## `REQUEST`, [line 74](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L74): Note on the line above
+
+Code: `REQUEST = "request"`
+
+> The citation source for the operator's own request: a draft cites a value it
+> took from the request as `{value, message: "request"}`. No Gmail id reads
+> "request", and the request overrides one in `check_draft` anyway: it is the
+> operator's text, trusted.
+
+## `MAIL_BODY`, [line 76](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L76): Note on the line above
+
+Code: `MAIL_BODY: Final = "mail_body"`
+
+> The question a mail that could not be written asks its starter: what it should
+> say. A literal, so `NeedsAPerson.kind` takes it; here in the domain so
+> `asks_a_person` and the store's `waiting_on` find a stopped run asking it.
+
+## `DRAFTED`, [line 78](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L78): Note on the line above
+
+Code: `DRAFTED = "mail_draft"`
+
+> The decision kind of a mail written and not sent. Named here because two
+> sides read it: the mail job and the asker's door write it, and the panel
+> draws the words with a press under them. In the domain so the door that sends
+> it (`SendTheDraft`) can keep a recipient through `keep_the_named` without an
+> import cycle.
+
+## `K_SEND_WINDOW_S`, [line 72](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L72): Note on the line above
 
 Code: `K_SEND_WINDOW_S = 120.0`
 
@@ -96,19 +123,19 @@ Code: `K_SEND_WINDOW_S = 120.0`
 > press; two minutes allows a slow network and no more, since a second SENT mail
 > in that window makes the click ambiguous and grants nobody.
 
-## `JobRecipient`, [line 75](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L75): Docstring
+## `JobRecipient`, [line 82](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L82): Docstring
 
 > An address the job's operator said its mail goes to, answering the run's
 > `recipient` question -- with who said it and when, as an alias is kept. Only
 > that answer writes one (`RunSteps.answered`); a model never does.
 
-## `Allowed`, [line 82](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L82): Docstring
+## `Allowed`, [line 89](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L89): Docstring
 
 > Who a draft may go to besides the conversation's participants: `to` holds the
 > To and Cc of the mail the job's demonstration sent, and the addresses its
 > operator confirmed; `bcc` holds the Bcc of that mail, which stays Bcc.
 
-## `Checked`, [line 88](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L88): Docstring
+## `Checked`, [line 95](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L95): Docstring
 
 > A draft's verdict. `why` is empty when it may go, and says what was refused
 > otherwise -- the address, or the value -- for the operator's question. `logged`
@@ -118,7 +145,7 @@ Code: `K_SEND_WINDOW_S = 120.0`
 > answer; `to` and `bcc` are the addresses checked, and the only ones a header
 > is built from.
 
-## `mailboxes`, [line 96](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L96): Docstring
+## `mailboxes`, [line 103](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L103): Docstring
 
 > The addresses a header or an answer names, casefolded, or `None` when any
 > entry does not read as a plain ASCII address. Parsed by
@@ -128,7 +155,7 @@ Code: `K_SEND_WINDOW_S = 120.0`
 > rather than half-read by a pattern. An internationalised address is refused
 > too; the operator is asked instead.
 
-## `participants`, [line 125](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L125): Docstring
+## `participants`, [line 136](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L136): Docstring
 
 > Who the conversation lets a draft go to: the sender of every message, and the
 > To and Cc of every message the operator's own mailbox sent (`sent`, Gmail's
@@ -138,7 +165,7 @@ Code: `K_SEND_WINDOW_S = 120.0`
 > invariant 7): a reply-all to somebody only a sender cc'd asks first. Headers,
 > never bodies.
 
-## `sent_from`, [line 135](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L135): Docstring
+## `sent_from`, [line 146](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L146): Docstring
 
 > For each Send the job's evidence pressed, when it was pressed and the Gmail
 > threads its own send call (`POST mail.google.com/sync/u/N/i/s`, answered 2xx)
@@ -153,7 +180,7 @@ Code: `K_SEND_WINDOW_S = 120.0`
 > `msg-a:r…` id the API does not know. `thread-f` sits on the same calls. A
 > click with no thread, or no single SENT mail in the window, grants nobody.
 
-## `check_draft`, [line 169](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L169): Docstring
+## `check_draft`, [line 180](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L180): Docstring
 
 > Whether a draft may go, and to whom (`Checked`).
 >
@@ -169,8 +196,25 @@ Code: `K_SEND_WINDOW_S = 120.0`
 >
 > Accepted (M5): an address the mail's text names can be put in the body when
 > cited to that mail ("please reply to eve@..."). It is never a recipient.
+>
+> `request` (S4) is the run's starter's own words, typed in their own panel. An
+> address it names (`named_in`) is operator-named, as an answer to the
+> recipient question is, and a value it says may be cited to message `REQUEST`.
+> Only the application's `the_operator_s_words` and the starter's answers ever
+> fill it; mail never does.
+>
+> `vouched` (S4 round 1, C1) is text the operator said yes to -- a refused
+> draft's own body -- whose values count as given. It proves values only: who
+> the mail goes to is checked exactly as before, and it never names a
+> recipient.
 
-## `one_address_in`, [line 103](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L103): Docstring
+## `named_in`, [line 128](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L128): Docstring
+
+> Every address the operator's own words name, read word by word exactly as
+> `one_address_in` reads a reply (`_named`: punctuation stripped, then
+> `mailboxes`); an unreadable one names nobody.
+
+## `one_address_in`, [line 110](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L110): Docstring
 
 > The one address an operator's mail names in its own text, or `""`. The quote
 > is found by structure, never by an English "On …": the first `>` line starts

@@ -990,6 +990,9 @@ async def test_the_answer_to_a_question_is_taken_as_the_answer() -> None:
         # starts is findable by a reply. Empty: nothing asked for this by mail.
         "mail_thread": "",
         "watched": True,
+        # The question this one carries on from, so the run it ends in finds
+        # every word of its own request and none of an older one (S4, I4).
+        "offer": "msg_asked",
         # Every field still wanted, each with its limits and options: the
         # shape one form is drawn from.
         "asks": [{"name": "longDescription", "max_length": None, "options": []}],

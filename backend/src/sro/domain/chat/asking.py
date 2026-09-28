@@ -4,6 +4,7 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from difflib import SequenceMatcher
+from itertools import pairwise
 
 from sro.domain.chat.request import Candidate, field_of, refusal
 from sro.domain.chat.thread import Message, Said, Speaker
@@ -347,6 +348,34 @@ def waiting_on_mail(messages: Sequence[Message], mail_thread: str) -> Pending | 
 
 def _offer(decision: Mapping[str, object]) -> tuple[str, str]:
     return str(decision.get("workflow_id") or ""), str(decision.get("mail_thread") or "")
+
+
+def the_request(messages: Sequence[Message], offer: str, workflow_id: str) -> tuple[str, ...]:
+    chain = {offer} if offer else set()
+    for one in reversed(messages):
+        if one.id.value in chain and _chats_about(one, workflow_id) and _link(one):
+            chain.add(_link(one))
+    return tuple(
+        before.text
+        for before, one in pairwise(messages)
+        if _chats_about(one, workflow_id)
+        and (one.id.value in chain or _link(one) in chain)
+        and before.speaker is Speaker.OPERATOR
+        and before.text.strip()
+    )
+
+
+def _link(message: Message) -> str:
+    return str((message.decision or {}).get("offer") or "")
+
+
+def _chats_about(message: Message, workflow_id: str) -> bool:
+    decision = message.decision or {}
+    return (
+        message.speaker is Speaker.ASSISTANT
+        and decision.get("kind") in (JOB, NEEDS)
+        and _offer(decision) == (workflow_id, "")
+    )
 
 
 def pending_job(messages: Sequence[Message], answering: str | None = None) -> Pending | None:

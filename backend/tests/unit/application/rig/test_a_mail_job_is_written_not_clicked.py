@@ -364,6 +364,7 @@ async def _write(
         {"Customer Type": "NRT2"},
         THREAD,
         by_id={"g-send": _pressed_send()} if by_id is None else by_id,
+        request=(),
         uow=uow or FakeUnitOfWork(),
         tools=mailbox,
         asker=_written(to, body),
@@ -562,6 +563,7 @@ async def test_the_model_sees_who_each_message_went_to_and_its_id() -> None:
         {},
         THREAD,
         by_id={},
+        request=(),
         uow=FakeUnitOfWork(),
         tools=_Mailbox(),
         asker=asker,
@@ -769,6 +771,7 @@ async def test_an_empty_draft_on_the_new_flash_is_written_again_on_the_older_one
         {"Customer Type": "NRT2"},
         THREAD,
         by_id={},
+        request=[],
         uow=FakeUnitOfWork(),
         tools=_Mailbox(),
         asker=asker,
@@ -777,3 +780,49 @@ async def test_an_empty_draft_on_the_new_flash_is_written_again_on_the_older_one
     assert [one["model"] for one in asker.asked] == ["gemini-3.8-flash", "gemini-3.7-flash"]
     assert isinstance(written, Written)
     assert (written.to, written.body) == ("alex.r@example.com", "NRT2 is set up.")
+
+
+@pytest.mark.parametrize(
+    ("by_id", "thread", "logged"),
+    [
+        ({}, [], "0 Send click(s)"),
+        (
+            {"g-send": _pressed_send('[["msg-f:1845678901234500001"]]')},
+            [_sent_copy(to="vendor@supplier.example")],
+            "1 Send click(s): 1 named no thread, 0 thread(s) read",
+        ),
+        (None, [], "1 Send click(s): 0 named no thread, 1 thread(s) read, 0 message(s)"),
+        (
+            None,
+            [_sent_copy(sent=False, to="vendor@supplier.example")],
+            "1 thread(s) read, 1 message(s), 0 sent in the window; 1 found no sent mail",
+        ),
+        (
+            None,
+            [
+                _sent_copy(to="vendor@supplier.example"),
+                _sent_copy(after=5.0, to="other@supplier.example"),
+            ],
+            "2 sent in the window; 0 found no sent mail, 1 found more than one, 0 granted",
+        ),
+        (
+            None,
+            [_sent_copy(to="vendor@supplier.example")],
+            "1 sent in the window; 0 found no sent mail, 0 found more than one, 1 granted",
+        ),
+    ],
+)
+async def test_why_a_demonstrated_send_granted_nobody_is_logged_in_counts(
+    by_id: Mapping[str, Gesture] | None,
+    thread: list[dict[str, object]],
+    logged: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """S4, ruling 3: QA's `Compose and Send Email` came back with an empty
+    `sent_before`. Each way a Send click can grant nobody is told, in counts
+    and never an address."""
+    with caplog.at_level(logging.INFO):
+        await _write(_Mailbox(thread), "vendor@supplier.example", by_id=by_id)
+
+    assert logged in caplog.text
+    assert "@" not in caplog.text

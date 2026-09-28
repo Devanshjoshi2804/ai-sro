@@ -5,6 +5,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from email.utils import getaddresses
+from typing import Final
 from urllib.parse import urlsplit
 
 from sro.domain.observation.gesture import Call, Gesture
@@ -70,6 +71,12 @@ K_SENT_THREADS = 10
 
 K_SEND_WINDOW_S = 120.0
 
+REQUEST = "request"
+
+MAIL_BODY: Final = "mail_body"
+
+DRAFTED = "mail_draft"
+
 
 @dataclass(frozen=True, slots=True)
 class JobRecipient:
@@ -111,15 +118,19 @@ def one_address_in(text: str, *, reply: bool) -> str:
     if quoted is not None:
         while end and lines[end - 1].strip():
             end -= 1
-    named = {
-        mailboxes(word.strip("<>()[]{},.;:!?'\""))
-        for word in " ".join(lines[:end]).split()
-        if "@" in word
-    }
+    named = _named(" ".join(lines[:end]))
     if len(named) != 1:
         return ""
     (only,) = named
     return only[0] if only and len(only) == 1 else ""
+
+
+def named_in(texts: Iterable[str]) -> frozenset[str]:
+    return frozenset(one for text in texts for found in _named(text) for one in found or ())
+
+
+def _named(text: str) -> set[tuple[str, ...] | None]:
+    return {mailboxes(word.strip("<>()[]{},.;:!?'\"")) for word in text.split() if "@" in word}
 
 
 def participants(conversation: Sequence[Mapping[str, object]]) -> frozenset[str]:
@@ -174,6 +185,8 @@ def check_draft(
     conversation: Sequence[Mapping[str, object]],
     values: Mapping[str, str],
     allowed: Allowed,
+    request: Sequence[str] = (),
+    vouched: Sequence[str] = (),
 ) -> Checked:
     wanted = mailboxes(to)
     if wanted is None:
@@ -182,7 +195,7 @@ def check_draft(
             "the recipients could not be read",
             recipient=True,
         )
-    open_to = participants(conversation) | allowed.to
+    open_to = participants(conversation) | allowed.to | named_in(request)
     strangers = [one for one in wanted if one not in open_to | allowed.bcc]
     if strangers:
         return Checked(
@@ -200,8 +213,8 @@ def check_draft(
     said = {
         str(one.get("id") or ""): f"{one.get('subject') or ''} {one.get('body') or ''}"
         for one in conversation
-    }
-    proven = _values_in(values.values()) | _values_in(
+    } | {REQUEST: " ".join(request)}
+    proven = _values_in((*values.values(), *vouched)) | _values_in(
         str(one.get("value") or "")
         for one in cited
         if quoted_in(str(one.get("value") or ""), said.get(str(one.get("message") or ""), ""))

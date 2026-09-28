@@ -5,9 +5,10 @@ from collections.abc import Awaitable, Callable
 from typing import Literal
 
 from sro.application.context import RequestContext
+from sro.application.execution.mail_job import K_BODY
 from sro.application.ports.durable import DurableExecution
 from sro.application.ports.repositories import UnitOfWork
-from sro.domain.execution.mail_job import mailboxes
+from sro.domain.execution.mail_job import MAIL_BODY, mailboxes
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.workflow_run import answers_for
 from sro.domain.shared.errors import Conflict, NotFound
@@ -47,18 +48,23 @@ class AnswerRun:
         progress = Progress.of(run.progress)
         asking = progress.asking
         kind = asking.get("kind")
-        drafted = run.executor != "steel" and kind == "recipient"
+        drafted = run.executor != "steel" and kind in ("recipient", MAIL_BODY)
         if run.outcome != ("stopped" if drafted else "running"):
             raise Conflict("that run is no longer running")
         if not asking or asking.get("id") != question_id:
             raise Conflict("that is not the question this run is waiting on")
-        if value and kind not in ("value", "field", "recipient"):
+        if value and kind not in ("value", "field", "recipient", MAIL_BODY):
             raise Conflict(
                 "only a question for a value takes one: a password is stored with "
                 "PUT /v1/secrets, a one-time code is typed on the page, and a step "
                 "is answered by its verdict"
             )
         chosen = value.strip()
+        holds = K_BODY if kind == MAIL_BODY else K_ANSWER
+        if len(chosen) > holds:
+            raise Conflict(
+                f"that answer is {len(chosen)} characters and this question takes {holds}"
+            )
         if kind == "field" and chosen and chosen not in json.loads(asking.get("choices") or "[]"):
             raise Conflict("a field is answered by one of the choices it offered, or left out")
         if verdict and kind != "step":
@@ -73,6 +79,10 @@ class AnswerRun:
             if not named:
                 raise Conflict("who a mail goes to is answered with one or more addresses")
             answer |= {"address": ", ".join(named), "by": ctx.principal_id.value}
+        if kind == MAIL_BODY:
+            if not chosen:
+                raise Conflict("what a mail says is answered with its words")
+            answer |= {"said": chosen, "by": ctx.principal_id.value}
         if asking.get("answered"):
             if any(asking.get(key, "") != said for key, said in answer.items()):
                 raise Conflict("that question was already answered")

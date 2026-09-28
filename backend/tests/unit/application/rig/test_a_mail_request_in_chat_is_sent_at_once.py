@@ -18,6 +18,7 @@ real start, the real answer and the real mail job; fakes only at the ports:
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from typing import Any
 
 from sro.application.chat.converse import Converse, StartThread
@@ -41,6 +42,7 @@ from tests.unit.application.rig.test_mail_is_a_built_in_action import (
     _wrote,
 )
 from tests.unit.fakes import FakeEmbedder
+from tests.unit.runtime_support import save_job
 
 STRAY = "send a mail to somebody saying Hi"
 ASKED_FOR = (
@@ -48,6 +50,7 @@ ASKED_FOR = (
     "inventory need status for 28 sep"
 )
 STRANGER = "eve@evil.example"
+LEARNED = "wfl_1"
 
 
 def _not_an_answer(about: str) -> Answer:
@@ -110,9 +113,8 @@ class _Chat(_World):
 
     async def a_stray_question(self) -> WorkflowRun:
         await StartThread(self.uow, self.clock, self.ids).execute(A)
-        await self.say(STRAY)
-        said = await self.say("Yes")
-        run = await self.saved(str((said.messages[-1].decision or {})["run_id"]))
+        said = await self.say(STRAY)
+        run = await self.saved(_started(said))
         assert Progress.of(run.progress).asking["kind"] == "recipient"
         return run
 
@@ -122,6 +124,12 @@ class _Chat(_World):
             for one in self.asker.asked
             if '"to"' in json.dumps(one.get("schema", {}))
         ]
+
+
+def _started(thread: Thread) -> str:
+    """The run a request started at once: no offer, no yes."""
+    (started,) = [one for one in thread.messages if (one.decision or {}).get("resume")][-1:]
+    return str((started.decision or {})["run_id"])
 
 
 def _kinds(thread: Thread) -> list[Any]:
@@ -138,16 +146,16 @@ async def test_a_new_mail_request_under_an_open_run_question_is_written_and_sent
     )
     stray = await world.a_stray_question()
 
-    offered = await world.say(ASKED_FOR)
-    offer = next(
-        one for one in reversed(offered.messages) if (one.decision or {}).get("kind") == "job"
-    )
-    assert (offer.decision or {})["workflow_id"] == SEND_A_MAIL
-    assert (offered.messages[-1].decision or {}).get("kind") == "run_asks", "asked again"
-    assert (offered.messages[-1].decision or {})["run_id"] == stray.id
-    said = await world.say("Yes", answering=offer.id.value)
+    said = await world.say(ASKED_FOR)
 
-    run = await world.saved(str((said.messages[-1].decision or {})["run_id"]))
+    assert not [one for one in said.messages if "say the word" in one.text], "no offer, no yes"
+    request = next(n for n, one in enumerate(said.messages) if one.text == ASKED_FOR)
+    asked_again = said.messages[request - 1]
+    assert (asked_again.decision or {}).get("kind") == "run_asks", "asked again, first"
+    assert (asked_again.decision or {})["run_id"] == stray.id
+    after = [(one.decision or {}).get("kind") for one in said.messages[request:]]
+    assert "run_asks" not in after, "the new request's messages are the latest"
+    run = await world.saved(_started(said))
     assert run.id != stray.id and run.workflow_id == SEND_A_MAIL
     assert ASKED_FOR in world.written_for()[-1], "WRITE_MAIL was given the request"
     (sent,) = world.mailbox.sent
@@ -160,6 +168,29 @@ async def test_a_new_mail_request_under_an_open_run_question_is_written_and_sent
     old = await world.saved(stray.id)
     assert not Progress.of(old.progress).asking.get("answered"), "the old question stands"
     assert old.outcome == "stopped"
+
+
+async def test_a_typed_yes_after_a_new_task_under_a_run_question_starts_the_new_task() -> None:
+    """The old question is asked again first, so the offer is the latest thing
+    said, and a typed yes -- no `answering` -- is the offer's."""
+    world = _Chat(
+        _read(SEND_A_MAIL),
+        _wrote(to=STRANGER),
+        _not_an_answer("another_task"),
+        _read(LEARNED),
+    )
+    stray = await world.a_stray_question()
+    await world.uow.workflows.save(replace(await save_job(world.uow, LEARNED), parameters=[]))
+
+    offered = await world.say("set up the customer type")
+    assert (offered.messages[-1].decision or {}).get("kind") == "job", "the offer is last"
+    said = await world.say("yes")
+
+    started = said.messages[-1].decision or {}
+    assert started.get("resume") is True, said.messages[-1].text
+    assert started["workflow_id"] == LEARNED
+    old = await world.saved(stray.id)
+    assert not Progress.of(old.progress).asking.get("answered"), "the old question stands"
 
 
 async def test_to_an_address_answers_who_a_mail_goes_to() -> None:
@@ -197,3 +228,19 @@ async def test_small_talk_under_a_run_question_asks_it_again() -> None:
     assert thread.messages[-1].text == thread.messages[-3].text
     assert world.mailbox.sent == []
     assert not Progress.of((await world.saved(stray.id)).progress).asking.get("answered")
+
+
+async def test_a_mail_request_that_cannot_start_says_so_once_under_the_request() -> None:
+    """The request is said once; the refusal answers it -- no second copy of
+    the operator's words, no offer left behind to say yes to."""
+    world = _Chat(_read(SEND_A_MAIL))
+    world.converse._start = None
+    await StartThread(world.uow, world.clock, world.ids).execute(A)
+
+    said = await world.say(ASKED_FOR)
+
+    assert [one.text for one in said.messages] == [
+        ASKED_FOR,
+        "Nothing was started: this process cannot start a run.",
+    ]
+    assert world.mailbox.sent == []

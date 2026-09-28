@@ -1,13 +1,14 @@
 """Send, reply and forward are built-in mail actions, never learned jobs.
 
 Decided with the user 2026-09-28: mail work runs on the Gmail connector only.
-The user's own test on runtime-9ee015a -- a chat yes to `Compose and Send
+The user's own test on runtime-9ee015a -- a chat request for `Compose and Send
 Email`, drafted from their words, Send pressed, sent by the Gmail tool -- is
 the path. A built-in action runs that same path with the same guards; it only
 takes the mined job's place, so a tenant with no mined mail job is served too.
 
 Held here, through the real reader, the real start and the real send (Q1, 2026-09-28:
-the mail goes as soon as it is written; there is no Send to press):
+the request starts it -- no offer, no yes -- and the mail goes as soon as it is
+written; there is no Send to press):
 - "send an email to ..." reaches the built-in even with no job mined;
 - a mail-only mined job is no candidate, and its demonstrated recipients are
   the built-in's;
@@ -187,12 +188,11 @@ class _World:
             spawn=self.spawned.append,
         )
 
-    async def ask_and_say_yes(self, text: str = REQUEST) -> WorkflowRun:
+    async def ask(self, text: str = REQUEST) -> WorkflowRun:
+        """One message: a mail action starts at once, with no offer and no yes."""
         thread = await StartThread(self.uow, self.clock, self.ids).execute(A)
-        offered = await self.converse.execute(A, thread_id=thread.id, text=text)
-        decision = dict(offered.messages[-1].decision or {})
-        assert decision.get("kind") == "job", offered.messages[-1].text
-        said = await self.converse.execute(A, thread_id=thread.id, text="Yes")
+        said = await self.converse.execute(A, thread_id=thread.id, text=text)
+        assert [one.text for one in said.messages[-2:-1]] == [text], "only what was said"
         started = dict(said.messages[-1].decision or {})
         assert started.get("resume") is True, said.messages[-1].text
         for performing in self.spawned:
@@ -229,7 +229,7 @@ class _World:
 async def test_a_tenant_with_no_mail_job_sends_through_the_built_in_action() -> None:
     world = _World(_read(SEND_A_MAIL), _wrote())
 
-    run = await world.ask_and_say_yes()
+    run = await world.ask()
 
     assert SEND_A_MAIL in world.candidates()
     assert run.workflow_id == SEND_A_MAIL
@@ -246,7 +246,7 @@ async def test_a_tenant_with_no_mail_job_sends_through_the_built_in_action() -> 
 async def test_a_send_to_somebody_the_operator_never_named_is_asked_about() -> None:
     world = _World(_read(SEND_A_MAIL), _wrote(to="eve@evil.example"))
 
-    run = await world.ask_and_say_yes()
+    run = await world.ask()
 
     assert Progress.of(run.progress).asking["kind"] == "recipient"
     assert world.mailbox.sent == []
@@ -303,7 +303,7 @@ async def test_the_mined_mail_job_is_no_candidate_and_its_recipients_are_the_bui
         )
     )
 
-    await world.ask_and_say_yes("send the vendor a test email saying Hi")
+    await world.ask("send the vendor a test email saying Hi")
 
     assert "wfl_compose" not in world.candidates()
     (went,) = world.mailbox.sent
@@ -355,7 +355,7 @@ async def test_a_reply_or_forward_with_no_mail_asks_which_and_drafts_on_the_one_
         mailbox=_Mailbox(**{"t-alex": ASKED, "t-other": [{"id": "m-2", "subject": "Lunch"}]}),
     )
 
-    run = await world.ask_and_say_yes("answer Alex: Hi, this is a test email")
+    run = await world.ask("answer Alex: Hi, this is a test email")
 
     asking = Progress.of(run.progress).asking
     assert asking["kind"] == WHICH_MAIL
@@ -374,7 +374,7 @@ async def test_a_reply_or_forward_with_no_mail_asks_which_and_drafts_on_the_one_
 async def test_words_that_find_no_mail_or_several_ask_again(words: str, found: int) -> None:
     mailbox = _Mailbox(**{"t-alex": ASKED, "t-other": [{"id": "m-2", "subject": "NRT2 lunch"}]})
     world = _World(_read(REPLY_TO_A_MAIL), mailbox=mailbox)
-    run = await world.ask_and_say_yes("reply to the mail")
+    run = await world.ask("reply to the mail")
 
     await world.answer(A, run, words)
 
@@ -391,7 +391,7 @@ async def test_only_the_starter_names_the_mail_and_only_once() -> None:
         _wrote(to=ALEX, body="Hi\n\nThis is a test email."),
         mailbox=_Mailbox(**{"t-alex": ASKED}),
     )
-    run = await world.ask_and_say_yes("reply to the mail: Hi, this is a test email")
+    run = await world.ask("reply to the mail: Hi, this is a test email")
 
     with pytest.raises(Conflict):
         await world.answer(B, run, "NRT2")

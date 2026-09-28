@@ -54,7 +54,7 @@ from sro.domain.chat.standing import last_run, of_the_run, stands
 from sro.domain.chat.thread import Message, MessageId, Said, Speaker, Thread, ThreadId
 from sro.domain.execution.compose import alias_map
 from sro.domain.execution.field_classes import field_classes
-from sro.domain.execution.mail_job import DRAFT_QUESTIONS, built_ins
+from sro.domain.execution.mail_job import DRAFT_QUESTIONS, built_in, built_ins
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
 from sro.domain.execution.workflow_run import WorkflowRun, answers_for
@@ -190,18 +190,17 @@ class Converse:
                 return await self._answer_the_run(
                     ctx, answer, thread_id=thread_id, text=text, value=answered_it, asked=run_asks
                 )
-            if about == "another_task":
-                await self._carry_on(
-                    ctx,
-                    thread_id=thread_id,
-                    text=text,
-                    system=system,
-                    parameters=parameters,
-                    standing=True,
-                )
-            else:
+            if about != "another_task":
                 await self._also_said(ctx, thread_id=thread_id, text=text)
-            return await self._ask_the_run_again(ctx, thread_id=thread_id, asked=run_asks)
+                return await self._ask_the_run_again(ctx, thread_id=thread_id, asked=run_asks)
+            return await self._carry_on_under(
+                ctx,
+                thread_id=thread_id,
+                text=text,
+                system=system,
+                parameters=parameters,
+                ask_again=lambda: self._ask_the_run_again(ctx, thread_id=thread_id, asked=run_asks),
+            )
         if (
             answering is not None
             and pending_job(said_before, answering) is None
@@ -230,18 +229,15 @@ class Converse:
                     asked=asked,
                     said_before=said_before,
                 )
-            placed = await self._placed_by_the_rig(ctx, text)
-            await self._carry_on(
+            return await self._carry_on_under(
                 ctx,
                 thread_id=thread_id,
                 text=text,
                 system=system,
                 parameters=parameters,
-                placed=placed,
-                standing=True,
-            )
-            return await self._ask_it_again(
-                ctx, thread_id=thread_id, pending=waiting, asked=asked, said_before=said_before
+                ask_again=lambda: self._ask_it_again(
+                    ctx, thread_id=thread_id, pending=waiting, asked=asked, said_before=said_before
+                ),
             )
         return await self._carry_on(
             ctx,
@@ -251,6 +247,31 @@ class Converse:
             parameters=parameters,
             answering=answering,
         )
+
+    async def _carry_on_under(
+        self,
+        ctx: RequestContext,
+        *,
+        thread_id: ThreadId,
+        text: str,
+        system: str | None,
+        parameters: dict[str, str] | None,
+        ask_again: Callable[[], Coroutine[object, object, Thread]],
+    ) -> Thread:
+        placed = await self._placed_by_the_rig(ctx, text)
+        waits = placed is not None and not placed.cannot_run
+        if waits:
+            await ask_again()
+        carried = await self._carry_on(
+            ctx,
+            thread_id=thread_id,
+            text=text,
+            system=system,
+            parameters=parameters,
+            placed=placed,
+            standing=True,
+        )
+        return carried if waits else await ask_again()
 
     async def _open_in_words(self, ctx: RequestContext, asked: Message) -> bool:
         decision = asked.decision or {}
@@ -343,6 +364,8 @@ class Converse:
             (Speaker.OPERATOR, text, None),
             (Speaker.ASSISTANT, said, decision),
         ):
+            if not words:
+                continue
             thread.say(
                 Message(
                     id=self._ids.new_message_id(),
@@ -664,7 +687,7 @@ class Converse:
         *,
         thread_id: ThreadId,
         text: str,
-        asked: MessageId,
+        asked: MessageId | None,
         answering: str | None,
         job: Pending,
         offer: str,
@@ -807,14 +830,14 @@ class Converse:
         *,
         thread_id: ThreadId,
         text: str,
-        asked: MessageId,
+        asked: MessageId | None,
         answering: str | None,
         said: str,
         decision: dict[str, object],
     ) -> Thread:
         thread = await uow.threads.get_for_answer(ctx.tenant_id, thread_id)
         still = asked_under(thread.messages, answering)
-        if still is None or still.id != asked:
+        if asked is not None and (still is None or still.id != asked):
             raise _Closed
         self._told(thread, text, said, decision)
         await uow.threads.save(thread)
@@ -833,6 +856,34 @@ class Converse:
     async def _say_the_job(
         self, ctx: RequestContext, *, thread_id: ThreadId, text: str, placed: Understood
     ) -> Thread:
+        mail = built_in(placed.workflow_id or "", ctx.tenant_id.value)
+        if mail is not None and placed.sure and not placed.cannot_run and not placed.missing:
+            request = Message(
+                id=self._ids.new_message_id(),
+                speaker=Speaker.OPERATOR,
+                text=text,
+                said_at=self._clock.now(),
+            )
+            async with self._uow as uow:
+                thread = await uow.threads.get(ctx.tenant_id, thread_id)
+                thread.say(request)
+                await uow.threads.save(thread)
+                await uow.commit()
+            return await self._start_it(
+                ctx,
+                thread_id=thread_id,
+                text="",
+                asked=None,
+                answering=None,
+                job=Pending(
+                    workflow_id=mail.id,
+                    title=mail.title,
+                    values=dict(placed.values),
+                    missing=(),
+                    items=tuple(dict(one) for one in placed.items),
+                ),
+                offer=request.id.value,
+            )
         async with self._uow as uow:
             known = {
                 one.id: one

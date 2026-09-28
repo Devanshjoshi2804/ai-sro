@@ -647,19 +647,21 @@ async def test_asking_for_a_different_job_is_still_heard() -> None:
         CTX, thread_id=thread_id, text="create a warehouse equipment type instead"
     )
 
-    # Handled as the request it is -- and the question is still standing under
-    # it, because nothing answered it.
+    # Handled as the request it is -- and the question is still standing
+    # beside it, because nothing answered it.
     #
     # Counted as what this turn ADDED, not as the thread's length: a total
     # holds at ">= 3" whether the request was heard or swallowed, and this is
-    # the test that has to tell those apart. Three: what they said, the answer
-    # to it, and the question again. Two would be the swallow.
+    # the test that has to tell those apart. Three: the question again, what
+    # they said, and the offer -- last, so a typed yes is the offer's (Q1).
+    # Two would be the swallow.
     added = said.messages[before:]
     assert len(added) == 3, [m.text for m in added]
-    assert added[1].text == (
+    assert added[0].decision["kind"] == NEEDS, "the question is asked again first"
+    assert added[2].text == (
         "Create a Warehouse Equipment Type does that — say the word and I will run it."
     )
-    assert pending_job(said.messages) is not None
+    assert offered_job(said.messages) is not None, "a typed yes is the offer's"
 
 
 async def test_a_question_for_a_field_the_job_no_longer_asks_for_stops_standing() -> None:

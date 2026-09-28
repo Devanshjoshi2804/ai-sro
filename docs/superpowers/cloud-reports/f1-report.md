@@ -270,3 +270,60 @@ The round-1 I2 probes still pass: "Customer Type: RRF i dont have manufacturer" 
 ### Concerns
 
 - **The browser press refuses optional values nobody gave.** Found by item 16's real press. `StartWorkflowRun.execute` refuses a browser run (one that is not Steel) whose job has optional parameters nobody gave, when the deployment cannot gather: `absent` counts every parameter unless the run is Steel (commit `099a47e`). So on a browser deployment with no mailbox, a chat answer that leaves optional fields out (F1's "the run goes without them") produces a `resume` the press refuses. The rebuilt tests press as a Steel tenant, which is the configuration where such a run really starts. Making the browser rule match `RunSteps`, where an absent optional value skips its step, belongs to the owner of that guard; this round does not widen into it.
+
+## Round 3
+
+This round covers items 7–11 and the nit from `task-F1-rereview-2.md`, as the controller listed them; the file is not in the repository. Every change was test first, and every test goes through the real code path (rule 16).
+
+### What changed
+
+- **7–9, one rule** (`_starts` in `domain/chat/asking.py`): `_starts` is now true whenever `_read` would act on the clause. That covers:
+  - a label that `_label_of` resolves or finds near, not only a label `_field` resolves;
+  - a drop phrase naming a field;
+  - a holding or not-ready phrase such as "i don't have X yet" (`K_HOLDING`);
+  - "with what we have".
+
+  Such a clause is never joined onto the value before it. Nearness now also counts a said word of three or more letters that begins a word of the field's name (`_shared`), so "Desc" is near Description.
+- **10(a):** inside a named value, a "skip X" or "without X" that names a field of this ask *exactly* (its name, a label, or an R2 alias, via `_exactly`) is asked about once: "Did you mean to skip X, or is it part of the value?" (`Pending.doubting`, rendered by `turned_down`).
+  - The value is not written, and nothing is dropped.
+  - X is remembered on the ask (`doubted`, carried in `asking_state` and read back by `pending_job`), so the same words sent again are taken as the value.
+  - A "without Y" that names no field ("sold without labels") is still simply the value.
+- **11 (controller ruling):** `workflow_runs.py` now has `and demanded(declared)` in place of `and (not steel or demanded(declared))`. An absent optional value never blocks a start, on Steel or browser runs. The blank-value and several-items refusals are unchanged. `_short_of` no longer presses as Steel.
+- **Nit:** the `docs/code-notes/README.md` "Known shortcuts" row for `asking.py` pointed at the deleted twin rule. It now carries the run-to-ask `ponytail:` note (`still_to_ask`, line 193).
+
+### Tests
+
+These 11 fail on round 2 (`7ccfa7b`) and pass now:
+- `test_asking.py`:
+  - item 7: "Customer Type: RRF, i don't have manufacturer yet" gives Customer Type=RRF, and Manufacturer stays offered;
+  - item 8: "Customer Type: GGD, Department: IN" with Department already given gives Customer Type=GGD, Department=IN;
+  - item 9: "Customer Type: GGD, Code: 123" with Zip Code open, and "Customer Type: GGD, Desc: first", give Customer Type=GGD, and the second clause is asked about;
+  - item 10(a): asked once, then taken.
+- `test_converse.py`, through the card and `Converse`: item 7 in chat, and item 10(a) in chat (asked, then taken on the second send).
+- `test_start_workflow_run.py`:
+  - `test_a_browser_run_starts_without_an_optional_value_it_will_skip`: the browser twin of the Steel test;
+  - the four `_short_of` tests, which now press as a browser.
+
+Changed:
+- `test_9_a_drop_word_inside_a_value_…`: its "sold without discount" now falls under 10(a), so the plain-value case is "sold without labels".
+- `test_a_declared_parameter_with_no_value_at_all_is_refused`: its fixture's `clientCode` was optional by default, which item 11 now lets start. The test keeps its intent by declaring the parameter `required`.
+
+### Gates
+
+- `uv run pytest tests/unit tests/contract -q`: **4938 passed, 83 errors**. The errors are the Postgres-only `[sql]` params, the same as on the base.
+- mypy `src tests evals`: clean.
+- ruff check and ruff format: clean.
+- lint-imports: 4 kept, 0 broken.
+- `check_code_notes.py`: 0 stale, 0 dead.
+- Integration: `tests/integration/test_asking_once.py` is still **written, not run**.
+- **Worker restart needed:** the press and the run's own ask are in the worker path.
+
+### Rulings
+
+- Ruling: item 8's "Department: IN" for a field already given is a label `_label_of` names, so it ends the value, and it is asked about rather than overwriting the given value — item 12 (round 2) asks about a label naming a job field outside this ask — cost if wrong: an operator who re-states a given field gets one question. The value they gave before is kept.
+- Ruling: item 10(a)'s "exactly" means the field's name, one of its labels, or an R2 alias, compared normalised; a fuzzy match never triggers the question — cost if wrong: "without discont" (misspelt) inside a value is taken as the value with no question.
+- Ruling: item 11 — with every value absent, `_skippable`'s `declared and not any(values)` guard keeps the step and does not skip it. So a browser run started with nothing given for a job whose parameters are all optional performs those steps without typing a value (`value_for` never types the recording). That is the controller's ruling as written — cost if wrong: such a step may type nothing into its field and fail at the screen belt.
+
+### Concerns
+
+- Item 11 changes a guard from commit `099a47e` for browser runs. `test_runner.py` and `test_start_workflow_run.py` pass unchanged apart from the one fixture noted above, but the owner of that guard should see this round.

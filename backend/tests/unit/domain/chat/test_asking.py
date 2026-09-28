@@ -620,13 +620,29 @@ def test_9_a_value_runs_on_until_a_clause_that_starts_something_of_this_ask() ->
         assert filled.values == {name: value}, said
 
 
-def test_9_a_drop_word_inside_a_value_is_part_of_the_value() -> None:
+def test_9_a_drop_word_inside_a_value_that_names_no_field_is_part_of_the_value() -> None:
     pending = _waiting("Description", "Customer Type", offered=("Discount",))
 
-    filled = answered(pending, "Description: sold without discount")
+    filled = answered(pending, "Description: sold without labels")
 
-    assert filled.values == {"Description": "sold without discount"}
-    assert filled.dropped == (), "a word of the value dropped a field"
+    assert filled.values == {"Description": "sold without labels"}
+    assert filled.dropped == ()
+
+
+def test_10a_a_skip_inside_a_value_naming_a_field_is_asked_about_once() -> None:
+    pending = _waiting("Description", "Customer Type", offered=("Discount",))
+
+    asked = answered(pending, "Description: sold without discount")
+
+    assert asked.values == {} and asked.dropped == (), "written silently either way"
+    assert asked.missing == ("Description", "Customer Type")
+    assert "Did you mean to skip Discount, or is it part of the value?" in turned_down(asked)
+    assert asking_state(asked)["doubted"] == ["Discount"]
+
+    again = answered(asked, "Description: sold without discount")
+
+    assert again.values == {"Description": "sold without discount"}, "asked twice"
+    assert again.dropped == ()
 
 
 def test_9_the_next_label_of_this_ask_still_ends_a_value() -> None:
@@ -672,3 +688,43 @@ def test_13_not_having_it_yet_is_not_ready_and_the_field_stays_asked() -> None:
         assert filled.dropped == (), said
         assert filled.offered == (("Department", ""),), said
         assert filled.values == {} and filled.missing == ("Customer Type",), said
+
+
+# --- F1 round 3: a clause _read would act on is never joined onto a value ----
+
+
+def test_7_a_not_ready_clause_ends_the_value_and_leaves_its_field_asked() -> None:
+    pending = _waiting("Customer Type", offered=("Manufacturer",))
+
+    filled = answered(pending, "Customer Type: RRF, i don't have manufacturer yet")
+
+    assert filled.values == {"Customer Type": "RRF"}
+    assert filled.dropped == () and filled.offered == (("Manufacturer", ""),)
+
+
+def test_8_a_label_of_a_field_already_given_ends_the_value() -> None:
+    known = Candidate(
+        id="wfl_1",
+        title="Create a Customer Type",
+        fields=(
+            FieldClass("Customer Type", "required", ("Customer Type",), FieldLimits()),
+            FieldClass("Department", "sometimes", ("Department",), FieldLimits()),
+        ),
+        aliases={},
+        seen={},
+    )
+    pending = _waiting("Customer Type", values={"Department": "IN"}, known=known)
+
+    filled = answered(pending, "Customer Type: GGD, Department: IN")
+
+    assert filled.values == {"Department": "IN", "Customer Type": "GGD"}
+
+
+def test_9_a_label_asked_about_ends_the_value_and_is_asked_about() -> None:
+    zipped = answered(_waiting("Customer Type", "Zip Code"), "Customer Type: GGD, Code: 123")
+    assert zipped.values == {"Customer Type": "GGD"}
+    assert zipped.which == {"Code": ("Zip Code",)}
+
+    short = answered(_waiting("Customer Type", "Description"), "Customer Type: GGD, Desc: first")
+    assert short.values == {"Customer Type": "GGD"}
+    assert short.which == {"Desc": ("Description",)}

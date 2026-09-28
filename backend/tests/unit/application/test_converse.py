@@ -2026,3 +2026,44 @@ async def test_round_2_named_values_are_never_cut_in_chat() -> None:
         "Customer Type": "GGD",
         "Customer Type Description": "black and white",
     }
+
+
+async def test_round_3_a_not_ready_clause_is_not_joined_onto_a_value() -> None:
+    """Item 7: "RRF, i don't have manufacturer yet" became Customer Type."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id, _ = await _asked_by_the_card(
+        uow, ["Customer Type"], {"Customer Type Description": "first run"}
+    )
+
+    said = await converse.execute(
+        CTX, thread_id=thread_id, text="Customer Type: RRF, i don't have manufacturer yet"
+    )
+
+    last = said.messages[-1]
+    assert last.decision is not None and last.decision["kind"] == "job", last.text
+    assert last.decision["values"]["Customer Type"] == "RRF"
+    assert "dropped" not in last.decision
+
+
+async def test_round_3_a_skip_inside_a_value_is_asked_about_once_in_chat() -> None:
+    """Item 10(a)."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id, _ = await _asked_by_the_card(
+        uow, ["Customer Type Description"], {"Customer Type": "GGD"}
+    )
+    typed = "Customer Type Description: sold without manufacturer"
+
+    said = await converse.execute(CTX, thread_id=thread_id, text=typed)
+
+    last = said.messages[-1]
+    assert "Did you mean to skip Manufacturer, or is it part of the value?" in last.text
+    assert last.decision is not None and last.decision["kind"] == NEEDS
+    assert last.decision["values"] == {"Customer Type": "GGD"}
+
+    said = await converse.execute(CTX, thread_id=thread_id, text=typed)
+
+    last = said.messages[-1]
+    assert last.decision is not None and last.decision["kind"] == "job", last.text
+    assert last.decision["values"]["Customer Type Description"] == "sold without manufacturer"

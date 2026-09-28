@@ -454,6 +454,17 @@ async def test_a_steel_run_starts_without_an_optional_value_it_will_skip() -> No
     assert run.executor == "steel"
 
 
+async def test_a_browser_run_starts_without_an_optional_value_it_will_skip() -> None:
+    """F1 round 3, item 11: the browser twin. An absent optional value never
+    blocks a start; `RunSteps` and `_skippable` skip its step."""
+    uow = await _held(_workflow(parameters=[{"name": "clientCode", "required": False}]))
+
+    run = await _press(_starter(uow), values={})
+
+    assert run.executor != "steel"
+    assert run.values == {}
+
+
 async def test_each_steel_run_keeps_the_steps_its_job_had_when_it_started() -> None:
     uow = await _held(_workflow(parameters=[{"name": "clientCode", "required": False}]))
     first = await _press(_on_steel(uow), values={})
@@ -766,8 +777,10 @@ async def test_a_value_that_arrived_padded_is_stored_trimmed() -> None:
 async def test_a_declared_parameter_with_no_value_at_all_is_refused() -> None:
     """The planner falls back to whatever the recording contained when a step
     has no value, which for a declared parameter is somebody else's client
-    code."""
-    uow = await _held()
+    code. Required, since F1 round 3 (item 11): an absent OPTIONAL value never
+    blocks a start -- its step is skipped, and `value_for` never types the
+    recording for a parameter."""
+    uow = await _held(_workflow(parameters=[{"name": "clientCode", "required": True}]))
 
     with pytest.raises(RunRefused) as refused:
         await _press(_starter(uow), values={})
@@ -1446,13 +1459,7 @@ async def _short_of(
         if values is None:
             pressed = dict(started["values"])  # type: ignore[call-overload]
         from_step = int(started["from_step"])  # type: ignore[call-overload]
-    # A Steel tenant's press: the configuration where a run starts without the
-    # optional values nobody gave (see the report's Round 2 concern on the
-    # browser press).
-    starting = _starter(
-        uow, steel_tenants=frozenset({TENANT.value}), durable=FakeDurableExecution()
-    )
-    run = await _press(starting, values=pressed, from_step=from_step)
+    run = await _press(_starter(uow), values=pressed, from_step=from_step)
     run = await uow.workflow_runs.get(TENANT, run.id) or run
     run.steps = [RunStep(order=0, says="type the code", verdict="failed", verdict_by="read")]
     run.needs = needs

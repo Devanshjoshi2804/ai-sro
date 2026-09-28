@@ -88,6 +88,10 @@ class Pending:
 
     which: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
 
+    doubted: tuple[str, ...] = ()
+
+    doubting: tuple[str, ...] = ()
+
     known: Candidate | None = None
 
     @property
@@ -140,6 +144,7 @@ def asking_state(pending: Pending) -> dict[str, object]:
         "asks": asks(pending),
         **({"offered": [list(one) for one in pending.offered]} if pending.offered else {}),
         **({"dropped": list(pending.dropped)} if pending.dropped else {}),
+        **({"doubted": list(pending.doubted)} if pending.doubted else {}),
         **(
             {"options": {name: list(one) for name, one in pending.options.items()}}
             if pending.options
@@ -152,6 +157,10 @@ def turned_down(pending: Pending) -> str:
     return "".join(
         [
             *(f"I did not take {name}: it is {why}. " for name, why in pending.refused.items()),
+            *(
+                f"Did you mean to skip {name}, or is it part of the value? "
+                for name in pending.doubting
+            ),
             *(
                 f'I could not tell which field "{said}" is: {_listed(names, "or")}. '
                 for said, names in pending.which.items()
@@ -364,6 +373,7 @@ def pending_job(messages: Sequence[Message], answering: str | None = None) -> Pe
         confirmed=not decision.get("unconfirmed"),
         options=_choices(decision.get("options")),
         dropped=_names(decision.get("dropped")),
+        doubted=_names(decision.get("doubted")),
     )
 
 
@@ -524,14 +534,18 @@ def _field(said: str, pending: Pending) -> tuple[str | None, tuple[str, ...]]:
     near = tuple(exact) or tuple(
         name
         for score, name in scored
-        if score >= K_LIKE
-        or (
-            words
-            and 2 * len(words & {w for one in _labels(pending, name) for w in _words(one)})
-            >= len(words)
-        )
+        if score >= K_LIKE or (words and 2 * _shared(words, _labels(pending, name)) >= len(words))
     )
     return None, near
+
+
+def _shared(words: set[str], labels: Sequence[str]) -> int:
+    theirs = {one for label in labels for one in _words(label)}
+    return sum(
+        1
+        for word in words
+        if word in theirs or (len(word) >= 3 and any(one.startswith(word) for one in theirs))
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -541,10 +555,11 @@ class _Reply:
     which: dict[str, tuple[str, ...]] = field(default_factory=dict)
     all_the_rest: bool = False
     holding: bool = False
+    doubt: dict[str, str] = field(default_factory=dict)
 
     @property
     def says_what_it_is(self) -> bool:
-        return bool(self.named or self.dropped or self.which or self.all_the_rest)
+        return bool(self.named or self.dropped or self.which or self.all_the_rest or self.doubt)
 
 
 @dataclass(slots=True)
@@ -584,11 +599,20 @@ def _label_of(label: str, pending: Pending) -> tuple[str | None, tuple[str, ...]
 
 def _starts(clause: str, pending: Pending) -> bool:
     labelled = K_LABELLED.match(clause)
-    if labelled is not None and _field(labelled.group("label"), pending)[0] is not None:
+    if labelled is not None and any(_label_of(labelled.group("label"), pending)):
         return True
     drop = _dropping(clause, pending)
-    return (drop is not None and (drop[2] is not None or bool(drop[3]))) or (
-        K_WITH_WHAT_WE_HAVE.search(clause) is not None
+    return (
+        (drop is not None and (drop[2] is not None or bool(drop[3])))
+        or K_HOLDING.search(clause) is not None
+        or K_WITH_WHAT_WE_HAVE.search(clause) is not None
+    )
+
+
+def _exactly(what: str, name: str, pending: Pending) -> bool:
+    hit = field_of(what, pending.known) if pending.known is not None else None
+    return (hit is not None and hit[0] == name) or any(
+        _plain(one) == _plain(what) for one in _labels(pending, name)
     )
 
 
@@ -610,10 +634,19 @@ def _read(pending: Pending, said: str) -> _Reply:
             values[-1].open = False
         labelled = K_LABELLED.match(clause)
         cut = end
+        doubt = ""
         if (drop := _dropping(clause, pending)) is not None:
             match, what, name, near = drop
             inside = labelled is not None and match.start() >= labelled.start("value")
-            if not inside or K_FIRST_PERSON.match(match.group(0)):
+            if (
+                inside
+                and not K_FIRST_PERSON.match(match.group(0))
+                and name is not None
+                and _exactly(what, name, pending)
+                and name not in pending.doubted
+            ):
+                doubt = name
+            elif not inside or K_FIRST_PERSON.match(match.group(0)):
                 if name is not None:
                     dropped.append(name)
                 elif near:
@@ -627,6 +660,8 @@ def _read(pending: Pending, said: str) -> _Reply:
         name, near = _label_of(labelled.group("label"), pending)
         if name is not None:
             values.append(_Value(name, start + labelled.start("value"), cut, cut == end))
+            if doubt:
+                reply.doubt[name] = doubt
         elif near:
             reply.which[labelled.group("label").strip()] = near
     for one in values:
@@ -662,7 +697,7 @@ def answered(pending: Pending, said: str, logins: Logins = Logins()) -> Pending:
     if not value or not pending.missing:
         return pending
     reply = _read(pending, value)
-    named = dict(reply.named)
+    named = {name: one for name, one in reply.named.items() if name not in reply.doubt}
     which = dict(reply.which)
     if not reply.says_what_it_is and not reply.holding:
         if len(pending.missing) == 1:
@@ -697,6 +732,8 @@ def answered(pending: Pending, said: str, logins: Logins = Logins()) -> Pending:
         ),
         refused=refused,
         which=which,
+        doubting=tuple(dict.fromkeys(reply.doubt.values())),
+        doubted=tuple(dict.fromkeys((*pending.doubted, *reply.doubt.values()))),
         confirmed=True,
     )
 

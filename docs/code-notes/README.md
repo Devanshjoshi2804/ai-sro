@@ -383,7 +383,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/application/observation/read_gesture.py:139`](backend/src/sro/application/observation/read_gesture.py.md) | ponytail: this reads the tenant's WHOLE HISTORY, not a day. Neither |
 | [`backend/src/sro/application/ports/repositories.py:122`](backend/src/sro/application/ports/repositories.py.md) | ponytail: whole rows, and the caller judges each one with the same |
 | [`backend/src/sro/application/trigger/read_triggers.py:26`](backend/src/sro/application/trigger/read_triggers.py.md) | ponytail: filtered here rather than in SQL -- a tenant has tens of |
-| [`backend/src/sro/domain/chat/asking.py:251`](backend/src/sro/domain/chat/asking.py.md) | ponytail: the twin rule is a suffix match on the normalised names, and the |
+| [`backend/src/sro/domain/chat/asking.py:193`](backend/src/sro/domain/chat/asking.py.md) | ponytail: the run-to-ask attribution is by values, because the run row |
 | [`backend/src/sro/domain/execution/belts.py:91`](backend/src/sro/domain/execution/belts.py.md) | ponytail: "first completed GET after the write" still admits a stream, a |
 | [`backend/src/sro/domain/execution/evidence.py:14`](backend/src/sro/domain/execution/evidence.py.md) | ponytail: one constant, no per-host calibration. A page that saves on a |
 | [`backend/src/sro/domain/execution/evidence.py:50`](backend/src/sro/domain/execution/evidence.py.md) | ponytail: the FIRST row. Right after a step that filtered on a |

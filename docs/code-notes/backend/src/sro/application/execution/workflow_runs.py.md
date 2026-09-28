@@ -693,10 +693,14 @@ Code: `if absent and (self._gather is None or things):`
 
 > Refused only where nothing could go and find them.
 >
-> For a Steel run `absent` counts only REQUIRED values: an optional one
-> nobody gave skips its step inside `RunSteps` (spec §6.6.6), and a required
-> one that gets past here is asked for there, never typed from the
-> recording.
+> `absent` counts only REQUIRED values, on Steel and browser runs alike
+> (F1 round 3, item 11; controller ruling): an optional one nobody gave
+> never blocks a start -- it skips its step (`RunSteps`, spec §6.6.6, and
+> `run_workflow._skippable`), and `value_for` never types the recording for
+> a parameter. Before this a browser press refused a job whose optional
+> fields a chat answer had left out, which F1 promises the run goes without.
+> A required one that gets past here is asked for, never typed from the
+> recording. Blank values and a list with a thing missing are still refused.
 >
 > A person pressing start with a field absent should be told, and
 > that is what this has always done. A deployment that can read the

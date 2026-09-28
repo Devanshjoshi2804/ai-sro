@@ -202,7 +202,7 @@ class StartWorkflowRun:
                 str(declared["name"])
                 for declared in workflow.parameters
                 if declared.get("name")
-                and (not steel or demanded(declared))
+                and demanded(declared)
                 and any(str(declared["name"]) not in one for one in supplied)
             )
             blank = sorted(

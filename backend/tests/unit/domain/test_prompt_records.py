@@ -261,6 +261,26 @@ _STATED: tuple[tuple[Prompt, str, str], ...] = (
     (READ_GESTURE, "ask", "set confidence `low` and say so in `why`"),
     (READ_GESTURE, "citations", "Every value in `values_seen` is copied character for character"),
     (READ_GESTURE, "secrets", "Never put a password, a one-time code or a token in `values_seen`"),
+    (
+        READ_SENTENCE,
+        "autonomy",
+        "may start work in a live warehouse system with no person checking",
+    ),
+    (READ_SENTENCE, "ask", "When you are unsure, give a low confidence"),
+    (
+        READ_SENTENCE,
+        "citations",
+        "Every value in `values` is copied from `sentence` or `before` as written",
+    ),
+    (READ_SENTENCE, "secrets", "Never put a password, a one-time code or a token in `values`"),
+    (
+        EXTRACT_VALUES,
+        "autonomy",
+        "These values are typed into a live warehouse system with no person checking",
+    ),
+    (EXTRACT_VALUES, "ask", "A value you are not sure of goes in `missing`"),
+    (EXTRACT_VALUES, "citations", "Every value is copied from `request` or `context`"),
+    (EXTRACT_VALUES, "secrets", "Never copy a password, a one-time code or a token into a set"),
 )
 
 

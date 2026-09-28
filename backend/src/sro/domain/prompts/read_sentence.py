@@ -24,7 +24,7 @@ confidence: 0 to 1, how sure you are. Be honest; a low number costs a
 
 READ_SENTENCE = Prompt(
     name="read_sentence",
-    version=1,
+    version=2,
     model="gemini-3.8-flash",
     fallback_model="gemini-3.7-flash",
     thinking=None,
@@ -46,12 +46,28 @@ READ_SENTENCE = Prompt(
         },
         "required": ["wants", "verb", "entity", "continues", "confidence"],
     },
+    rules=(
+        "What you return may start work in a live warehouse system with no person checking "
+        "your reading first.",
+        "When you are unsure, give a low confidence rather than a confident guess.",
+        "Every value in `values` is copied from `sentence` or `before` as written.",
+        "Never put a password, a one-time code or a token in `values`, even when the "
+        "sentence gives one.",
+    ),
     edge_cases=(
         EdgeCase('"how many are there"', "wants `ask`"),
         EdgeCase('"I want them in detail"', "`continues` true"),
         EdgeCase(
             '"create transport mode AIR"',
             "wants `act`, verb `create`, entity `transport mode`",
+        ),
+        EdgeCase(
+            '"do the usual for acme"',
+            "a low confidence: nothing says what the usual is",
+        ),
+        EdgeCase(
+            '"create customer type ACME1, the code from the portal is 482913"',
+            "`ACME1` in `values`, and the one-time code left out",
         ),
     ),
 )
@@ -77,7 +93,7 @@ _EXTRACT_TASK = (
 
 EXTRACT_VALUES = Prompt(
     name="extract_values",
-    version=1,
+    version=2,
     model="gemini-3.8-flash",
     fallback_model="gemini-3.7-flash",
     thinking=None,
@@ -99,6 +115,13 @@ EXTRACT_VALUES = Prompt(
         },
         "required": ["items"],
     },
+    rules=(
+        "These values are typed into a live warehouse system with no person checking them first.",
+        "A value you are not sure of goes in `missing`, not in a set.",
+        "Every value is copied from `request` or `context`; a parameter name is never a value.",
+        "Never copy a password, a one-time code or a token into a set, even when the request "
+        "gives one.",
+    ),
     edge_cases=(
         EdgeCase('"update these six SKUs", with six named', "six sets"),
         EdgeCase(
@@ -108,6 +131,14 @@ EXTRACT_VALUES = Prompt(
         EdgeCase(
             "a request that gives every value but one",
             "the rest returned, and the absent one named in `missing`",
+        ),
+        EdgeCase(
+            '"Customer Type DSS, or maybe DPP"',
+            "neither guessed: `Customer Type` named in `missing`",
+        ),
+        EdgeCase(
+            "a request from ops@acme.example giving an Equipment Type code and the portal password",
+            "the code in a set, and the password not copied",
         ),
     ),
 )

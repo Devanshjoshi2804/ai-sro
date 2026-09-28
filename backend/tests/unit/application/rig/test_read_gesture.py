@@ -172,7 +172,9 @@ async def test_a_stray_type_in_values_seen_is_no_reading() -> None:
 
         assert intent.values_seen == [], stray
         assert intent.act is None, stray
-        assert intent.error is not None and "read_gesture v1" in intent.error, stray
+        assert (
+            intent.error is not None and f"read_gesture v{READ_GESTURE.version}" in intent.error
+        ), stray
 
 
 async def test_a_wrong_typed_field_does_not_poison_a_later_gestures_reading() -> None:
@@ -183,7 +185,7 @@ async def test_a_wrong_typed_field_does_not_poison_a_later_gestures_reading() ->
 
     intent = await read_gesture(_gestures()[0], tail=[], asker=asker)
     assert intent.act is None  # unusable, not fabricated
-    assert intent.error is not None and "read_gesture v1" in intent.error
+    assert intent.error is not None and f"read_gesture v{READ_GESTURE.version}" in intent.error
 
     downstream = FakeAsker(_answer())
     await read_gesture(_gestures()[1], tail=[intent], asker=downstream)
@@ -206,7 +208,7 @@ async def test_a_wrong_typed_values_seen_entry_is_no_reading() -> None:
     intent = await read_gesture(_gestures()[0], tail=[], asker=asker)
 
     assert intent.values_seen == []
-    assert intent.error is not None and "read_gesture v1" in intent.error
+    assert intent.error is not None and f"read_gesture v{READ_GESTURE.version}" in intent.error
 
 
 async def test_an_undeclared_confidence_value_is_unusable() -> None:
@@ -218,7 +220,7 @@ async def test_an_undeclared_confidence_value_is_unusable() -> None:
     intent = await read_gesture(_gestures()[0], tail=[], asker=asker)
 
     assert intent.confidence is None
-    assert intent.error is not None and "read_gesture v1" in intent.error
+    assert intent.error is not None and f"read_gesture v{READ_GESTURE.version}" in intent.error
 
 
 async def test_a_reading_it_could_not_price_says_so() -> None:

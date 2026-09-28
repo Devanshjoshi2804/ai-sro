@@ -6,9 +6,8 @@ import logging
 from dataclasses import replace
 from typing import Any
 
-from sro.application.shared.refusals import OverCap
+from sro.application.shared.refusals import OverCap, Unattributed
 from sro.domain.shared.prices import Answer, Effort, is_priced, price
-from sro.infrastructure.gemini.metered import Unattributed
 from sro.infrastructure.telemetry.otel import doing
 
 logger = logging.getLogger(__name__)

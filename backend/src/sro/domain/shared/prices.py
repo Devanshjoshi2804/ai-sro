@@ -71,3 +71,4 @@ class Answer:
     error: str | None = None
     dropped: int = 0
     fell_back: bool = False
+    malformed: bool = False

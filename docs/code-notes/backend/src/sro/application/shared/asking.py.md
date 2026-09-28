@@ -69,7 +69,7 @@ Code: `if prompt.fallback_model is None or not _failed(first, prompt.unit):`
 > call. The same holds when a caller's timeout cancels mid-fallback. Carry
 > the spent answer on `OverCap` if run totals must match the bill exactly.
 
-## `_failed`, [line 61](../../../../../../../backend/src/sro/application/shared/asking.py#L61): Docstring
+## `_failed`, [line 62](../../../../../../../backend/src/sro/application/shared/asking.py#L62): Docstring
 
 > No data, or data whose every item broke the schema. An answer with no
 > items that dropped none is an answer: the model found nothing.

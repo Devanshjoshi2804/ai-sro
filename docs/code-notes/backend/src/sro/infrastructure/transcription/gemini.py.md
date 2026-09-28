@@ -21,14 +21,18 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/transcript
 > should not load a hosted model's client to boot, and the composition root
 > imports this module either way.
 
-## `GeminiTranscriber.transcribe`, [line 32](../../../../../../../backend/src/sro/infrastructure/transcription/gemini.py#L32): Note on the line above
+## `GeminiTranscriber.transcribe`, [line 31](../../../../../../../backend/src/sro/infrastructure/transcription/gemini.py#L31): Note on the block below
 
-Code: `if not isinstance(segments, list):`
+Code: `if answer.data is None:`
 
-> Model output is data crossing a trust boundary; a bad shape is silence.
+> Model output is data crossing a trust boundary; a bad shape is silence --
+> `Answer.malformed` is how the caller tells the two `data is None` cases
+> apart. `ask`'s schema check sets it when a model answered but the shape
+> broke `TRANSCRIBE`'s schema (GC 10): that stays silence, since a
+> demonstration is still perfectly usable without narration and a malformed
+> response must not fail the upload the operator is waiting on.
 >
-> A demonstration is still perfectly usable without narration, so a malformed
-> response must not fail the upload the operator is waiting on. Since the
-> transcriber asks through `ask`, a call that failed on both models is the
-> same silence: the asker turns a raised call into an answer with no data,
-> so the upload is no longer failed by a model outage either.
+> A call that failed on both models -- neither model produced anything to
+> check against the schema -- is a different failure and is not silence: it
+> raises, so an outage on both flash models is never read as "nobody said
+> anything."

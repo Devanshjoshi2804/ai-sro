@@ -140,3 +140,17 @@ Code: `fell_back: bool = False`
 > Whether the record's fallback model was asked for this answer (see
 > `sro.application.shared.asking.ask`), whichever answer came back. The eval
 > harness counts these per suite.
+
+## `Answer`, [line 74](../../../../../../../backend/src/sro/domain/shared/prices.py#L74): Note on the line above
+
+Code: `malformed: bool = False`
+
+> Told apart from a call that never answered: set only when `ask`'s schema
+> check throws away a response that broke the record's schema (GC 10), never
+> when the model call itself raised, returned no text, or gave back text
+> that was not JSON. `data is None` alone cannot tell a caller which one
+> happened, and some callers must -- a transcription that fails to call the
+> model on both attempts must raise, where one that answered with the wrong
+> shape on both attempts stays silence. Combined with `first.malformed or
+> second.malformed` across a fallback, so a hard failure on one model and a
+> malformed answer on the other still reads as "something answered."

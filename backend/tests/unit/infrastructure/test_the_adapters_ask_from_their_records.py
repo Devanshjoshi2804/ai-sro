@@ -10,6 +10,8 @@ import re
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
+
 from sro.application.ports.vision import Screen
 from sro.domain.prompts.interpret import INTERPRET, JUDGE_VARIANT, JUDGE_WORKFLOW, NAME_SKILL
 from sro.domain.prompts.read_sentence import EXTRACT_VALUES, READ_SENTENCE
@@ -193,3 +195,70 @@ async def test_narration_the_new_flash_could_not_transcribe_is_heard_on_the_olde
 
     assert [one["model"] for one in models.asked] == ["gemini-3.8-flash", "gemini-3.7-flash"]
     assert [one.text for one in got] == ["open waves"]
+
+
+class _PerModel(_Models):
+    """Each model answers on its own: a call failure (an exception) or text."""
+
+    def __init__(self, outcomes: dict[str, str | Exception]) -> None:
+        super().__init__()
+        self._outcomes = outcomes
+
+    async def generate_content(self, **asked: Any) -> Any:
+        self.asked.append(asked)
+        outcome = self._outcomes[asked["model"]]
+        if isinstance(outcome, Exception):
+            raise outcome
+        return SimpleNamespace(text=outcome, usage_metadata=None, candidates=[])
+
+
+async def test_a_transcription_that_fails_on_both_models_raises_visibly() -> None:
+    """A double call failure must not be silently read as an empty narration --
+    the operator's recording is lost, and the pipeline must say so, not carry on
+    as if nothing was said."""
+    models = _PerModel(
+        {
+            "gemini-3.8-flash": RuntimeError("connection reset"),
+            "gemini-3.7-flash": RuntimeError("connection reset"),
+        }
+    )
+
+    with pytest.raises(RuntimeError):
+        await GeminiTranscriber(client=_client(models)).transcribe(b"ogg", content_type="audio/ogg")
+
+    assert [one["model"] for one in models.asked] == ["gemini-3.8-flash", "gemini-3.7-flash"]
+
+
+async def test_a_transcription_shaped_wrong_on_both_models_stays_silent() -> None:
+    """A schema miss is no answer (GC 10): both models answered, just not
+    usably, so this degrades to an empty transcript rather than raising."""
+    models = _PerModel(
+        {
+            "gemini-3.8-flash": '{"segments": "not a list"}',
+            "gemini-3.7-flash": '{"segments": "still not a list"}',
+        }
+    )
+
+    got = await GeminiTranscriber(client=_client(models)).transcribe(
+        b"ogg", content_type="audio/ogg"
+    )
+
+    assert got == ()
+    assert [one["model"] for one in models.asked] == ["gemini-3.8-flash", "gemini-3.7-flash"]
+
+
+async def test_a_call_failure_once_and_junk_shape_once_still_stays_silent() -> None:
+    """One model answered, even if the shape was junk, so the call did not
+    fail on both models -- silence, not a raise."""
+    models = _PerModel(
+        {
+            "gemini-3.8-flash": RuntimeError("connection reset"),
+            "gemini-3.7-flash": '{"segments": "not a list"}',
+        }
+    )
+
+    got = await GeminiTranscriber(client=_client(models)).transcribe(
+        b"ogg", content_type="audio/ogg"
+    )
+
+    assert got == ()

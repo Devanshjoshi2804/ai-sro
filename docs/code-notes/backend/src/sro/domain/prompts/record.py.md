@@ -114,13 +114,13 @@ Code: `fallback_model: str | None = None`
 > `EXTRACT_VALUES` and `TRANSCRIBE` are asked through `ask` by their adapters,
 > so they fall back like the rest.
 >
-> Not a version bump, by the implementer's reading of Global Constraint 9:
-> the fallback is a retry after a failure, not the model the record is
-> measured on, and the record's model, text and schema are unchanged. The
+> Ruled (S3 review, controller ruling R1): not a version bump. The fallback is
+> a runtime retry, not a model change under Global Constraint 9 -- the record
+> is still measured on `model`, and its text and schema are unchanged. The
 > cost is that an answer under an unchanged version may come from 3.7-flash;
-> the eval's `fallbacks` column counts those, and the gate does not read it.
-> PENDING USER RULING (S3 review, finding 8): whether a fallback model is a
-> model change under GC 9, and whether the eval gate should read `fallbacks`.
+> the eval report's `Scored.fell_back` and `Report.fallbacks` count those, and
+> its markdown shows the count, so a run that leaned on 3.7-flash is visible
+> without changing the gate.
 
 ## `conforms`, [line 124](../../../../../../../backend/src/sro/domain/prompts/record.py#L124): Note on the line above
 

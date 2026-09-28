@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from sro.application.context import RequestContext
 from sro.application.ports.intent import IntentParser
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.shared.refusals import OverCap, Unattributed
 from sro.domain.knowledge.entry import EntryKind
 from sro.domain.skill.skill import Skill
 
@@ -102,6 +103,8 @@ class SuggestNext:
                 parameters=wanted,
                 context=f"Field names on the screen: {vocabulary}" if vocabulary else "",
             )
+        except (OverCap, Unattributed):
+            raise
         except Exception:  # pragma: no cover - a phrasing failure is not an outage
             return candidates
 

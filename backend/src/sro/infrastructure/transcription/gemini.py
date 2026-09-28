@@ -28,7 +28,12 @@ class GeminiTranscriber:
             trusted={},
             audio=(audio, content_type.split(";")[0].strip()),
         )
-        segments = answer.data["segments"] if answer.data is not None else None
+        if answer.data is None:
+            if answer.malformed:
+                logger.warning("transcription returned something that is not segments")
+                return ()
+            raise RuntimeError(answer.error or "transcription failed on both models")
+        segments = answer.data["segments"]
         if not isinstance(segments, list):
             logger.warning("transcription returned something that is not segments")
             return ()

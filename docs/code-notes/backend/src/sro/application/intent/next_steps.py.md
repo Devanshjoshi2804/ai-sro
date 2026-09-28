@@ -27,39 +27,39 @@ Comments and docstrings moved out of [`backend/src/sro/application/intent/next_s
 > any of them will do: every phrasing is checked against the evidence that
 > produced it, and anything that drifts falls back to the plain wording.
 
-## module, [line 11](../../../../../../../backend/src/sro/application/intent/next_steps.py#L11): Note on the line above
+## module, [line 12](../../../../../../../backend/src/sro/application/intent/next_steps.py#L12): Note on the line above
 
 Code: `MOST = 3`
 
 > Three. A row of chips is a nudge, not a menu.
 
-## module, [line 14](../../../../../../../backend/src/sro/application/intent/next_steps.py#L14): Note on the line above
+## module, [line 15](../../../../../../../backend/src/sro/application/intent/next_steps.py#L15): Note on the line above
 
 Code: `TOO_MANY_TO_FILTER = 8`
 
 > A column worth offering as a filter has a few values, not one and not forty:
 > one is not a choice, and forty is a list nobody scans.
 
-## `Suggestion`, [line 20](../../../../../../../backend/src/sro/application/intent/next_steps.py#L20): Note on the line above
+## `Suggestion`, [line 21](../../../../../../../backend/src/sro/application/intent/next_steps.py#L21): Note on the line above
 
 Code: `because: str`
 
 > What makes this answerable. Never shown as a caption -- it is here so a
 > suggestion cannot exist without evidence behind it.
 
-## `_kept`, [line 115](../../../../../../../backend/src/sro/application/intent/next_steps.py#L115): Docstring
+## `_kept`, [line 118](../../../../../../../backend/src/sro/application/intent/next_steps.py#L118): Docstring
 
 > The model's wording, when it is still the suggestion that was earned.
 
-## `SuggestNext.after`, [line 28](../../../../../../../backend/src/sro/application/intent/next_steps.py#L28): Docstring
+## `SuggestNext.after`, [line 29](../../../../../../../backend/src/sro/application/intent/next_steps.py#L29): Docstring
 
 > Follow-ups this system can actually answer, best first.
 
-## `SuggestNext._other_skills`, [line 47](../../../../../../../backend/src/sro/application/intent/next_steps.py#L47): Docstring
+## `SuggestNext._other_skills`, [line 48](../../../../../../../backend/src/sro/application/intent/next_steps.py#L48): Docstring
 
 > Things somebody taught for this entity, other than reading it.
 
-## `SuggestNext._filters`, [line 61](../../../../../../../backend/src/sro/application/intent/next_steps.py#L61): Docstring
+## `SuggestNext._filters`, [line 62](../../../../../../../backend/src/sro/application/intent/next_steps.py#L62): Docstring
 
 > Narrowings the data itself supports.
 >
@@ -67,11 +67,11 @@ Code: `because: str`
 > the column and the value both came out of the answer being suggested
 > under.
 
-## `SuggestNext._labels`, [line 78](../../../../../../../backend/src/sro/application/intent/next_steps.py#L78): Docstring
+## `SuggestNext._labels`, [line 79](../../../../../../../backend/src/sro/application/intent/next_steps.py#L79): Docstring
 
 > What the screens call these fields, so a chip reads like the screen.
 
-## `SuggestNext._phrase`, [line 85](../../../../../../../backend/src/sro/application/intent/next_steps.py#L85): Docstring
+## `SuggestNext._phrase`, [line 86](../../../../../../../backend/src/sro/application/intent/next_steps.py#L86): Docstring
 
 > The same suggestions, in words a warehouse uses.
 >
@@ -79,13 +79,13 @@ Code: `because: str`
 > no longer the suggestion that was earned, and the plain wording is used
 > instead. The model never decides what is offered -- only how it reads.
 
-## `SuggestNext._filters`, [line 67](../../../../../../../backend/src/sro/application/intent/next_steps.py#L67): Comment
+## `SuggestNext._filters`, [line 68](../../../../../../../backend/src/sro/application/intent/next_steps.py#L68): Comment
 
 Code: `continue`
 
 > As many values as records: an identifier, not a category.
 
-## `SuggestNext._filters`, [line 72](../../../../../../../backend/src/sro/application/intent/next_steps.py#L72): Comment
+## `SuggestNext._filters`, [line 73](../../../../../../../backend/src/sro/application/intent/next_steps.py#L73): Comment
 
 Code: `text=f"which {entity.replace('_', ' ')} records have {column} {held[0]}",`
 
@@ -93,21 +93,21 @@ Code: `text=f"which {entity.replace('_', ' ')} records have {column} {held[0]}",
 > than "which supplier have": grammatical without guessing
 > at a plural, and still the operator's own vocabulary.
 
-## `SuggestNext._phrase`, [line 92](../../../../../../../backend/src/sro/application/intent/next_steps.py#L92): Comment
+## `SuggestNext._phrase`, [line 93](../../../../../../../backend/src/sro/application/intent/next_steps.py#L93): Comment
 
 Code: `described = "; ".join(`
 
 > The wording only. The reason each one is answerable is not part of
 > what the model sees, because the last version put it in the chip.
 
-## `_kept`, [line 119](../../../../../../../backend/src/sro/application/intent/next_steps.py#L119): Comment
+## `_kept`, [line 122](../../../../../../../backend/src/sro/application/intent/next_steps.py#L122): Comment
 
 Code: `literals = [`
 
 > Every value in the plain wording has to survive: a chip that drops the
 > value it was built from is a different request wearing its face.
 
-## `_kept`, [line 118](../../../../../../../backend/src/sro/application/intent/next_steps.py#L118): Comment
+## `_kept`, [line 126](../../../../../../../backend/src/sro/application/intent/next_steps.py#L126): Comment
 
 Code: `return earned.text`
 

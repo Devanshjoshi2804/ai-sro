@@ -205,6 +205,10 @@ def sent_from(
     return tuple(found)
 
 
+def wrote_the_mailbox(gesture: Gesture) -> bool:
+    return any(_sends(call) for call in gesture.requests)
+
+
 def _answer_of(call: Call) -> str:
     return (call.response_body.text if call.response_body else "") or ""
 

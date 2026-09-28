@@ -37,7 +37,7 @@ from sro.application.ports.channel import Channel, Reply
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.shared.refusals import OverCap
-from sro.domain.chat.asked_by import only_reads_the_mail
+from sro.domain.chat.asked_by import by_hand, only_reads_the_mail
 from sro.domain.execution.belts import K_WEAK_LOCATORS, StepVerdict
 from sro.domain.execution.evidence import (
     PUTS_A_VALUE,
@@ -96,6 +96,11 @@ def write_key(workflow_id: str, step: Step, values: Mapping[str, str]) -> str:
 K_CAP_EVERY = 10
 
 K_STEP_SLACK = 3
+
+BY_HAND = (
+    "this step changes your mailbox in a way the Gmail tool cannot, and a run never clicks "
+    "in your mailbox: do it there yourself, then run the job again from the next step"
+)
 
 K_STILL_COMING_S = 2.0
 
@@ -1003,8 +1008,13 @@ async def run_workflow(
             marks = scaffolding_for(workflow, by_id, write_step=leg.step.order)
             (in_reserve if run.watched else collapsed).update(marks)
 
+    mailbox_by_hand: set[int] = {
+        step.order for step in workflow.steps if by_hand(workflow, step, by_id)
+    }
     already_read: set[int] = {
-        step.order for step in workflow.steps if only_reads_the_mail(step, by_id)
+        step.order
+        for step in workflow.steps
+        if only_reads_the_mail(step, by_id) and step.order not in mailbox_by_hand
     }
     mail_sends: set[int] = (
         {
@@ -1169,6 +1179,21 @@ async def run_workflow(
                 )
                 await _save(uow, run)
                 continue
+            if not leg.rescue and step.order in mailbox_by_hand:
+                run.steps.append(
+                    RunStep(
+                        order=position,
+                        of_step=step.order,
+                        item=leg.item,
+                        says=step.says,
+                        verdict="failed",
+                        verdict_by="none",
+                        reason=BY_HAND,
+                    )
+                )
+                run.outcome = "stopped"
+                await _save(uow, run)
+                break
             if mail is not None and not leg.rescue and step.order in mail_sends:
                 record = RunStep(
                     order=position,

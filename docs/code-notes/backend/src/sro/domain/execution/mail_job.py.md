@@ -180,7 +180,7 @@ Code: `K_SEND_WINDOW_S = 120.0`
 > `msg-a:r…` id the API does not know. `thread-f` sits on the same calls. A
 > click with no thread, or no single SENT mail in the window, grants nobody.
 
-## `check_draft`, [line 221](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L221): Docstring
+## `check_draft`, [line 225](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L225): Docstring
 
 > Whether a draft may go, and to whom (`Checked`).
 >

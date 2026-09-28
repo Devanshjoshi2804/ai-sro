@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -873,6 +873,7 @@ class Container:
             values: Mapping[str, str],
             thread: str,
             by_id: Mapping[str, Gesture],
+            request: Sequence[str],
         ) -> Written | str:
             return await write_the_mail(
                 ctx,
@@ -880,9 +881,11 @@ class Container:
                 values,
                 thread,
                 by_id=by_id,
+                request=request,
                 uow=self.unit_of_work(),
                 tools=self.tools,
                 asker=asker,
+                clock=self.clock,
             )
 
         async def send(mail: Written) -> tuple[str, str]:

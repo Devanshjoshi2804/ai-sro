@@ -4,7 +4,8 @@ import json
 import logging
 import math
 import secrets
-from collections.abc import Awaitable, Callable, Mapping
+from collections import Counter
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -17,12 +18,14 @@ from sro.application.chat.mailbox import (
     is_ours,
     send_as_this_system,
 )
+from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
 from sro.application.shared.asking import ask
+from sro.domain.chat.asking import said_yes, the_request
 from sro.domain.chat.thread import Speaker
 from sro.domain.execution.mail_job import (
     K_SEND_WINDOW_S,
@@ -30,6 +33,7 @@ from sro.domain.execution.mail_job import (
     JobRecipient,
     check_draft,
     mailboxes,
+    named_in,
     sent_from,
 )
 from sro.domain.execution.progress import Progress
@@ -48,6 +52,10 @@ K_BODY = 2000
 
 AWAITING_THE_PRESS = "drafted — read it in the conversation and press Send it"
 
+MAIL_BODY = "mail_body"
+
+WHAT_IT_SAYS = "What should the mail say?"
+
 
 @dataclass(frozen=True, slots=True)
 class Written:
@@ -63,6 +71,10 @@ class Unaddressed(str):
     __slots__ = ()
 
 
+class Unwritten(str):
+    draft: str = ""
+
+
 async def write_the_mail(
     ctx: RequestContext,
     workflow: Workflow,
@@ -70,9 +82,11 @@ async def write_the_mail(
     thread: str,
     *,
     by_id: Mapping[str, Gesture],
+    request: Sequence[str],
     uow: UnitOfWork,
     tools: ToolCaller,
     asker: Asker,
+    clock: Clock,
 ) -> Written | str:
     conversation = await _conversation(ctx, tools, thread) if thread else []
     allowed = await _allowed(ctx, uow, tools, workflow, by_id)
@@ -83,6 +97,7 @@ async def write_the_mail(
             "job": workflow.title,
             "operator": ctx.principal_id.value,
             "sent_before": sorted(allowed.to | allowed.bcc),
+            "request": list(request),
         },
         untrusted={
             "what_it_does": workflow.narrative,
@@ -123,6 +138,7 @@ async def write_the_mail(
         conversation=conversation,
         values=values,
         allowed=allowed,
+        request=request,
     )
     if checked.why:
         logger.info(
@@ -130,7 +146,22 @@ async def write_the_mail(
         )
         if checked.recipient:
             return Unaddressed(f"{checked.why} -- nothing was sent; who does this mail go to?")
-        return f"{checked.why} -- nothing was sent"
+        refused = Unwritten(f"{checked.why} -- nothing was sent")
+        refused.draft = body
+        return refused
+    named = [
+        one
+        for one in (*checked.to, *checked.bcc)
+        if one in named_in(request) and one not in allowed.to | allowed.bcc
+    ]
+    if named:
+        await keep_the_named(
+            ctx,
+            uow,
+            workflow.id,
+            {"address": ", ".join(named), "by": ctx.principal_id.value},
+            at=clock.now(),
+        )
     latest = conversation[-1] if conversation else {}
     return Written(
         to=", ".join(checked.to),
@@ -151,21 +182,41 @@ async def _allowed(
 ) -> Allowed:
     to: set[str] = set()
     bcc: set[str] = set()
-    for clicked, threads in sent_from(workflow, by_id):
+    clicks = sent_from(workflow, by_id)
+    seen: Counter[str] = Counter()
+    for clicked, threads in clicks:
         since = datetime.fromtimestamp(clicked, UTC) - K_REMEMBER
+        read = [one for thread in threads for one in await _conversation(ctx, tools, thread)]
         sent = [
             one
-            for thread in threads
-            for one in await _conversation(ctx, tools, thread)
+            for one in read
             if one.get("sent") is True
             and abs(_seconds(one.get("sent_at")) - clicked) <= K_SEND_WINDOW_S
             and not one.get("marker")
             and not await is_ours(uow, ctx, one, since=since)
         ]
+        seen.update(threads=len(threads), messages=len(read), in_window=len(sent))
+        seen[
+            "no thread" if not threads else "none" if not sent else "several" if sent[1:] else "one"
+        ] += 1
         if len(sent) != 1:
             continue
         for key, into in (("to", to), ("cc", to), ("bcc", bcc)):
             into.update(mailboxes(str(sent[0].get(key) or "")) or ())
+    logger.info(
+        "%s: %s: %d Send click(s): %d named no thread, %d thread(s) read, %d message(s), "
+        "%d sent in the window; %d found no sent mail, %d found more than one, %d granted",
+        ctx.tenant_id.value,
+        workflow.id,
+        len(clicks),
+        seen["no thread"],
+        seen["threads"],
+        seen["messages"],
+        seen["in_window"],
+        seen["none"],
+        seen["several"],
+        seen["one"],
+    )
     async with uow as unit:
         confirmed = await unit.workflows.recipients_for(ctx.tenant_id, workflow.id)
     to.update(one.address for one in confirmed)
@@ -209,7 +260,8 @@ async def send_the_mail(
 @dataclass(frozen=True, slots=True)
 class MailHand:
     write: Callable[
-        [Workflow, Mapping[str, str], str, Mapping[str, Gesture]], Awaitable[Written | str]
+        [Workflow, Mapping[str, str], str, Mapping[str, Gesture], Sequence[str]],
+        Awaitable[Written | str],
     ]
     send: Callable[[Written], Awaitable[tuple[str, str]]]
 
@@ -225,16 +277,40 @@ async def draft_the_mail_job(
     asker: Asker,
     clock: Clock,
     ids: IdFactory,
+    answers: Sequence[str] = (),
 ) -> WorkflowRun:
     waiting = read_wait(run.awaiting) if run.awaiting else None
     thread = waiting.thread if waiting else ""
     written = await write_the_mail(
-        ctx, workflow, run.values, thread, by_id=by_id, uow=uow, tools=tools, asker=asker
+        ctx,
+        workflow,
+        run.values,
+        thread,
+        by_id=by_id,
+        request=(*await the_operator_s_words(ctx, uow, run), *answers),
+        uow=uow,
+        tools=tools,
+        asker=asker,
+        clock=clock,
     )
     if isinstance(written, Unaddressed):
-        return await _ask_who(ctx, uow, run, written, clock=clock, ids=ids)
+        return await _ask(ctx, uow, run, "recipient", written, clock=clock, ids=ids)
+    if isinstance(written, Unwritten):
+        return await _ask(
+            ctx,
+            uow,
+            run,
+            MAIL_BODY,
+            f"{written}. The draft said:\n\n{written.draft}\n\nSay yes to make those words "
+            f"yours, or write what it should say instead.",
+            clock=clock,
+            ids=ids,
+            draft=written.draft,
+        )
     if isinstance(written, str):
-        return await _stop(uow, run, written)
+        return await _ask(
+            ctx, uow, run, MAIL_BODY, f"{written}. {WHAT_IT_SAYS}", clock=clock, ids=ids
+        )
 
     await SayWhatHappened(uow, clock, ids).execute(
         ctx,
@@ -301,9 +377,12 @@ async def redraft_the_mail_job(
     ids: IdFactory,
 ) -> WorkflowRun:
     progress = Progress.of(run.progress)
-    if progress.asking.get("kind") != "recipient" or not progress.asking.get("answered"):
+    asking = progress.asking
+    if asking.get("kind") not in ("recipient", MAIL_BODY) or not asking.get("answered"):
         return run
-    await keep_the_named(ctx, uow, workflow.id, progress.asking, at=clock.now())
+    await keep_the_named(ctx, uow, workflow.id, asking, at=clock.now())
+    said = asking.get("said", "")
+    answers = (said, asking["draft"]) if said_yes(said) and asking.get("draft") else (said,)
     was, progress.asking = run.progress, {}
     async with uow as unit:
         taken = await unit.workflow_runs.record_progress(
@@ -314,8 +393,27 @@ async def redraft_the_mail_job(
         return run
     run.progress = progress.as_json()
     return await draft_the_mail_job(
-        ctx, run, workflow, by_id, uow=uow, tools=tools, asker=asker, clock=clock, ids=ids
+        ctx,
+        run,
+        workflow,
+        by_id,
+        uow=uow,
+        tools=tools,
+        asker=asker,
+        clock=clock,
+        ids=ids,
+        answers=tuple(one for one in answers if one.strip()),
     )
+
+
+async def the_operator_s_words(
+    ctx: RequestContext, uow: UnitOfWork, run: WorkflowRun
+) -> tuple[str, ...]:
+    if not run.offer or not run.started_by:
+        return ()
+    starter = RequestContext(ctx.tenant_id, PrincipalId(run.started_by))
+    thread = await ReadThreads(uow).current(starter)
+    return the_request(thread.messages, run.offer, run.workflow_id) if thread else ()
 
 
 async def keep_the_named(
@@ -334,21 +432,24 @@ async def keep_the_named(
         await unit.commit()
 
 
-async def _ask_who(
+async def _ask(
     ctx: RequestContext,
     uow: UnitOfWork,
     run: WorkflowRun,
+    kind: str,
     why: str,
     *,
     clock: Clock,
     ids: IdFactory,
+    draft: str = "",
 ) -> WorkflowRun:
     progress = Progress.of(run.progress)
     progress.asking = {
         "id": f"q_{secrets.token_hex(16)}",
-        "kind": "recipient",
+        "kind": kind,
         "text": why,
         "step": "0",
+        **({"draft": draft} if draft else {}),
     }
     await _stop(uow, run, why)
     async with uow as unit:
@@ -368,7 +469,7 @@ async def _ask_who(
             "kind": "run_asks",
             "run_id": run.id,
             "question_id": progress.asking["id"],
-            "asks": "recipient",
+            "asks": kind,
         },
     )
     return run

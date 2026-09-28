@@ -23,7 +23,7 @@ class ToolLane:
                 "failed", Lane.TOOL, "this mailbox step sends nothing", never_left=True
             )
         hand = self._hand(ctx.ctx)
-        written = await hand.write(ctx.workflow, values, ctx.thread, ctx.by_id)
+        written = await hand.write(ctx.workflow, values, ctx.thread, ctx.by_id, ctx.request)
         if isinstance(written, Unaddressed):
             raise NeedsAPerson(str(written), kind="recipient")
         if isinstance(written, str):

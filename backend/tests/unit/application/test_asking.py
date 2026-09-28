@@ -16,7 +16,7 @@ async def test_an_answer_that_breaks_its_schema_is_no_answer() -> None:
     got = await ask(asker, WRITE_MAIL, trusted={"job": "x"}, untrusted={"conversation": "y"})
 
     assert got.data is None
-    assert got.error is not None and "write_mail v2" in got.error
+    assert got.error is not None and f"write_mail v{WRITE_MAIL.version}" in got.error
     assert got.cost_usd == 0.01
 
 

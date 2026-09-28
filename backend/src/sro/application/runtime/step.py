@@ -70,6 +70,7 @@ class LaneContext:
     stop: asyncio.Event
     secret: str | None = field(default=None, repr=False)
     thread: str = ""
+    request: tuple[str, ...] = ()
     about_to_write: Callable[[Lane], Awaitable[None]] = _nothing
     reauthed: bool = False
     adding: Mapping[int, Adding] = field(default_factory=dict)

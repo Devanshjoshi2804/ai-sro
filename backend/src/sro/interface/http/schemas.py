@@ -2638,6 +2638,15 @@ class AnswerRunRequest(BaseModel):
     its next run writes to that address without asking. On a mail job drafted
     for a press (not on Steel) the run waits `stopped`, holding no browser, and
     this answer redrafts it.
+
+    A mail-body question (`asks: "mail_body"`, "What should the mail say?") is
+    a drafted mail job whose mail could not be written: the model wrote no
+    body, failed, or put in a value nobody gave (its text then shows the
+    refused draft). It is answered with the words the mail should say -- or
+    `yes`, to make the shown draft's words the operator's own -- only by the
+    operator who started the run; an empty answer is a 409. The answer is the
+    operator's own text, trusted: the mail is written again with it and shown
+    again as a draft, and nothing is sent until its Send is pressed.
     """
 
     question_id: str

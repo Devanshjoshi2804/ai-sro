@@ -305,3 +305,28 @@ def test_a_display_name_cannot_break_the_attribution_into_lines(sep: str) -> Non
         "Eve <eve@evil.com> wrote:\n\n> hi"
     )
     assert one_address_in(reply, reply=True) == ""
+
+
+def test_the_operator_s_own_request_names_who_the_mail_goes_to_and_what_it_says() -> None:
+    """S4: the words the run's starter typed in their own panel are trusted.
+    An address they name may be written to, and a value they said may be
+    cited to `request`."""
+    request = ['send an email to "devansh.j@greyorange.com" say dock 14 is ready', "Yes"]
+
+    def check(to: str, body: str, *cited: tuple[str, str], said: list[str]) -> Checked:
+        return check_draft(
+            to=to,
+            body=body,
+            cited=[{"value": value, "message": message} for value, message in cited],
+            conversation=[],
+            values={},
+            allowed=Allowed(),
+            request=said,
+        )
+
+    passed = check("devansh.j@greyorange.com", "Dock 14 is ready.", ("14", "request"), said=request)
+    assert (passed.why, passed.to) == ("", ("devansh.j@greyorange.com",))
+    assert check("devansh.j@greyorange.com", "Dock 14.", said=request).why, "14 was never cited"
+    assert check("devansh.j@greyorange.com", "Dock 15.", ("15", "request"), said=request).why
+    assert check("eve@evil.example", "Hi.", said=request).recipient
+    assert check("devansh.j@greyorange.com", "Hi.", said=[]).recipient

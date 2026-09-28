@@ -702,3 +702,35 @@ async def test_an_operator_save_answered_422_is_made_by_the_run() -> None:
 
     assert world.lanes.ui.calls == 2 and world.lanes.api.read_backs == 0
     assert Progress.of((await world.saved_run()).progress).step == 2
+
+
+async def test_a_steel_mail_step_is_handed_the_starter_s_own_chat_request() -> None:
+    """S4: a chat-started run on Steel writes its mail from the words its
+    starter typed in their own thread, as the draft path does."""
+    from sro.application.chat.converse import Converse, StartThread
+    from sro.application.intent.plan_task import PlanTask
+    from sro.application.intent.resolve import ResolveIntent
+    from sro.application.knowledge.retrieve import Retrieve
+    from tests.unit.application.test_converse import _PlacesTheJob, _understood
+    from tests.unit.fakes import FakeClock, FakeEmbedder, FakeIdFactory
+
+    world = await steel_run(steps=[mail_send_step()])
+    run = await world.saved_run()
+    ids, clock = FakeIdFactory(), FakeClock(NOW)
+    converse = Converse(
+        world.uow,
+        ResolveIntent(world.uow, PlanTask(Retrieve(world.uow, FakeEmbedder()))),
+        clock,
+        ids,
+        reads_jobs=_PlacesTheJob(_understood(run.workflow_id)),
+    )
+    thread = await StartThread(world.uow, clock, ids).execute(CTX)
+    await converse.execute(CTX, thread_id=thread.id, text="mail ops@example.com that it is done")
+    said = await converse.execute(CTX, thread_id=thread.id, text="yes")
+    await world.uow.workflow_runs.save(replace(run, offer=str(said.messages[-1].decision["offer"])))
+    world.lanes.tool.answers(StepResult("done", Lane.TOOL))
+
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    (handed,) = world.lanes.tool.contexts
+    assert handed.request == ("mail ops@example.com that it is done", "yes")

@@ -10,7 +10,7 @@ from dataclasses import dataclass, replace
 
 from sro.application.chat.announce import SayWhatHappened
 from sro.application.context import RequestContext
-from sro.application.execution.mail_job import keep_the_named
+from sro.application.execution.mail_job import keep_the_named, the_operator_s_words
 from sro.application.ports.locks import AccountBusy
 from sro.application.ports.page import PageGone
 from sro.application.ports.repositories import UnitOfWork
@@ -469,6 +469,7 @@ class RunSteps:
             held=held,
             stop=stop,
             thread=waiting.thread if waiting else "",
+            request=await the_operator_s_words(ctx, self._uow, run),
             about_to_write=about_to_write,
         )
 

@@ -2,13 +2,13 @@
 
 Comments and docstrings moved out of [`backend/src/sro/application/runtime/answer_run.py`](../../../../../../../backend/src/sro/application/runtime/answer_run.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `K_ANSWER`, [line 15](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L15): Constant
+## `K_ANSWER`, [line 16](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L16): Constant
 
 > The longest answer a run is handed, in characters. An answer is a choice,
 > a value or a short "done it"; a mail reply carries its whole quoted thread,
 > which is cut here rather than kept whole.
 
-## `AnswerRun.execute`, [line 53](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L53): Note
+## `AnswerRun.execute`, [line 54](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L54): Note
 
 Code: `if not asking or asking.get("id") != question_id:`
 
@@ -24,7 +24,7 @@ Code: `if not asking or asking.get("id") != question_id:`
 > operator's verdict. Without one the question stands and the write stays in
 > doubt, never sent again.
 
-## `AnswerRun.execute`, [line 80](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L80): Note
+## `AnswerRun.execute`, [line 85](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L85): Note
 
 Code: `progress.asking = {**asking, **answer}`
 
@@ -37,13 +37,13 @@ Code: `progress.asking = {**asking, **answer}`
 > (Global Constraint 10), and `RunSteps.answered` reads the answer back
 > from the run.
 
-## `WriteVerdict`, [line 17](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L17): Constant
+## `WriteVerdict`, [line 18](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L18): Constant
 
 > The operator's word on a step the run asked about: `done` settles it,
 > `not_done` says the write never happened so the lanes may try it again,
 > and empty says nothing about it.
 
-## `AnswerRun.execute`, [line 62](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L62): Note
+## `AnswerRun.execute`, [line 63](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L63): Note
 
 Code: `if kind == "field" and chosen and chosen not in json.loads(asking.get("choices") or "[]"):`
 
@@ -52,7 +52,7 @@ Code: `if kind == "field" and chosen and chosen not in json.loads(asking.get("ch
 > choice is kept on the question, because it is one the page offered and so no
 > secret; the signal still carries only the question id.
 
-## `AnswerRun.execute`, [line 45](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L45): Comment
+## `AnswerRun.execute`, [line 46](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L46): Comment
 
 Code: `if not answers_for(run, ctx.principal_id.value):`
 
@@ -70,11 +70,13 @@ Code: `if not answers_for(run, ctx.principal_id.value):`
 > own recipients go through. The answer keeps the addresses and who gave them;
 > the first answer wins, as for every question.
 
-## `AnswerRun.execute`, [line 50](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L50): Comment
+## `AnswerRun.execute`, [line 51](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L51): Comment
 
-Code: `drafted = run.executor != "steel" and kind == "recipient"`
+Code: `drafted = run.executor != "steel" and kind in ("recipient", MAIL_BODY)`
 
-> A drafted (non-Steel) mail job asks who its mail goes to from a stopped run --
-> it holds no browser while it waits -- so that one question is answered on a
-> stopped run, and carried out by `resume` (the job redrafted) instead of a
-> Temporal signal, which no workflow would receive.
+> A drafted (non-Steel) mail job asks who its mail goes to, or what it says,
+> from a stopped run -- it holds no browser while it waits -- so those two
+> questions are answered on a stopped run, and carried out by `resume` (the job
+> redrafted) instead of a Temporal signal, which no workflow would receive. A
+> `mail_body` answer is the starter's words, kept as `said`; empty is refused.
+> The mail door never answers one: it reads only `value` and `recipient`.

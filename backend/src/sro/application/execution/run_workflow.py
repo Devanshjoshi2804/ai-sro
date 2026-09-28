@@ -563,7 +563,7 @@ async def _through_the_mailbox(
     stops: Stops,
 ) -> None:
     waiting = read_wait(run.awaiting) if run.awaiting else None
-    written = await mail.write(workflow, values, waiting.thread if waiting else "", by_id)
+    written = await mail.write(workflow, values, waiting.thread if waiting else "", by_id, ())
     if isinstance(written, str):
         record.verdict, record.verdict_by, record.reason = "failed", "none", written
         return

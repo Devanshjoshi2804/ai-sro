@@ -12,7 +12,7 @@ from tests.unit.runtime_support import _answer, _sent, lane_context, mail_send_s
 
 
 async def write_unwritten(
-    workflow: Workflow, values: object, thread: str, by_id: object
+    workflow: Workflow, values: object, thread: str, by_id: object, request: object
 ) -> Written | str:
     return "no addressee found"
 
@@ -21,7 +21,7 @@ async def test_the_writer_is_given_the_evidence_the_job_was_shown_with() -> None
     seen: list[object] = []
 
     async def write(
-        workflow: Workflow, values: object, thread: str, by_id: object
+        workflow: Workflow, values: object, thread: str, by_id: object, request: object
     ) -> Written | str:
         seen.append(by_id)
         return "no addressee found"
@@ -115,7 +115,7 @@ async def test_a_send_that_answered_no_id_is_never_sent_again_blindly() -> None:
 
 async def test_a_mail_nobody_may_be_sent_is_a_question_of_who_it_goes_to() -> None:
     async def write(
-        workflow: Workflow, values: object, thread: str, by_id: object
+        workflow: Workflow, values: object, thread: str, by_id: object, request: object
     ) -> Written | str:
         return Unaddressed("the mail is addressed outside the conversation: eve@evil.example")
 

@@ -349,6 +349,42 @@ def _offer(decision: Mapping[str, object]) -> tuple[str, str]:
     return str(decision.get("workflow_id") or ""), str(decision.get("mail_thread") or "")
 
 
+def the_request(messages: Sequence[Message], offer: str, workflow_id: str) -> tuple[str, ...]:
+    at = next((n for n, one in enumerate(messages) if one.id.value == offer), None)
+    if at is None or not _chats_about(messages[at], workflow_id):
+        return ()
+    start = at
+    while start and not _started(messages[start - 1]):
+        before = messages[start - 1]
+        if before.speaker is not Speaker.OPERATOR and not _chats_about(before, workflow_id):
+            break
+        start -= 1
+    end = at
+    while end + 1 < len(messages) and not _started(messages[end]):
+        after = messages[end + 1]
+        if after.speaker is not Speaker.OPERATOR and not _chats_about(after, workflow_id):
+            break
+        end += 1
+    return tuple(
+        one.text
+        for one in messages[start : end + 1]
+        if one.speaker is Speaker.OPERATOR and one.text.strip()
+    )
+
+
+def _chats_about(message: Message, workflow_id: str) -> bool:
+    decision = message.decision or {}
+    return (
+        message.speaker is Speaker.ASSISTANT
+        and decision.get("kind") in (JOB, NEEDS)
+        and _offer(decision) == (workflow_id, "")
+    )
+
+
+def _started(message: Message) -> bool:
+    return message.speaker is Speaker.ASSISTANT and bool((message.decision or {}).get("resume"))
+
+
 def pending_job(messages: Sequence[Message], answering: str | None = None) -> Pending | None:
     asked = asked_under(messages, answering)
     decision = asked.decision if asked is not None else None

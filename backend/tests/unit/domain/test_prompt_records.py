@@ -195,7 +195,7 @@ def test_the_rendered_mining_request_is_pinned() -> None:
     sent = MINE.instructions + "\n\n" + MINE.evidence({}, blocks)
     assert (
         hashlib.sha256(sent.encode()).hexdigest()
-        == "4ad8bfd119d2776a5ae6a6bf47b733f6cf5c6acd3c87b50804815eed81c7d9c3"
+        == "b02c56e7b8e6ff9fb3148989e531c08906c52861266b87e9a6282584cf1e227c"
     )
 
 
@@ -236,10 +236,6 @@ def test_an_empty_mail_body_does_not_conform() -> None:
 
 
 _DECIDED: tuple[tuple[Prompt, str], ...] = (
-    (MINE, "A job done only once in the window is still a job"),
-    (MINE, "A job can be small"),
-    (MINE, "A job often starts in mail"),
-    (MINE, "Whether anything signs in or out is decided by the code, not by you"),
     (CHECK_SCREEN, "If you cannot tell whether the step held, held is false"),
     (PLAN_STEP, "A secret field is filled by the run itself, never by you"),
     (TRANSCRIBE, "is written as [secret], never as said"),
@@ -258,9 +254,3 @@ def test_a_step_that_changes_nothing_is_not_failed_for_being_unclear() -> None:
     against a guess and stopped `Delete a Customer Type` six times running.
     "Cannot tell" (a page still drawing) must not become a stop again."""
     assert "cannot tell" not in CHECK_WAY_THROUGH.instructions.lower()
-
-
-def test_mining_no_longer_calls_a_doing_that_starts_in_mail_not_a_job() -> None:
-    """Six of fourteen mining eval cases proposed nothing for a real doing. The
-    old sentence read a mailbox search as never the start of a job."""
-    assert "has not started one" not in MINE.instructions

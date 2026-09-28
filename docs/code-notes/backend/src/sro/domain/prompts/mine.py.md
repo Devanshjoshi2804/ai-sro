@@ -2,20 +2,15 @@
 
 Comments and docstrings moved out of [`backend/src/sro/domain/prompts/mine.py`](../../../../../../../backend/src/sro/domain/prompts/mine.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## module, [line 60](../../../../../../../backend/src/sro/domain/prompts/mine.py#L60): Note on the line above
+## module, [line 55](../../../../../../../backend/src/sro/domain/prompts/mine.py#L55): Note on the line above
 
 Code: `version=4,`
 
-> Version 4 (P5, 2026-09-28) states the decided rules in `rules`: nobody reads
-> the answer before it is used, so a doing left out is lost; a job done once
-> or twice is still a job; sign-in and log-out are chores whose flags code
-> decides (`checks.signs_in`, `checks.signs_out`); cite, never guess; no
-> secret in the answer. `_TASK` stops reading a mailbox search as never the
-> start of a job: in the greyorange mining eval (14 cases, 28.6%) the most
-> common miss was proposing nothing for a real doing (6 of 14), and raising
-> thinking to high changed no case, so the fix is in the wording. Two edge
-> cases were added: a small doing that starts in mail and crosses tabs, and a
-> doing behind a sign-in. The mining eval measures v4 against v3.
+> Version 4 (P5, 2026-09-28) is version 3 with the two rules every record now
+> shares, appended by `Prompt`. P5 also rewrote MINE to push recall (a small
+> doing, one started in mail, one done once is a job; report when unsure):
+> the greyorange mining eval kept accuracy at 28.6% but doubled sure-but-wrong
+> (28.6% -> 57.1%) and raised cost, so that rewrite was dropped.
 >
 > Version 3 (T1, 2026-09-27) explains two new keys in `day`: each gesture's
 > `tab`, and `opened` (the tabs it opened, each with its opener), so that work
@@ -32,7 +27,7 @@ Code: `version=4,`
 > (`make eval suite=mining`) measures v2 against the v1 baseline; the report
 > goes in the PR.
 
-## module, [line 61](../../../../../../../backend/src/sro/domain/prompts/mine.py#L61): Note on the line above
+## module, [line 56](../../../../../../../backend/src/sro/domain/prompts/mine.py#L56): Note on the line above
 
 Code: `model="gemini-3.8-flash",`
 
@@ -89,7 +84,7 @@ Code: `model="gemini-3.8-flash",`
 > the `thinking` note below -- cited and not copied, because a
 > measurement kept in two places is one that drifts.
 
-## module, [line 63](../../../../../../../backend/src/sro/domain/prompts/mine.py#L63): Note on the line above
+## module, [line 58](../../../../../../../backend/src/sro/domain/prompts/mine.py#L58): Note on the line above
 
 Code: `thinking="medium",`
 
@@ -117,14 +112,14 @@ Code: `thinking="medium",`
 > made without them -- and because the first was recorded for one model and not
 > applied to the one actually configured, which is how the $2.00 was spent.
 
-## module, [line 77](../../../../../../../backend/src/sro/domain/prompts/mine.py#L77): Comment
+## module, [line 72](../../../../../../../backend/src/sro/domain/prompts/mine.py#L72): Comment
 
 Code: `"properties": {`
 
 > cites before says: identifying the evidence before
 > composing the answer measurably beats the reverse.
 
-## module, [line 100](../../../../../../../backend/src/sro/domain/prompts/mine.py#L100): Comment
+## module, [line 95](../../../../../../../backend/src/sro/domain/prompts/mine.py#L95): Comment
 
 Code: `"parameters": {`
 
@@ -139,7 +134,7 @@ Code: `"parameters": {`
 > empty every time, on jobs whose evidence plainly showed
 > four different customer types being typed.
 
-## module, [line 122](../../../../../../../backend/src/sro/domain/prompts/mine.py#L122): Comment
+## module, [line 117](../../../../../../../backend/src/sro/domain/prompts/mine.py#L117): Comment
 
 Code: `"unplaced": {"type": "array", "items": {"type": "string"}},`
 

@@ -1289,3 +1289,33 @@ def test_one_value_mined_under_two_parameters_keeps_every_value_seen() -> None:
     )
 
     assert seen_values(job) == {"Customer Type": frozenset({"MRN5", "DDLS", "ZQ45"})}
+
+
+def test_a_delete_that_carries_its_record_is_addressed_by_the_value_in_path_and_body() -> None:
+    """Greyorange, 2026-09-28: Blue Yonder's DELETE .../customerTypes/MRN5
+    sends the record as its body, the code twice (customerType, resourceId).
+    The plan refused -- one value in two fields -- so the Undo of SR10 walked
+    the grid; and a body plan kept the recorded path, which would have
+    addressed MRN5 while the body said SR10. The value goes in the path and in
+    every field that held the recorded code."""
+    deletes = {
+        f"g{n}": _saving(
+            f"g{n}",
+            {**CREATED, "customerType": code, "resourceId": code},
+            method="DELETE",
+            url=f"{HOST}{PATH}/{code}?siteId=SG",
+        )
+        for n, code in enumerate(("MRN5", "DDLS"))
+    }
+    deletes["g1"] = replace(
+        deletes["g1"], requests=[replace(deletes["g1"].requests[0], request_body=None)]
+    )
+    ledger = (VerifiedWrite(method="DELETE", path_pattern=f"{PATH}/{{id}}"),)
+    seen = {"Customer Type": frozenset({"MRN5", "DDLS", "ZQ45"})}
+
+    plan = write_plan_for(_step("g0", "g1"), deletes, {"Customer Type": "SR10"}, ledger, seen)
+
+    assert plan is not None
+    assert plan.url.split("?")[0].endswith(f"{PATH}/SR10")
+    body = json.loads(plan.body or "{}")
+    assert (body["customerType"], body["resourceId"]) == ("SR10", "SR10")

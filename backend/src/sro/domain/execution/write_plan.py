@@ -200,8 +200,16 @@ def _assigned(
         if owners:
             claimed[slot] = owners[0]
             placed.update(owners)
-    if len(set(claimed.values())) != len(claimed):
-        return None
+    for parameter in set(claimed.values()):
+        # One value in several fields is fine only where those fields held one
+        # value in every doing -- the record's code echoed (customerType and
+        # resourceId), not two different things one parameter would overwrite.
+        mine = [slot for slot, owner in claimed.items() if owner == parameter]
+        if len(mine) > 1 and any(
+            len({json.dumps(body.get(slot), sort_keys=True) for slot in mine}) > 1
+            for body in bodies
+        ):
+            return None
     carried = {values[name] for name in placed}
     if any(
         name not in placed and name not in elsewhere and values[name] not in carried
@@ -305,7 +313,7 @@ def write_plan_for(
     aimed.update(also)
     return WritePlan(
         method=call.method.upper(),
-        url=call.url,
+        url=_addressed(call, values.get(owner, "").strip()) if owner else call.url,
         body=json.dumps(aimed, ensure_ascii=False),
         filled={**claimed, **{slot: slot for slot in also}},
         confirm={
@@ -345,6 +353,14 @@ def _path_owner(
     return claiming[0] if len(claiming) == 1 else None
 
 
+def _addressed(call: Call, wanted: str) -> str:
+    """The recorded url with its last path segment -- the record it addressed --
+    replaced by this run's."""
+    parts = urlsplit(call.url)
+    head = parts.path.rsplit("/", 1)[0]
+    return urlunsplit(parts._replace(path=f"{head}/{quote(wanted, safe='')}"))
+
+
 def _path_plan(
     step: Step,
     by_id: Mapping[str, Gesture],
@@ -357,9 +373,7 @@ def _path_plan(
     wanted = values.get(owner, "").strip() if owner else ""
     if not wanted:
         return None
-    parts = urlsplit(call.url)
-    head = parts.path.rsplit("/", 1)[0]
-    url = urlunsplit(parts._replace(path=f"{head}/{quote(wanted, safe='')}"))
+    url = _addressed(call, wanted)
     if verified_write_for(replace(call, url=url), (entry,)) is None:
         return None
     return WritePlan(

@@ -71,6 +71,9 @@ class _Link:
     pages: dict[str, Page] = field(default_factory=dict)
     owners: dict[str, str] = field(default_factory=dict)
     waiting: dict[str, asyncio.Future[Page]] = field(default_factory=dict)
+    openers: dict[str, str] = field(default_factory=dict)
+    handed: set[str] = field(default_factory=set)
+    arrived: asyncio.Event = field(default_factory=asyncio.Event)
 
 
 @dataclass
@@ -171,6 +174,7 @@ class SteelDriver:
         except PlaywrightError:
             return
         target_id, owner = str(info["targetId"]), str(info.get("browserContextId", ""))
+        opener = str(info.get("openerId") or "")
 
         tab = self._tabs[page] = _Tab([] if whole else None, owner=owner)
         tab.settled.set()
@@ -179,6 +183,7 @@ class SteelDriver:
         def gone(_: Page) -> None:
             link.pages.pop(target_id, None)
             link.owners.pop(target_id, None)
+            link.openers.pop(target_id, None)
             self._tabs.pop(page, None)
             tab.pending.clear()
             tab.settled.set()
@@ -234,6 +239,8 @@ class SteelDriver:
             return
 
         link.pages[target_id] = page
+        link.openers[target_id] = opener
+        link.arrived.set()
         waiter = link.waiting.pop(target_id, None)
         if waiter is not None and not waiter.done():
             waiter.set_result(page)
@@ -287,6 +294,29 @@ class SteelDriver:
             raise PageUnsettled(
                 f"tab {target_id} in context {session.context_id} did not settle: {why}"
             ) from why
+
+    async def opened_by(self, session: SessionRef, opener: str, deadline_s: float) -> str:
+        link = await self._context(session)
+        loop = asyncio.get_running_loop()
+        until = loop.time() + deadline_s
+        while True:
+            link.arrived.clear()
+            found = [
+                target
+                for target, parent in link.openers.items()
+                if parent == opener
+                and target not in link.handed
+                and target in link.pages
+                and link.owners.get(target) == session.context_id
+            ]
+            if found:
+                link.handed.add(found[-1])
+                return found[-1]
+            left = until - loop.time()
+            if left <= 0:
+                raise PageUnsettled(f"no tab was opened from {opener} within {deadline_s} s")
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(link.arrived.wait(), left)
 
     async def open_tab(self, session: SessionRef, url: str) -> str:
         link = await self._context(session)

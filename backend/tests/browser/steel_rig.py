@@ -25,6 +25,12 @@ from sro.infrastructure.steel.driver import SteelDriver
 
 _PUBLIC_PAGE = "<!doctype html><html><body><h1>public</h1></body></html>"
 
+_POPUP_OPENER_PAGE = """<!doctype html><html><body>
+<a href="/lookup" target="_blank">Open lookup</a>
+</body></html>"""
+
+_LOOKUP_PAGE = "<!doctype html><html><body><h1>lookup</h1></body></html>"
+
 _FRAMED_PAGE = """<!doctype html><html><body>
   <iframe src="/public"></iframe><iframe src="/app"></iframe>
 </body></html>"""
@@ -234,6 +240,10 @@ def _handler_for(rig: Rig) -> type[BaseHTTPRequestHandler]:
                 self._html(_PUBLIC_PAGE)
             elif path == "/framed":
                 self._html(_FRAMED_PAGE)
+            elif path == "/opener":
+                self._html(_POPUP_OPENER_PAGE)
+            elif path == "/lookup":
+                self._html(_LOOKUP_PAGE)
             elif path == "/landing":
                 self._html(_LANDING_PAGE)
             elif path == "/api/basic":

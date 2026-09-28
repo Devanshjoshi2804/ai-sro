@@ -12,7 +12,7 @@ from sro.application.chat.announce import SayWhatHappened
 from sro.application.context import RequestContext
 from sro.application.execution.mail_job import keep_the_named, the_operator_s_words
 from sro.application.ports.locks import AccountBusy
-from sro.application.ports.page import PageGone
+from sro.application.ports.page import PageGone, PageUnsettled
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.runtime.broker import SessionBroker
@@ -28,6 +28,7 @@ from sro.application.runtime.step import (
     WaitingForAPerson,
 )
 from sro.application.runtime.teach import Teach
+from sro.application.runtime.ui_lane import K_UI_WAIT_S
 from sro.domain.chat.asked_by import only_reads_the_mail
 from sro.domain.chat.thread import Speaker
 from sro.domain.execution.account import Account, LeaseState
@@ -52,7 +53,7 @@ from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.identifiers import PrincipalId
 from sro.domain.skill.aliases import JobAlias
 from sro.domain.skill.learned import demanded
-from sro.domain.skill.tabs import MAIN
+from sro.domain.skill.tabs import MAIN, OPENED_FROM
 from sro.domain.skill.workflow import Step, Workflow, cited_ids, field_key
 
 _RUN_VERDICT = {"done": "held", "read": "held", "failed": "failed", "unknown": "unclear"}
@@ -197,7 +198,7 @@ class RunSteps:
             )
         tried: tuple[StepResult, ...] = ()
         try:
-            held = await self._held(ctx, run, progress)
+            held = await self._held(ctx, run, progress, step, by_id)
             lane = await self._lane_context(ctx, run, workflow, by_id, held, stop, step)
             if field_key(workflow, step):
                 return await self._fill_step(ctx, run, progress, ordered, index, values, lane)
@@ -316,12 +317,13 @@ class RunSteps:
         waits = progress.asking.get("kind", "")
         if run.outcome == "running" and waits == "code":
             return
-        if progress.tabs.get(MAIN):
-            with contextlib.suppress(PageGone):
-                held = await self._broker.reattach(
-                    ctx, progress.lease, progress.tabs[MAIN], holder=run.id
-                )
-                await self._broker.release(ctx, held)
+        if progress.tabs:
+            for role in sorted(progress.tabs, key=lambda one: one == MAIN):
+                with contextlib.suppress(PageGone):
+                    held = await self._broker.reattach(
+                        ctx, progress.lease, progress.tabs[role], holder=run.id
+                    )
+                    await self._broker.release(ctx, held)
             progress.tabs = {}
             await self._write(ctx, run, progress)
         if run.outcome != "running" and progress.lease:
@@ -418,7 +420,65 @@ class RunSteps:
         await self._keep_tab(ctx, run, progress, held)
         return ""
 
-    async def _held(self, ctx: RequestContext, run: WorkflowRun, progress: Progress) -> Held | None:
+    async def _held(
+        self,
+        ctx: RequestContext,
+        run: WorkflowRun,
+        progress: Progress,
+        step: Step,
+        by_id: Mapping[str, Gesture],
+    ) -> Held | None:
+        main = await self._main(ctx, run, progress)
+        if main is None:
+            return None
+        role = step.role
+        held = main if role == MAIN else await self._role(ctx, run, progress, step, by_id, main)
+        mark = progress.marks.setdefault(step.order, StepMark())
+        if mark.tab != role or progress.tabs.get(role) != held.target_id:
+            opened = held.target_id not in progress.tabs.values()
+            mark.tab, progress.tabs[role] = role, held.target_id
+            try:
+                await self._write(ctx, run, progress)
+            except BaseException:
+                if opened:
+                    await self._broker.release(ctx, held)
+                raise
+        return held
+
+    async def _role(
+        self,
+        ctx: RequestContext,
+        run: WorkflowRun,
+        progress: Progress,
+        step: Step,
+        by_id: Mapping[str, Gesture],
+        main: Held,
+    ) -> Held:
+        role = step.role
+        if (tab := progress.tabs.get(role)) is not None:
+            try:
+                return await self._broker.reattach(ctx, progress.lease, tab, holder=run.id)
+            except PageGone:
+                progress.tabs.pop(role, None)
+        if not role.startswith(OPENED_FROM):
+            primary = primary_gesture(step, by_id)
+            url = (primary.page_url or primary.url) if primary else None
+            return await self._broker.open_tab(ctx, main, url or progress.start_url)
+        parent = role.removeprefix(OPENED_FROM)
+        parent_tab = progress.tabs.get(parent)
+        if not parent_tab:
+            raise NeedsAPerson(
+                f"'{step.says}' acts in a tab the {parent} tab opens, and it is not open"
+            )
+        opener = await self._broker.reattach(ctx, progress.lease, parent_tab, holder=run.id)
+        try:
+            return await self._broker.opened_by(ctx, opener, deadline_s=K_UI_WAIT_S)
+        except PageUnsettled:
+            raise NeedsAPerson(
+                f"'{step.says}' acts in a tab the {parent} tab never opened"
+            ) from None
+
+    async def _main(self, ctx: RequestContext, run: WorkflowRun, progress: Progress) -> Held | None:
         tab = progress.tabs.get(MAIN)
         if not tab:
             return None
@@ -434,7 +494,7 @@ class RunSteps:
     async def _keep_tab(
         self, ctx: RequestContext, run: WorkflowRun, progress: Progress, held: Held
     ) -> None:
-        progress.lease, progress.tabs = held.lease.id, {MAIN: held.target_id}
+        _holding(progress, held)
         try:
             await self._write(ctx, run, progress)
         except BaseException:
@@ -579,7 +639,7 @@ class RunSteps:
                 expired=last.expired,
             )
         if isinstance(asked, WaitingForAPerson):
-            progress.lease, progress.tabs = asked.held.lease.id, {MAIN: asked.held.target_id}
+            _holding(progress, asked.held)
         asking = f"q_{secrets.token_hex(16)}"
         progress.asking = {
             "id": asking,
@@ -851,6 +911,14 @@ class RunSteps:
                 ctx.tenant_id, ids=tuple(sorted(cited_ids(workflow)))
             )
         return run, workflow, {one.id: one for one in cited}
+
+
+def _holding(progress: Progress, held: Held) -> None:
+    if progress.lease != held.lease.id:
+        progress.tabs = {}
+    progress.lease = held.lease.id
+    if held.target_id not in progress.tabs.values():
+        progress.tabs[MAIN] = held.target_id
 
 
 def _demanded(workflow: Workflow) -> set[str]:

@@ -24,6 +24,7 @@ class StepMark:
     verdict: str = ""
     wrote: Wrote = ""
     expired: bool = False
+    tab: str = ""
 
 
 @dataclass
@@ -136,6 +137,7 @@ def _marks(value: object) -> dict[int, StepMark]:
             verdict=str(one.get("verdict") or ""),
             wrote=_wrote(str(one.get("wrote") or "")),
             expired=one.get("expired") is True,
+            tab=str(one.get("tab") or ""),
         )
         for key, one in value.items()
         if isinstance(one, Mapping)

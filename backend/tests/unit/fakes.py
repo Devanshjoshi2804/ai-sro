@@ -1591,6 +1591,10 @@ class FakePageDriver:
     one sent and not yet answered. `storage_state_hangs` makes `storage_state`
     never return, the way a wedged renderer's CDP socket answers nothing.
 
+    `popups` maps an opener tab to the tab a click in it opened: `opened_by`
+    hands it out once, and answers `PageUnsettled` for an opener that opened
+    nothing.
+
     For a field nobody demonstrated, `resolve` records each payload in
     `resolved` and answers the scripted `resolved` answer (one control by
     default), and `outline` answers the scripted live outline."""
@@ -1638,6 +1642,7 @@ class FakePageDriver:
         self._resolves = resolved if resolved is not None else PageAnswer(ok=True, candidates=1)
         self._outline = outline
         self.resolved: list[dict[str, object]] = []
+        self.popups: dict[str, str] = {}
         self.cookie = ""
         self.headers: dict[str, str] = {}
         self.headers_after_mark: dict[str, str] | None = None
@@ -1665,6 +1670,15 @@ class FakePageDriver:
         self.owners[target_id] = session.context_id
         self.calls.append(("open_tab", session.context_id, url))
         return target_id
+
+    async def opened_by(self, session: SessionRef, opener: str, deadline_s: float) -> str:
+        self._tab(session, opener)
+        self.calls.append(("opened_by", session.context_id, opener))
+        target = self.popups.pop(opener, None)
+        if target is None:
+            raise PageUnsettled(f"no tab was opened from {opener}")
+        self.tabs[target], self.owners[target] = self.tabs[opener], session.context_id
+        return target
 
     async def close_tab(self, session: SessionRef, target_id: str) -> None:
         self._tab(session, target_id)

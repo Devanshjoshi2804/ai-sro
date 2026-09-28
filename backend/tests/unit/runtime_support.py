@@ -30,7 +30,12 @@ mining gives it -- no declared parameter that no step can fill -- and runs with
 `values`, by default a value for each declared parameter (or a given `job`);
 its `fill` is a `ScriptedFill` answering each field fill from `answers`, and
 `progress()`, `job()` and `learned()` read back the run's progress, the stored
-job and its learned locators.
+job and its learned locators. Given `tabs`, the job is one browser read per
+role instead, each on its own recorded page (`page_of(order)`) in its own
+recorded tab, a popup's opener marked on the step that opened it, and every
+step's role given by `tab_roles` as mining gives it; `rewind(to=order)` sets
+the run back to a step without touching its marks, the way a worker restart
+runs a step again.
 
 For the executor, `RecordingLane` answers scripted results and counts its
 calls (`no_tool`, `no_api` and `never` are lanes the step must not reach),
@@ -83,6 +88,7 @@ from sro.domain.shared.hosts import origin_of
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.skill.checks import undeliverable
 from sro.domain.skill.signing_in import sign_in_chain
+from sro.domain.skill.tabs import OPENED_FROM, tab_roles
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.fakes import (
     FakeAccountLocks,
@@ -838,6 +844,14 @@ class SteelRun:
     def progress(self) -> Progress:
         return Progress.of(self.uow.workflow_runs.rows[self.run_id].progress)
 
+    def page_of(self, order: int) -> str:
+        return f"{_SYSTEM}/page-{order}"
+
+    def rewind(self, *, to: int) -> None:
+        progress = self.progress()
+        progress.step = to
+        self.uow.workflow_runs.rows[self.run_id].progress = progress.as_json()
+
     async def job(self) -> Workflow:
         return await self.uow.workflows.get(TENANT, _WORKFLOW.id)
 
@@ -890,9 +904,53 @@ class SteelRun:
         assert await self.uow.workflow_runs.record_progress(TENANT, self.run_id, progress.as_json())
 
 
+def _tab_steps(roles: Sequence[str]) -> tuple[Workflow, dict[str, Gesture]]:
+    tab_of = {role: n + 1 for n, role in enumerate(dict.fromkeys(roles))}
+    by_id: dict[str, Gesture] = {}
+    for n, role in enumerate(roles):
+        at = float(n + 1)
+        opened = [
+            PageMark(
+                at=at + 0.5,
+                page_kind="popup_opened",
+                tab_id=tab_of[other],
+                opener_tab_id=tab_of[role],
+            )
+            for other in tab_of
+            if other == f"{OPENED_FROM}{role}"
+        ]
+        by_id[f"ges_tab_{n}"] = Gesture(
+            id=f"ges_tab_{n}",
+            tenant=_TENANT,
+            stream_id="stream-1",
+            batch_id="batch-1",
+            at=at,
+            url=f"{_SYSTEM}/page-{n}",
+            system=_SYSTEM,
+            tab_id=tab_of[role],
+            frame_url=None,
+            action=Action(kind="click", at=at, target=Target(role="link", name=f"Open {n}")),
+            requests=[Call(method="GET", url=f"{_SYSTEM}/api/{n}", status=200, started_at=at)],
+            page_events=opened,
+        )
+    job = replace(
+        _WORKFLOW,
+        parameters=[],
+        steps=[
+            Step(order=n, says=f"Open page {n}", system=_SYSTEM, cites=[f"ges_tab_{n}"])
+            for n in range(len(roles))
+        ],
+    )
+    of_step = tab_roles(job, by_id)
+    job.steps = [replace(step, tab=of_step[step.order]) for step in job.steps]
+    assert [step.role for step in job.steps] == list(roles)
+    return job, by_id
+
+
 async def steel_run(
     *,
-    steps: Sequence[tuple[Step, dict[str, Gesture]]],
+    steps: Sequence[tuple[Step, dict[str, Gesture]]] = (),
+    tabs: Sequence[str] = (),
     live: bool = True,
     run_id: str = "run_a",
     recorded_sign_in: bool = True,
@@ -910,6 +968,8 @@ async def steel_run(
     by_id = {
         one: replace(seen, tenant=_TENANT) for _, cited in steps for one, seen in cited.items()
     }
+    if tabs:
+        job, by_id = _tab_steps(tabs)
     if job is None:
         job = replace(
             _WORKFLOW, steps=[replace(step, order=n) for n, (step, _) in enumerate(steps)]

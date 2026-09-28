@@ -408,6 +408,37 @@ async def test_act_in_the_recorded_frame_is_confirmed_by_its_state_and_its_own_c
     assert await driver.calls_since(one, target, await driver.mark(one, target)) == ()
 
 
+async def test_a_popup_is_found_by_the_tab_that_opened_it_and_handed_out_once(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    tab = await driver.open_tab(one, rig.url("/opener"))
+    other = await driver.open_tab(one, rig.url("/opener"))
+    clicked = await driver.act(
+        one,
+        tab,
+        {
+            "action": "click",
+            "target": {"role": "link", "name": "Open lookup"},
+            "value": None,
+            "write": False,
+            "learned": None,
+            "frame_path": None,
+        },
+    )
+    assert clicked.ok
+
+    popup = await driver.opened_by(one, tab, 10.0)
+
+    assert popup not in (tab, other)
+    assert (await driver.url_of(one, popup)).endswith("/lookup")
+    with pytest.raises(PageUnsettled):
+        await driver.opened_by(one, tab, 0.5)
+    with pytest.raises(PageUnsettled):
+        await driver.opened_by(one, other, 0.5)
+
+
 async def test_act_without_a_frame_path_finds_the_one_frame_holding_the_control(
     rig: Rig,  # noqa: F811
     one: SessionRef,  # noqa: F811

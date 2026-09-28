@@ -104,6 +104,14 @@ class SessionBroker:
         await self._driver.url_of(held.session, target_id)
         return held
 
+    async def open_tab(self, ctx: RequestContext, held: Held, url: str) -> Held:
+        return replace(held, target_id=await self._driver.open_tab(held.session, url))
+
+    async def opened_by(self, ctx: RequestContext, held: Held, *, deadline_s: float) -> Held:
+        return replace(
+            held, target_id=await self._driver.opened_by(held.session, held.target_id, deadline_s)
+        )
+
     async def release(self, ctx: RequestContext, held: Held) -> None:
         with contextlib.suppress(PageGone):
             await self._driver.close_tab(held.session, held.target_id)

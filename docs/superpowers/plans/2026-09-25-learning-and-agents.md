@@ -4482,3 +4482,13 @@ Put this in one function, shared by the mining pass and the sweep. Never duplica
 - The existing `fixed_values` warning still shows for a truly constant value.
 
 **After merge (controller):** redeploy QA, let one sweep run, then run `make eval suite=mining rebuild=1 baseline=1` on the box and compare with this baseline. The case set changes, so compare per case, not by the gate.
+
+### Task M4: mail is a built-in tool, never a learned job (LAST — after S2, S3, S4, F4 merge)
+
+Decided with the user 2026-09-28: mail work runs on the Gmail connector only, never the UI or Steel.
+
+- **Built-in mail actions.** Chat maps send / reply / forward straight to the Gmail tool; nothing is mined for them. Same guards as today: recipient from the operator's own words (S4) or the thread, `check_draft`, X-SRO-Marker, M2 recipient rules.
+- **Mining treats mail-only doings like chores.** Flagged as covered by the tool, never offered, excluded from the mining eval case set. A mail that is part of a process (e.g. reply after creating the record) folds into that job as a step, run by the tool lane.
+- **Existing mail-only jobs are retired** (`retired_at`), not deleted — their evidence (demonstrated recipients) stays — and only once the built-in actions work.
+- **Every mailbox step runs on the tool.** Search, open, label, archive — not only read and send. A step the tool cannot do asks the operator in the panel; it never falls back to the browser.
+- Tests via real code paths (invariant 16); eval rerun after, new baseline.

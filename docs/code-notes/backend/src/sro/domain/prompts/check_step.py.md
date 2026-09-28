@@ -12,7 +12,7 @@ Code: `"properties": {`
 > verdict that came without one keeps its verdict with an empty reason
 > (`Prompt.kept`), where a required string made the whole verdict unsure.
 
-## module, [line 34](../../../../../../../backend/src/sro/domain/prompts/check_step.py#L34): Note on the line above
+## module, [line 41](../../../../../../../backend/src/sro/domain/prompts/check_step.py#L41): Note on the line above
 
 Code: `CHECK_SCREEN = Prompt(`
 
@@ -33,7 +33,7 @@ Code: `CHECK_SCREEN = Prompt(`
 > It was `SCREEN_INSTRUCTIONS` in `sro.domain.execution.belts`; the text is
 > verbatim, split at its first blank line into role and task.
 
-## module, [line 78](../../../../../../../backend/src/sro/domain/prompts/check_step.py#L78): Note on the line above
+## module, [line 99](../../../../../../../backend/src/sro/domain/prompts/check_step.py#L99): Note on the line above
 
 Code: `CHECK_WAY_THROUGH = Prompt(`
 

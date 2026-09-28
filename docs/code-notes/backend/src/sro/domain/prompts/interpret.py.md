@@ -18,7 +18,7 @@ Code: `INTERPRET = Prompt(`
 > what an operator will see for the life of the skill -- so this is the
 > reasoning model. It cannot enable computer use, and does not need to.
 
-## module, [line 97](../../../../../../../backend/src/sro/domain/prompts/interpret.py#L97): Note on the line above
+## module, [line 115](../../../../../../../backend/src/sro/domain/prompts/interpret.py#L115): Note on the line above
 
 Code: `NAME_SKILL = Prompt(`
 
@@ -26,7 +26,7 @@ Code: `NAME_SKILL = Prompt(`
 > gives: the LPN example, the list of what a name leaves out, and the empty
 > title.
 
-## module, [line 147](../../../../../../../backend/src/sro/domain/prompts/interpret.py#L147): Note on the line above
+## module, [line 180](../../../../../../../backend/src/sro/domain/prompts/interpret.py#L180): Note on the line above
 
 Code: `JUDGE_VARIANT = Prompt(`
 
@@ -35,13 +35,13 @@ Code: `JUDGE_VARIANT = Prompt(`
 > the two are different questions with different words, and the eval gate
 > measures a record: one record holding both would score two questions as one.
 
-## module, [line 185](../../../../../../../backend/src/sro/domain/prompts/interpret.py#L185): Note on the line above
+## module, [line 223](../../../../../../../backend/src/sro/domain/prompts/interpret.py#L223): Note on the line above
 
 Code: `JUDGE_WORKFLOW = Prompt(`
 
 > It was `_JUDGING["workflow"]`, text verbatim, split the same way.
 
-## module, [line 210](../../../../../../../backend/src/sro/domain/prompts/interpret.py#L210): Note on the line above
+## module, [line 254](../../../../../../../backend/src/sro/domain/prompts/interpret.py#L254): Note on the line above
 
 Code: `JUDGES = {"variant": JUDGE_VARIANT, "workflow": JUDGE_WORKFLOW}`
 

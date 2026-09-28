@@ -765,6 +765,7 @@ class FakeBroker(SessionBroker):
             FakeClock(),
             ui=SigningLane(page),
         )
+        self.driver = page
         self.reauths = 0
         self.back_tos: list[str | None] = []
         self.refuses = refuses

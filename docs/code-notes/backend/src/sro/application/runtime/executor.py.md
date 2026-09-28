@@ -83,7 +83,7 @@ Code: `set(adding.fresh) <= known <= set(learned_slots(ctx.workflow, step))`
 > save the record without the field the operator asked for, and nothing would
 > say so -- so that write goes through the page.
 
-## `StepExecutor._settled`, [line 109](../../../../../../../backend/src/sro/application/runtime/executor.py#L109): Note
+## `StepExecutor._settled`, [line 130](../../../../../../../backend/src/sro/application/runtime/executor.py#L130): Note
 
 Code: `keyed=confirmed_keys(step, values, ctx),`
 

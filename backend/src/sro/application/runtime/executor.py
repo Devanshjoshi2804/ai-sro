@@ -16,7 +16,7 @@ from sro.application.runtime.step import (
     Stopped,
 )
 from sro.domain.chat.asked_by import by_hand, only_reads_the_mail
-from sro.domain.execution.evidence import primary_gesture
+from sro.domain.execution.evidence import primary_gesture, writes
 from sro.domain.execution.lanes import Broken, Lane, StepResult, lanes_for
 from sro.domain.execution.mail_job import sends_mail
 from sro.domain.execution.write_plan import learned_slots
@@ -88,7 +88,28 @@ class StepExecutor:
             tried.append(result)
             if result.verdict != "failed" or result.expired:
                 break
+        if tried and tried[-1].verdict == "failed" and not tried[-1].expired:
+            went = await self._by_its_address(step, ctx, page)
+            if went is not None:
+                tried.append(went)
         return tuple(tried)
+
+    async def _by_its_address(
+        self, step: Step, ctx: LaneContext, page: str | None
+    ) -> StepResult | None:
+        """A step that writes nothing only moves the browser. When its control is
+        not on the page -- the job was recorded from another screen -- the page
+        the next step was recorded on is reached by its address instead."""
+        if ctx.held is None or writes(step, ctx.by_id):
+            return None
+        later = [one for one in ctx.workflow.steps if one.order > step.order]
+        following = min(later, key=lambda one: one.order, default=None)
+        gesture = None if following is None else primary_gesture(following, ctx.by_id)
+        there = None if gesture is None else gesture.page_url or gesture.url
+        if not there or there == page:
+            return None
+        await self._broker.go_to(ctx.ctx, ctx.held, there)
+        return StepResult("done", Lane.UI, f"its control was not on the page; went to {there}")
 
     async def _settled(
         self, step: Step, values: Mapping[str, str], ctx: LaneContext, lost: StepResult

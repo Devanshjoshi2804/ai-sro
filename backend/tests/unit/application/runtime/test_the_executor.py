@@ -6,11 +6,11 @@ import pytest
 from sro.application.ports.browser import BrowserUnavailable
 from sro.application.ports.locks import AccountBusy
 from sro.application.runtime.executor import StepExecutor
-from sro.application.runtime.step import NeedsAPerson, Stopped
+from sro.application.runtime.step import Held, NeedsAPerson, Stopped
 from sro.domain.execution.compose import Adding
 from sro.domain.execution.lanes import Broken, Lane, StepResult
-from sro.domain.observation.gesture import Target
-from sro.domain.skill.workflow import Step
+from sro.domain.observation.gesture import Action, Gesture, Target
+from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.runtime_support import (
     APP,
     FakeBroker,
@@ -278,3 +278,72 @@ async def test_a_stop_while_signing_back_in_still_propagates() -> None:
         await StepExecutor(
             no_tool(), no_api(), RecordingLane(Lane.UI, expired), never(), broker
         ).run(step, {}, lane_context(by_id), broken=(), start_url=APP)
+
+
+def _on(target_id: str) -> Held:
+    held = lane_context({}).held
+    assert held is not None
+    return replace(held, target_id=target_id)
+
+
+def _clicked(gid: str, page: str, name: str) -> Gesture:
+    return Gesture(
+        id=gid,
+        tenant="acme",
+        stream_id="s",
+        batch_id="b",
+        at=1.0,
+        url=page,
+        page_url=page,
+        system="https://wms.example",
+        tab_id=1,
+        frame_url=None,
+        action=Action(kind="click", at=1.0, target=Target(tag="span", name=name)),
+    )
+
+
+async def test_a_page_switch_whose_control_is_not_there_goes_to_the_next_steps_page() -> None:
+    """Greyorange, 2026-09-28: the job was recorded from the Equipment screen,
+    so its first step clicked a "Customer Types" tab that only the Partners
+    screen shows; every later step was recorded at the Customer Types address.
+    A step that writes nothing and cannot find its control goes to that address."""
+    equipment = "https://wms.example/portal#wm.config.equipment"
+    customers = "https://wms.example/portal#wm.config.partners.customers.types"
+    by_id = {
+        "tab": _clicked("tab", equipment, "Customer Types"),
+        "add": _clicked("add", customers, "Add"),
+    }
+    first = Step(order=0, says="Switch to the Customer Types tab", system=None, cites=["tab"])
+    workflow = Workflow(
+        id="wfl_x",
+        tenant="acme",
+        title="t",
+        narrative="n",
+        steps=[first, Step(order=1, says="Click Add", system=None, cites=["add"])],
+    )
+    ui = RecordingLane(Lane.UI, StepResult("failed", Lane.UI, "control_not_found"))
+    blind = RecordingLane(Lane.SIGHT, StepResult("failed", Lane.SIGHT, "no model"))
+    broker = FakeBroker()
+    held = await broker.driver.open_tab(lane_context({}).held.session, equipment)
+    broker.driver.owners[held] = "sess-1"
+
+    tried = await StepExecutor(no_tool(), no_api(), ui, blind, broker).run(
+        first, {}, lane_context(by_id, workflow=workflow, held=_on(held)), broken=(), start_url=APP
+    )
+
+    assert tried[-1].verdict == "done"
+    assert ("goto", customers) in [(call[0], call[-1]) for call in broker.driver.calls]
+
+
+async def test_a_write_whose_control_is_not_there_never_goes_anywhere_else() -> None:
+    ui = RecordingLane(Lane.UI, StepResult("failed", Lane.UI, "control_not_found"))
+    blind = RecordingLane(Lane.SIGHT, StepResult("failed", Lane.SIGHT, "no model"))
+    step, by_id = save_step(status=201)
+    broker = FakeBroker()
+
+    tried = await StepExecutor(no_tool(), no_api(), ui, blind, broker).run(
+        step, VALUES, lane_context(by_id), broken=(), start_url=APP
+    )
+
+    assert tried[-1].verdict == "failed"
+    assert not [call for call in broker.driver.calls if call[0] == "goto"]

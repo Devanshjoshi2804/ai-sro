@@ -111,6 +111,9 @@ class SessionBroker:
     async def signed_out(self, ctx: RequestContext, held: Held) -> bool:
         return a_sign_in_page(await self._driver.signals(held.session, held.target_id))
 
+    async def go_to(self, ctx: RequestContext, held: Held, url: str) -> None:
+        await self._driver.goto(held.session, held.target_id, url)
+
     async def screenshot(self, ctx: RequestContext, held: Held) -> Screen:
         return await self._driver.screenshot(held.session, held.target_id)
 

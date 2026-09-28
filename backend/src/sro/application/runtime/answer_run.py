@@ -8,7 +8,7 @@ from sro.application.context import RequestContext
 from sro.application.execution.mail_job import K_BODY
 from sro.application.ports.durable import DurableExecution
 from sro.application.ports.repositories import UnitOfWork
-from sro.domain.execution.mail_job import DRAFT_QUESTIONS, MAIL_BODY, WHICH_MAIL, mailboxes
+from sro.domain.execution.mail_job import DRAFT_QUESTIONS, MAIL_BODY, WHICH_MAIL, addresses_in
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.workflow_run import answers_for
 from sro.domain.shared.errors import Conflict, NotFound
@@ -75,7 +75,7 @@ class AnswerRun:
         if kind == "field":
             answer |= {"choice": chosen, "by": ctx.principal_id.value}
         if kind == "recipient":
-            named = mailboxes(chosen)
+            named = addresses_in(chosen)
             if not named:
                 raise Conflict("who a mail goes to is answered with one or more addresses")
             answer |= {"address": ", ".join(named), "by": ctx.principal_id.value}

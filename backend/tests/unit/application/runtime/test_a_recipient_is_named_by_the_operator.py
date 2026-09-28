@@ -46,10 +46,8 @@ async def test_the_operator_s_answer_names_the_recipient_for_this_job() -> None:
     assert progress.asking == {} and progress.step == 0, "the step is tried again"
 
 
-@pytest.mark.parametrize(
-    "value", ["", "vendor", "evé@evil.com", "a@x.example b@y.example", "a@x.example,"]
-)
-async def test_an_answer_that_is_not_an_address_is_refused(value: str) -> None:
+@pytest.mark.parametrize("value", ["", "vendor", "evé@evil.com", "to the vendor, please"])
+async def test_an_answer_that_names_no_address_is_refused(value: str) -> None:
     world = await _asked_who()
 
     with pytest.raises(Conflict):
@@ -57,6 +55,15 @@ async def test_an_answer_that_is_not_an_address_is_refused(value: str) -> None:
 
     assert world.durable.answered == []
     assert "answered" not in world.progress().asking
+
+
+async def test_an_answer_in_words_names_the_addresses_in_them() -> None:
+    """Q1: "to devansh.j@..." was refused on QA; a person answers in words."""
+    world = await _asked_who()
+
+    await _answer(world, "to A@x.example and b@y.example, a@x.example")
+
+    assert world.progress().asking["address"] == "a@x.example, b@y.example"
 
 
 async def test_only_the_run_s_own_operator_may_name_a_recipient() -> None:

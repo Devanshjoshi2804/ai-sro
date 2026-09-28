@@ -6,7 +6,8 @@ Email`, drafted from their words, Send pressed, sent by the Gmail tool -- is
 the path. A built-in action runs that same path with the same guards; it only
 takes the mined job's place, so a tenant with no mined mail job is served too.
 
-Held here, through the real reader, the real start and the real press:
+Held here, through the real reader, the real start and the real send (Q1, 2026-09-28:
+the mail goes as soon as it is written; there is no Send to press):
 - "send an email to ..." reaches the built-in even with no job mined;
 - a mail-only mined job is no candidate, and its demonstrated recipients are
   the built-in's;
@@ -24,7 +25,6 @@ from typing import Any
 
 import pytest
 
-from sro.application.chat.ask_the_asker import DRAFTED, SendTheDraft
 from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.mailbox import SERVER
 from sro.application.chat.read_chat import ReadChat
@@ -216,20 +216,6 @@ class _World:
         )
         return [dict(one.decision or {}) for one in thread.messages]
 
-    async def drafted(self) -> list[dict[str, Any]]:
-        return [one for one in await self.decisions() if one.get("kind") == DRAFTED]
-
-    async def press(self) -> str:
-        (thread,) = await self.uow.threads.list_for_tenant(
-            f.TENANT, opened_by=A.principal_id, limit=1
-        )
-        card = next(
-            one for one in reversed(thread.messages) if (one.decision or {}).get("kind") == DRAFTED
-        )
-        return await SendTheDraft(self.uow, self.mailbox, self.clock, self.ids).execute(
-            A, thread.id, card.id.value
-        )
-
     async def answer(self, who: RequestContext, run: WorkflowRun, value: str) -> None:
         asking = Progress.of(run.progress).asking
         await AnswerRun(self.uow, self.durable, resume=self.starter.answered).execute(
@@ -249,14 +235,10 @@ async def test_a_tenant_with_no_mail_job_sends_through_the_built_in_action() -> 
     assert run.workflow_id == SEND_A_MAIL
     assert run.executor != "steel", "a mail action never goes to Steel"
     assert world.durable.runs_started == []
-    (drafted,) = await world.drafted()
-    assert (drafted["to"], drafted["subject"], drafted["thread"]) == (TO, "Hi", "")
-    assert world.mailbox.sent == [], "nothing goes before the Send press"
-
-    assert await world.press() == TO
-
     (sent,) = world.mailbox.sent
-    assert sent["to"] == TO and sent["marker"], "X-SRO-Marker rides every send"
+    assert (sent["to"], sent["subject"], sent["thread_id"]) == (TO, "Hi", ""), "sent at once"
+    assert sent["marker"], "X-SRO-Marker rides every send"
+    assert run.outcome == "held"
     kept = await world.uow.workflows.recipients_for(f.TENANT, SEND_A_MAIL)
     assert [one.address for one in kept] == [TO], "kept once it went, on the built-in"
 
@@ -267,7 +249,7 @@ async def test_a_send_to_somebody_the_operator_never_named_is_asked_about() -> N
     run = await world.ask_and_say_yes()
 
     assert Progress.of(run.progress).asking["kind"] == "recipient"
-    assert await world.drafted() == [] and world.mailbox.sent == []
+    assert world.mailbox.sent == []
 
 
 # --- a mail-only mined job is no candidate; its evidence is the built-in's -----
@@ -324,8 +306,8 @@ async def test_the_mined_mail_job_is_no_candidate_and_its_recipients_are_the_bui
     await world.ask_and_say_yes("send the vendor a test email saying Hi")
 
     assert "wfl_compose" not in world.candidates()
-    (drafted,) = await world.drafted()
-    assert drafted["to"] == vendor, "the address the mined job was shown sending to"
+    (went,) = world.mailbox.sent
+    assert went["to"] == vendor, "the address the mined job was shown sending to"
 
 
 # --- reply and forward act on a mail --------------------------------------------
@@ -358,9 +340,9 @@ async def test_a_reply_started_on_a_mail_answers_that_mail() -> None:
     assert run.executor != "steel"
     await world.starter.perform(A, run)
 
-    (drafted,) = await world.drafted()
-    assert (drafted["to"], drafted["thread"]) == (ALEX, "t-alex")
-    assert drafted["in_reply_to"] == "<req@mail>"
+    (sent,) = world.mailbox.sent
+    assert (sent["to"], sent["thread_id"]) == (ALEX, "t-alex")
+    assert sent["in_reply_to"] == "<req@mail>"
 
 
 @pytest.mark.parametrize("action", [REPLY_TO_A_MAIL, FORWARD_A_MAIL])
@@ -384,9 +366,8 @@ async def test_a_reply_or_forward_with_no_mail_asks_which_and_drafts_on_the_one_
     await world.answer(A, run, "NRT2 pilot")
 
     assert world.mailbox.searched == ["NRT2 pilot"]
-    (drafted,) = await world.drafted()
-    assert (drafted["thread"], drafted["in_reply_to"]) == ("t-alex", "<req@mail>")
-    assert world.mailbox.sent == []
+    (sent,) = world.mailbox.sent
+    assert (sent["thread_id"], sent["in_reply_to"]) == ("t-alex", "<req@mail>")
 
 
 @pytest.mark.parametrize(("words", "found"), [("invoice", 0), ("NRT2", 2)])
@@ -400,7 +381,7 @@ async def test_words_that_find_no_mail_or_several_ask_again(words: str, found: i
     again = await world.saved(run.id)
     asking = Progress.of(again.progress).asking
     assert asking["kind"] == WHICH_MAIL and f"{found} mail" in asking["text"]
-    assert await world.drafted() == [] and len(world.asker.asked) == 1
+    assert world.mailbox.sent == [] and len(world.asker.asked) == 1
 
 
 async def test_only_the_starter_names_the_mail_and_only_once() -> None:
@@ -419,4 +400,4 @@ async def test_only_the_starter_names_the_mail_and_only_once() -> None:
         await world.answer(A, run, "something else")
     await world.starter.answered(A, run.id)
 
-    assert len(await world.drafted()) == 1
+    assert len(world.mailbox.sent) == 1

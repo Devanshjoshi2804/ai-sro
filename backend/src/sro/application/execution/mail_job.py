@@ -27,12 +27,12 @@ from sro.domain.chat.asking import said_yes, the_request
 from sro.domain.chat.thread import Speaker
 from sro.domain.execution.mail_job import (
     DRAFT_QUESTIONS,
-    DRAFTED,
     K_SEND_WINDOW_S,
     K_SENT_THREADS,
     MAIL_BODY,
     ON_A_MAIL,
     SEND_A_MAIL,
+    SENT,
     WHICH_MAIL,
     Allowed,
     JobRecipient,
@@ -56,8 +56,6 @@ logger = logging.getLogger(__name__)
 K_MESSAGES = 5
 
 K_BODY = 2000
-
-AWAITING_THE_PRESS = "drafted — read it in the conversation and press Send it"
 
 WHAT_IT_SAYS = "What should the mail say?"
 
@@ -380,38 +378,31 @@ async def draft_the_mail_job(
             ctx, uow, run, MAIL_BODY, written, f"{written}. {WHAT_IT_SAYS}", clock=clock, ids=ids
         )
 
-    await SayWhatHappened(uow, clock, ids).execute(
-        ctx,
-        for_operator=PrincipalId(run.started_by) if run.started_by else ctx.principal_id,
-        text=f"{workflow.title} — this is the mail I would send to {written.to}. Read it first.",
-        speaker=Speaker.SYSTEM,
-        decision={
-            "kind": DRAFTED,
-            "run_id": run.id,
-            "to": written.to,
-            **({"bcc": written.bcc} if written.bcc else {}),
-            "subject": written.subject,
-            "body": written.body,
-            "thread": written.thread,
-            "in_reply_to": written.in_reply_to,
-            "job": workflow.id,
-            **({"named": ", ".join(written.named)} if written.named else {}),
-        },
-    )
+    sent_id, why = await send_the_mail(ctx, uow, tools, written, clock=clock)
     run.steps.append(
         RunStep(
             order=len(run.steps),
             of_step=0,
             says="Send the mail",
-            verdict="awaiting",
-            verdict_by="none",
-            reason=AWAITING_THE_PRESS,
-            sent={"kind": "mail.draft", "payload": {"to": written.to, "subject": written.subject}},
+            verdict="held" if sent_id else "failed",
+            verdict_by="status" if sent_id else "none",
+            reason=f"Gmail took the mail to {written.to} (id {sent_id})" if sent_id else why,
+            made={"message": sent_id} if sent_id else {},
         )
     )
-    run.outcome = "stopped"
+    run.outcome, run.awaiting = ("held" if sent_id else "failed"), None
     await _save(uow, run)
-    logger.info("%s: drafted %s's mail", run.id, workflow.id)
+    to = written.to + (f" (Bcc {written.bcc})" if written.bcc else "")
+    await SayWhatHappened(uow, clock, ids).execute(
+        ctx,
+        for_operator=PrincipalId(run.started_by) if run.started_by else ctx.principal_id,
+        text=f"Sent to {to}.\n\nSubject: {written.subject}\n\n{written.body}"
+        if sent_id
+        else f"{workflow.title}: {why}.",
+        speaker=Speaker.SYSTEM,
+        decision={"kind": SENT, "run_id": run.id, "to": written.to, "sent": bool(sent_id)},
+    )
+    logger.info("%s: %s's mail %s", run.id, workflow.id, "went" if sent_id else "did not go")
     return run
 
 

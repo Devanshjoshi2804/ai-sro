@@ -24,7 +24,6 @@ from typing import Any
 import pytest
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
-from sro.application.chat.ask_the_asker import DRAFTED, SendTheDraft
 from sro.application.chat.converse import K_NOT_YOURS, Converse, StartThread
 from sro.application.chat.mailbox import SERVER, mail_key
 from sro.application.chat.read_threads import ReadThreads
@@ -45,6 +44,7 @@ from sro.application.runtime.tool_lane import ToolLane
 from sro.domain.chat.asking import Pending
 from sro.domain.chat.thread import Speaker
 from sro.domain.execution.lanes import Lane
+from sro.domain.execution.mail_job import SENT
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.waiting import asks_a_person
 from sro.domain.execution.workflow_run import WorkflowRun
@@ -286,8 +286,9 @@ class _World:
         )
         return [dict(one.decision or {}) for one in threads[0].messages]
 
-    async def drafted(self) -> list[dict[str, Any]]:
-        return [one for one in await self.decisions() if one.get("kind") == DRAFTED]
+    async def drafted(self) -> list[dict[str, str]]:
+        """What went: a written mail is sent at once (Q1), so the mailbox holds it."""
+        return self.mailbox.sent
 
     def trusted(self, n: int = 0) -> dict[str, Any]:
         evidence = str(self.asker.asked[n]["evidence"])
@@ -296,18 +297,6 @@ class _World:
     async def answer(self, who: RequestContext, run: WorkflowRun, value: str) -> None:
         asking = Progress.of(run.progress).asking
         await self.answering().execute(who, run_id=run.id, question_id=asking["id"], value=value)
-
-    async def press(self) -> str:
-        """The operator's Send press on the newest drafted card."""
-        (thread,) = await self.uow.threads.list_for_tenant(
-            f.TENANT, opened_by=A.principal_id, limit=1
-        )
-        card = next(
-            one for one in reversed(thread.messages) if (one.decision or {}).get("kind") == DRAFTED
-        )
-        return await SendTheDraft(self.uow, self.mailbox, self.clock, self.ids).execute(
-            A, thread.id, card.id.value
-        )
 
     async def saved(self, run_id: str) -> WorkflowRun:
         run = await self.uow.workflow_runs.get(f.TENANT, run_id)
@@ -331,24 +320,19 @@ async def test_the_operator_s_own_chat_request_is_the_mail_they_asked_for() -> N
     run = await world.start(decision)
 
     (drafted,) = await world.drafted()
-    assert (drafted["to"], drafted["subject"]) == (TO, "Hi")
+    assert (drafted["to"], drafted["subject"]) == (TO, "Hi"), "sent at once, nothing to press"
     assert "This is a test email" in drafted["body"]
-    assert world.mailbox.sent == [], "nothing goes before the Send press"
-    assert run.outcome == "stopped" and run.steps[-1].verdict == "awaiting"
+    assert run.outcome == "held" and run.steps[-1].verdict == "held"
     request = world.trusted()["request"]
     assert request == [REQUEST, "Yes"], "the operator's words reach the writer, trusted"
     assert REQUEST not in str(world.asker.asked[0]["evidence"]).split("<untrusted", 1)[1]
-    assert await world.kept() == [], "a draft nobody pressed keeps no recipient (I3)"
-
-    assert await world.press() == TO
-
-    assert [one["to"] for one in world.mailbox.sent] == [TO]
     assert await world.kept() == [(TO, "devansh")], "kept once it went, as the starter's"
 
 
-async def test_an_address_in_a_draft_never_pressed_is_never_kept() -> None:
-    """I3: the operator types an address with a typo, sees the draft, and
-    walks away. The typo is no recipient of the job's next run."""
+async def test_an_address_the_operator_typed_is_the_one_written_to() -> None:
+    """Q1 (full autonomy, no Send to press): the operator's own words name who
+    the mail goes to, typo and all -- there is no draft to read first. Only
+    the address that went is kept on the job."""
     typo = "devansh.j@greyornage.com"
     world = _World(_wrote(to=typo))
     await world.held()
@@ -361,8 +345,7 @@ async def test_an_address_in_a_draft_never_pressed_is_never_kept() -> None:
 
     (drafted,) = await world.drafted()
     assert drafted["to"] == typo
-    assert await world.kept() == []
-    assert world.mailbox.sent == []
+    assert await world.kept() == [(typo, "devansh")]
 
 
 async def test_the_writer_is_told_the_request_is_the_operator_speaking() -> None:
@@ -449,7 +432,7 @@ async def test_a_mail_that_cannot_be_written_asks_what_it_should_say(
     assert world.mailbox.sent == []
 
 
-async def test_the_starter_s_words_redraft_the_mail_and_show_it_again() -> None:
+async def test_the_starter_s_words_rewrite_the_mail_and_send_it() -> None:
     world = _World(*BLANK_ON_BOTH, _wrote(body="Hi\n\nThe pilot starts Monday."))
     run = await world.start(await world.said_yes())
 
@@ -458,7 +441,6 @@ async def test_the_starter_s_words_redraft_the_mail_and_show_it_again() -> None:
     (drafted,) = await world.drafted()
     assert drafted["body"].endswith("The pilot starts Monday.")
     assert "Tell them the pilot starts Monday." in world.trusted(-1)["request"]
-    assert world.mailbox.sent == []
     saved = await world.uow.workflow_runs.get(f.TENANT, run.id)
     assert saved is not None and Progress.of(saved.progress).asking == {}
 
@@ -482,7 +464,7 @@ async def test_a_body_question_is_answered_with_words() -> None:
         await world.answer(A, run, "   ")
 
 
-async def test_two_presses_of_one_body_answer_draft_once() -> None:
+async def test_two_presses_of_one_body_answer_send_once() -> None:
     world = _World(*BLANK_ON_BOTH, _wrote(), _wrote())
     run = await world.start(await world.said_yes())
 
@@ -494,7 +476,7 @@ async def test_two_presses_of_one_body_answer_draft_once() -> None:
     assert len(await world.drafted()) == 1
 
 
-async def test_a_body_answer_carried_out_twice_drafts_once() -> None:
+async def test_a_body_answer_carried_out_twice_sends_once() -> None:
     world = _World(*BLANK_ON_BOTH, _wrote(), _wrote())
     run = await world.start(await world.said_yes())
     asking = Progress.of(run.progress).asking
@@ -544,8 +526,6 @@ async def test_a_yes_to_a_refused_draft_sends_that_draft_and_trusts_none_of_it()
     assert len(world.asker.asked) == 1, "a yes is not a redraft: the draft never reaches a prompt"
     (drafted,) = await world.drafted()
     assert (drafted["to"], drafted["subject"], drafted["body"]) == (BOSS, "Hi", draft)
-    assert await world.press() == BOSS
-    assert [(one["to"], one["body"]) for one in world.mailbox.sent] == [(BOSS, draft)]
     assert await world.kept() == [], "nothing in the draft is ever a recipient of the job"
 
 
@@ -725,9 +705,9 @@ async def test_the_starter_answers_what_the_mail_says_by_typing_in_their_thread(
     assert saved is not None and Progress.of(saved.progress).asking == {}
     assert "Hi, this is a test email" in world.trusted(-1)["request"]
     (drafted,) = await world.drafted()
-    assert drafted["run_id"] == run.id
+    assert drafted["to"] == TO
     kinds = [one.decision.get("kind") for one in said.messages if one.decision]
-    assert kinds == ["job", "job", "run_asks", DRAFTED], "the offer, its yes, the ask, the card"
+    assert kinds == ["job", "job", "run_asks", SENT], "the offer, its yes, the ask, what went"
     assert list(world.uow.workflow_runs.rows) == [run.id], "no second run"
 
 

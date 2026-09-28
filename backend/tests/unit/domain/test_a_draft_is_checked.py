@@ -6,6 +6,7 @@ from sro.domain.execution.mail_job import (
     Allowed,
     Checked,
     JobRecipient,
+    addresses_in,
     check_draft,
     mailboxes,
     one_address_in,
@@ -172,6 +173,16 @@ def test_mailboxes_are_read_strictly() -> None:
     assert mailboxes("Ana <ANA@acme.example>, b@c.example") == ("ana@acme.example", "b@c.example")
     for bad in ("", "foo", "a@x.example,", "evé@evil.com", "a@x.example b@y.example"):
         assert mailboxes(bad) is None, bad
+
+
+def test_a_person_s_words_name_the_addresses_in_them() -> None:
+    """Q1: an operator answers who a mail goes to in chat words, as they would
+    tell a colleague. The addresses are the ones in the words, in order, once."""
+    said = "to Devansh.J@greyorange.com, and a@x.example; devansh.j@greyorange.com."
+    assert addresses_in(said) == ("devansh.j@greyorange.com", "a@x.example")
+    assert addresses_in("to devansh, please") == ()
+    for glued in ("evé.x@evil.com", "a@x.exampleé", "x_a@b.example_y"):
+        assert addresses_in(glued) == (), "no address is cut out of a longer word"
 
 
 def test_a_job_recipient_says_who_confirmed_it() -> None:

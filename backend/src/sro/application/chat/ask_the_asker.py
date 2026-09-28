@@ -7,14 +7,13 @@ from sro.application.chat.announce import SayWhatHappened
 from sro.application.chat.mailbox import SERVER, NotSent, send_as_this_system
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
-from sro.application.execution.mail_job import keep_the_named
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
 from sro.domain.chat.asking import Pending
 from sro.domain.chat.asking_the_asker import draft_for, worth_asking
 from sro.domain.chat.thread import Message, Speaker, ThreadId
-from sro.domain.execution.mail_job import DRAFTED
+from sro.domain.execution.mail_job import DRAFTED, SENT
 from sro.domain.execution.waiting import read_wait
 from sro.domain.shared.identifiers import PrincipalId
 
@@ -144,10 +143,9 @@ class SendTheDraft:
             return ""
 
         run_id = str(draft.get("run_id") or "")
-        job = bool(draft.get("job"))
         async with self._uow as uow:
             run = await uow.workflow_runs.get(ctx.tenant_id, run_id) if run_id else None
-            if run is not None and not job:
+            if run is not None:
                 if run.asked_the_asker:
                     logger.info("%s: %s was already asked", ctx.tenant_id.value, run_id)
                     return ""
@@ -157,13 +155,12 @@ class SendTheDraft:
 
         to = str(draft.get("to") or "")
         try:
-            answered = await send_as_this_system(
+            await send_as_this_system(
                 ctx,
                 self._uow,
                 self._tools,
                 {
                     "to": to,
-                    **({"bcc": str(draft["bcc"])} if draft.get("bcc") else {}),
                     "subject": str(draft.get("subject") or ""),
                     "body": str(draft.get("body") or ""),
                     "thread_id": str(draft.get("thread") or ""),
@@ -186,19 +183,6 @@ class SendTheDraft:
             )
             return ""
 
-        if job:
-            await self._finish_the_job(ctx, run_id, answered, str(draft.get("named") or ""))
-            await self._say(
-                ctx,
-                thread_id,
-                f"Sent to {to}.",
-                run_id,
-                message_id,
-                to,
-                sent=True,
-            )
-            logger.info("%s: sent %s's mail to %s", ctx.tenant_id.value, run_id, to)
-            return to
         await self._say(
             ctx,
             thread_id,
@@ -210,35 +194,6 @@ class SendTheDraft:
         )
         logger.info("%s: asked %s about %s", ctx.tenant_id.value, to, run_id)
         return to
-
-    async def _finish_the_job(
-        self, ctx: RequestContext, run_id: str, answered: object, named: str
-    ) -> None:
-        if not run_id:
-            return
-        try:
-            said = json.loads(getattr(answered, "text", "") or "{}")
-        except ValueError:
-            said = {}
-        sent_id = str(said.get("id") or "") if isinstance(said, dict) else ""
-        async with self._uow as uow:
-            run = await uow.workflow_runs.get(ctx.tenant_id, run_id)
-            if run is None:
-                return
-            for step in run.steps:
-                if step.verdict == "awaiting":
-                    step.verdict, step.verdict_by = "held", "status"
-                    step.reason = (
-                        f"Gmail took the mail (id {sent_id})" if sent_id else "Gmail took the mail"
-                    )
-                    step.made = {"message": sent_id} if sent_id else {}
-            run.outcome = "held"
-            run.awaiting = None
-            await uow.workflow_runs.save(run)
-            await uow.commit()
-        if named:
-            by = {"address": named, "by": run.started_by or ""}
-            await keep_the_named(ctx, self._uow, run.workflow_id, by, at=self._clock.now())
 
     async def _claim(self, ctx: RequestContext, message_id: str) -> bool:
         async with self._uow as uow:
@@ -281,9 +236,6 @@ class SendTheDraft:
             )
             await uow.threads.save(thread)
             await uow.commit()
-
-
-SENT = "mail_sent"
 
 
 def _the_draft(messages: object, message_id: str) -> dict[str, object] | None:

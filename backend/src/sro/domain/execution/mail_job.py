@@ -55,7 +55,9 @@ def _pressed_send(gesture: Gesture) -> bool:
     return (target.role or "button") == "button" and name.startswith("send")
 
 
-_ADDRESS = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
+_ADDRESS = re.compile(
+    r"(?<![\w.%+-])[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}(?![\w-])"
+)
 
 _JOINED = r"(?:[\w-]|(?<=\d)[,./:](?=\d))"
 
@@ -76,6 +78,8 @@ REQUEST = "request"
 MAIL_BODY: Final = "mail_body"
 
 DRAFTED = "mail_draft"
+
+SENT: Final = "mail_sent"
 
 WHICH_MAIL: Final = "which_mail"
 
@@ -148,6 +152,10 @@ def mailboxes(text: str) -> tuple[str, ...] | None:
     return tuple(dict.fromkeys(address.casefold() for _, address in found))
 
 
+def addresses_in(said: str) -> tuple[str, ...]:
+    return tuple(dict.fromkeys(one.casefold() for one in _ADDRESS.findall(said)))
+
+
 def one_address_in(text: str, *, reply: bool) -> str:
     lines = text.replace("\r\n", "\n").split("\n")
     quoted = next((n for n, line in enumerate(lines) if line.lstrip().startswith(">")), None)
@@ -167,7 +175,7 @@ def one_address_in(text: str, *, reply: bool) -> str:
 
 
 def named_in(texts: Iterable[str]) -> frozenset[str]:
-    return frozenset(one for text in texts for found in _named(text) for one in found or ())
+    return frozenset(one for text in texts for one in addresses_in(text))
 
 
 def _named(text: str) -> set[tuple[str, ...] | None]:

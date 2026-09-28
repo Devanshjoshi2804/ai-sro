@@ -184,9 +184,24 @@ class Converse:
         run_asks = asked_under(said_before, answering)
         answer = self._answer_run
         if run_asks is not None and answer and await self._open_in_words(ctx, run_asks):
-            return await self._answer_the_run(
-                ctx, answer, thread_id=thread_id, text=text, asked=run_asks
-            )
+            asks = Pending("", "", {}, (str((run_asks.decision or {}).get("asks")),))
+            answered_it, about = await self._is_it_an_answer(ctx, asks, text)
+            if answered_it is not None:
+                return await self._answer_the_run(
+                    ctx, answer, thread_id=thread_id, text=text, value=answered_it, asked=run_asks
+                )
+            if about == "another_task":
+                await self._carry_on(
+                    ctx,
+                    thread_id=thread_id,
+                    text=text,
+                    system=system,
+                    parameters=parameters,
+                    standing=True,
+                )
+            else:
+                await self._also_said(ctx, thread_id=thread_id, text=text)
+            return await self._ask_the_run_again(ctx, thread_id=thread_id, asked=run_asks)
         if (
             answering is not None
             and pending_job(said_before, answering) is None
@@ -253,6 +268,7 @@ class Converse:
         *,
         thread_id: ThreadId,
         text: str,
+        value: str,
         asked: Message,
     ) -> Thread:
         decision = asked.decision or {}
@@ -274,7 +290,7 @@ class Converse:
                 ctx,
                 run_id=str(decision.get("run_id") or ""),
                 question_id=str(decision.get("question_id") or ""),
-                value=text,
+                value=value,
             )
         except Conflict as refused:
             said = f"{refused}; the question still stands."
@@ -286,6 +302,24 @@ class Converse:
                     speaker=Speaker.ASSISTANT,
                     text=said,
                     said_at=self._clock.now(),
+                )
+            )
+            await uow.threads.save(thread)
+            await uow.commit()
+        return thread
+
+    async def _ask_the_run_again(
+        self, ctx: RequestContext, *, thread_id: ThreadId, asked: Message
+    ) -> Thread:
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.ASSISTANT,
+                    text=asked.text,
+                    said_at=self._clock.now(),
+                    decision=dict(asked.decision or {}),
                 )
             )
             await uow.threads.save(thread)

@@ -6,9 +6,9 @@ the subject and the body -- and three of `Compose and Send Email` ended "state
 unknown after a write", because nothing on a screen can say a mail went.
 
 What is held here is the shape of the replacement: a model writes the mail
-from the job and the conversation it answers, it is put in front of the
-operator and nothing is sent, their press sends exactly those words into the
-right conversation, and Gmail's answer finishes the run.
+from the job and the conversation it answers, the checked mail is sent at once
+into the right conversation (Q1, 2026-09-28: full autonomy, no Send to press),
+the thread shows what went, and Gmail's answer finishes the run.
 """
 
 from __future__ import annotations
@@ -21,7 +21,6 @@ from typing import Any
 
 import pytest
 
-from sro.application.chat.ask_the_asker import DRAFTED, SendTheDraft
 from sro.application.chat.mailbox import K_OURS, mail_key, sent_key
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
@@ -188,36 +187,6 @@ def test_only_a_job_that_is_all_mailbox_is_a_mail_job() -> None:
     assert not is_mail_only(mixed, by_id)
 
 
-async def test_the_mail_is_written_and_put_in_front_of_the_operator_unsent() -> None:
-    uow, mailbox = FakeUnitOfWork(), _Mailbox()
-    run = await _a_run(uow)
-
-    done = await draft_the_mail_job(
-        CTX,
-        run,
-        _reply_job(),
-        {},
-        uow=uow,
-        tools=mailbox,
-        asker=_written("alex.r@example.com"),
-        clock=FakeClock(),
-        ids=FakeIdFactory(),
-    )
-
-    assert mailbox.sent == [], "a mail went out before anybody read it"
-    threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
-    drafted = threads[0].messages[-1].decision
-    assert drafted["kind"] == DRAFTED
-    assert drafted["job"] == "wfl_reply"
-    assert drafted["to"] == "alex.r@example.com"
-    # Inside the conversation it answers, as a reply to the request itself.
-    assert drafted["thread"] == THREAD
-    assert drafted["in_reply_to"] == "<req@mail>"
-    # Parked on the press, and not holding the browser while it waits.
-    assert done.outcome == "stopped"
-    assert [step.verdict for step in done.steps] == ["awaiting"]
-
-
 async def test_a_mail_to_somebody_nobody_named_is_never_drafted() -> None:
     """The one step of this job that cannot be taken back is who it goes to."""
     uow, mailbox = FakeUnitOfWork(), _Mailbox()
@@ -242,10 +211,10 @@ async def test_a_mail_to_somebody_nobody_named_is_never_drafted() -> None:
     assert "nothing was sent" in done.steps[-1].reason
 
 
-async def test_the_press_sends_it_and_gmails_answer_finishes_the_run() -> None:
+async def test_the_mail_is_sent_as_written_and_gmails_answer_finishes_the_run() -> None:
     uow, mailbox = FakeUnitOfWork(), _Mailbox()
     run = await _a_run(uow)
-    await draft_the_mail_job(
+    finished = await draft_the_mail_job(
         CTX,
         run,
         _reply_job(),
@@ -256,21 +225,14 @@ async def test_the_press_sends_it_and_gmails_answer_finishes_the_run() -> None:
         clock=FakeClock(),
         ids=FakeIdFactory(),
     )
-    threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
-    drafted = threads[0].messages[-1]
 
-    to = await SendTheDraft(uow, mailbox, FakeClock(), FakeIdFactory()).execute(
-        CTX, threads[0].id, drafted.id
-    )
-
-    assert to == "alex.r@example.com"
     (sent,) = mailbox.sent
-    assert sent["body"] == drafted.decision["body"], "the words sent were not the words read"
+    assert sent["to"] == "alex.r@example.com"
+    assert sent["body"] == "Customer type NRT2 is set up.\n\ndevansh"
+    # Inside the conversation it answers, as a reply to the request itself.
     assert sent["thread_id"] == THREAD
     assert sent["in_reply_to"] == "<req@mail>"
-
-    finished = await uow.workflow_runs.get(f.TENANT, "run_mail")
-    assert finished is not None
+    assert finished == await uow.workflow_runs.get(f.TENANT, "run_mail")
     assert finished.outcome == "held"
     (step,) = finished.steps
     assert (step.verdict, step.verdict_by) == ("held", "status")
@@ -283,6 +245,7 @@ async def test_the_press_sends_it_and_gmails_answer_finishes_the_run() -> None:
     fresh = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
     said = fresh[0].messages[-1].text
     assert said.startswith("Sent to alex.r@example.com")
+    assert "Re: New customer type" in said and sent["body"] in said, "what went is shown"
 
 
 async def test_what_the_job_does_reaches_the_model_only_inside_a_fence() -> None:
@@ -591,12 +554,6 @@ async def test_a_demonstrated_bcc_is_pressed_out_as_bcc() -> None:
         clock=FakeClock(),
         ids=FakeIdFactory(),
     )
-    threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
-    drafted = threads[0].messages[-1]
-
-    await SendTheDraft(uow, mailbox, FakeClock(), FakeIdFactory()).execute(
-        CTX, threads[0].id, drafted.id
-    )
 
     (sent,) = mailbox.sent
     assert (sent["to"], sent["bcc"]) == ("alex.r@example.com", "boss@wh.example")
@@ -666,14 +623,13 @@ async def test_the_operator_s_answer_redrafts_to_the_address_they_named() -> Non
 
     (named,) = await uow.workflows.recipients_for(f.TENANT, "wfl_reply")
     assert (named.address, named.confirmed_by) == ("vendor@supplier.example", "devansh")
-    drafted = [one for one in await _decisions(uow) if one.get("kind") == DRAFTED]
-    assert [one["to"] for one in drafted] == ["vendor@supplier.example"]
-    assert mailbox.sent == [] and durable.answered == []
+    assert [one["to"] for one in mailbox.sent] == ["vendor@supplier.example"]
+    assert durable.answered == []
     saved = await uow.workflow_runs.get(f.TENANT, "run_mail")
     assert saved is not None and Progress.of(saved.progress).asking == {}
 
 
-async def test_two_presses_of_one_answer_draft_once_and_a_different_one_is_refused() -> None:
+async def test_two_presses_of_one_answer_send_once_and_a_different_one_is_refused() -> None:
     uow, mailbox, durable = FakeUnitOfWork(), _Mailbox(), FakeDurableExecution()
     asked = Progress.of((await _asked_who(uow)).progress).asking["id"]
     answer = _answering(uow, mailbox, durable)
@@ -683,13 +639,12 @@ async def test_two_presses_of_one_answer_draft_once_and_a_different_one_is_refus
         with pytest.raises(Conflict):
             await answer.execute(CTX, run_id="run_mail", question_id=asked, value=value)
 
-    drafted = [one for one in await _decisions(uow) if one.get("kind") == DRAFTED]
-    assert len(drafted) == 1
+    assert len(mailbox.sent) == 1
 
 
-async def test_an_answer_carried_out_twice_drafts_once() -> None:
+async def test_an_answer_carried_out_twice_sends_once() -> None:
     """A second resume of one answer -- a retry, a crash before it returned --
-    finds the question already taken and drafts nothing more."""
+    finds the question already taken and sends nothing more."""
     uow, mailbox = FakeUnitOfWork(), _Mailbox()
     run = await _asked_who(uow)
     asking = Progress.of(run.progress).asking
@@ -720,7 +675,7 @@ async def test_an_answer_carried_out_twice_drafts_once() -> None:
             ids=FakeIdFactory(),
         )
 
-    assert len([one for one in await _decisions(uow) if one.get("kind") == DRAFTED]) == 1
+    assert len(mailbox.sent) == 1
 
 
 async def test_the_answer_s_resume_redrafts_the_run_s_own_mail_job() -> None:
@@ -743,7 +698,7 @@ async def test_the_answer_s_resume_redrafts_the_run_s_own_mail_job() -> None:
         ids=FakeIdFactory(),
     )
     await starter.answered(CTX, run.id)
-    assert [one for one in await _decisions(uow) if one.get("kind") == DRAFTED] == []
+    assert mailbox.sent == []
 
     await AnswerRun(uow, FakeDurableExecution(), resume=starter.answered).execute(
         CTX,
@@ -752,8 +707,7 @@ async def test_the_answer_s_resume_redrafts_the_run_s_own_mail_job() -> None:
         value="vendor@supplier.example",
     )
 
-    drafted = [one for one in await _decisions(uow) if one.get("kind") == DRAFTED]
-    assert [one["to"] for one in drafted] == ["vendor@supplier.example"]
+    assert [one["to"] for one in mailbox.sent] == ["vendor@supplier.example"]
 
 
 @pytest.mark.parametrize("blank", ["", " \n"], ids=["empty", "whitespace"])

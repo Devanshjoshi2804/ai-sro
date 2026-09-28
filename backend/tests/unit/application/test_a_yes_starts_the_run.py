@@ -13,7 +13,6 @@ from dataclasses import replace
 from typing import Any
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
-from sro.application.chat.ask_the_asker import DRAFTED
 from sro.application.chat.converse import K_CLOSED, K_NOT_YOURS, Converse, StartThread
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
@@ -27,6 +26,7 @@ from sro.application.knowledge.retrieve import Retrieve
 from sro.application.observation.record_attempt import RecordAttempt
 from sro.domain.chat.asking import Pending, offered_job
 from sro.domain.chat.thread import Message, ThreadId
+from sro.domain.execution.mail_job import SENT
 from sro.domain.observation.attempts import DONE, FAILED, REFUSED
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from tests import factories as f
@@ -322,7 +322,7 @@ async def test_only_a_colleague_s_browser_connected_is_no_browser_of_yours() -> 
     assert offered_job(said.messages) is not None
 
 
-async def test_a_mail_only_job_on_an_extension_tenant_is_drafted_with_no_browser() -> None:
+async def test_a_mail_only_job_on_an_extension_tenant_is_sent_with_no_browser() -> None:
     world = _World(steel=False, asker=_written("alex.r@example.com", body="Done.\n\ndevansh"))
     thread_id = await world.a_mail_job()
     converse = world.converse()
@@ -335,9 +335,9 @@ async def test_a_mail_only_job_on_an_extension_tenant_is_drafted_with_no_browser
     (performing,) = world.spawned
     await performing
     assert world.channel.sent == [], "a mail job drove a browser"
-    assert world.mailbox.sent == [], "a mail went out before anybody read it"
+    assert [one["to"] for one in world.mailbox.sent] == ["alex.r@example.com"], "sent at once"
     (fresh,) = await world.uow.threads.list_for_tenant(f.TENANT, opened_by=f.OPERATOR, limit=1)
-    assert (fresh.messages[-1].decision or {}).get("kind") == DRAFTED
+    assert (fresh.messages[-1].decision or {}).get("kind") == SENT
 
 
 async def test_a_mail_only_job_on_a_steel_tenant_runs_on_steel() -> None:

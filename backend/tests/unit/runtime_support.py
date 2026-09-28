@@ -526,6 +526,7 @@ async def with_a_recorded_sign_in(
     username: str | None,
     at: str = IDP,
     tenant: str = "greyorange",
+    username_varies: bool = False,
 ) -> Workflow:
     lands = origin_of(lands_on)
 
@@ -576,7 +577,13 @@ async def with_a_recorded_sign_in(
         title="Sign in",
         narrative="n",
         steps=[
-            Step(order=n, says=f"sign-in step {n}", system=at, cites=[f"ges_{one}"])
+            Step(
+                order=n,
+                says=f"sign-in step {n}",
+                system=at,
+                cites=[f"ges_{one}"],
+                parameters=["Username"] if username_varies and one == "user" else [],
+            )
             for n, one in enumerate(("user", "pass", "go"))
         ],
         signs_in=True,

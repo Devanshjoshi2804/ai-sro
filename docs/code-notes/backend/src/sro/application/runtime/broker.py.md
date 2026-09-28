@@ -170,7 +170,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > saved, the tab's call log forgotten (the code went through it), and the
 > lease beaten again for the resuming run.
 
-## `SessionBroker._wait_for_a_person`, [line 460](../../../../../../../backend/src/sro/application/runtime/broker.py#L460): Note
+## `SessionBroker._wait_for_a_person`, [line 464](../../../../../../../backend/src/sro/application/runtime/broker.py#L464): Note
 
 > The lease moves to WAITING with `expires_at` at `K_CODE_WAIT`, in one
 > compare-and-set `settle`, before the caller hears about it, so no other
@@ -233,7 +233,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > page's structure (S6), never by its text. Each step beats the lease, so a
 > long chain keeps it and a lost lease stops the chain.
 
-## `SessionBroker._save_state`, [line 489](../../../../../../../backend/src/sro/application/runtime/broker.py#L489): Note
+## `SessionBroker._save_state`, [line 493](../../../../../../../backend/src/sro/application/runtime/broker.py#L493): Note
 
 > Cookies and localStorage go to the vault under the account's `state` key,
 > and only if they fit `K_VAULT_VALUE_BYTES`. A state over the limit is not
@@ -242,7 +242,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > state that restores half a session. The log line names the account and
 > the size, never the state.
 
-## `SessionBroker._reclaim`, [line 525](../../../../../../../backend/src/sro/application/runtime/broker.py#L525): Note
+## `SessionBroker._reclaim`, [line 529](../../../../../../../backend/src/sro/application/runtime/broker.py#L529): Note
 
 > After every fresh claim, the contexts Chrome still lists on that
 > container whose lease rows have ended are disposed. A close that hit
@@ -352,7 +352,7 @@ Code: `if lease is None or lease.state is not LeaseState.WAITING or lease.waits_
 > Only a park on a one-time code is resumed. A park on a password is ended by
 > the password being stored (`unpark`), and runs out otherwise.
 
-## `SessionBroker._park`, [line 482](../../../../../../../backend/src/sro/application/runtime/broker.py#L482): Note
+## `SessionBroker._park`, [line 486](../../../../../../../backend/src/sro/application/runtime/broker.py#L486): Note
 
 Code: `holder=lease.holder,`
 

@@ -431,8 +431,12 @@ class SessionBroker:
         if asks_for_a_code(await self._driver.signals(held.session, held.target_id)):
             await self._wait_for_a_person(ctx, held, park=park)
         lane = LaneContext.for_sign_in(ctx, job, seen, held, secret=password)
-        for step in sign_in_chain(job, seen):
-            result = await self._ui.execute(step, {}, lane)
+        chain = sign_in_chain(job, seen)
+        # A chain types one value that is no secret: the username. Mining makes
+        # a typed value a parameter, so it is given here, as this account's own.
+        given = {name: account.username for step in chain for name in step.parameters}
+        for step in chain:
+            result = await self._ui.execute(step, given, lane)
             if result.verdict == "failed":
                 raise NeedsAPerson(
                     f"signing in to {account.origin} stopped at '{step.says}': {result.reason}",

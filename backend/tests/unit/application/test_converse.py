@@ -254,6 +254,24 @@ def _understood(
     )
 
 
+async def test_a_value_the_field_cannot_hold_is_named_not_looked_for_in_the_mail() -> None:
+    """Greyorange, 2026-09-28: "create customer type SROT1 ..." -- the reader
+    refused SROT1 because Blue Yonder's field holds 4 characters, and the chat
+    said it would look in the mail for Customer Type, as if nothing was given.
+    The operator is told what was wrong with what they said."""
+    uow = FakeUnitOfWork()
+    placed = _understood("wfl_1", missing=["Customer Type"])
+    placed.refused["Customer Type"] = "longer than 4 characters"
+    converse = await _with_a_job(uow, placed, can_gather=True)
+    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+
+    said = await converse.execute(CTX, thread_id=thread.id, text="create customer type SROT1")
+
+    last = said.messages[-1].text
+    assert "Customer Type" in last and "longer than 4 characters" in last
+    assert "look in your mail" not in last
+
+
 async def _with_a_job(
     uow: FakeUnitOfWork,
     placed: Understood | None,

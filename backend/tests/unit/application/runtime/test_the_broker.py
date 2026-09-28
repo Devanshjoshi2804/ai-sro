@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 from datetime import timedelta
 
 import pytest
@@ -10,6 +11,7 @@ from sro.application.ports.page import PageGone, SessionRef
 from sro.application.ports.pool import PoolFull
 from sro.application.runtime.broker import K_CODE_WAIT, SessionBroker
 from sro.application.runtime.step import Held, NeedsAPerson, WaitingForAPerson
+from sro.application.runtime.ui_lane import UiLane
 from sro.domain.execution.account import (
     K_LEASE_TTL,
     K_VAULT_VALUE_BYTES,
@@ -97,6 +99,23 @@ async def test_a_sign_in_page_is_signed_through_with_the_vault_password() -> Non
     assert await vault.get(LENA.vault_key("state")) is not None
     assert held.lease.state is LeaseState.READY
     assert driver.tabs[held.target_id] == APP
+
+
+async def test_a_username_mined_as_a_parameter_is_typed_as_the_account_s_username() -> None:
+    """Greyorange, 2026-09-28: typed values are parameters by default, so the
+    recorded sign-in's username step carried one; the broker ran the chain with
+    no values and the real UI lane refused it -- "no value was given for this
+    control" -- so no Steel run ever signed in."""
+    uow, driver, vault = FakeUnitOfWork(), FakePageDriver(), FakeCredentialVault()
+    await with_a_recorded_sign_in(uow, lands_on=APP, username="lena", username_varies=True)
+    await vault.store(LENA.vault_key("password"), PASSWORD)
+    driver.shows_sign_in_until_signed = True
+
+    with contextlib.suppress(NeedsAPerson):  # the fake page never takes a real password
+        await _broker(uow, driver, vault, UiLane(driver)).acquire(CTX, LENA, APP, holder="run_1")
+
+    typed = [payload for _, _, payload in driver.acted if payload.get("action") == "type"]
+    assert typed[0]["value"] == "lena"
 
 
 async def test_two_runs_on_one_account_share_one_lease_as_two_tabs() -> None:

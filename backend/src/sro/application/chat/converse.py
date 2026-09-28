@@ -910,6 +910,14 @@ class Converse:
                     f"{title} does that, but it cannot run yet: "
                     f"{'; '.join(placed.cannot_run)}. Nothing was started."
                 )
+            elif placed.refused:
+                said = (
+                    f"{title} does that, but "
+                    + "; ".join(
+                        f"the {name} you gave is {why}" for name, why in placed.refused.items()
+                    )
+                    + " — give me another and I will run it."
+                )
             elif placed.missing and self._can_gather:
                 said = (
                     f"{title} does that. I will look in your mail for "

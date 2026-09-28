@@ -117,14 +117,20 @@ def test_the_prompt_the_model_is_given_is_the_one_the_rig_measured() -> None:
     two systems. No field carried the answer and nothing read it; the code
     computes those values itself and shows them as the `crossings` block.
 
+    And it no longer reads a mailbox search as never the start of a job (P5).
+    In the greyorange mining eval the commonest miss was proposing nothing for
+    a real doing, 6 of 14 cases; a job often starts with the request mail read,
+    and it can be small.
+
     Changing the wording is allowed. Changing it silently is not: update this
     hash in the same commit and say why the model should read something else."""
     assert (
         hashlib.sha256(ROLE_AND_TASK.encode()).hexdigest()
-        == "cd3d9fee825886d5c15884c3abe2787c75188311238cfb9e3012e084f21cdeed"
+        == "c3cd44801d52d0a8961790ff184e0b61f10c751f6c47a30af679d3e1c97c9ace"
     )
     assert '"Create a Customer Type", never' in ROLE_AND_TASK
-    assert "A stretch that only looked at things goes\nunder `unplaced`." in ROLE_AND_TASK
+    assert "Only a stretch that did nothing but look" in ROLE_AND_TASK
+    assert "A job often starts in mail" in ROLE_AND_TASK
     assert "once, at the top level\nbeside `workflows`" in ROLE_AND_TASK
     assert "That is ONE job done four times." in ROLE_AND_TASK
     assert "so you can RECOGNISE work, not so\nyou can skip it" in ROLE_AND_TASK

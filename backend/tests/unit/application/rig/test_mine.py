@@ -829,7 +829,7 @@ async def test_an_unusable_answer_leaves_its_window_unread() -> None:
     first = await _mine(uow, asker)
     second = await _mine(uow, asker)
 
-    assert first.error is not None and "mine v3" in first.error
+    assert first.error is not None and f"mine v{MINE.version}" in first.error
     assert first.left_out == len(ids)
     assert len(asker.asked) == 3 and second.window_size == len(ids)
     assert {entry.age for entry in await uow.pool.waiting(TENANT)} == {1}
@@ -1915,7 +1915,7 @@ async def test_a_malformed_answer_does_not_take_the_pass_down() -> None:
     so `propose` never sees a `workflows` that is not a list."""
     for junk in ("not a list", {"a": "dict"}, 7, None):
         workflows, answer = await _proposed(FakeAsker(_answer(workflows=junk)))
-        assert answer.error is not None and "mine v3" in answer.error
+        assert answer.error is not None and f"mine v{MINE.version}" in answer.error
 
         assert workflows == []
 

@@ -16,7 +16,7 @@ def test_no_field_nobody_reads_is_kept() -> None:
 
 def test_the_miner_is_not_asked_for_what_nothing_reads() -> None:
     assert "two systems" not in MINE.task
-    assert MINE.version == 3
+    assert MINE.version == 4
 
 
 def test_the_miner_is_told_what_a_tab_and_an_opened_tab_are() -> None:

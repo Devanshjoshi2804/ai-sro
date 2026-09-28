@@ -238,11 +238,11 @@ async def _parked_on_a_password(world: SteelRun) -> str:
     return parked
 
 
-async def test_a_stored_password_ends_the_park_at_once_and_the_run_signs_in_afresh() -> None:
+async def test_a_password_park_ends_while_the_run_waits_and_the_answer_signs_in_afresh() -> None:
     world = await steel_run(steps=[save_step(status=201)])
     parked = await _parked_on_a_password(world)
     await world.run_steps.release(CTX, world.run_id)
-    assert world.uow.browser_sessions.leases[parked].expires_at > world.clock.now()
+    assert world.uow.browser_sessions.leases[parked].expires_at <= world.clock.now()
 
     await world.answer(QID)
 

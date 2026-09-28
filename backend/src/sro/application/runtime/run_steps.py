@@ -342,13 +342,14 @@ class RunSteps:
                     ctx, progress.lease, progress.tabs[MAIN], holder=run.id
                 )
                 await self._broker.release(ctx, held)
-            progress.tabs = {}
-            await self._write(ctx, run, progress)
-        if run.outcome != "running" and progress.lease:
+        if progress.lease:
             async with self._uow as uow:
                 lease = await uow.browser_sessions.get_lease(ctx.tenant_id, progress.lease)
             if lease is not None and lease.state is LeaseState.WAITING and lease.holder == run.id:
                 await self._broker.unpark(ctx, lease.id, lease.waits_for)
+        if progress.tabs or progress.lease:
+            progress.lease, progress.tabs = "", {}
+            await self._write(ctx, run, progress)
 
     async def answered(self, ctx: RequestContext, run_id: str, question_id: str) -> None:
         run, workflow, by_id = await self._load(ctx, run_id)

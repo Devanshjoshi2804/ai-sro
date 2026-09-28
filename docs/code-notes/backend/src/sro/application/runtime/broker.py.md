@@ -115,8 +115,12 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > "password")` out of `_sign_in` also parks the lease WAITING, the same
 > `_park` the one-time-code path uses -- so a caller queued behind the
 > lock never reaches `_sign_in` at all; it sees the WAITING lease first
-> and gets `AccountBusy`, one ask instead of one per queued run. Retrying
-> the step once afterwards is the executor's (D2), not the broker's.
+> and gets `AccountBusy`, one ask instead of one per queued run. That park
+> lasts only until the parking run's `RunSteps.release`, which ends it as the
+> run starts to wait (L1): a run asking a person anything but a code holds
+> no lease, so a later holder reaches `_sign_in`, finds the refusal latched
+> and asks for the password itself. Retrying the step once afterwards is the
+> executor's (D2), not the broker's.
 >
 > The tab's call log is forgotten once the sign-in lands, the same as
 > `resume`: the password POST went through this tab, and leaving it in the
@@ -350,7 +354,8 @@ Code: `and lease.waits_for == waits_for`
 Code: `if lease is None or lease.state is not LeaseState.WAITING or lease.waits_for != "code":`
 
 > Only a park on a one-time code is resumed. A park on a password is ended by
-> the password being stored (`unpark`), and runs out otherwise.
+> the parking run's `release` as it starts to wait, or by the password being
+> stored (`unpark`) when that release never ran.
 
 ## `SessionBroker._park`, [line 504](../../../../../../../backend/src/sro/application/runtime/broker.py#L504): Note
 

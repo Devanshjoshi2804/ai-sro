@@ -62,7 +62,7 @@ API process, not the worker.
 
 ## Commits
 
-- `test(evidence): a target's attributes survive recorder, relay, route and store (F5)`
+- `4166232` test(evidence): a target's attributes survive recorder, relay, route and store (F5)
 - `docs(cloud-reports): F5 report`
 
 ## Files changed

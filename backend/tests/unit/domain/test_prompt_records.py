@@ -215,6 +215,9 @@ _ASKED_THROUGH_THE_SHARED_PATH = (
     PLAN_STEP,
     CHECK_SCREEN,
     CHECK_WAY_THROUGH,
+    READ_SENTENCE,
+    EXTRACT_VALUES,
+    TRANSCRIBE,
 )
 
 
@@ -224,9 +227,7 @@ def test_a_flash_record_asked_through_the_shared_path_falls_back_and_no_other_do
 ) -> None:
     """Decided 2026-09-28 after two QA mail runs came back empty on 3.8-flash.
     Pro records have none: 3.7-flash is no stand-in for pro. SIGHT is the
-    computer-use record and escalates to pro instead. READ_SENTENCE,
-    EXTRACT_VALUES and TRANSCRIBE are sent by adapters that call the client
-    directly, so a fallback on them would be a field nothing reads."""
+    computer-use record and escalates to pro instead."""
     on_the_path = prompt in _ASKED_THROUGH_THE_SHARED_PATH and prompt.model == _FLASH
     assert prompt.fallback_model == ("gemini-3.7-flash" if on_the_path else None)
 
@@ -234,4 +235,6 @@ def test_a_flash_record_asked_through_the_shared_path_falls_back_and_no_other_do
 def test_an_empty_mail_body_does_not_conform() -> None:
     """The draft QA saw: every field present, the body empty. It is no draft."""
     schema = WRITE_MAIL.output_schema
-    assert not conforms({"to": "", "subject": "", "body": "", "cited": []}, schema)
+    for body in ("", " ", " \n\t"):
+        assert not conforms({"to": "", "subject": "", "body": body, "cited": []}, schema)
+    assert conforms({"to": "", "subject": "", "body": " Done.", "cited": []}, schema)

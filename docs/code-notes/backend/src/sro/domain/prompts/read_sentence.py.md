@@ -14,7 +14,7 @@ Code: `READ_SENTENCE = Prompt(`
 > this is the fast one -- measured at ~2.3s against ~4.8s for the pro model,
 > for a job where the answer is checked against the skills that exist anyway.
 
-## module, [line 77](../../../../../../../backend/src/sro/domain/prompts/read_sentence.py#L77): Note on the line above
+## module, [line 78](../../../../../../../backend/src/sro/domain/prompts/read_sentence.py#L78): Note on the line above
 
 Code: `EXTRACT_VALUES = Prompt(`
 

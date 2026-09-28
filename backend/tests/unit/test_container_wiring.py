@@ -494,9 +494,8 @@ def test_every_model_adapter_a_deployment_builds_is_metered() -> None:
         _build_intent_parser(settings, meter),
     ]
 
-    assert [type(getattr(one, "_client", None)).__name__ for one in built] == [
-        Metered.__name__
-    ] * len(built)
+    clients = [getattr(getattr(one, "_asker", one), "_client", None) for one in built]
+    assert [type(one).__name__ for one in clients] == [Metered.__name__] * len(built)
 
 
 def test_the_meter_judges_the_day_on_the_containers_own_clock() -> None:

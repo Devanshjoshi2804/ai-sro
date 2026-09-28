@@ -121,11 +121,11 @@ def conforms(value: object, schema: Mapping[str, object]) -> bool:
         )
     if kind == "string":
         allowed = schema.get("enum")
-        shortest = schema.get("minLength", 0)
+        pattern = schema.get("pattern")
         return (
             isinstance(value, str)
             and (not isinstance(allowed, list) or value in allowed)
-            and len(value) >= (shortest if isinstance(shortest, int) else 0)
+            and (not isinstance(pattern, str) or re.search(pattern, value) is not None)
         )
     if kind == "integer":
         return isinstance(value, int) and not isinstance(value, bool)

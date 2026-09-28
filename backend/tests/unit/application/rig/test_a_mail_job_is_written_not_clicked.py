@@ -753,10 +753,13 @@ async def test_the_answer_s_resume_redrafts_the_run_s_own_mail_job() -> None:
     assert [one["to"] for one in drafted] == ["vendor@supplier.example"]
 
 
-async def test_an_empty_draft_on_the_new_flash_is_written_again_on_the_older_one() -> None:
+@pytest.mark.parametrize("blank", ["", " \n"], ids=["empty", "whitespace"])
+async def test_an_empty_draft_on_the_new_flash_is_written_again_on_the_older_one(
+    blank: str,
+) -> None:
     """Two QA runs stopped "the mail could not be written: the model said
     nothing": 3.8-flash thought for 1402 of 1414 tokens and wrote an empty body."""
-    empty = {"to": "", "subject": "", "body": "", "cited": []}
+    empty = {"to": "", "subject": "", "body": blank, "cited": []}
     draft = {"to": "alex.r@example.com", "subject": "Re: x", "body": "NRT2 is set up.", "cited": []}
     asker = FakeAsker(Answer(data=empty), Answer(data=draft))
 

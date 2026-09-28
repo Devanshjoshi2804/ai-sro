@@ -170,6 +170,7 @@ async def test_when_both_fail_the_original_failure_comes_back(
     assert got.data is None and got.error == "ServerError: 503 overloaded"
     assert got.cost_usd == pytest.approx(0.03), "both calls were billed"
     assert "write_mail" in caplog.text and "gemini-3.7-flash" in caplog.text
+    assert "ClientError: 429 quota" in caplog.text, "the fallback's own failure is logged"
     assert "SECRET-7" not in caplog.text
 
 
@@ -183,20 +184,21 @@ async def test_a_pro_record_never_falls_back() -> None:
     assert len(asker.asked) == 1 and got.error == "ServerError: 503"
 
 
-async def test_minimal_thinking_is_never_sent_to_the_fallback() -> None:
-    from dataclasses import replace as changed
-
-    record = changed(WRITE_MAIL, thinking="minimal")
-    asker = FakeAsker(Answer(error="not json"), Answer(data=_DRAFT))
-
-    await ask(asker, record, trusted={}, untrusted={"conversation": "y"})
-
-    assert [one["effort"] for one in asker.asked] == ["minimal", None]
-
-
 async def test_other_thinking_is_sent_to_the_fallback_as_asked() -> None:
     asker = FakeAsker(Answer(error="not json"), Answer(data={"workflows": [], "unplaced": []}))
 
     await ask(asker, MINE, trusted={}, untrusted={"day": "[]"})
 
     assert [one["effort"] for one in asker.asked] == ["medium", "medium"]
+
+
+async def test_a_body_of_only_whitespace_is_asked_again_on_the_fallback() -> None:
+    """A model that spent its tokens thinking can write a lone newline; that is
+    as empty as the empty body QA saw."""
+    blank = {**_DRAFT, "body": " \n"}
+    asker = FakeAsker(Answer(data=blank), Answer(data=_DRAFT))
+
+    got = await ask(asker, WRITE_MAIL, trusted={}, untrusted={"conversation": "y"})
+
+    assert [one["model"] for one in asker.asked] == ["gemini-3.8-flash", "gemini-3.7-flash"]
+    assert got.data == _DRAFT

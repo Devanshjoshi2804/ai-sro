@@ -42,7 +42,7 @@ WRITE_MAIL = Prompt(
         "properties": {
             "to": {"type": "string"},
             "subject": {"type": "string"},
-            "body": {"type": "string", "minLength": 1},
+            "body": {"type": "string", "pattern": r"\S"},
             "cited": {
                 "type": "array",
                 "items": {

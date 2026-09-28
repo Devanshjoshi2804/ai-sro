@@ -33,6 +33,8 @@ import json
 from collections.abc import Mapping
 from dataclasses import replace
 
+import pytest
+
 from sro.application.execution.verify import (
     _read_back,
     already_done,
@@ -492,7 +494,8 @@ async def test_a_model_that_answered_nothing_leaves_the_step_unclear_with_its_er
     saver = _saver()
     saver.requests = []
     judged = Answer(data=None, error="the model returned no candidates", cost_usd=0.0001)
-    asker = FakeAsker(judged)
+    again = Answer(data=None, error="ClientError: 429 quota", cost_usd=0.0002)
+    asker = FakeAsker(judged, again)
 
     verdict = await _verify(
         saver,
@@ -507,7 +510,7 @@ async def test_a_model_that_answered_nothing_leaves_the_step_unclear_with_its_er
     assert (verdict.state, verdict.by) == ("unclear", "screen")
     assert verdict.reason == "the model returned no candidates"
     assert verdict.answer is not None
-    assert verdict.answer.cost_usd == judged.cost_usd, "the verdict carries what the reading cost"
+    assert verdict.answer.cost_usd == pytest.approx(0.0003), "it carries what both readings cost"
     assert asker.asked[0]["instructions"], "a model told nothing judges nothing"
 
 

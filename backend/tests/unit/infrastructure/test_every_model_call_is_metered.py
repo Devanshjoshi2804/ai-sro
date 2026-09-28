@@ -117,7 +117,8 @@ async def test_an_asked_question_is_billed_to_the_tenant_it_was_asked_for() -> N
 
 
 async def test_the_intent_parser_is_billed() -> None:
-    client, uow = _metered(_Models('{"wants": "ask", "verb": "list", "confidence": 1}'))
+    said = '{"wants": "ask", "verb": "list", "entity": "wave", "continues": false,'
+    client, uow = _metered(_Models(said + ' "confidence": 1, "items": []}'))
     parser = GeminiIntentParser(client=client)
 
     with about(tenant="acme"):
@@ -346,15 +347,20 @@ async def test_a_call_nobody_is_named_for_is_refused_and_not_billed() -> None:
     models = _Models("{}")
     client, uow = _metered(models, cap_usd=5.0)
 
+    from sro.application.shared.asking import ask
+    from sro.domain.prompts.write_mail import WRITE_MAIL
+
     with about():
         with pytest.raises(Unattributed):
             await GeminiEmbedder("gemini-embedding-001", client=client).embed(("x",))
-        answer = await GeminiAsker(client=client).ask(
-            model=MODEL, instructions="i", evidence="e", schema={}
-        )
+        with pytest.raises(Unattributed):
+            await GeminiAsker(client=client).ask(
+                model=MODEL, instructions="i", evidence="e", schema={}
+            )
+        with pytest.raises(Unattributed):
+            await ask(GeminiAsker(client=client), WRITE_MAIL, trusted={})
 
     assert models.called == 0
-    assert answer.error is not None and "no tenant" in answer.error
     assert _rows(uow) == []
 
 
@@ -499,3 +505,19 @@ async def test_a_call_on_the_older_flash_is_priced_and_counts_toward_the_cap() -
         await GeminiAsker(client=full).ask(
             model="gemini-3.7-flash", instructions="i", evidence="e", schema={}
         )
+
+
+async def test_a_primary_call_that_fills_the_days_cap_is_not_followed_by_the_fallback() -> None:
+    """The cap is asked before every call, the fallback's too: a 3.8 call that
+    spends past the cap stops the day there, and 3.7 is never called."""
+    from sro.application.shared.asking import ask
+    from sro.domain.prompts.write_mail import WRITE_MAIL
+
+    models = _ByModel()
+    client, uow = _metered(models, cap_usd=price("gemini-3.8-flash", 100, 25) / 2)
+
+    with about(tenant="acme"), pytest.raises(OverCap, match="daily cap reached"):
+        await ask(GeminiAsker(client=client), WRITE_MAIL, trusted={})
+
+    assert models.called == 1
+    assert [row.model for row in _rows(uow)] == ["gemini-3.8-flash"]

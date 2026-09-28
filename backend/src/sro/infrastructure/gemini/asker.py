@@ -8,6 +8,7 @@ from typing import Any
 
 from sro.application.shared.refusals import OverCap
 from sro.domain.shared.prices import Answer, Effort, is_priced, price
+from sro.infrastructure.gemini.metered import Unattributed
 from sro.infrastructure.telemetry.otel import doing
 
 logger = logging.getLogger(__name__)
@@ -61,9 +62,10 @@ class GeminiAsker:
         schema: dict[str, object],
         image: bytes | None = None,
         images: tuple[bytes, ...] = (),
+        audio: tuple[bytes, str] | None = None,
         effort: Effort | None = None,
     ) -> Answer:
-        parts = self._parts(instructions, evidence, image, images)
+        parts = self._parts(instructions, evidence, image, images, audio)
         answer = await self._asked_once(model=model, parts=parts, schema=schema, effort=effort)
         lower = LESS_THINKING.get(effort) if effort is not None else None
         if not answer.truncated or lower is None:
@@ -85,6 +87,7 @@ class GeminiAsker:
         evidence: str,
         image: bytes | None,
         images: tuple[bytes, ...],
+        audio: tuple[bytes, str] | None,
     ) -> list[Any]:
         from google.genai import types
 
@@ -93,6 +96,8 @@ class GeminiAsker:
             parts.append(types.Part.from_bytes(data=image, mime_type="image/png"))
         for more in images:
             parts.append(types.Part.from_bytes(data=more, mime_type="image/png"))
+        if audio is not None:
+            parts.append(types.Part.from_bytes(data=audio[0], mime_type=audio[1]))
         return parts
 
     async def _asked_once(
@@ -111,7 +116,7 @@ class GeminiAsker:
                     )
                     problem = None
                     break
-                except OverCap:
+                except (OverCap, Unattributed):
                     raise
                 except Exception as raised:
                     problem = raised

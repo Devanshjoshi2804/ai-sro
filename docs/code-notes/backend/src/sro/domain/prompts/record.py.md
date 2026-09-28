@@ -111,17 +111,22 @@ Code: `fallback_model: str | None = None`
 > have none -- 3.7-flash is no stand-in for pro, and a pro record is itself
 > the escalation. `SIGHT` is the computer-use record and has none: it
 > escalates to pro through `SIGHT_ESCALATED` instead. `READ_SENTENCE`,
-> `EXTRACT_VALUES` and `TRANSCRIBE` have none because their adapters call
-> the client directly and never pass through `ask`, so a fallback on them
-> would be a field nothing reads.
+> `EXTRACT_VALUES` and `TRANSCRIBE` are asked through `ask` by their adapters,
+> so they fall back like the rest.
 >
-> Not a version bump: the primary model, the text and the schema the record
-> is measured on are unchanged.
+> Not a version bump, by the implementer's reading of Global Constraint 9:
+> the fallback is a retry after a failure, not the model the record is
+> measured on, and the record's model, text and schema are unchanged. The
+> cost is that an answer under an unchanged version may come from 3.7-flash;
+> the eval's `fallbacks` column counts those, and the gate does not read it.
+> PENDING USER RULING (S3 review, finding 8): whether a fallback model is a
+> model change under GC 9, and whether the eval gate should read `fallbacks`.
 
 ## `conforms`, [line 124](../../../../../../../backend/src/sro/domain/prompts/record.py#L124): Note on the line above
 
-Code: `shortest = schema.get("minLength", 0)`
+Code: `pattern = schema.get("pattern")`
 
-> A string shorter than the schema's `minLength` does not conform. The
-> model is told the same bound (Gemini honours `minLength`); this is the
-> check that it kept to it.
+> A string the schema's `pattern` does not find in does not conform. The
+> model is told the same pattern (Gemini honours `pattern`); this is the
+> check that it kept to it. `re.search`, so a pattern is found anywhere in
+> the string, as JSON Schema means it.

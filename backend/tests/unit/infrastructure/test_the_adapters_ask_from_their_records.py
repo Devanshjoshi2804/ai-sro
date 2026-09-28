@@ -68,7 +68,10 @@ async def test_the_vision_driver_asks_on_its_records_model_with_the_goal_fenced(
 
 
 async def test_the_intent_parser_reads_on_its_records_with_the_sentence_fenced() -> None:
-    models = _Models('{"wants": "act", "verb": "", "entity": "", "continues": false}')
+    models = _Models(
+        '{"wants": "act", "verb": "", "entity": "", "continues": false, "confidence": 0.5,'
+        ' "items": []}'
+    )
     parser = GeminiIntentParser(client=_client(models))
 
     await parser.read(_BREAKOUT, after="create a wave")
@@ -137,3 +140,56 @@ async def test_the_transcriber_asks_on_its_record() -> None:
     [asked] = models.asked
     assert asked["model"] == TRANSCRIBE.model
     assert asked["contents"][0] == TRANSCRIBE.instructions
+    [audio] = [one for one in asked["contents"] if not isinstance(one, str)]
+    assert (audio.inline_data.data, audio.inline_data.mime_type) == (b"ogg", "audio/ogg")
+
+
+class _FailsOnTheNewFlash(_Models):
+    """3.8-flash is down or answers nothing usable; 3.7-flash answers."""
+
+    def __init__(self, first: str | None, then: str) -> None:
+        super().__init__(then)
+        self._first = first
+
+    async def generate_content(self, **asked: Any) -> Any:
+        self.asked.append(asked)
+        if asked["model"] == "gemini-3.7-flash":
+            return SimpleNamespace(text=self._text, usage_metadata=None, candidates=[])
+        if self._first is None:
+            raise RuntimeError("connection reset")
+        return SimpleNamespace(text=self._first, usage_metadata=None, candidates=[])
+
+
+async def test_a_sentence_the_new_flash_could_not_read_is_read_on_the_older_one() -> None:
+    reading = '{"wants": "ask", "verb": "list", "entity": "wave", "continues": false,'
+    models = _FailsOnTheNewFlash(None, reading + ' "confidence": 0.9}')
+
+    got = await GeminiIntentParser(client=_client(models)).read("show the waves")
+
+    assert [one["model"] for one in models.asked] == ["gemini-3.8-flash", "gemini-3.7-flash"]
+    assert (got.wants, got.verb, got.entity, got.confidence) == ("ask", "list", "wave", 0.9)
+
+
+async def test_values_the_new_flash_did_not_extract_are_extracted_on_the_older_one() -> None:
+    """A 503 in chat's resolve used to read the request as carrying no values."""
+    models = _FailsOnTheNewFlash('{"note": "no items key"}', '{"items": [{"sku": "A1"}]}')
+
+    got = await GeminiIntentParser(client=_client(models)).extract(
+        "adjust sku A1", parameters=("sku",)
+    )
+
+    assert [one["model"] for one in models.asked] == ["gemini-3.8-flash", "gemini-3.7-flash"]
+    assert got.items == ({"sku": "A1"},)
+
+
+async def test_narration_the_new_flash_could_not_transcribe_is_heard_on_the_older_one() -> None:
+    models = _FailsOnTheNewFlash(
+        "not json", '{"segments": [{"start_ms": 0, "end_ms": 900, "text": "open waves"}]}'
+    )
+
+    got = await GeminiTranscriber(client=_client(models)).transcribe(
+        b"ogg", content_type="audio/ogg; codecs=opus"
+    )
+
+    assert [one["model"] for one in models.asked] == ["gemini-3.8-flash", "gemini-3.7-flash"]
+    assert [one.text for one in got] == ["open waves"]

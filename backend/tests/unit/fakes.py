@@ -3401,6 +3401,7 @@ class FakeAsker:
         schema: dict[str, object],
         image: bytes | None = None,
         images: tuple[bytes, ...] = (),
+        audio: tuple[bytes, str] | None = None,
         effort: Effort | None = None,
     ) -> ModelAnswer:
         # Yield, because the real thing does. Without a suspension point this
@@ -3416,6 +3417,7 @@ class FakeAsker:
                 "schema": schema,
                 "image": image,
                 "images": images,
+                "audio": audio,
                 "effort": effort,
             }
         )

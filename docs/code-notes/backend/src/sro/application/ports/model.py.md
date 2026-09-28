@@ -11,7 +11,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/model.p
 > all ask through, and the one place a fake goes in for every test that would
 > otherwise cost money.
 
-## `AskerUnavailable`, [line 22](../../../../../../../backend/src/sro/application/ports/model.py#L22): Docstring
+## `AskerUnavailable`, [line 23](../../../../../../../backend/src/sro/application/ports/model.py#L23): Docstring
 
 > No model is configured. Not a ``DomainError``: the request was fine.
 >
@@ -21,7 +21,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/model.p
 > work in it. Same shape and same reasoning as ``VaultUnavailable`` and
 > ``SchedulerUnavailable`` -- a dependency that is absent, answered 503.
 
-## `asker_or_refuse`, [line 26](../../../../../../../backend/src/sro/application/ports/model.py#L26): Docstring
+## `asker_or_refuse`, [line 27](../../../../../../../backend/src/sro/application/ports/model.py#L27): Docstring
 
 > The general model, or a 503 saying there is not one.
 >

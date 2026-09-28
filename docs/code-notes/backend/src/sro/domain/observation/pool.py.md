@@ -44,8 +44,13 @@ Code: `K_MINE_ATTEMPTS = 3`
 > "unminable". An answer that breaks MINE's schema, or is truncated, does
 > not mine its window (GC 10), so the window is read again. Without a bound,
 > a window the model always truncates would be billed on every pass for
-> ever. Three: one retry for a flake, one more for a second, and then it is
-> the window.
+> ever. Three answers, and each answer already carries its own retry on
+> another model (`MINE.fallback_model`, since S3): a window is read up to six
+> times -- twelve with the asker's truncation step-down -- and billed for
+> each, before it retires. Kept at three: the fallback covers a flake of one
+> model, the attempts cover a flake that outlives one pass, and a window both
+> models fail three times over is the window. Lower it if the bill for
+> unminable windows shows up in the day's spend.
 
 ## module, [line 7](../../../../../../../backend/src/sro/domain/observation/pool.py#L7): Note on the line above
 

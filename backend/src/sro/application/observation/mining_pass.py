@@ -215,10 +215,10 @@ async def learn_parameters(
     widened = 0
     named = False
     told = False
-    by_name = [(parameter, _known_by(parameter, stored.parameters)) for parameter in found]
-    untied = [one for one in untied if all(one is not claimed for _, claimed in by_name)]
-    for parameter, claimed in by_name:
-        existing = claimed or _same_control(parameter, untied, holders)
+    for parameter in found:
+        existing = _known_by(parameter, stored.parameters) or _same_control(
+            parameter, untied, holders
+        )
         if existing is None:
             fresh.append(
                 {
@@ -354,14 +354,19 @@ def _one_control(one: dict[str, object], other: dict[str, object]) -> bool:
 def _pools(
     parameters: list[dict[str, object]], typed: list[dict[str, object]]
 ) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
-    """The entries naming no control, and every control known to have typed
-    something: each field the doings typed into, fixed ones included, and each
-    entry naming a control. Taken once, before any fold changes an entry: an
-    entry folded into a field carries values that field never typed."""
-    return (
-        [one for one in parameters if not _controlled(one)],
-        [*typed, *(one for one in parameters if _controlled(one))],
-    )
+    """Every control known to have typed something: each field the doings
+    typed into, fixed ones included, and each entry naming a control; and the
+    entries naming no control whose name names none of those. An entry named
+    after a control is that control's, never another's by value. Taken once,
+    before any fold changes an entry: an entry folded into a field carries
+    values that field never typed."""
+    holders = [*typed, *(one for one in parameters if _controlled(one))]
+    untied = [
+        one
+        for one in parameters
+        if not _controlled(one) and not any(_one_control(one, held) for held in holders)
+    ]
+    return untied, holders
 
 
 def _held_by(

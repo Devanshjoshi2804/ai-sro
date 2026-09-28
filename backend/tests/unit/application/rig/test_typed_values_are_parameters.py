@@ -400,6 +400,64 @@ async def test_an_entry_named_after_a_field_is_that_field_and_never_another_by_v
     assert _typed_into(job, doing, answers) == answers
 
 
+@pytest.mark.parametrize(
+    "order", [[("Code", "Y"), ("Description", "Q")], [("Description", "Q"), ("Code", "Y")]]
+)
+async def test_the_repair_fold_never_gives_an_entry_named_after_a_field_to_another(
+    order: list[tuple[str, str]],
+) -> None:
+    """Review round 4, item 4 (H7): Code is stored and seen Y, and a legacy
+    entry named Description is seen Y too; the doing typed Code=Y and
+    Description=Q. The legacy entry is Description's by its name, so the
+    repair fold cannot give it to Code by its Y."""
+    doing = _doing("h7_", 5000.0, *order)
+
+    job = await _learned(
+        doing,
+        [
+            {"name": "Code", "names": ["Code"], "seen_values": ["Y"]},
+            {"name": "Description", "seen_values": ["Y"]},
+        ],
+    )
+
+    assert sorted(_named(job)) == ["Code", "Description"], job.parameters
+    answers = {"Code": "C-1", "Description": "D-1"}
+    assert _typed_into(job, doing, answers) == answers
+
+
+@pytest.mark.parametrize("flip", [False, True])
+async def test_an_entry_named_after_a_fixed_field_is_never_given_to_another_by_value(
+    flip: bool,
+) -> None:
+    """Review round 4, item 5 (H8): a legacy entry named Description, seen Y.
+    The stored doing typed Code=Z and Description=Q, another Code=Y and
+    Description=Q: Description is fixed, and only Code typed Y. The entry is
+    still Description's by its name, so Code is its own parameter. The code
+    rule adds nothing for the fixed Description; the legacy entry keeps its
+    name and asks its own question, so a run types each answer only into its
+    own field."""
+
+    def typed(code: str) -> list[tuple[str, str]]:
+        pair = [("Code", code), ("Description", "Q")]
+        return pair[::-1] if flip else pair
+
+    doing = _doing("h8_", 5000.0, *typed("Z"))
+    again = _doing("h8o_", 9000.0, *typed("Y"))
+
+    job = await _learned(doing, [{"name": "Description", "seen_values": ["Y"]}], again)
+
+    [code] = [one for one in job.parameters if "Code" in (one.get("names") or [one["name"]])]
+    assert code["name"] == "Code" and code.get("names") == ["Code"], job.parameters
+    answers = {str(one["name"]): f"ans-{one['name']}" for one in job.parameters}
+    assert [one for one in job.parameters if one is not code] == [
+        {"name": "Description", "seen_values": ["Y"]}
+    ], job.parameters
+    assert _typed_into(job, doing, answers) == {
+        "Code": "ans-Code",
+        "Description": "ans-Description",
+    }
+
+
 async def test_two_clicked_parameters_and_a_typed_field_with_one_value_stay_three() -> None:
     """Review round 2, probe 3: click A=X and click B=X, each listed by its
     step, then type Code=X. Two untied parameters hold X, so the value cannot

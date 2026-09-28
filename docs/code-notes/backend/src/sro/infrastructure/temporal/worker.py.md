@@ -36,7 +36,7 @@ Code: `expired = await container.expire_confirmations().execute()`
 > because the loop already wakes every few minutes for the whole deployment;
 > a failure is logged and the session sweep still runs.
 
-## `mine_the_rig_lately`, [line 77](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L77): Docstring
+## `mine_the_rig_lately`, [line 84](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L84): Docstring
 
 > Read each recorded tenant's day, for as long as this runs.
 >
@@ -54,7 +54,7 @@ Code: `expired = await container.expire_confirmations().execute()`
 > Sleeps first. A worker restarting in a crash loop would otherwise fire the
 > most expensive call in the system on every start.
 
-## `retain_lately`, [line 119](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L119): Docstring
+## `retain_lately`, [line 126](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L126): Docstring
 
 > Delete evidence that has aged out of its tenant's own window.
 >
@@ -62,7 +62,7 @@ Code: `expired = await container.expire_confirmations().execute()`
 > replaying, and a missed sweep costs one more day of storage rather than a
 > broken promise -- the next sweep finds the same rows and removes them.
 
-## `rekey_everything`, [line 134](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L134): Docstring
+## `rekey_everything`, [line 141](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L141): Docstring
 
 > Recompute every stored workflow's shape key, once, at startup.
 >
@@ -97,21 +97,21 @@ Code: `logger = logging.getLogger("sro.infrastructure.temporal.worker")`
 > perfectly well, and "silent" and "dead" looked identical from outside.
 > Errors still came through, which is what made it so quiet a failure.
 
-## `keep_sessions_open`, [line 65](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L65): Comment
+## `keep_sessions_open`, [line 72](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L72): Comment
 
 Code: `logger.exception("the session keeper could not finish its sweep")`
 
 > A keeper that dies quietly is worse than no keeper: the sessions
 > look fine until the morning somebody needs one.
 
-## `run`, [line 185](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L185): Comment
+## `run`, [line 192](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L192): Comment
 
 Code: `try:`
 
 > Before anything mines, because a pass that runs against stale keys is a
 > pass that proposes a duplicate of a job the rig already holds.
 
-## `run`, [line 174](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L174): Note
+## `run`, [line 181](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L181): Note
 
 Code: `graceful_shutdown_timeout=timedelta(seconds=K_STEP_HEARTBEAT_S),`
 
@@ -130,7 +130,7 @@ Code: `loop.add_signal_handler(one, stopping.set)`
 > handler, Python as PID 1 ignored SIGTERM and Docker killed it mid-write.
 > The handlers are removed afterwards, so the signal's default comes back.
 
-## `look_in_the_mail_lately`, [line 103](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L103): Note
+## `look_in_the_mail_lately`, [line 110](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L110): Note
 
 Code: `async def look_in_the_mail_lately(container: Container, every_seconds: float) -> None:`
 
@@ -141,3 +141,12 @@ Code: `async def look_in_the_mail_lately(container: Container, every_seconds: fl
 > the first look, as the miner does, so a worker in a crash loop does not
 > spend the model on every start. The heartbeat's look runs beside it during
 > rollout; the per-message claim keeps the two from reading one mail twice.
+
+## `keep_sessions_open`, [line 63](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L63): Note
+
+Code: `closed = await container.close_stuck_runs().execute()`
+
+> The stuck-run sweep (D10) rides on the keeper's pass, after expiring
+> confirmations and before the session sweep, so a lease a closed run let go of
+> is expired in the same pass. Its failure is logged and the session sweep
+> still runs.

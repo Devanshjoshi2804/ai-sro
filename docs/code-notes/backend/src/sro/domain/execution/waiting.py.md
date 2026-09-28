@@ -31,7 +31,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/execution/waiting.
 > rather than to act on, because acting on it would write a warehouse record
 > somebody asked for a week ago and has long since made by hand.
 
-## module, [line 11](../../../../../../../backend/src/sro/domain/execution/waiting.py#L11): Note on the line above
+## module, [line 12](../../../../../../../backend/src/sro/domain/execution/waiting.py#L12): Note on the line above
 
 Code: `K_PATIENCE = timedelta(days=7)`
 
@@ -46,11 +46,11 @@ Code: `K_PATIENCE = timedelta(days=7)`
 > record asked for in early September and created in October is not the record
 > anybody wanted, and by then whoever asked has made it by hand.
 
-## `Awaiting`, [line 15](../../../../../../../backend/src/sro/domain/execution/waiting.py#L15): Docstring
+## `Awaiting`, [line 20](../../../../../../../backend/src/sro/domain/execution/waiting.py#L20): Docstring
 
 > The outside conversation a run is waiting to hear back on.
 
-## `Awaiting`, [line 16](../../../../../../../backend/src/sro/domain/execution/waiting.py#L16): Note on the line above
+## `Awaiting`, [line 21](../../../../../../../backend/src/sro/domain/execution/waiting.py#L21): Note on the line above
 
 Code: `server: str`
 
@@ -58,13 +58,13 @@ Code: `server: str`
 > than assumed: a deployment with two mailboxes has two threads that can
 > perfectly well share an id.
 
-## `Awaiting`, [line 19](../../../../../../../backend/src/sro/domain/execution/waiting.py#L19): Note on the line above
+## `Awaiting`, [line 24](../../../../../../../backend/src/sro/domain/execution/waiting.py#L24): Note on the line above
 
 Code: `until: str`
 
 > The ISO instant this stops being a wait. See the module docstring.
 
-## `waiting_on`, [line 22](../../../../../../../backend/src/sro/domain/execution/waiting.py#L22): Docstring
+## `waiting_on`, [line 27](../../../../../../../backend/src/sro/domain/execution/waiting.py#L27): Docstring
 
 > A wait on that conversation, or None where there is no conversation.
 >
@@ -72,7 +72,7 @@ Code: `until: str`
 > on one, and a blank would match the next blank and resume a run on a reply
 > to something else entirely.
 
-## `still_waiting`, [line 34](../../../../../../../backend/src/sro/domain/execution/waiting.py#L34): Docstring
+## `still_waiting`, [line 39](../../../../../../../backend/src/sro/domain/execution/waiting.py#L39): Docstring
 
 > Whether anything is still holding this question open.
 >
@@ -80,11 +80,11 @@ Code: `until: str`
 > is one nothing can say the age of, and treating an unknown age as young is
 > how a row from last year answers a mail that arrived this morning.
 
-## `as_said`, [line 53](../../../../../../../backend/src/sro/domain/execution/waiting.py#L53): Docstring
+## `as_said`, [line 70](../../../../../../../backend/src/sro/domain/execution/waiting.py#L70): Docstring
 
 > The wait as it is stored on a run row.
 
-## `read_wait`, [line 59](../../../../../../../backend/src/sro/domain/execution/waiting.py#L59): Docstring
+## `read_wait`, [line 76](../../../../../../../backend/src/sro/domain/execution/waiting.py#L76): Docstring
 
 > The wait a stored row holds, or None where it holds nothing usable.
 >
@@ -92,7 +92,7 @@ Code: `until: str`
 > anything that pretends otherwise is pretending. A row half-written by an
 > older deployment is not a wait.
 
-## `asks_a_person`, [line 44](../../../../../../../backend/src/sro/domain/execution/waiting.py#L44): Note
+## `asks_a_person`, [line 49](../../../../../../../backend/src/sro/domain/execution/waiting.py#L49): Note
 
 > Whether a run's wait on a mail thread is live: the run stopped short with
 > `needs` (the extension's ask), or it is running and parked on a question
@@ -100,10 +100,46 @@ Code: `until: str`
 > asking nobody, whatever `awaiting` still holds. The SQL `waiting_on`
 > keeps the same rule in its WHERE clause.
 
-## `asks_a_person`, [line 49](../../../../../../../backend/src/sro/domain/execution/waiting.py#L49): Note
+## `asks_a_person`, [line 54](../../../../../../../backend/src/sro/domain/execution/waiting.py#L54): Note
 
 Code: `or (run.outcome == "stopped" and asking.get("kind") in ("recipient", MAIL_BODY))`
 
 > A drafted mail job waits `stopped` on its two questions, who it goes to and
 > what it says; a reply on its thread must find it either way (S4 round 1, M7),
 > as the store's `waiting_on` does.
+
+## module, [line 14](../../../../../../../backend/src/sro/domain/execution/waiting.py#L14): Note on the line above
+
+Code: `STUCK = "the run stopped responding and was closed after its time ran out"`
+
+> The reason a stuck run is closed with (D10). It lands on the run's last step,
+> as every other close's reason does, and in the one line said to the operator.
+
+## module, [line 16](../../../../../../../backend/src/sro/domain/execution/waiting.py#L16): Note on the line above
+
+Code: `Durably = Literal["open", "closed", "unknown"]`
+
+> What the durable side says of a run's workflow. `unknown` is a workflow it
+> never heard of -- a run whose handoff was lost, or an extension run, which has
+> none -- and leaves the decision to the clock.
+
+## `stuck`, [line 58](../../../../../../../backend/src/sro/domain/execution/waiting.py#L58): Note
+
+> Whether a `running` row is stuck: its workflow ended without running `finish`
+> (timed out, lost with its worker, terminated) and nothing will ever close it.
+>
+> - The durable side is the authority where it answers. `open` is never stuck,
+>   however late: Temporal's own `execution_timeout` is the same
+>   `budget + K_BUDGET_MARGIN_S` and will end it. `closed` is stuck at once,
+>   even while it asks a question: the answer is signalled to the workflow, and
+>   a closed workflow can take no answer.
+> - Otherwise the clock decides: `started_at + budget + K_BUDGET_MARGIN_S`,
+>   the budget counted once per thing of a list run, since `run_budget` prices
+>   one pass of the job and a list runs it once per line.
+> - A run waiting on a person -- `asks_a_person`, or a step parked `awaiting`
+>   an approval -- is waiting, not stuck, and the clock never closes it.
+>
+> Ceiling: the budget is recomputed from the pinned job and its evidence. If
+> retention has removed that evidence since the start, the recomputed budget is
+> smaller than the one the workflow was given, which only matters where the
+> durable side cannot answer.

@@ -35,10 +35,22 @@ class _Expirer:
         return {"acme": 1}
 
 
+class _Closer:
+    def __init__(self, calls: list[str]) -> None:
+        self._calls = calls
+
+    async def execute(self) -> tuple[str, ...]:
+        self._calls.append("closed")
+        return ("run_stuck",)
+
+
 class _Container:
     def __init__(self, *, released: tuple[str, ...] = ()) -> None:
         self.calls: list[str] = []
         self._released = released
+
+    def close_stuck_runs(self) -> _Closer:
+        return _Closer(self.calls)
 
     def keep_sessions_open(self) -> _Keeper:
         return _Keeper(self.calls, released=self._released)
@@ -53,7 +65,39 @@ async def test_each_pass_of_the_keeper_expires_the_late_cards() -> None:
     with contextlib.suppress(TimeoutError):
         await asyncio.wait_for(keep_sessions_open(container, 0.001), timeout=0.1)
 
-    assert container.calls[:2] == ["expired", "swept"], container.calls
+    assert container.calls[:3] == ["expired", "closed", "swept"], container.calls
+
+
+async def test_stuck_runs_are_closed_before_the_keeper_lets_go_of_leases(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """D10: a run left `running` after its workflow ended is closed on each
+    pass, before the session sweep, so the tab and parked lease it lets go of
+    are the keeper's to expire in the same pass."""
+    container = _Container()
+
+    with (
+        caplog.at_level("INFO", logger="sro.infrastructure.temporal.worker"),
+        contextlib.suppress(TimeoutError),
+    ):
+        await asyncio.wait_for(keep_sessions_open(container, 0.001), timeout=0.1)
+
+    assert container.calls.index("closed") < container.calls.index("swept")
+    assert "run_stuck stopped responding and was closed" in caplog.text
+
+
+async def test_a_failing_stuck_run_sweep_does_not_stop_the_keeper() -> None:
+    class _Broken(_Container):
+        def close_stuck_runs(self) -> _Closer:
+            self.calls.append("tried")
+            raise RuntimeError("the database went away")
+
+    container = _Broken()
+
+    with contextlib.suppress(TimeoutError):
+        await asyncio.wait_for(keep_sessions_open(container, 0.001), timeout=0.1)
+
+    assert container.calls[:3] == ["expired", "tried", "swept"], container.calls
 
 
 async def test_a_failing_expiry_does_not_stop_the_keeper() -> None:
@@ -68,7 +112,9 @@ async def test_a_failing_expiry_does_not_stop_the_keeper() -> None:
         await asyncio.wait_for(keep_sessions_open(container, 0.001), timeout=0.1)
 
     # The session sweep still ran after the expiry raised, on every pass.
-    assert container.calls[:4] == ["tried", "swept", "tried", "swept"], container.calls
+    assert container.calls[:6] == ["tried", "closed", "swept", "tried", "closed", "swept"], (
+        container.calls
+    )
 
 
 async def test_the_log_names_what_was_released_as_contexts_not_a_browser(

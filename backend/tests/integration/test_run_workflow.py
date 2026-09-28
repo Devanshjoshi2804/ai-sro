@@ -478,6 +478,25 @@ async def test_a_finished_run_is_never_started_again(client: Client) -> None:
     assert described.status is WorkflowExecutionStatus.TERMINATED
 
 
+async def test_the_durable_side_says_whether_a_run_s_workflow_is_still_open(
+    client: Client,
+) -> None:
+    """D10: the stuck-run sweep closes a row whose workflow Temporal reports
+    closed, leaves one it reports open, and falls back to the clock for a
+    run Temporal never heard of."""
+    durable = TemporalDurableExecution(address=ADDRESS)
+    ctx = RequestContext(TenantId("acme"), PrincipalId("clerk"))
+    run_id = f"run_{uuid.uuid4().hex}"
+
+    assert await durable.run_state(run_id) == "unknown"
+
+    await durable.start_run(ctx, run_id=run_id, budget_s=600.0)
+    assert await durable.run_state(run_id) == "open"
+
+    await client.get_workflow_handle(f"workflow-run-{run_id}").terminate("the worker died")
+    assert await durable.run_state(run_id) == "closed"
+
+
 async def test_a_sigterm_mid_step_lets_the_step_finish_before_the_worker_exits(
     client: Client,
 ) -> None:

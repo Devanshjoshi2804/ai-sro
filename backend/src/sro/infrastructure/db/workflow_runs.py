@@ -14,10 +14,12 @@ from sro.application.ports.repositories import WorkflowRunRepository
 from sro.domain.execution.mail_job import MAIL_BODY
 from sro.domain.execution.workflow_run import (
     ENDED,
+    SETTLED,
     Executor,
     RunStep,
     WorkflowRun,
     already_running,
+    end_the_steps,
 )
 from sro.domain.observation.driving import Driving
 from sro.domain.shared.errors import Conflict
@@ -456,17 +458,81 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
         ).scalars()
         orphans = await self._with_steps(rows.all())
         for run in orphans:
-            if run.steps:
-                last = run.steps[-1]
-                last.verdict, last.verdict_by, last.reason = "failed", "none", reason
-            else:
-                run.steps.append(
-                    RunStep(order=0, says="", verdict="failed", verdict_by="none", reason=reason)
-                )
+            end_the_steps(run.steps, reason)
             run.outcome = "failed"
             run.finished_at = now
             await self.save(run)
         return len(orphans)
+
+    async def running(self) -> tuple[WorkflowRun, ...]:
+        query = self._rows().where(WorkflowRunRow.outcome == "running")
+        rows = (
+            await self._session.execute(
+                query.order_by(WorkflowRunRow.started_at, WorkflowRunRow.id)
+            )
+        ).scalars()
+        return await self._with_steps(rows.all())
+
+    async def close_stuck(
+        self,
+        tenant_id: TenantId,
+        run_id: str,
+        *,
+        reason: str,
+        at: str,
+        was: Mapping[str, object],
+    ) -> bool:
+        won = await self._session.execute(
+            update(WorkflowRunRow)
+            .where(
+                WorkflowRunRow.id == run_id,
+                WorkflowRunRow.tenant_id == tenant_id.value,
+                WorkflowRunRow.outcome == "running",
+                WorkflowRunRow.progress == dict(was),
+            )
+            .values(
+                outcome="failed",
+                finished_at=when(at),
+                awaiting=case(
+                    (func.jsonb_array_length(WorkflowRunRow.needs) > 0, WorkflowRunRow.awaiting),
+                    else_=None,
+                ),
+            )
+            .returning(WorkflowRunRow.id)
+        )
+        if won.first() is None:
+            return False
+        last_row = (
+            await self._session.execute(
+                select(WorkflowRunStepRow.ord, WorkflowRunStepRow.verdict)
+                .where(WorkflowRunStepRow.run_id == run_id)
+                .order_by(WorkflowRunStepRow.ord.desc())
+                .limit(1)
+            )
+        ).first()
+        last = None if last_row is None else last_row.ord
+        if last_row is None or last_row.verdict in SETTLED:
+            await self._session.execute(
+                pg_insert(WorkflowRunStepRow).values(
+                    _step_values(
+                        run_id,
+                        RunStep(
+                            order=0 if last is None else last + 1,
+                            says="",
+                            verdict="failed",
+                            verdict_by="none",
+                            reason=reason,
+                        ),
+                    )
+                )
+            )
+        else:
+            await self._session.execute(
+                update(WorkflowRunStepRow)
+                .where(WorkflowRunStepRow.run_id == run_id, WorkflowRunStepRow.ord == last)
+                .values(verdict="failed", verdict_by="none", reason=reason)
+            )
+        return True
 
     @staticmethod
     def _rows() -> Select[tuple[WorkflowRunRow]]:

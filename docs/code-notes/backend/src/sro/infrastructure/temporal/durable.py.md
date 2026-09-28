@@ -9,7 +9,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/d
 > The client connects lazily and is cached: building the container is synchronous,
 > and a Temporal outage at boot must not stop the API from serving reads.
 
-## `_root_message`, [line 108](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L108): Docstring
+## `_root_message`, [line 122](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L122): Docstring
 
 > The deepest message in a Temporal failure chain.
 >
@@ -17,7 +17,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/temporal/d
 > "Activity task failed". The message worth showing a supervisor is at the
 > bottom: the reason the pair could not be induced.
 
-## `TemporalDurableExecution.__init__`, [line 33](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L33): Comment
+## `TemporalDurableExecution.__init__`, [line 35](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L35): Comment
 
 Code: `self._address = address`
 
@@ -25,7 +25,7 @@ Code: `self._address = address`
 > queue must be looking at the same data; a worker pointed at another
 > database will happily accept the work and fail to find the run.
 
-## `TemporalDurableExecution.execute_skill`, [line 71](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L71): Comment
+## `TemporalDurableExecution.execute_skill`, [line 73](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L73): Comment
 
 Code: `id=f"run-{skill_id}-{uuid.uuid4().hex[:8]}",`
 
@@ -33,7 +33,7 @@ Code: `id=f"run-{skill_id}-{uuid.uuid4().hex[:8]}",`
 > parameters is a second, deliberate act -- not a duplicate to be
 > folded into the first run's history.
 
-## `TemporalDurableExecution.execute_skill`, [line 75](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L75): Comment
+## `TemporalDurableExecution.execute_skill`, [line 77](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L77): Comment
 
 Code: `return run_id`
 
@@ -41,14 +41,14 @@ Code: `return run_id`
 > precisely so it can watch the steps land instead of holding a
 > request open for as long as the warehouse takes.
 
-## `_root_message`, [line 112](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L112): Comment
+## `_root_message`, [line 126](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L126): Comment
 
 Code: `message = getattr(current, "message", None)`
 
 > ApplicationError carries the original message without the class name
 > str() would prepend; the supervisor reads this, not a Python type.
 
-## `TemporalDurableExecution.start_run`, [line 85](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L85): Note
+## `TemporalDurableExecution.start_run`, [line 87](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L87): Note
 
 Code: `with contextlib.suppress(WorkflowAlreadyStartedError):`
 
@@ -58,10 +58,19 @@ Code: `with contextlib.suppress(WorkflowAlreadyStartedError):`
 > Bounded by the job's budget plus `K_BUDGET_MARGIN_S`, a backstop only;
 > the workflow keeps the budget itself (§7.5).
 
-## `TemporalDurableExecution.cancel_run`, [line 105](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L105): Note
+## `TemporalDurableExecution.cancel_run`, [line 107](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L107): Note
 
 Code: `await (await self._connect()).get_workflow_handle(f"workflow-run-{run_id}").cancel()`
 
 > The operator's stop. A cancel request through the server is the one signal
 > `RunWorkflow` reads as a stop (`workflow.cancellation_reason()`); a heartbeat
 > timeout or a worker shutdown never is.
+
+## `TemporalDurableExecution.run_state`, [line 109](../../../../../../../backend/src/sro/infrastructure/temporal/durable.py#L109): Note
+
+> `describe` on the run's workflow id. `RUNNING` is open and every other
+> status (completed, failed, cancelled, terminated, timed out) is closed. A
+> workflow Temporal has no record of is `unknown`, not closed: a row is saved a
+> moment before its workflow is started, and treating that gap as closed would
+> close a run that is starting. Any other error propagates; the sweep logs it
+> and tries again next pass.

@@ -61,6 +61,7 @@ from sro.application.execution.run_from_preview import RunFromPreview
 from sro.application.execution.run_workflow import fail_orphans
 from sro.application.execution.self_heal import SelfHeal
 from sro.application.execution.stops import Stops
+from sro.application.execution.stuck_runs import CloseStuckRuns
 from sro.application.execution.vision_step import PerformWithVision
 from sro.application.execution.workflow_runs import (
     AbortWorkflowRun,
@@ -492,6 +493,15 @@ class Container:
 
     def read_confirmations(self) -> ReadConfirmations:
         return ReadConfirmations(self.unit_of_work())
+
+    def close_stuck_runs(self) -> CloseStuckRuns:
+        return CloseStuckRuns(
+            self.unit_of_work(),
+            durable=self.durable,
+            release=self.run_steps().release,
+            clock=self.clock,
+            ids=self.ids,
+        )
 
     def expire_confirmations(self) -> ExpireConfirmations:
         return ExpireConfirmations(self.unit_of_work(), self.clock)

@@ -58,7 +58,7 @@ from sro.domain.skill.tabs import MAIN
 from sro.domain.skill.workflow import Step, Workflow, cited_ids, field_key
 
 _RUN_VERDICT = {"done": "held", "read": "held", "failed": "failed", "unknown": "unclear"}
-_KEPT = ("held", "withheld", "skipped")
+_KEPT = ("held", "withheld", "skipped", "not_needed")
 
 
 @dataclass(frozen=True, slots=True)
@@ -304,11 +304,21 @@ class RunSteps:
             run.outcome = "held" if kept else "failed"
         if not run.needs:
             run.awaiting = None
+        first = not run.finished_at
         run.finished_at = run.finished_at or self._clock.now().isoformat()
         async with self._uow as uow:
             await uow.workflow_runs.save(run)
             await uow.commit()
-        await SayWhatHappened(self._uow, self._clock, self._ids).answered_elsewhere(ctx, run)
+        announce = SayWhatHappened(self._uow, self._clock, self._ids)
+        await announce.answered_elsewhere(ctx, run)
+        if first and run.outcome in ("held", "failed"):
+            await announce.execute(
+                ctx,
+                for_operator=PrincipalId(run.started_by) if run.started_by else ctx.principal_id,
+                text=_how_it_ended(run, workflow),
+                speaker=Speaker.ASSISTANT,
+                decision={"kind": "run_done", "run_id": run.id, "outcome": run.outcome},
+            )
         return run.outcome
 
     async def stopped(self, ctx: RequestContext, run_id: str) -> None:
@@ -861,6 +871,26 @@ class RunSteps:
                 ctx.tenant_id, ids=tuple(sorted(cited_ids(workflow)))
             )
         return run, workflow, {one.id: one for one in cited}
+
+
+def _how_it_ended(run: WorkflowRun, workflow: Workflow) -> str:
+    """What the operator reads when the run ends -- the thread said "Running
+    ... now" and then nothing, whichever way it went."""
+    if run.outcome == "held":
+        given = ", ".join(
+            f"{name} = {value}" for name, value in run.values.items() if value.strip()
+        )
+        return f"Done: {workflow.title}" + (f" ({given})" if given else "") + "."
+    stopped = next(
+        (
+            one
+            for one in sorted(run.steps, key=lambda one: one.order, reverse=True)
+            if one.verdict not in _KEPT
+        ),
+        None,
+    )
+    where = f" -- it stopped at '{stopped.says}': {stopped.reason}" if stopped else ""
+    return f"{workflow.title} did not finish{where}."
 
 
 def _carried_by(

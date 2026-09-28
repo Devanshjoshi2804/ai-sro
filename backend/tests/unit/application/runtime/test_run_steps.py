@@ -635,6 +635,22 @@ async def test_the_steps_that_only_fill_a_proven_call_are_not_needed() -> None:
     assert (world.lanes.ui.calls, world.lanes.api.calls) == (0, 1)
     run = await world.saved_run()
     assert [(one.of_step, one.verdict) for one in run.steps] == [(0, "not_needed"), (1, "held")]
+    assert await world.run_steps.finish(CTX, world.run_id) == "held"
+    said = [one for thread in world.uow.threads.rows.values() for one in thread.messages]
+    assert said and said[-1].decision.get("kind") == "run_done"
+    assert "Done" in said[-1].text and "GT2" in said[-1].text
+
+
+async def test_a_run_that_did_not_finish_says_so() -> None:
+    """Greyorange, 2026-09-28: every run ended on "Running ... now" and the
+    thread never said how it ended -- the operator saw a blank."""
+    world = await steel_run(steps=[type_step(), save_step(status=201)])
+
+    assert await world.run_steps.finish(CTX, world.run_id) == "failed"
+
+    said = [one for thread in world.uow.threads.rows.values() for one in thread.messages]
+    assert said and said[-1].decision.get("kind") == "run_done"
+    assert "did not finish" in said[-1].text
 
 
 FORM = "https://wms.example/app/customer-types/new"

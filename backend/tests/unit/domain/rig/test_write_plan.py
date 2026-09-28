@@ -1269,3 +1269,23 @@ def test_a_job_recorded_once_fills_the_fields_its_parameters_were_seen_in() -> N
     assert (body["customerType"], body["longDescription"]) == ("SRT5", "AI-SRO steel test")
     assert body.get("departmentNumber", "") == ""
     assert body["createShipmentBy"] == CREATED["createShipmentBy"]
+
+
+def test_one_value_mined_under_two_parameters_keeps_every_value_seen() -> None:
+    """Greyorange, 2026-09-28: Delete a Customer Type carries 'Customer Type'
+    twice -- the grid filter (MRN5, DDLS, ...) and a form field (ZQ45). The
+    last one overwrote the first, the DELETE's path no longer read as that
+    parameter's, and the undo walked the grid by hand instead of its call."""
+    job = Workflow(
+        id="wfl_d",
+        tenant="greyorange",
+        title="Delete a Customer Type",
+        narrative="n",
+        steps=[],
+        parameters=[
+            {"name": "Customer Type", "seen_values": ["MRN5", "DDLS"]},
+            {"name": "Customer Type", "seen_values": ["ZQ45"]},
+        ],
+    )
+
+    assert seen_values(job) == {"Customer Type": frozenset({"MRN5", "DDLS", "ZQ45"})}

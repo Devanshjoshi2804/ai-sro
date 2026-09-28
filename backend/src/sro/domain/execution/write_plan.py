@@ -36,7 +36,9 @@ def seen_values(workflow: Workflow) -> dict[str, frozenset[str]]:
             continue
         values = frozenset(value for value in raw if isinstance(value, str) and value.strip())
         if values:
-            found[name] = values
+            # One value mined under two parameters of one name (a search box and
+            # a form field) is one value: every value either saw.
+            found[name] = found.get(name, frozenset()) | values
     return found
 
 

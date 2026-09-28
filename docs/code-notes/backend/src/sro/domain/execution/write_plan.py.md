@@ -127,7 +127,7 @@ Code: `entry: VerifiedWrite`
 > runs safe-naming and collision-dropping over it, while this reads a stored
 > `Workflow` whose names already went through exactly that.
 
-## `_same_endpoint`, [line 43](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L43): Docstring
+## `_same_endpoint`, [line 45](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L45): Docstring
 
 > Whether two calls are the same write, so their bodies may be diffed.
 >
@@ -135,7 +135,7 @@ Code: `entry: VerifiedWrite`
 > reason: a write does not become a different endpoint because one recording
 > carried `?siteId=SG` and the next did not.
 
-## `_bodies_of`, [line 51](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L51): Docstring
+## `_bodies_of`, [line 53](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L53): Docstring
 
 > Every demonstration of this step's write, as parsed JSON objects.
 >
@@ -144,7 +144,7 @@ Code: `entry: VerifiedWrite`
 > doing nothing distinguishes a slot from a constant, and the diff below
 > returns nothing rather than guessing.
 
-## `_record`, [line 72](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L72): Docstring
+## `_record`, [line 74](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L74): Docstring
 
 > One recorded body as the record it describes, envelope removed.
 >
@@ -152,7 +152,7 @@ Code: `entry: VerifiedWrite`
 > "data": {…}}`, which `verify.made_by` unwraps for the same reason: read at
 > the top level the answer has no fields of the record in it at all.
 
-## `_echoed`, [line 85](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L85): Docstring
+## `_echoed`, [line 87](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L87): Docstring
 
 > The keys the server gave back exactly as they were sent, every time.
 >
@@ -174,7 +174,7 @@ Code: `entry: VerifiedWrite`
 > demonstrations answered and agreed on nothing, so there is nothing a read
 > could settle.
 
-## `_returned`, [line 103](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L103): Docstring
+## `_returned`, [line 105](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L105): Docstring
 
 > The keys the record came back HOLDING, whatever value they held.
 >
@@ -199,7 +199,7 @@ Code: `entry: VerifiedWrite`
 > reasons: one doing that returned a key proves nothing if another did not,
 > and absence of evidence about a slot is not evidence about the slot.
 
-## `_slots`, [line 126](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L126): Docstring
+## `_slots`, [line 128](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L128): Docstring
 
 > The keys the job varies: present in every doing, differing in at least one.
 >
@@ -208,7 +208,7 @@ Code: `entry: VerifiedWrite`
 > value somebody typed, and substituting into it would send a field the
 > demonstration never proved.
 
-## `wanted_by`, [line 155](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L155): Docstring
+## `wanted_by`, [line 157](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L157): Docstring
 
 > The parameters whose values this step's own body carries.
 >
@@ -226,7 +226,7 @@ Code: `entry: VerifiedWrite`
 > Empty for a call that carries no parameter at all -- most calls -- which is
 > what keeps this from turning every replay into a click.
 
-## `_assigned`, [line 178](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L178): Docstring
+## `_assigned`, [line 180](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L180): Docstring
 
 > Which parameter owns which slot, or None where that is not a fact.
 >
@@ -235,7 +235,7 @@ Code: `entry: VerifiedWrite`
 > refusals, both of them silence rather than a guess: a slot two parameters
 > claim, and a parameter claiming two slots.
 
-## `write_plan_for`, [line 251](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L251): Docstring
+## `write_plan_for`, [line 253](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L253): Docstring
 
 > The call this step would send with this run's values in it, or None.
 >
@@ -243,7 +243,7 @@ Code: `entry: VerifiedWrite`
 > caller reads it the same way: perform the step through the interface, which
 > is what happens today and what has always happened.
 
-## `_path_owner`, [line 321](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L321): Docstring
+## `_path_owner`, [line 323](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L323): Docstring
 
 > The parameter this write's last path segment IS, where the doings prove it.
 >
@@ -259,7 +259,7 @@ Code: `entry: VerifiedWrite`
 > that got a 404 demonstrated the wrong record. Every other segment must be
 > the same across them, so this can only ever name the LAST one.
 
-## `_path_plan`, [line 346](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L346): Docstring
+## `_path_plan`, [line 348](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L348): Docstring
 
 > The recorded call with this run's value where the demonstration's was.
 >
@@ -267,7 +267,7 @@ Code: `entry: VerifiedWrite`
 > `verify` holds it on the status -- and for a url that NAMES the record, a
 > 2xx is the server saying which record it acted on.
 
-## `demonstrated_writes`, [line 373](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L373): Docstring
+## `demonstrated_writes`, [line 375](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L375): Docstring
 
 > The endpoints this job's OWN demonstrations proved, for this job alone.
 >
@@ -282,7 +282,7 @@ Code: `entry: VerifiedWrite`
 > is stored; the tuple is added to this run's ledger and gone with it, so
 > one job's demonstrations never license another job's call.
 
-## `_undemonstrated`, [line 389](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L389): Docstring
+## `_undemonstrated`, [line 391](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L391): Docstring
 
 > Values for slots no demonstration varied, and only the provable ones.
 >
@@ -325,7 +325,7 @@ Code: `entry: VerifiedWrite`
 > **And never where the demonstrations answered nothing at all.** `None` is
 > "no evidence about the record's shape", which is not evidence about it.
 
-## `begins_again_at`, [line 414](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L414): Docstring
+## `begins_again_at`, [line 416](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L416): Docstring
 
 > Where a run has to start over so the screen the stopped step needed is
 > there again.
@@ -353,7 +353,7 @@ Code: `entry: VerifiedWrite`
 > `stopped_at` itself where there is nothing before it to rebuild from, which
 > is a run that stopped on its own first step.
 
-## `scaffolding_for`, [line 426](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L426): Docstring
+## `scaffolding_for`, [line 428](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L428): Docstring
 
 > The steps whose only job was to put the write's form on the screen.
 >
@@ -373,7 +373,7 @@ Code: `entry: VerifiedWrite`
 > never is -- its value was struck out of the evidence, so no replayed body
 > can be carrying it.
 
-## `wanted_by`, [line 163](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L163): Comment
+## `wanted_by`, [line 165](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L165): Comment
 
 Code: `owner = _path_owner(step, by_id, call, seen)`
 
@@ -381,7 +381,7 @@ Code: `owner = _path_owner(step, by_id, call, seen)`
 > sends no body at all, so a guard that only read bodies let a run holding
 > no value replay the demonstration's own `DELETE .../customerTypes/MRN5`.
 
-## `wanted_by`, [line 172](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L172): Comment
+## `wanted_by`, [line 174](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L174): Comment
 
 Code: `claiming = [name for name, observed in seen.items() if _seen_in(taken, observed)]`
 
@@ -394,14 +394,14 @@ Code: `claiming = [name for name, observed in seen.items() if _seen_in(taken, ob
 > a field holding one is a slot, not a constant (ruling 2026-09-28 -- a
 > Create a Customer Type recorded once left its proven POST unplanned).
 
-## `_assigned`, [line 186](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L186): Comment
+## `_assigned`, [line 188](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L188): Comment
 
 Code: `placed: set[str] = set()`
 
 > Every parameter that turned out to have somewhere to go, which is not the
 > same list as `claimed.values()` once two of them name one slot.
 
-## `_assigned`, [line 194](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L194): Comment
+## `_assigned`, [line 196](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L196): Comment
 
 Code: `if len({values[name] for name in owners}) > 1:`
 
@@ -422,7 +422,7 @@ Code: `if len({values[name] for name in owners}) > 1:`
 > and it still refuses: there is no way to tell which the operator
 > meant, and a warehouse record is the wrong place to guess.
 
-## `_assigned`, [line 203](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L203): Comment
+## `_assigned`, [line 205](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L205): Comment
 
 Code: `carried = {values[name] for name in placed}`
 
@@ -445,7 +445,7 @@ Code: `carried = {values[name] for name in placed}`
 > called. A DIFFERENT value with nowhere to go is still the transformed
 > case and still refuses -- that is the one this rule was written for.
 
-## `_assigned`, [line 204](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L204): Comment
+## `_assigned`, [line 206](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L206): Comment
 
 Code: `if any(`
 
@@ -456,7 +456,7 @@ Code: `if any(`
 > to the interface for every field -- the opposite of what naming it was
 > for.
 
-## `write_plan_for`, [line 268](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L268): Comment
+## `write_plan_for`, [line 270](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L270): Comment
 
 Code: `if any(`
 
@@ -465,7 +465,7 @@ Code: `if any(`
 > substitute and `unreplayable` would already have refused a body carrying
 > the marker. Belt and braces, and cheap.
 
-## `write_plan_for`, [line 277](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L277): Comment
+## `write_plan_for`, [line 279](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L279): Comment
 
 Code: `return _path_plan(step, by_id, call, values, seen, entry)`
 
@@ -474,7 +474,7 @@ Code: `return _path_plan(step, by_id, call, values, seen, entry)`
 > existing path sends it as it was recorded -- unless the value this
 > run was given lives in the path, which is what a delete is.
 
-## `write_plan_for`, [line 284](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L284): Comment
+## `write_plan_for`, [line 286](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L286): Comment
 
 Code: `also = _undemonstrated(`
 
@@ -486,7 +486,7 @@ Code: `also = _undemonstrated(`
 > without looking, and this is the opposite -- a slot that will be looked
 > at. See `_returned`, which carries the measurement.
 
-## `write_plan_for`, [line 292](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L292): Comment
+## `write_plan_for`, [line 294](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L294): Comment
 
 Code: `named = frozenset(keys) | {name for name, slot in learned.items() if slot in also}`
 
@@ -506,7 +506,7 @@ Code: `named = frozenset(keys) | {name for name, slot in learned.items() if slot
 > whole replay for it would send every field through the interface, which
 > cannot set that field either. The cost would be paid for nothing.
 
-## `write_plan_for`, [line 296](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L296): Comment
+## `write_plan_for`, [line 298](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L298): Comment
 
 Code: `if not claimed:`
 
@@ -521,7 +521,7 @@ Code: `if not claimed:`
 > read-back -- so a job nobody parameterised would stop asking for
 > evidence it was never going to have, for a body nobody rewrote.
 
-## `write_plan_for`, [line 300](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L300): Comment
+## `write_plan_for`, [line 302](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L302): Comment
 
 Code: `aimed = {key: value for key, value in bodies[0].items() if key not in left_out}`
 
@@ -544,7 +544,7 @@ Code: `aimed = {key: value for key, value in bodies[0].items() if key not in lef
 > length -- that argument is about INFERRING a correspondence from two
 > strings, and this is reading one somebody wrote down.
 
-## `write_plan_for`, [line 315](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L315): Comment
+## `write_plan_for`, [line 317](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L317): Comment
 
 Code: `**also,`
 
@@ -554,21 +554,21 @@ Code: `**also,`
 > refuses any slot that cannot be read back, so everything here is
 > provable by construction.
 
-## `_path_plan`, [line 361](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L361): Comment
+## `_path_plan`, [line 363](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L363): Comment
 
 Code: `if verified_write_for(replace(call, url=url), (entry,)) is None:`
 
 > Matched against the same ledger entry again: a value that decodes to a
 > traversal is refused by `verified_write_for`, never sent.
 
-## `_owned_by_nobody_given`, [line 212](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L212): Note
+## `_owned_by_nobody_given`, [line 214](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L214): Note
 
 > The slots whose one owning parameter (by the values it was seen to take)
 > was not given this run. Their keys are dropped from the replayed body, the
 > API half of the rule that an absent optional value is never filled from
 > the recording.
 
-## `write_plan_for`, [line 278](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L278): Note
+## `write_plan_for`, [line 280](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L280): Note
 
 Code: `owner = _path_owner(step, by_id, call, seen)`
 
@@ -576,7 +576,7 @@ Code: `owner = _path_owner(step, by_id, call, seen)`
 > When that parameter was not given, the recorded id would be sent, so the
 > write is not replayed at all.
 
-## `_taken`, [line 147](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L147): Note
+## `_taken`, [line 149](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L149): Note
 
 > The values a slot held across the doings, as the text `seen_values` holds
 > them: a string as itself, any other JSON scalar (number, bool, null) as its
@@ -586,7 +586,7 @@ Code: `owner = _path_owner(step, by_id, call, seen)`
 > the body when that parameter was not given, rather than sent with the
 > demonstration's number.
 
-## `_assigned`, [line 196](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L196): Comment
+## `_assigned`, [line 198](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L198): Comment
 
 Code: `if owners and not isinstance(bodies[0][slot], str):`
 
@@ -597,7 +597,7 @@ Code: `if owners and not isinstance(bodies[0][slot], str):`
 > ponytail: refusal, not coercion; parse the value back to the recorded type
 > when a numeric write needs the API lane.
 
-## `learned_slots`, [line 227](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L227): Docstring
+## `learned_slots`, [line 229](../../../../../../../backend/src/sro/domain/execution/write_plan.py#L229): Docstring
 
 > The keys learned fields put into this write's body: `{parameter: body_key}`.
 > A field step learned by X10 cites nothing and fills one parameter, and

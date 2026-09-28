@@ -30,7 +30,7 @@ Code: `_DEFAULT_PORTS = {"http": "80", "https": "443"}`
 > `config._origins_of` keeps the same map for the same reason and cannot be
 > imported here: the domain reads settings through arguments or not at all.
 
-## module, [line 488](../../../../../../../backend/src/sro/domain/skill/checks.py#L488): Note on the line above
+## module, [line 551](../../../../../../../backend/src/sro/domain/skill/checks.py#L551): Note on the line above
 
 Code: `K_SITTING_GAP_S = 600.0`
 
@@ -141,10 +141,22 @@ Code: `K_SITTING_GAP_S = 600.0`
 > the operator did has to read the doing rather than the summary.
 >
 > Bounded by the cited gestures at both ends and by their streams, so this
-> never reaches into another tab or into the next job along. A job that cites
-> nothing gets nothing, which is `validate`'s problem and not this one.
+> never reaches into the next job along. A job that cites nothing gets
+> nothing, which is `validate`'s problem and not this one.
+>
+> And bounded by the job's own systems (F4, 2026-09-28): an uncited gesture
+> counts only on an origin some cited gesture is on. A stream is a device,
+> not a tab, so the span used to hold whatever the operator's other tabs did
+> meanwhile -- QA's `Log in using Azure B2C SSO` (`wfl_5873ec01`) was read as
+> doing business because another tab posted 200 on a mail host the job never
+> touches. An uncited save on a system the job does act on still counts:
+> that is what reading the doing rather than the citations is for. The same
+> span serves `signs_in_to`'s credential and `work_only`'s halves, so a
+> credential typed in an unrelated tab no longer makes a job a sign-in
+> either, and `work_only` no longer lets an unrelated tab's write rescue a
+> sign-in chain from its "not a job" refusal.
 
-## `signs_in`, [line 182](../../../../../../../backend/src/sro/domain/skill/checks.py#L182): Docstring
+## `signs_in`, [line 186](../../../../../../../backend/src/sro/domain/skill/checks.py#L186): Docstring
 
 > Whether this job signs in: a credential typed and nothing written back.
 >
@@ -193,13 +205,18 @@ Code: `K_SITTING_GAP_S = 600.0`
 > gesture that proves a job is a sign-in is the one gesture a model
 > summarising that job will leave out.
 >
+> The sign-in's own successful writes (`_its_own_writes`) are not business:
+> an identifier lookup and a password post answered 200 on the host the
+> credential is typed on, before the chain left it, are how signing in is
+> done (F4, QA's `Log in to Google Account`, `wfl_627ae93c`).
+>
 > `during` is the cited gestures' own time span on the streams they cite,
 > which is the job as the operator lived it. Measured on that day: the
 > sign-in job's span holds the credential, and the two real jobs' spans
 > hold none -- including a Warehouse Equipment Type job whose span is 52
 > gestures wide.
 
-## `is_sign_in_step`, [line 401](../../../../../../../backend/src/sro/domain/skill/checks.py#L401): Docstring
+## `is_sign_in_step`, [line 462](../../../../../../../backend/src/sro/domain/skill/checks.py#L462): Docstring
 
 > Whether this step's own evidence proves it is part of signing in, and so
 > not a write. Three shapes, and nothing else:
@@ -234,8 +251,11 @@ Code: `K_SITTING_GAP_S = 600.0`
 >   typed it on the same host, and the browser was sent to another host --
 >   the submit.
 >
-> Either way nothing it did came back 2xx on its own host (`_did_business`),
-> and every act in it left the host. A focus click on the password box is not
+> Either way nothing it did came back 2xx on its own host (`_did_business`)
+> except the sign-in's own writes (`_its_own_writes`), which are also left
+> out of "records no mutation" -- so the identifier-first Next that posts a
+> lookup is the first shape again -- and every act in it left the host
+> (`_left`). A focus click on the password box is not
 > an act. An Enter pressed in it is part of the submit only when this step
 > also holds the gesture that left -- the deployment records the leave on the
 > Sign In the Enter triggered, at the same instant; pressed on a PIN box that
@@ -253,7 +273,7 @@ Code: `K_SITTING_GAP_S = 600.0`
 > 302 back to the same system or with no status recorded -- proves nothing,
 > and a write must fail safe: it is judged as a write.
 
-## `signs_in_to`, [line 281](../../../../../../../backend/src/sro/domain/skill/checks.py#L281): Docstring
+## `signs_in_to`, [line 293](../../../../../../../backend/src/sro/domain/skill/checks.py#L293): Docstring
 
 > Which sign-in this is: the one host the credential was typed into, and the
 > host the operator next worked on after the browser left it -- or None when
@@ -275,32 +295,34 @@ Code: `K_SITTING_GAP_S = 600.0`
 > and the warehouse only shows up on the click after it. The submit's last
 > foreign mark stands in when nothing was done afterwards.
 
-## `credentials_typed`, [line 319](../../../../../../../backend/src/sro/domain/skill/checks.py#L319): Docstring
+## `credentials_typed`, [line 331](../../../../../../../backend/src/sro/domain/skill/checks.py#L331): Docstring
 
 > How many steps of this job type each credential field, keyed by the field's
 > screen and identity. The mining pass's `_grow` refuses a doing that types a
 > credential the job does not -- a password added to a job that had none, or
 > a second, different one (a second factor) added to a job that had one.
 
-## `_in_time`, [line 331](../../../../../../../backend/src/sro/domain/skill/checks.py#L331): Docstring
+## `_in_time`, [line 343](../../../../../../../backend/src/sro/domain/skill/checks.py#L343): Docstring
 
 > What this job cites, once each, in the order the operator did it. The
 > model's step order is not time order: the Azure chain cites its first
 > password again in a later step.
 
-## `_split`, [line 341](../../../../../../../backend/src/sro/domain/skill/checks.py#L341): Docstring
+## `_split`, [line 353](../../../../../../../backend/src/sro/domain/skill/checks.py#L353): Docstring
 
 > The chain (see `_chain`), whether it left the host, and what the job cites
-> after the leave.
+> after the leave. Leaving is `_left`, the one place that decides it, so
+> `_split`, `_leaves_at`, `signs_in_to`, `_only_signs_in` and
+> `is_sign_in_step` agree on where a sign-in left.
 
-## `_chain`, [line 336](../../../../../../../backend/src/sro/domain/skill/checks.py#L336): Docstring
+## `_chain`, [line 348](../../../../../../../backend/src/sro/domain/skill/checks.py#L348): Docstring
 
 > The sign-in chain: from the first credential gesture this job cites to the
-> first gesture after it that sent the browser to another host, and whether
-> it got there. What comes after that gesture happened on the landed page
+> first gesture after it that left its host (`_left`), and whether it got
+> there. What comes after that gesture happened on the landed page
 > and is outside the chain.
 
-## `_only_signs_in`, [line 354](../../../../../../../backend/src/sro/domain/skill/checks.py#L354): Docstring
+## `_only_signs_in`, [line 415](../../../../../../../backend/src/sro/domain/skill/checks.py#L415): Docstring
 
 > Whether the chain holds nothing but signing in.
 >
@@ -312,7 +334,7 @@ Code: `K_SITTING_GAP_S = 600.0`
 > which is a refused attempt. Without a leave there is no successful sign-in
 > for either to belong to, and a same-host press is the PIN shape.
 
-## `_lands_on`, [line 376](../../../../../../../backend/src/sro/domain/skill/checks.py#L376): Note
+## `_lands_on`, [line 437](../../../../../../../backend/src/sro/domain/skill/checks.py#L437): Note
 
 > The host a sign-in lands on: `signs_in_to`'s `worked` half, read off
 > what the operator did after the credential left its host, falling back
@@ -321,36 +343,36 @@ Code: `K_SITTING_GAP_S = 600.0`
 > host before the credential (final re-review N-1, 2026-09-24): work done
 > on the system before a lapsed session was signed back into is work.
 
-## `_leaves_at`, [line 381](../../../../../../../backend/src/sro/domain/skill/checks.py#L381): Docstring
+## `_leaves_at`, [line 442](../../../../../../../backend/src/sro/domain/skill/checks.py#L442): Docstring
 
 > When the chain left the host, or None when it never did.
 
-## `_on_the_credential`, [line 386](../../../../../../../backend/src/sro/domain/skill/checks.py#L386): Docstring
+## `_on_the_credential`, [line 447](../../../../../../../backend/src/sro/domain/skill/checks.py#L447): Docstring
 
 > A click or a key press on the secret-marked input itself: the recorder's
 > mark is on the box, not on a typed value.
 
-## `_typed_the_credential`, [line 391](../../../../../../../backend/src/sro/domain/skill/checks.py#L391): Docstring
+## `_typed_the_credential`, [line 452](../../../../../../../backend/src/sro/domain/skill/checks.py#L452): Docstring
 
 > A secret typed -- the only thing that can follow a refused attempt.
 
-## `_acts`, [line 395](../../../../../../../backend/src/sro/domain/skill/checks.py#L395): Docstring
+## `_acts`, [line 456](../../../../../../../backend/src/sro/domain/skill/checks.py#L456): Docstring
 
 > Anything but typing a value. Typing changes a field; everything else --
 > clicking, pressing, choosing, uploading -- can submit. Except a click on the
 > password box, which focuses it: the deployment's operators click into the
 > box before typing, and each of those clicks counted as a possible submit.
 
-## `_carries_the_credential`, [line 431](../../../../../../../backend/src/sro/domain/skill/checks.py#L431): Docstring
+## `_carries_the_credential`, [line 494](../../../../../../../backend/src/sro/domain/skill/checks.py#L494): Docstring
 
 > Whether any gesture this step cites bears the recorder's secret mark.
 
-## `_after_the_credential`, [line 435](../../../../../../../backend/src/sro/domain/skill/checks.py#L435): Docstring
+## `_after_the_credential`, [line 498](../../../../../../../backend/src/sro/domain/skill/checks.py#L498): Docstring
 
 > Whether the step just before this one, in the job's order, typed the
 > credential on the same host this step is on.
 
-## `work_only`, [line 448](../../../../../../../backend/src/sro/domain/skill/checks.py#L448): Docstring
+## `work_only`, [line 511](../../../../../../../backend/src/sro/domain/skill/checks.py#L511): Docstring
 
 > Strike the systems that were never the work, and refuse a job with none
 > left. None when it may be kept, as `validate` answers.
@@ -396,11 +418,11 @@ Code: `K_SITTING_GAP_S = 600.0`
 > somebody has to keep, wrong for every customer running an SSO nobody here
 > has heard of.
 
-## `_sittings`, [line 491](../../../../../../../backend/src/sro/domain/skill/checks.py#L491): Docstring
+## `_sittings`, [line 554](../../../../../../../backend/src/sro/domain/skill/checks.py#L554): Docstring
 
 > Consecutive runs of `times`, split wherever the pause is long enough.
 
-## `one_occurrence`, [line 501](../../../../../../../backend/src/sro/domain/skill/checks.py#L501): Docstring
+## `one_occurrence`, [line 564](../../../../../../../backend/src/sro/domain/skill/checks.py#L564): Docstring
 
 > Strike every citation but one doing's, in place.
 >
@@ -540,14 +562,14 @@ Code: `coverage=sum(1 for d in deciles if d > 0) / min(10, n),`
 > four parts and can only ever land in four deciles, so dividing by ten
 > reported a FULLY cited short window at 0.4 -- under K_MIN_COVERAGE.
 
-## `work_only`, [line 453](../../../../../../../backend/src/sro/domain/skill/checks.py#L453): Comment
+## `work_only`, [line 516](../../../../../../../backend/src/sro/domain/skill/checks.py#L516): Comment
 
 Code: `last = {system: index for index, system in enumerate(order)}`
 
 > Last occurrence per system: what matters is whether the job carried on
 > after this system the LAST time it was on it, not the first.
 
-## `work_only`, [line 461](../../../../../../../backend/src/sro/domain/skill/checks.py#L461): Comment
+## `work_only`, [line 524](../../../../../../../backend/src/sro/domain/skill/checks.py#L524): Comment
 
 Code: `during = _during(workflow, gestures)`
 
@@ -578,7 +600,7 @@ Code: `during = _during(workflow, gestures)`
 > list of identity hostnames -- which this function declined to keep, on
 > the grounds that every customer runs an SSO nobody here has heard of.
 
-## `work_only`, [line 478](../../../../../../../backend/src/sro/domain/skill/checks.py#L478): Comment
+## `work_only`, [line 541](../../../../../../../backend/src/sro/domain/skill/checks.py#L541): Comment
 
 Code: `if workflow.systems and not kept:`
 
@@ -594,7 +616,7 @@ Code: `if workflow.systems and not kept:`
 > Type" is not the field, and counting it hid an unbound required parameter
 > from `compile_job` and kept `compose` from placing the value on the form.
 
-## module, [line 196](../../../../../../../backend/src/sro/domain/skill/checks.py#L196): Note
+## module, [line 201](../../../../../../../backend/src/sro/domain/skill/checks.py#L201): Note
 
 Code: `_SIGN_OUT = re.compile(r"(?<![a-z0-9])(?:log[\s_-]?(?:out|off)|sign[\s_-]?out)(?![a-z0-9])", re.I)`
 
@@ -613,12 +635,18 @@ Code: `_SIGN_OUT = re.compile(r"(?<![a-z0-9])(?:log[\s_-]?(?:out|off)|sign[\s_-]
 > reading what the session did (a call that clears the session cookie) once
 > the recorder keeps response cookies' names.
 
-## `signs_out`, [line 204](../../../../../../../backend/src/sro/domain/skill/checks.py#L204): Note on the function
+## `signs_out`, [line 209](../../../../../../../backend/src/sro/domain/skill/checks.py#L209): Note on the function
 
 > Whether this job signs out (F3): its steps end the session, and ending it is
 > all they do (product ruling M4, round 1). Four conditions:
 >
-> 1. The last cited control labelled as a sign-out (`_ends_the_session`).
+> 1. The last cited control that ends the session (`_ends_the_session`):
+>    labelled as a sign-out, or -- whatever its label -- a click or press
+>    whose own page events end on a signed-out page, from a page that was
+>    not one (F4: QA's `Log Out`, `wfl_18c55570`, is a control whose name and
+>    text carry no log-out word, and its click lands on the sign-in page). A
+>    sign-in's submit goes the other way -- from a sign-in page to the app --
+>    and does not match. Every other condition below still holds.
 > 2. Every cited gesture before it only reaches it (`_only_reaches`): opens a
 >    menu or moves between pages. A job that does anything else first --
 >    exports a report, fills a field -- and then logs out is work.
@@ -645,7 +673,7 @@ Code: `_SIGN_OUT = re.compile(r"(?<![a-z0-9])(?:log[\s_-]?(?:out|off)|sign[\s_-]
 > 44% of the offers; `Log Out` was never flagged because no rule asked.
 > `Workflow.chore` reads both verdicts; R1 excludes chores from candidates.
 
-## `_only_reaches`, [line 244](../../../../../../../backend/src/sro/domain/skill/checks.py#L244): Note on the function
+## `_only_reaches`, [line 256](../../../../../../../backend/src/sro/domain/skill/checks.py#L256): Note on the function
 
 > A gesture that only leads to the sign-out control, and does nothing of its
 > own. A hover or scroll; or a click or press that types nothing, touches no
@@ -657,7 +685,7 @@ Code: `_SIGN_OUT = re.compile(r"(?<![a-z0-9])(?:log[\s_-]?(?:out|off)|sign[\s_-]
 > never needed to reach a log out, which sits in the user menu on every page:
 > an operator who opened a report and then logged out did an errand first.
 
-## `_opens`, [line 257](../../../../../../../backend/src/sro/domain/skill/checks.py#L257): Note on the function
+## `_opens`, [line 269](../../../../../../../backend/src/sro/domain/skill/checks.py#L269): Note on the function
 
 > Whether this click opened what the log-out control sits in. Two signals,
 > and a role is not one of them (F3b):
@@ -679,3 +707,47 @@ Code: `_SIGN_OUT = re.compile(r"(?<![a-z0-9])(?:log[\s_-]?(?:out|off)|sign[\s_-]
 > substance, so its Log Out stays a candidate -- the safe side. Upgrade by
 > recording `aria-controls` / `aria-owns` and matching them to an ancestor of
 > the control.
+
+## `_left`, [line 366](../../../../../../../backend/src/sro/domain/skill/checks.py#L366): Note on the function
+
+> Whether the operator left this gesture's host right after it: the browser
+> was sent elsewhere (`passed_through`), or -- when the recorder captured no
+> page event on it -- the next gesture on the same stream and tab, within a
+> sitting, is on another host. QA's `Log in to Google Account` recorded no
+> page event anywhere; what proves it left the identity host is that the
+> operator's next click is on the landing host (F4, 2026-09-28).
+>
+> Same tab, not only same stream (the brief said stream): a stream is a
+> device, and an operator who types a PIN and then clicks in another tab
+> has left nothing. `signs_out` reads its "next gesture" the same way.
+> A gesture at the same instant counts as next: the Azure chain's password,
+> its Enter and its Sign In share one timestamp, and only the Sign In
+> leaves -- the password's next gesture is its own Enter, not the click in
+> the warehouse twenty seconds later.
+>
+> A gesture with page events that stay on its host is not read this way: the
+> recorder did capture where it went. Nothing after a sign-in form proves
+> nothing, and the job stays unmarked.
+
+## `_tab_of`, [line 384](../../../../../../../backend/src/sro/domain/skill/checks.py#L384): Note on the function
+
+> Every other gesture on this one's stream and tab. "Next" and "before" are
+> read on the tab, never the device: another tab's doings are another job.
+
+## `_its_own_writes`, [line 394](../../../../../../../backend/src/sro/domain/skill/checks.py#L394): Note on the function
+
+> The sign-in's own successful writes: `_did_business` gestures on the host
+> the chain left from, in the run of gestures on that host (same stream and
+> tab) that ends where the chain left -- and only when that run was entered
+> from another host. That is the flow of an identity provider: the operator
+> is sent there, signs in, and is sent on. Its identifier lookup and its
+> password post answer 200 on its own host and are authentication, not
+> business (F4, QA's `Log in to Google Account`).
+>
+> What is not in it: anything after the chain left (a write back on the
+> identity host once the operator is working is business), anything on the
+> landing host, and anything on a host the stream never arrived on from
+> elsewhere. The last is what keeps a single-origin app's work business: a
+> Save, then a PIN typed and approved on the same host, then the operator
+> moving on is a job that wrote, not a sign-in -- nobody was sent to that
+> host to sign in. Empty when the chain never left.

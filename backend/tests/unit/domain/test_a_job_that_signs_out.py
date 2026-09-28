@@ -141,9 +141,11 @@ def test_a_job_that_writes_and_then_logs_out_is_work() -> None:
 
 
 def test_a_control_whose_name_only_contains_the_words_is_not_a_sign_out() -> None:
-    store = {
-        "out": _landed(_click("out", 2, "Logoutput report"), f"{WMS}/login"),
-    }
+    """The label alone decides here: no page event, then a sign-in form --
+    the shape `test_a_log_out_followed_by_a_credential_field_signs_out`
+    flags for a real "Logout". (A click whose own page events land on a
+    sign-in page ends the session whatever its label says -- F4.)"""
+    store = {"out": _click("out", 2, "Logoutput report"), "user": _typed_user("user", 4, WMS)}
 
     assert signs_out(_job("out"), store) is False
 

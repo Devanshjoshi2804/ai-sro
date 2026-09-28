@@ -172,18 +172,23 @@ def _during(workflow: Workflow, gestures: Mapping[str, Gesture]) -> list[Gesture
         return []
     first, last = min(one.at for one in cited), max(one.at for one in cited)
     streams = {one.stream_id for one in cited}
+    ids = {one.id for one in cited}
+    systems = {origin_of(one.system or "") for one in cited}
     return [
         gesture
         for gesture in gestures.values()
-        if gesture.stream_id in streams and first <= gesture.at <= last
+        if gesture.stream_id in streams
+        and first <= gesture.at <= last
+        and (gesture.id in ids or origin_of(gesture.system or "") in systems)
     ]
 
 
 def signs_in(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
     during = _during(workflow, gestures)
+    own = _its_own_writes(workflow, gestures)
     return (
         any(_signed_in_here(gesture) for gesture in during)
-        and not any(_did_business(gesture) for gesture in during)
+        and not any(_did_business(gesture) and gesture.id not in own for gesture in during)
         and all(
             is_sign_in_step(workflow, step, gestures)
             for step in workflow.steps
@@ -233,11 +238,18 @@ def signs_out(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
 
 
 def _ends_the_session(gesture: Gesture) -> bool:
+    if gesture.action.kind not in ("click", "press"):
+        return False
     target = gesture.action.target
+    if target is not None and any(
+        _SIGN_OUT.search(said or "") for said in (target.name, target.text)
+    ):
+        return True
+    marks = [mark.url for mark in gesture.page_events if mark.url]
     return (
-        gesture.action.kind in ("click", "press")
-        and target is not None
-        and any(_SIGN_OUT.search(said or "") for said in (target.name, target.text))
+        bool(marks)
+        and _signed_out_page(marks[-1])
+        and not _signed_out_page(gesture.page_url or gesture.url or "")
     )
 
 
@@ -295,7 +307,7 @@ def signs_in_to(workflow: Workflow, gestures: Mapping[str, Gesture]) -> tuple[st
         ),
         key=lambda gesture: gesture.at,
     )
-    leave = next((index for index, one in enumerate(after) if passed_through(one)), None)
+    leave = next((index for index, one in enumerate(after) if _left(one, gestures)), None)
     if leave is None:
         return None
     worked = next(
@@ -346,9 +358,58 @@ def _split(
     if first is None:
         return [], False, []
     for index in range(first, len(cited)):
-        if passed_through(cited[index]):
+        if _left(cited[index], gestures):
             return cited[first : index + 1], True, cited[index + 1 :]
     return cited[first:], False, []
+
+
+def _left(gesture: Gesture, gestures: Mapping[str, Gesture]) -> bool:
+    if passed_through(gesture):
+        return True
+    if gesture.page_events:
+        return False
+    here = origin_of(gesture.system or "")
+    after = min(
+        (
+            one
+            for one in _tab_of(gesture, gestures)
+            if gesture.at <= one.at <= gesture.at + K_SITTING_GAP_S
+        ),
+        key=lambda one: one.at,
+        default=None,
+    )
+    return after is not None and origin_of(after.system or "") not in ("", here)
+
+
+def _tab_of(gesture: Gesture, gestures: Mapping[str, Gesture]) -> list[Gesture]:
+    return [
+        one
+        for one in gestures.values()
+        if one is not gesture
+        and one.stream_id == gesture.stream_id
+        and one.tab_id == gesture.tab_id
+    ]
+
+
+def _its_own_writes(workflow: Workflow, gestures: Mapping[str, Gesture]) -> set[str]:
+    chain, left = _chain(workflow, gestures)
+    if not left:
+        return set()
+    leave = chain[-1]
+    here = origin_of(leave.system or "")
+    before = sorted(
+        (one for one in _tab_of(leave, gestures) if one.at <= leave.at),
+        key=lambda one: one.at,
+        reverse=True,
+    )
+    run = [leave]
+    for one in before:
+        if origin_of(one.system or "") != here:
+            return (
+                {gesture.id for gesture in run if _did_business(gesture)} if one.system else set()
+            )
+        run.append(one)
+    return set()
 
 
 def _only_signs_in(workflow: Workflow, gestures: Mapping[str, Gesture]) -> bool:
@@ -399,31 +460,33 @@ def _acts(gesture: Gesture) -> bool:
 
 
 def is_sign_in_step(workflow: Workflow, step: Step, gestures: Mapping[str, Gesture]) -> bool:
+    own = _its_own_writes(workflow, gestures)
     cited = [gestures[one] for one in step.cites if one in gestures]
-    if not cited or any(_did_business(gesture) for gesture in cited):
+    if not cited or any(_did_business(gesture) and gesture.id not in own for gesture in cited):
         return False
+    mine = replace(step, cites=[one for one in step.cites if one not in own])
     typed = [one.at for one in _in_time(workflow, gestures) if _typed_the_credential(one)]
     lands = _lands_on(workflow, gestures)
     if (
         typed
         and lands is not None
-        and not writes(step, gestures)
+        and not writes(mine, gestures)
         and all(one.at < min(typed) and origin_of(one.system or "") != lands for one in cited)
     ):
         return True
     leaves = _leaves_at(workflow, gestures)
     if leaves is not None and any(gesture.at > leaves for gesture in cited):
         return False
-    left = any(passed_through(gesture) for gesture in cited)
+    left = any(_left(gesture, gestures) for gesture in cited)
     acts = [
         gesture
         for gesture in cited
         if _acts(gesture) and not (left and _on_the_credential(gesture))
     ]
-    if not all(map(passed_through, acts)):
+    if not all(_left(gesture, gestures) for gesture in acts):
         return False
     carries = _carries_the_credential(step, gestures)
-    if carries and not writes(step, gestures):
+    if carries and not writes(mine, gestures):
         return True
     return (carries or _after_the_credential(workflow, step, gestures)) and left
 

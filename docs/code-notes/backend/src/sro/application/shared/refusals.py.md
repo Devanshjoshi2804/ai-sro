@@ -19,3 +19,20 @@ Comments and docstrings moved out of [`backend/src/sro/application/shared/refusa
 > was spent and what the cap is -- plus how many of the day's calls came back
 > unpriced, because a day stopped by blindness and a day stopped by cost need
 > different people to do different things.
+
+## `RunRefused`, [line 8](../../../../../../../backend/src/sro/application/shared/refusals.py#L8): Docstring
+
+> The press named something this job cannot be performed with.
+>
+> The rig's own 400, kept: the body parsed and its shape was right -- what it
+> named was not a step of this job, or a value this job needs was not in it.
+> Not a `DomainError`, for `OfferRefused`'s reason: a 422 is what a malformed
+> body gets, and this body was not malformed.
+>
+> Never echoes a value out of the body. `str(exc)` becomes the `detail` of a
+> problem document, and a refusal quoting the values writes a warehouse's own
+> data into every access log between the browser and here.
+>
+> Lives beside `OverCap` rather than in `workflow_runs`, which re-exports it:
+> `Converse` catches it when a yes is refused its start, and `workflow_runs`
+> imports `announce`, which imports `converse` -- a cycle at import time.

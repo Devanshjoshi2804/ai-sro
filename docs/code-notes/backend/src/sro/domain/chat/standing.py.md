@@ -18,8 +18,8 @@ Comments and docstrings moved out of [`backend/src/sro/domain/chat/standing.py`]
 ## `last_run`, [line 22](../../../../../../../backend/src/sro/domain/chat/standing.py#L22): Docstring
 
 > The run this conversation last named. Every message about a run carries its
-> id (`Said.RUN` from `SayTheRunStarted`, `run_asks` from `RunSteps`, a note
-> the operator addressed to it), so the last one is the run the thread is
+> id (the `job` a yes became, from `Converse._start_it`; `run_asks` from
+> `RunSteps`; a note the operator addressed to it), so the last one is the run the thread is
 > about. Whether that run still stands is the row's to say, not the thread's.
 
 ## `stands`, [line 30](../../../../../../../backend/src/sro/domain/chat/standing.py#L30): Docstring

@@ -637,82 +637,6 @@ function stillAsking(thread) {
   return false;
 }
 
-/** Start a job that was already said yes to, as soon as the last answer lands.
- *
- * The run went looking for values nobody typed, came back short of one, and
- * ended -- and what it could not find became a question in the operator's own
- * thread. They answered it. The alternative to this function is drawing them
- * another card with another "Yes, do it" on it, for the job they already
- * pressed yes on and have just spent three answers finishing.
- *
- * `resume` is the door's word for that, and it is the door's to give: this
- * browser must not decide that a press was implied. `watched` rides along
- * because the two ways of doing the job are not interchangeable -- somebody
- * sitting in the panel answering questions is somebody watching, and a run
- * that replayed the call in front of them would finish with the page never
- * having moved.
- */
-async function resumeTheJob(placed) {
-  try {
-    const started = await api.rigStart({
-      workflow_id: placed.workflow_id,
-      values: placed.values || {},
-      items: Array.isArray(placed.items) ? placed.items : [],
-      device_id: await state.deviceId(),
-      live: true,
-      allow_focus: true,
-      matched: 0,
-      // Where the run that asked the question had got to.
-      //
-      // Without it this starts at step 0 and re-walks everything the first run
-      // performed: on `Create a Customer Type` it re-opens the mail,
-      // re-navigates, presses Add again and re-types both fields, to arrive
-      // back at the box it stopped in front of. `matched` stays 0 because that
-      // counts GESTURES a browser tail matched and this is a step, and sending
-      // one as the other is the defect that marked steps done nobody had done.
-      from_step: Number.isInteger(placed.from_step) ? placed.from_step : 0,
-      // Which outside conversation this run answers to, carried by the door
-      // through every question. Without it a run started by an ANSWER is
-      // findable by nobody while one started by a PRESS is findable by a
-      // reply -- and which of the two happened is not something the person who
-      // sent the request can see.
-      mail_thread: placed.mail_thread || "",
-      watched: placed.watched !== false,
-      // The question this answers. The backend records the run against it
-      // under a unique index, so a second start of it -- a second panel, a
-      // typed yes beside a press -- is refused rather than a second write.
-      ...(placed.offer ? { offer: placed.offer } : {}),
-    });
-    await state.setActiveRun({
-      runId: started.id,
-      at: Date.now(),
-      source: "rig",
-    });
-    // And say so where the decision was made. The thread holds the request,
-    // the question and the answer; without this it stops one line short of
-    // what came of them, and the run is only visible on the other pane.
-    //
-    // After the run is claimed and never before: a message naming a run that
-    // failed to start is a thread saying something happened that did not.
-    // Failing to SAY it is not failing to run it, so this cannot take the run
-    // down with it.
-    try {
-      await api.runStarted({ run_id: started.id, title: placed.title || "" });
-    } catch (error) {
-      console.warn("[sro] the run started and the thread was not told", error);
-    }
-    void pollRigRun();
-    return started.id;
-  } catch (error) {
-    // Said in the console and nowhere else on purpose. The thread already
-    // says the job is running; a second card apologising for it is the panel
-    // narrating its own plumbing, and the run's own row is where a failure to
-    // start shows up.
-    console.warn("[sro] the answered job could not be started", error);
-    return null;
-  }
-}
-
 /** A card for a job a mail asked for.
  *
  * Held here and never said into the thread, which is the rule this surface
@@ -2373,11 +2297,18 @@ async function handle(message, sender) {
       // of the same words. That second reading was a second model call per
       // sentence, and the two could disagree.
       const placed = jobInTheReply(said);
-      // The last answer to a question this job asked starts it. They pressed
-      // yes before any of the questions; asking for the same permission a
-      // second time is how a panel teaches somebody to stop reading it.
-      if (placed?.resume) void resumeTheJob(placed);
-      else if (placed) void offerFromJob(placed, message.tabId ?? null);
+      // A yes, or the last answer to a question, and the backend has already
+      // started the run -- from every door, the console and a mail as well as
+      // this panel -- and named it here. This browser watches it: starting it
+      // again would be a second run of one offer.
+      if (placed?.run_id) {
+        await state.setActiveRun({
+          runId: placed.run_id,
+          at: Date.now(),
+          source: "rig",
+        });
+        void pollRigRun();
+      } else if (placed) void offerFromJob(placed, message.tabId ?? null);
       // And a sentence the thread is still holding a question open for is not
       // an unread sentence. `offerFromWords` is for the case where the door
       // read it and placed no job at all.

@@ -211,9 +211,11 @@ async def say(
 ) -> ThreadDetail:
     """Say something and get the whole thread back, decision included.
 
-    Nothing is performed here. A matched skill is offered; starting it is the
-    operator's next request, and that is what makes their confirmation the
-    authorisation an assisted run records.
+    A matched skill is offered; starting it is the operator's next request,
+    and that is what makes their confirmation the authorisation an assisted
+    run records. A yes (or the last answer) to a job offer is that request: it
+    starts the run here, through the same start `POST /v1/workflow-runs` uses,
+    and the reply names the run -- or says in words why nothing was started.
     """
     thread = await container.converse().execute(
         ctx,

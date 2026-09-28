@@ -1059,7 +1059,9 @@ function saying(
     } else item.dataset.answered = "sent";
   } else if (kind === "result") {
     item.append(pressing(KINDS.result, message, item, onPress));
-  } else if (kind === "run" && runs) {
+  } else if ((kind === "run" || kind === "job") && runs) {
+    // `run`, and the `job` a yes became: the backend starts that run itself
+    // and names it on the message that says so.
     const live = runs.get?.(message.decision.run_id);
     if (live) item.append(live);
   }

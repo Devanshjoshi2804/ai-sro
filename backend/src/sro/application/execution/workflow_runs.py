@@ -34,7 +34,7 @@ from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.vault import CredentialVault
-from sro.application.shared.refusals import OverCap
+from sro.application.shared.refusals import OverCap, RunRefused
 from sro.application.skill.job_facts import job_facts
 from sro.domain.chat.asking import (
     NEEDS,
@@ -86,10 +86,6 @@ logger = logging.getLogger(__name__)
 
 
 DraftsForTheAsker = Callable[[RequestContext, str, Pending], Awaitable[bool]]
-
-
-class RunRefused(Exception):
-    code = "run_refused"
 
 
 K_EVERY_FORM = 400
@@ -169,6 +165,7 @@ class StartWorkflowRun:
         offer: str = "",
         took_over: Took | None = None,
         device_secret: str = "",
+        then: Callable[[UnitOfWork, WorkflowRun], Awaitable[None]] | None = None,
     ) -> WorkflowRun:
         asker_or_refuse(self._asker)
         now: datetime = self._clock.now()
@@ -285,6 +282,8 @@ class StartWorkflowRun:
                 pinned=pin(workflow),
             )
             await uow.workflow_runs.save(run)
+            if then is not None:
+                await then(uow, run)
             await uow.commit()
             return run
 

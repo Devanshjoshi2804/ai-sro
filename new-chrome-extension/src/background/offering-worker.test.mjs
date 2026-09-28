@@ -237,7 +237,6 @@ const rigServer = async (url, options = {}) => {
     return json(threadSaid || { id: "thr-1", messages: [] });
   if (path === "/v1/chat")
     return chatRead ? json(chatRead) : json({ detail: "no model" }, 503);
-  if (path === "/v1/chat/run-started") return json({}, 204);
   if (path === "/v1/chat/about-an-offer")
     return askedAbout
       ? json(askedAbout, askedAbout.detail ? 503 : 200)
@@ -1925,11 +1924,11 @@ test("a sentence in the panel becomes the same offer a recognised walk makes", a
   );
 });
 
-test("the answer that finishes a job resumes it where it stopped", async () => {
-  // Without this the run starts at step 0 and re-walks everything the first
-  // one performed: on `Create a Customer Type` it re-opens the mail,
-  // re-navigates, presses Add again and re-types both fields, to arrive back
-  // at the box it stopped in front of.
+test("a yes the backend already started is watched, never started again", async () => {
+  // The backend starts the run itself on a yes, from every door (S2), and says
+  // so with the run's id. A second start from this browser would be a second
+  // run of one offer -- refused by the backend's unique index, but a write
+  // nobody asked for is not this browser's to attempt.
   ready();
   threadSaid = {
     id: "thr-1",
@@ -1949,6 +1948,7 @@ test("the answer that finishes a job resumes it where it stopped", async () => {
           kind: "job",
           workflow_id: "wfl_wa",
           resume: true,
+          run_id: "run-9",
           from_step: 4,
           values: { workArea: "NSRO" },
           watched: true,
@@ -1965,26 +1965,26 @@ test("the answer that finishes a job resumes it where it stopped", async () => {
     tabId: TAB,
   });
   await until(
-    () => calls.some((call) => call.path === "/v1/workflow-runs"),
-    "the last answer started nothing",
+    () => held.get("sro.activeRun")?.runId === "run-9",
+    "the panel was never told which run the backend started",
   );
 
-  const started = JSON.parse(
-    calls.find((call) => call.path === "/v1/workflow-runs").body,
+  assert.equal(held.get("sro.activeRun").source, "rig");
+  assert.deepEqual(
+    calls.filter(
+      (call) =>
+        call.path === "/v1/workflow-runs" ||
+        call.path === "/v1/chat/run-started",
+    ),
+    [],
+    "this browser started, or announced, a run the backend had already started",
   );
-  assert.equal(started.workflow_id, "wfl_wa");
-  assert.equal(
-    started.from_step,
-    4,
-    "it started the job again from the beginning",
+  assert.ok(
+    !JSON.stringify(held.get("sro.nudges") || []).includes("wfl_wa"),
+    "a card offered the job that is already running",
   );
-  // `matched` is a GESTURE count and stays 0: sending a step as one is the
-  // defect that marked steps done nobody had done.
-  assert.equal(started.matched, 0);
-  assert.deepEqual(started.values, { workArea: "NSRO" });
-  // The offer it answers, so a second start of it is refused by the backend.
-  assert.equal(started.offer, "m-question");
   threadSaid = null;
+  held.delete("sro.activeRun");
 });
 
 test("a mail the backend already asked about in the conversation is not also a card", async () => {
@@ -2430,57 +2430,6 @@ test("a look that fails is not a red line in the panel", async () => {
 
   assert.equal(looked.ok, true);
   assert.match(looked.skipped, /no model/);
-});
-
-test("the run an answer starts is said into the conversation that authorised it", async () => {
-  // The thread holds the request, the question and the answer, and stopped one
-  // line short of what came of them -- so the conversation said "Running X…"
-  // and the run itself was only ever visible on the other pane.
-  ready();
-  threadSaid = {
-    id: "thr-1",
-    messages: [
-      {
-        id: "m1",
-        speaker: "operator",
-        text: "NSRO",
-        said_at: "2026-09-18T11:20:01Z",
-      },
-      {
-        id: "m2",
-        speaker: "assistant",
-        text: "Running Create a Customer Type now.",
-        said_at: "2026-09-18T11:20:02Z",
-        decision: {
-          kind: "job",
-          workflow_id: "wfl_wa",
-          resume: true,
-          from_step: 0,
-          title: "Create a Customer Type",
-          values: { workArea: "NSRO" },
-          watched: true,
-        },
-      },
-    ],
-  };
-
-  await send({
-    kind: "thread-say",
-    threadId: "thr-1",
-    text: "NSRO",
-    tabId: TAB,
-  });
-  await until(
-    () => calls.some((call) => call.path === "/v1/chat/run-started"),
-    "the thread was never told which run came of the answer",
-  );
-
-  const told = JSON.parse(
-    calls.find((call) => call.path === "/v1/chat/run-started").body,
-  );
-  assert.equal(told.run_id, "run-9");
-  assert.equal(told.title, "Create a Customer Type");
-  threadSaid = null;
 });
 
 test("one request arriving as two mails makes one card", async () => {

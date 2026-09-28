@@ -632,38 +632,32 @@ async def test_a_quoted_reply_on_a_thread_with_a_run_is_asked_about_not_run_agai
 async def test_do_it_on_the_question_starts_exactly_one_run_through_the_press() -> None:
     world = await mail_world(sure=True, values=EVERY_VALUE, steel=True)
     await world.polling(_addressed(OPERATOR, "colleague@example.com"), _sure()).execute()
+    asked = await _should_we(world)
     thread = await _thread(world.uow)
     converse = Converse(
         world.uow,
         ResolveIntent(world.uow, PlanTask(Retrieve(world.uow, FakeEmbedder()))),
         FakeClock(),
         FakeIdFactory(),
+        start=world.start,
     )
 
     said = await converse.execute(CTX, thread_id=thread.id, text="yes")
 
     go = said.messages[-1].decision
     assert go is not None and go["kind"] == "job" and go["resume"] is True
-    # What the panel's press sends, as `POST /v1/workflow-runs` does it.
-    run = await world.start.execute(
-        CTX,
-        workflow_id=str(go["workflow_id"]),
-        device_id=None,
-        values=go["values"],
-        live=True,
-        allow_focus=True,
-        conversation=(SERVER, str(go["mail_thread"])),
-        offer=str(go["offer"]),
-    )
-    await world.start.perform(CTX, run)
-    assert len(world.durable.runs_started) == 1
-    # A second start of the same offer -- a second panel, a typed yes -- is refused.
+    (run,) = await world.uow.workflow_runs.for_workflow(f.TENANT, JOB)
+    assert go["run_id"] == run.id and run.offer == asked["offer"]
+    assert run.values == EVERY_VALUE
+    assert [one for one, _ in world.durable.runs_started] == [run.id]
+    # A second start of the same offer -- a second panel, an older extension's
+    # own press -- is refused.
     with pytest.raises(Conflict):
         await world.start.execute(
             CTX,
             workflow_id=str(go["workflow_id"]),
             device_id=None,
-            values=go["values"],
+            values=EVERY_VALUE,
             live=True,
             allow_focus=True,
             offer=str(go["offer"]),
@@ -735,6 +729,7 @@ async def _two_questions() -> tuple[Converse, Any, str, str]:
         ResolveIntent(world.uow, PlanTask(Retrieve(world.uow, FakeEmbedder()))),
         FakeClock(),
         FakeIdFactory(),
+        start=world.start,
     )
     return converse, thread, first, second
 

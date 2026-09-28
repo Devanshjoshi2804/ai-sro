@@ -20,6 +20,7 @@ from sro.application.context import RequestContext
 from sro.application.knowledge.retrieve import Retrieve
 from sro.application.lookup.plan_lookups import PlanLookups
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel, KnowledgeEntry, KnowledgeId
+from sro.domain.prompts.plan_lookup import PLAN_LOOKUP
 from sro.domain.shared.prices import Answer
 from tests import factories as f
 from tests.unit.fakes import FakeAsker, FakeClock, FakeUnitOfWork
@@ -348,7 +349,10 @@ async def test_a_model_that_answered_nothing_usable_is_a_refusal_not_a_plan() ->
     planned = await planner.execute(CTX, question="which suppliers are set up at SG")
 
     assert planned.plan.lookups == ()
-    assert planned.refused == "plan_lookup v1: the answer does not match its schema"
+    assert (
+        planned.refused
+        == f"plan_lookup v{PLAN_LOOKUP.version}: the answer does not match its schema"
+    )
 
 
 @pytest.mark.parametrize("how", ["post", "delete", "write", ""])

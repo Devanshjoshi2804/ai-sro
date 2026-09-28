@@ -29,7 +29,7 @@ not."""
 
 PLAN_LOOKUP = Prompt(
     name="plan_lookup",
-    version=1,
+    version=2,
     model="gemini-3.8-flash",
     fallback_model="gemini-3.7-flash",
     thinking=None,
@@ -60,6 +60,14 @@ PLAN_LOOKUP = Prompt(
         "required": ["why", "lookups"],
         "propertyOrdering": ["why", "lookups"],
     },
+    rules=(
+        "Nobody approves these lookups before they run against the operator's live systems.",
+        "If you are not sure a lookup answers the question, leave it out.",
+        "Every `target` and every `cites` entry is a key from the knowledge you were given, "
+        "copied exactly.",
+        "Never put a password, a one-time code or a token in `params`, and never plan a "
+        "lookup for one.",
+    ),
     edge_cases=(
         EdgeCase(
             "a question an endpoint in the knowledge answers",
@@ -71,6 +79,14 @@ PLAN_LOOKUP = Prompt(
         ),
         EdgeCase(
             "a question asking to delete a record",
+            "no lookups, and `why` declines",
+        ),
+        EdgeCase(
+            "a question about Equipment Types, and only a Customer Type endpoint in the knowledge",
+            "no lookups: a path that looks like the others is not guessed",
+        ),
+        EdgeCase(
+            "a question asking for the acme portal password",
             "no lookups, and `why` declines",
         ),
     ),

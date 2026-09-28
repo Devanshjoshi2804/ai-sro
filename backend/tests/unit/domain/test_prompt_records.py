@@ -353,6 +353,14 @@ _STATED: tuple[tuple[Prompt, str, str], ...] = (
     (GATHER, "ask", "When you are not sure a value is the one asked for, leave it out"),
     (GATHER, "citations", "`quoting` is copied from that message"),
     (GATHER, "secrets", "Never search for, report or quote a password, a one-time code or a token"),
+    (PLAN_LOOKUP, "autonomy", "Nobody approves these lookups before they run against"),
+    (PLAN_LOOKUP, "ask", "If you are not sure a lookup answers the question, leave it out"),
+    (
+        PLAN_LOOKUP,
+        "citations",
+        "Every `target` and every `cites` entry is a key from the knowledge you were given",
+    ),
+    (PLAN_LOOKUP, "secrets", "Never put a password, a one-time code or a token in `params`"),
 )
 
 

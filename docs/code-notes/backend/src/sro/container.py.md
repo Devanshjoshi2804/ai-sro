@@ -427,21 +427,26 @@ Code: `driving_runs: AsyncConnection | None = None`
 > Everything that used to take ``self.browser`` takes this instead, so
 > an unowned session cannot be produced by anything this system runs.
 
-## `Container.ask_about_the_offer`, [line 784](../../../../../backend/src/sro/container.py#L784): Docstring
+## `Container.converse`, [line 783](../../../../../backend/src/sro/container.py#L783): Comment
+
+Code: `spawn=self.pursuits.spawn,`
+
+> A chat yes starts the run (S2) and hands it on the way the press route
+> does: `pursuits.spawn`, held so the loop cannot collect it mid-gesture,
+> never awaited inside the chat request -- a run in the operator's browser
+> is driven for its whole length by `perform`.
+
+## `Container.ask_about_the_offer`, [line 787](../../../../../backend/src/sro/container.py#L787): Docstring
 
 > The card's way into the conversation the chat door already runs.
 
-## `Container.draft_for_the_asker`, [line 787](../../../../../backend/src/sro/container.py#L787): Docstring
+## `Container.draft_for_the_asker`, [line 790](../../../../../backend/src/sro/container.py#L790): Docstring
 
 > Write the mail to whoever asked. It cannot send one.
 
-## `Container.send_the_draft`, [line 790](../../../../../backend/src/sro/container.py#L790): Docstring
+## `Container.send_the_draft`, [line 793](../../../../../backend/src/sro/container.py#L793): Docstring
 
 > Send the mail a person read and pressed. It cannot write one.
-
-## `Container.say_the_run_started`, [line 793](../../../../../backend/src/sro/container.py#L793): Docstring
-
-> The other half of the spine: what came of the answer.
 
 ## `Container.from_the_mail`, [line 796](../../../../../backend/src/sro/container.py#L796): Docstring
 

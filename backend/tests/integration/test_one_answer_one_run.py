@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
@@ -19,7 +20,7 @@ from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
 from sro.application.knowledge.retrieve import Retrieve
 from sro.domain.chat.asking import Pending
-from sro.domain.chat.thread import Message, MessageId, Speaker
+from sro.domain.chat.thread import Message, MessageId, Speaker, Thread, ThreadId
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.shared.errors import Conflict
 from sro.infrastructure.db.repositories import SqlUnitOfWork
@@ -31,17 +32,25 @@ from tests.unit.fakes import FakeClock, FakeDurableExecution, FakeEmbedder
 from tests.unit.runtime_support import save_job
 
 
-def _converse(sessions: async_sessionmaker[AsyncSession]) -> Converse:
+def _converse(
+    sessions: async_sessionmaker[AsyncSession], starts_in: SqlUnitOfWork | None = None
+) -> Converse:
     uow = SqlUnitOfWork(sessions)
     return Converse(
-        uow, ResolveIntent(uow, PlanTask(Retrieve(uow, FakeEmbedder()))), FakeClock(), UuidFactory()
+        uow,
+        ResolveIntent(uow, PlanTask(Retrieve(uow, FakeEmbedder()))),
+        FakeClock(),
+        UuidFactory(),
+        start=_starter(
+            starts_in or SqlUnitOfWork(sessions),
+            durable=FakeDurableExecution(),
+            steel_tenants=frozenset({f.TENANT.value}),
+        ),
     )
 
 
-async def test_two_presses_of_one_question_give_one_answer(
-    session_factory: async_sessionmaker[AsyncSession],
-) -> None:
-    uow = await _held_in(SqlUnitOfWork(session_factory))
+async def _asked_to_run(sessions: async_sessionmaker[AsyncSession]) -> tuple[ThreadId, str]:
+    uow = await _held_in(SqlUnitOfWork(sessions))
     thread = await StartThread(uow, FakeClock(), UuidFactory()).execute(CTX)
     await AskAboutTheOffer(uow, FakeClock(), UuidFactory()).execute(
         CTX,
@@ -55,25 +64,85 @@ async def test_two_presses_of_one_question_give_one_answer(
         mail_thread="t-2",
         ask_to_run=True,
     )
-    async with SqlUnitOfWork(session_factory) as reading:
+    async with SqlUnitOfWork(sessions) as reading:
         question = (await reading.threads.get(CTX.tenant_id, thread.id)).messages[-1].id.value
+    return thread.id, question
+
+
+async def _said(sessions: async_sessionmaker[AsyncSession], thread_id: ThreadId) -> list[Message]:
+    async with SqlUnitOfWork(sessions) as reading:
+        return list((await reading.threads.get(CTX.tenant_id, thread_id)).messages)
+
+
+async def _runs(sessions: async_sessionmaker[AsyncSession]) -> list[WorkflowRun]:
+    async with SqlUnitOfWork(sessions) as reading:
+        return list(await reading.workflow_runs.for_workflow(f.TENANT, JOB))
+
+
+async def test_two_presses_of_one_question_give_one_answer_and_one_run(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    thread_id, question = await _asked_to_run(session_factory)
 
     one, other = await asyncio.gather(
         *(
             _converse(session_factory).execute(
-                CTX, thread_id=thread.id, text="yes", answering=question
+                CTX, thread_id=thread_id, text="yes", answering=question
             )
             for _ in range(2)
         )
     )
 
-    # What each press hands its browser: a `resume` is a run the browser starts.
-    told = [(reply.messages[-1].decision or {}).get("resume") for reply in (one, other)]
-    assert sorted(bool(it) for it in told) == [False, True], told
-    async with SqlUnitOfWork(session_factory) as reading:
-        said = (await reading.threads.get(CTX.tenant_id, thread.id)).messages
-    assert sum(bool((m.decision or {}).get("resume")) for m in said) == 1
+    told = [(reply.messages[-1].decision or {}).get("run_id") for reply in (one, other)]
+    (run,) = await _runs(session_factory)
+    # The loser is told the run it lost to wherever it found the question
+    # closed under the lock; a press that read it closed before it ever
+    # started names nothing, and the panel's refresh finds the run instead.
+    assert run.id in told and set(told) <= {None, run.id}, told
+    said = await _said(session_factory, thread_id)
+    assert [m.decision.get("run_id") for m in said if m.text.startswith("Running ")] == [run.id]
     assert any(m.text.startswith("That question is no longer open") for m in said)
+
+
+class _DiesWritingTheMessage(SqlUnitOfWork):
+    """The process dies with the run claimed, writing the message that names it."""
+
+    async def __aenter__(self) -> SqlUnitOfWork:
+        entered = await super().__aenter__()
+
+        async def dies(_thread: Thread) -> None:
+            raise RuntimeError("the process died writing the message")
+
+        entered.threads.save = dies  # type: ignore[method-assign, assignment]
+        return entered
+
+
+class _DiesAtCommit(SqlUnitOfWork):
+    """The process dies with the run claimed and its message written, before
+    either is committed."""
+
+    async def commit(self) -> None:
+        raise RuntimeError("the process died before the commit")
+
+
+@pytest.mark.parametrize("dying", [_DiesWritingTheMessage, _DiesAtCommit])
+async def test_a_crash_between_the_run_and_its_message_leaves_neither(
+    session_factory: async_sessionmaker[AsyncSession], dying: type[SqlUnitOfWork]
+) -> None:
+    thread_id, question = await _asked_to_run(session_factory)
+    dies = _converse(session_factory, starts_in=dying(session_factory))
+
+    with pytest.raises(RuntimeError):
+        await dies.execute(CTX, thread_id=thread_id, text="yes", answering=question)
+
+    assert await _runs(session_factory) == []
+    assert not any(m.text.startswith("Running ") for m in await _said(session_factory, thread_id))
+    again = await _converse(session_factory).execute(
+        CTX, thread_id=thread_id, text="yes", answering=question
+    )
+    (run,) = await _runs(session_factory)
+    assert again.messages[-1].decision is not None
+    assert again.messages[-1].decision["run_id"] == run.id
 
 
 async def test_two_starts_of_one_offer_make_one_run(

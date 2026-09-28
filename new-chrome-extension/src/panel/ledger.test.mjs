@@ -212,6 +212,32 @@ test("a decision this panel does not know renders its words and no buttons", () 
   assert.equal(of(message, "button").length, 0);
 });
 
+test("the run a yes started is drawn under the message that names it", () => {
+  // The backend starts the run on a yes and says so on the `job` message it
+  // answers with; there is no separate `run` announcement any more (S2).
+  const drawn = document.createElement("div");
+  drawn.className = "live-run";
+  const node_ = ledger(
+    {
+      id: "thr-1",
+      messages: [
+        {
+          id: "m1",
+          speaker: "assistant",
+          text: "Running Create a Customer Type now.",
+          said_at: WHEN,
+          decision: { kind: "job", resume: true, run_id: "run_9" },
+        },
+      ],
+    },
+    {},
+    { runs: new Map([["run_9", drawn]]) },
+  );
+
+  const [message] = messages(node_);
+  assert.ok(message.kids.includes(drawn), "the running job has no run card");
+});
+
 test("message text is never parsed as markup", () => {
   // Message text is operator- and model-supplied, and this panel is an
   // extension origin with `chrome.*` in reach. `innerHTML` here is not a style

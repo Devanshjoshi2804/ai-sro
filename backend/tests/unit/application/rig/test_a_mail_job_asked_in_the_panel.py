@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import Mapping
+from collections.abc import Coroutine, Mapping
 from datetime import UTC, datetime
 from typing import Any
 
@@ -186,6 +186,8 @@ class _World:
         self.mailbox = mailbox or _Mailbox()
         self.asker = FakeAsker(*answers)
         self.durable = FakeDurableExecution()
+        # S2: a chat yes starts the run itself and hands `perform` on here.
+        self.spawned: list[Coroutine[object, object, None]] = []
         self.starter = StartWorkflowRun(
             self.uow,
             channel=FakeChannel(),
@@ -223,13 +225,16 @@ class _World:
             self.ids,
             reads_jobs=_PlacesTheJob(_understood(JOB, values=values, missing=missing)),
             answer_run=self.answering(),
+            start=self.starter,
+            spawn=self.spawned.append,
         )
 
     async def said_yes(
-        self, *, before_yes: list[tuple[RequestContext, str]] | None = None
+        self, *, before_yes: list[tuple[RequestContext, str]] | None = None, hold: bool = True
     ) -> dict[str, Any]:
         """The operator's request and Yes, through the chat as it runs."""
-        await self.held()
+        if hold:
+            await self.held()
         converse = self.converse({"recipient": TO, "subject": "Hi"})
         thread = await StartThread(self.uow, self.clock, self.ids).execute(A)
         await converse.execute(A, thread_id=thread.id, text=REQUEST)
@@ -247,7 +252,19 @@ class _World:
         conversation: tuple[str, str] = ("", ""),
         offer: str | None = None,
     ) -> WorkflowRun:
-        """The press the panel makes for that decision, and the run it drafts."""
+        """The run the chat's yes started (S2) -- or, for another door, the
+        press that door makes -- and what it drafts."""
+        if decision.get("run_id") and offer is None:
+            for performing in self.spawned:
+                await performing
+            self.spawned.clear()
+            saved = await self.uow.workflow_runs.get(f.TENANT, str(decision["run_id"]))
+            assert saved is not None
+            return saved
+        # Another door's start: the chat's own run is not what this test drives.
+        for untouched in self.spawned:
+            untouched.close()
+        self.spawned.clear()
         run = await self.starter.execute(
             A,
             workflow_id=JOB,
@@ -576,6 +593,7 @@ async def test_mail_never_answers_what_a_mail_says() -> None:
     reply = json.dumps({"id": "m-9", "thread_id": "t-mail", "sent": True, "body": "Say hi"})
     inbox = _Inbox(search=_found("m-9"), **{"m-9": reply})
     reads = _MailReads()
+    runs = list(world.uow.workflow_runs.rows)
 
     looked = await _look(world.uow, inbox, reads, resume=world.starter.answered).execute(A)
 
@@ -584,7 +602,7 @@ async def test_mail_never_answers_what_a_mail_says() -> None:
     saved = await world.uow.workflow_runs.get(f.TENANT, run.id)
     assert saved is not None and Progress.of(saved.progress).asking == asking
     assert reads.saw == [], "the reply is never read as a new request"
-    assert list(world.uow.workflow_runs.rows) == [run.id], "and never starts a second run"
+    assert list(world.uow.workflow_runs.rows) == runs, "and never starts a second run"
 
 
 async def test_a_request_relayed_from_mail_and_answered_in_the_chat_is_never_trusted() -> None:
@@ -812,7 +830,10 @@ async def test_on_steel_a_mail_that_cannot_be_written_asks_the_starter_for_words
     only then is the address their request named kept on the job."""
     said = "Tell them this is a test email."
     world = _World(*BLANK_ON_BOTH, _wrote())
-    decision = await world.said_yes()
+    world.on_steel()
+    await world.held()
+    await world.uow.workflows.save(_one_step())
+    decision = await world.said_yes(hold=False)
     steps = await _on_steel(world)
     run = await world.start(decision)
     assert (run.executor, run.outcome) == ("steel", "running")
@@ -846,7 +867,10 @@ async def test_on_steel_a_mail_that_cannot_be_written_asks_the_starter_for_words
 
 async def test_on_steel_a_done_never_marks_an_unwritten_mail_sent() -> None:
     world = _World(*BLANK_ON_BOTH)
-    decision = await world.said_yes()
+    world.on_steel()
+    await world.held()
+    await world.uow.workflows.save(_one_step())
+    decision = await world.said_yes(hold=False)
     steps = await _on_steel(world)
     run = await world.start(decision)
     await steps.step(A, run.id, stop=asyncio.Event())
@@ -866,7 +890,10 @@ async def test_mail_never_answers_what_a_steel_mail_says() -> None:
     """Invariant 7 on Steel: a mail-started run asking `mail_body` is found by
     the requester's reply and never answered by it."""
     world = _World(*BLANK_ON_BOTH)
-    decision = await world.said_yes()
+    world.on_steel()
+    await world.held()
+    await world.uow.workflows.save(_one_step())
+    decision = await world.said_yes(hold=False)
     steps = await _on_steel(world)
     run = await world.start(decision, conversation=(SERVER, "t-mail"), offer=mail_key("m-req"))
     await steps.step(A, run.id, stop=asyncio.Event())

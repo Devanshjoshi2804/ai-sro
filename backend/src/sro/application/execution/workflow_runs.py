@@ -34,7 +34,7 @@ from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.vault import CredentialVault
-from sro.application.shared.refusals import OverCap
+from sro.application.shared.refusals import OverCap, RunRefused
 from sro.application.skill.job_facts import job_facts
 from sro.domain.chat.asking import (
     NEEDS,
@@ -86,10 +86,6 @@ logger = logging.getLogger(__name__)
 
 
 DraftsForTheAsker = Callable[[RequestContext, str, Pending], Awaitable[bool]]
-
-
-class RunRefused(Exception):
-    code = "run_refused"
 
 
 K_EVERY_FORM = 400
@@ -169,6 +165,7 @@ class StartWorkflowRun:
         offer: str = "",
         took_over: Took | None = None,
         device_secret: str = "",
+        then: Callable[[UnitOfWork, WorkflowRun], Awaitable[None]] | None = None,
     ) -> WorkflowRun:
         asker_or_refuse(self._asker)
         now: datetime = self._clock.now()
@@ -177,15 +174,16 @@ class StartWorkflowRun:
             why = await over_cap(uow, ctx.tenant_id, now=now, cap_usd=self._cap_usd)
             if why is not None:
                 raise OverCap(why)
-            if not steel:
-                if device_id is None:
-                    raise Conflict("this run needs a connected browser")
-                if device_id not in self._channel.online(ctx.tenant_id):
-                    raise Conflict(f"{device_id.value} is not connected")
-                busy = await uow.workflow_runs.in_flight(ctx.tenant_id, device_id)
-                if busy is not None:
-                    raise Conflict(already_running(device_id.value, busy))
+            if not steel and device_id is not None:
+                await self._free(uow, ctx, device_id)
             workflow = await uow.workflows.get(ctx.tenant_id, workflow_id)
+            cited = await uow.gestures.gestures_for(
+                ctx.tenant_id, ids=tuple(sorted(cited_ids(workflow)))
+            )
+            by_id = {gesture.id: gesture for gesture in cited}
+            if not steel and device_id is None and not is_mail_only(workflow, by_id):
+                device_id = await self._their_browser(uow, ctx)
+                await self._free(uow, ctx, device_id)
             given = {name: value.strip() for name, value in values.items() if value.strip()}
             things = (
                 [
@@ -217,10 +215,6 @@ class StartWorkflowRun:
                 raise RunRefused(f"this job needs a value for: {', '.join(absent)}")
             if not workflow.steps:
                 raise RunRefused("this job has no steps")
-            cited = await uow.gestures.gestures_for(
-                ctx.tenant_id, ids=tuple(sorted(cited_ids(workflow)))
-            )
-            by_id = {gesture.id: gesture for gesture in cited}
             if matched is not None:
                 from_step = resumes_at(workflow, by_id, matched)
             last = max(step.order for step in workflow.steps)
@@ -247,6 +241,11 @@ class StartWorkflowRun:
                 ordered = sorted(workflow.steps, key=lambda step: step.order)
                 check_from = (
                     ordered[took.replay_from].order if took.replay_from < len(ordered) else last + 1
+                )
+            elif steel and from_step and matched is None:
+                raise RunRefused(
+                    "this job stopped part-way in your browser, and a Steel run cannot tell "
+                    "what was already done there; ask for it afresh to run it from the start"
                 )
             elif steel and from_step:
                 raise RunRefused(
@@ -285,8 +284,30 @@ class StartWorkflowRun:
                 pinned=pin(workflow),
             )
             await uow.workflow_runs.save(run)
+            if then is not None:
+                await then(uow, run)
             await uow.commit()
             return run
+
+    async def _free(self, uow: UnitOfWork, ctx: RequestContext, device_id: DeviceId) -> None:
+        if device_id not in self._channel.online(ctx.tenant_id):
+            raise Conflict(f"{device_id.value} is not connected")
+        busy = await uow.workflow_runs.in_flight(ctx.tenant_id, device_id)
+        if busy is not None:
+            raise Conflict(already_running(device_id.value, busy))
+
+    async def _their_browser(self, uow: UnitOfWork, ctx: RequestContext) -> DeviceId:
+        online = set(self._channel.online(ctx.tenant_id))
+        theirs = [
+            device
+            for device in await uow.devices.list_for_tenant(ctx.tenant_id)
+            if device.id in online
+            and device.principal_id == ctx.principal_id
+            and not device.revoked
+        ]
+        if not theirs:
+            raise Conflict("none of your browsers is connected")
+        return max(theirs, key=lambda device: device.last_seen_at).id
 
     async def _a_mail_job(
         self, ctx: RequestContext, run: WorkflowRun

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Callable, Coroutine, Sequence
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
+from sro.application.chat.mailbox import SERVER
 from sro.application.chat.read_chat import ReadChat
 from sro.application.chat.reading_an_answer import IsItAnAnswer
 from sro.application.chat.understand import Understood
@@ -25,9 +26,12 @@ from sro.application.lookup.run_lookups import (
     Looked,
     RunLookups,
 )
+from sro.application.observation.record_attempt import RecordAttempt
 from sro.application.ports.http import TargetUnreachable
+from sro.application.ports.model import AskerUnavailable
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
+from sro.application.shared.refusals import OverCap, RunRefused
 from sro.domain.chat.asking import (
     NEEDS,
     Pending,
@@ -53,12 +57,14 @@ from sro.domain.execution.field_classes import field_classes
 from sro.domain.execution.mail_job import MAIL_BODY
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
-from sro.domain.execution.workflow_run import answers_for
+from sro.domain.execution.workflow_run import WorkflowRun, answers_for
 from sro.domain.lookup.asking import is_a_question
+from sro.domain.observation.attempts import DONE, FAILED, REFUSED
 from sro.domain.shared.errors import Conflict, DomainError
 from sro.domain.skill.skill import Skill
 
 if TYPE_CHECKING:
+    from sro.application.execution.workflow_runs import StartWorkflowRun
     from sro.application.runtime.answer_run import AnswerRun
 
 logger = logging.getLogger(__name__)
@@ -90,6 +96,9 @@ class StartThread:
 class _NotAsked: ...
 
 
+class _Closed(Exception): ...
+
+
 NOT_ASKED = _NotAsked()
 
 
@@ -111,6 +120,9 @@ class Converse:
         plan_lookups: PlanLookups | None = None,
         run_lookups: RunLookups | None = None,
         answer_run: AnswerRun | None = None,
+        start: StartWorkflowRun | None = None,
+        spawn: Callable[[Coroutine[object, object, None]], None] | None = None,
+        attempts: RecordAttempt | None = None,
     ) -> None:
         self._uow = uow
         self._answer_run = answer_run
@@ -127,6 +139,9 @@ class Converse:
         self._can_gather = can_gather
         self._plan_lookups = plan_lookups
         self._run_lookups = run_lookups
+        self._start = start
+        self._spawn = spawn
+        self._attempts = attempts
 
     async def note(self, ctx: RequestContext, *, thread_id: ThreadId, text: str) -> None:
         async with self._uow as uow:
@@ -290,14 +305,20 @@ class Converse:
             await uow.commit()
         return thread
 
-    def _told(self, thread: Thread, text: str, said: str) -> None:
-        for speaker, words in ((Speaker.OPERATOR, text), (Speaker.ASSISTANT, said)):
+    def _told(
+        self, thread: Thread, text: str, said: str, decision: dict[str, object] | None = None
+    ) -> None:
+        for speaker, words, decided in (
+            (Speaker.OPERATOR, text, None),
+            (Speaker.ASSISTANT, said, decision),
+        ):
             thread.say(
                 Message(
                     id=self._ids.new_message_id(),
                     speaker=speaker,
                     text=words,
                     said_at=self._clock.now(),
+                    decision=decided or {},
                 )
             )
 
@@ -536,92 +557,28 @@ class Converse:
         async with self._uow as uow:
             thread = await uow.threads.get_for_answer(ctx.tenant_id, thread_id)
             still = asked_under(thread.messages, answering)
+            offer = _offer_of(thread.messages, asked)
             if still is None or still.id != asked:
-                self._told(thread, text, K_CLOSED)
+                self._closed(thread, text, offer)
                 await uow.threads.save(thread)
                 await uow.commit()
                 return thread
-            now = self._clock.now()
-            thread.say(
-                Message(
-                    id=self._ids.new_message_id(),
-                    speaker=Speaker.OPERATOR,
-                    text=text,
-                    said_at=now,
-                )
-            )
-            said: str
-            decision: dict[str, object]
-            if let_go(text):
-                said, decision = (
-                    f"Dropped {pending.title}.",
-                    {
-                        "kind": Said.NOTE,
-                        "workflow_id": pending.workflow_id,
-                        "mail_thread": pending.mail_thread,
-                    },
-                )
-            elif (filled := answered(pending, text, logins)).without:
-                said, decision = cannot_without(filled)
-            else:
-                refused = too_long_for(pending, text)
-                said, decision = (
-                    (
-                        f"Running {filled.title} now.",
-                        {
-                            "kind": "job",
-                            "workflow_id": filled.workflow_id,
-                            "title": filled.title,
-                            "values": dict(filled.values),
-                            "items": [dict(one) for one in filled.items],
-                            "missing": [],
-                            "limits": dict(filled.limits),
-                            "from_step": filled.from_step,
-                            "mail_thread": filled.mail_thread,
-                            "can_find": self._can_gather,
-                            "resume": True,
-                            "watched": filled.watched,
-                            "offer": asked.value,
-                            **({"dropped": list(filled.dropped)} if filled.dropped else {}),
-                        },
-                    )
-                    if filled.ready
-                    else (
-                        (
-                            f"That is {len(text.strip())} characters and "
-                            f"{filled.asking_for} takes {refused}. "
-                            f"What should {filled.asking_for} be?"
-                            if refused is not None
-                            else turned_down(filled) + question(filled)
-                        ),
-                        {
-                            "kind": NEEDS,
-                            "workflow_id": filled.workflow_id,
-                            "title": filled.title,
-                            "values": dict(filled.values),
-                            "items": [dict(one) for one in filled.items],
-                            "missing": list(filled.missing),
-                            "watched": filled.watched,
-                            "limits": dict(filled.limits),
-                            "from_step": filled.from_step,
-                            "mail_thread": filled.mail_thread,
-                            "offer": _chained(still),
-                            **asking_state(filled),
-                        },
-                    )
-                )
-            thread.say(
-                Message(
-                    id=self._ids.new_message_id(),
-                    speaker=Speaker.ASSISTANT,
-                    text=said,
-                    said_at=self._clock.now(),
-                    decision=decision,
-                )
-            )
-            await uow.threads.save(thread)
-            await uow.commit()
-        return thread
+            filled = None if let_go(text) else answered(pending, text, logins)
+            if filled is None or filled.without or not filled.ready:
+                said, decision = _not_yet(pending, filled, text, offer)
+                self._told(thread, text, said, decision)
+                await uow.threads.save(thread)
+                await uow.commit()
+                return thread
+        return await self._start_it(
+            ctx,
+            thread_id=thread_id,
+            text=text,
+            asked=asked,
+            answering=answering,
+            job=filled,
+            offer=offer,
+        )
 
     async def _say_yes_to_it(
         self,
@@ -637,56 +594,199 @@ class Converse:
         async with self._uow as uow:
             thread = await uow.threads.get_for_answer(ctx.tenant_id, thread_id)
             still = asked_under(thread.messages, answering)
+            offer = _offer_of(thread.messages, asked)
             if still is None or still.id != asked:
-                self._told(thread, text, K_CLOSED)
+                self._closed(thread, text, offer)
                 await uow.threads.save(thread)
                 await uow.commit()
                 return thread
-            thread.say(
-                Message(
-                    id=self._ids.new_message_id(),
-                    speaker=Speaker.OPERATOR,
+            if let_go(text) or not ready:
+                said = question(offered)
+                decision: dict[str, object] = {
+                    **_to_run(offered, offer, self._can_gather),
+                    "kind": NEEDS,
+                }
+                if let_go(text):
+                    said = f"Left {offered.title}."
+                    decision = {
+                        "kind": Said.NOTE,
+                        "workflow_id": offered.workflow_id,
+                        "mail_thread": offered.mail_thread,
+                    }
+                self._told(thread, text, said, decision)
+                await uow.threads.save(thread)
+                await uow.commit()
+                return thread
+        return await self._start_it(
+            ctx,
+            thread_id=thread_id,
+            text=text,
+            asked=asked,
+            answering=answering,
+            job=replace(offered, missing=()),
+            offer=offer,
+        )
+
+    async def _start_it(
+        self,
+        ctx: RequestContext,
+        *,
+        thread_id: ThreadId,
+        text: str,
+        asked: MessageId,
+        answering: str | None,
+        job: Pending,
+        offer: str,
+    ) -> Thread:
+        decision = _to_run(job, offer, self._can_gather)
+        wrote: list[Thread] = []
+
+        async def say_it(uow: UnitOfWork, run: WorkflowRun) -> None:
+            wrote.append(
+                await self._answered_in(
+                    uow,
+                    ctx,
+                    thread_id=thread_id,
                     text=text,
-                    said_at=self._clock.now(),
+                    asked=asked,
+                    answering=answering,
+                    said=f"Running {job.title} now.",
+                    decision={**decision, "resume": True, "run_id": run.id},
                 )
             )
-            decision: dict[str, object] = {
-                "kind": "job",
-                "workflow_id": offered.workflow_id,
-                "title": offered.title,
-                "values": dict(offered.values),
-                "items": [dict(one) for one in offered.items],
-                "missing": [] if ready else list(offered.missing),
-                "limits": dict(offered.limits),
-                "from_step": offered.from_step,
-                "mail_thread": offered.mail_thread,
-                "can_find": self._can_gather,
-                "watched": offered.watched,
-                "offer": _chained(still),
-            }
-            said = f"Running {offered.title} now." if ready else question(offered)
-            if let_go(text):
-                said = f"Left {offered.title}."
-                decision = {
-                    "kind": Said.NOTE,
-                    "workflow_id": offered.workflow_id,
-                    "mail_thread": offered.mail_thread,
-                }
-            elif ready:
-                decision["resume"] = True
-            else:
-                decision["kind"] = NEEDS
+
+        try:
+            if self._start is None or (self._spawn is None and not self._start.runs_on_steel(ctx)):
+                raise RunRefused("this process cannot start a run")
+            run = await self._start.execute(
+                ctx,
+                workflow_id=job.workflow_id,
+                device_id=None,
+                values=job.values,
+                items=job.items,
+                live=True,
+                allow_focus=True,
+                watched=job.watched,
+                from_step=job.from_step,
+                conversation=(SERVER, job.mail_thread),
+                offer=offer,
+                then=say_it,
+            )
+        except _Closed:
+            return await self._closed_now(ctx, thread_id, text, offer)
+        except (DomainError, RunRefused, OverCap, AskerUnavailable) as refusal:
+            try:
+                async with self._uow as uow:
+                    thread = await self._answered_in(
+                        uow,
+                        ctx,
+                        thread_id=thread_id,
+                        text=text,
+                        asked=asked,
+                        answering=answering,
+                        said=f"Nothing was started: {refusal}.",
+                        decision=decision,
+                    )
+                    await uow.commit()
+            except _Closed:
+                return await self._closed_now(ctx, thread_id, text, offer)
+            await self._attempted(ctx, REFUSED, job, thread_id, why=str(refusal))
+            return thread
+        if run.executor == "steel":
+            if not await self._start.start_on_steel(ctx, run):
+                return await self._did_not_start(ctx, thread_id, job, run)
+        elif self._spawn is not None:
+            self._spawn(self._start.perform(ctx, run))
+        await self._attempted(ctx, DONE, job, thread_id, run=run.id)
+        return wrote[0]
+
+    async def _did_not_start(
+        self, ctx: RequestContext, thread_id: ThreadId, job: Pending, run: WorkflowRun
+    ) -> Thread:
+        async with self._uow as uow:
+            saved = await uow.workflow_runs.get(ctx.tenant_id, run.id)
+            why = saved.steps[-1].reason if saved is not None and saved.steps else ""
+            thread = await uow.threads.get_for_answer(ctx.tenant_id, thread_id)
             thread.say(
                 Message(
                     id=self._ids.new_message_id(),
                     speaker=Speaker.ASSISTANT,
-                    text=said,
+                    text=(
+                        f"{job.title} did not start: {why or 'it could not be handed on'}. "
+                        "Nothing was done; ask for it again to retry."
+                    ),
                     said_at=self._clock.now(),
-                    decision=decision,
+                    decision={
+                        "kind": Said.NOTE,
+                        "workflow_id": job.workflow_id,
+                        "mail_thread": job.mail_thread,
+                        "run_id": run.id,
+                    },
                 )
             )
             await uow.threads.save(thread)
             await uow.commit()
+        await self._attempted(ctx, FAILED, job, thread_id, run=run.id, why=why)
+        return thread
+
+    async def _attempted(
+        self,
+        ctx: RequestContext,
+        came_of: str,
+        job: Pending,
+        thread_id: ThreadId,
+        *,
+        run: str = "",
+        why: str = "",
+    ) -> None:
+        if self._attempts is not None:
+            await self._attempts.execute(
+                ctx,
+                asked_for="start a job from chat",
+                came_of=came_of,
+                why=why,
+                about={"run": run, "workflow": job.workflow_id, "thread": thread_id.value},
+            )
+
+    def _closed(self, thread: Thread, text: str, offer: str) -> None:
+        ran = next(
+            (
+                str(said["run_id"])
+                for message in reversed(thread.messages)
+                if (said := message.decision or {}).get("offer") == offer and said.get("run_id")
+            ),
+            "",
+        )
+        self._told(thread, text, K_CLOSED, {"run_id": ran} if ran else None)
+
+    async def _closed_now(
+        self, ctx: RequestContext, thread_id: ThreadId, text: str, offer: str
+    ) -> Thread:
+        async with self._uow as uow:
+            thread = await uow.threads.get_for_answer(ctx.tenant_id, thread_id)
+            self._closed(thread, text, offer)
+            await uow.threads.save(thread)
+            await uow.commit()
+        return thread
+
+    async def _answered_in(
+        self,
+        uow: UnitOfWork,
+        ctx: RequestContext,
+        *,
+        thread_id: ThreadId,
+        text: str,
+        asked: MessageId,
+        answering: str | None,
+        said: str,
+        decision: dict[str, object],
+    ) -> Thread:
+        thread = await uow.threads.get_for_answer(ctx.tenant_id, thread_id)
+        still = asked_under(thread.messages, answering)
+        if still is None or still.id != asked:
+            raise _Closed
+        self._told(thread, text, said, decision)
+        await uow.threads.save(thread)
         return thread
 
     async def _placed_by_the_rig(self, ctx: RequestContext, text: str) -> Understood | None:
@@ -1097,6 +1197,69 @@ class Converse:
         except (DomainError, TargetUnreachable) as refusal:
             logger.info("could not answer from the system: %s", refusal)
             return None
+
+
+def _not_yet(
+    pending: Pending, filled: Pending | None, text: str, offer: str
+) -> tuple[str, dict[str, object]]:
+    if filled is None:
+        return (
+            f"Dropped {pending.title}.",
+            {
+                "kind": Said.NOTE,
+                "workflow_id": pending.workflow_id,
+                "mail_thread": pending.mail_thread,
+            },
+        )
+    if filled.without:
+        return cannot_without(filled)
+    refused = too_long_for(pending, text)
+    return (
+        (
+            f"That is {len(text.strip())} characters and "
+            f"{filled.asking_for} takes {refused}. "
+            f"What should {filled.asking_for} be?"
+            if refused is not None
+            else turned_down(filled) + question(filled)
+        ),
+        {
+            "kind": NEEDS,
+            "workflow_id": filled.workflow_id,
+            "title": filled.title,
+            "values": dict(filled.values),
+            "items": [dict(one) for one in filled.items],
+            "missing": list(filled.missing),
+            "watched": filled.watched,
+            "limits": dict(filled.limits),
+            "from_step": filled.from_step,
+            "mail_thread": filled.mail_thread,
+            "offer": offer,
+            **asking_state(filled),
+        },
+    )
+
+
+def _offer_of(messages: Sequence[Message], asked: MessageId) -> str:
+    said = next((message for message in messages if message.id == asked), None)
+    return _chained(said) if said is not None else asked.value
+
+
+def _to_run(job: Pending, offer: str, can_find: bool) -> dict[str, object]:
+    return {
+        "kind": "job",
+        "workflow_id": job.workflow_id,
+        "title": job.title,
+        "values": dict(job.values),
+        "items": [dict(one) for one in job.items],
+        "missing": list(job.missing),
+        "limits": dict(job.limits),
+        "from_step": job.from_step,
+        "mail_thread": job.mail_thread,
+        "can_find": can_find,
+        "watched": job.watched,
+        "offer": offer,
+        **({"dropped": list(job.dropped)} if job.dropped else {}),
+    }
 
 
 def _why_it_failed(run: Run | None) -> str:

@@ -542,9 +542,8 @@ export interface paths {
          *
          *     200 and no run. This is the card handing a decision to the place decisions
          *     are made here: the question lands in the thread, the operator answers it in
-         *     words, and when the last answer lands the existing conversation path emits
-         *     the `job` decision the browser starts. Nothing about the job is settled by
-         *     this call.
+         *     words, and when the last answer lands the conversation starts the run
+         *     itself. Nothing about the job is settled by this call.
          */
         post: operations["ask_about_an_offer_v1_chat_about_an_offer_post"];
         delete?: never;
@@ -571,30 +570,6 @@ export interface paths {
          *     was put in front of a person, read back from their own thread.
          */
         post: operations["send_the_draft_v1_chat_send_the_draft_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/chat/run-started": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Run Started
-         * @description Say, in this operator's conversation, which run came of it.
-         *
-         *     204 and nothing back: the caller already holds the run, and what this does
-         *     is put it where the rest of the decision already lives. Nothing is started
-         *     or changed by it.
-         */
-        post: operations["run_started_v1_chat_run_started_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1470,9 +1445,11 @@ export interface paths {
          * Say
          * @description Say something and get the whole thread back, decision included.
          *
-         *     Nothing is performed here. A matched skill is offered; starting it is the
-         *     operator's next request, and that is what makes their confirmation the
-         *     authorisation an assisted run records.
+         *     A matched skill is offered; starting it is the operator's next request,
+         *     and that is what makes their confirmation the authorisation an assisted
+         *     run records. A yes (or the last answer) to a job offer is that request: it
+         *     starts the run here, through the same start `POST /v1/workflow-runs` uses,
+         *     and the reply names the run -- or says in words why nothing was started.
          */
         post: operations["say_v1_threads__thread_id__messages_post"];
         delete?: never;
@@ -3757,24 +3734,6 @@ export interface components {
             may_take_focus: boolean;
             /** Authorized By */
             authorized_by?: string | null;
-        };
-        /**
-         * RunStartedRequest
-         * @description A run this browser has just started, said into the conversation.
-         *
-         *     Reported by the browser because the browser is what started it -- the
-         *     credential to drive a run lives in the worker, so the id exists there
-         *     first. What it buys is a thread that holds the whole piece of work rather
-         *     than everything up to the moment it began.
-         */
-        RunStartedRequest: {
-            /** Run Id */
-            run_id: string;
-            /**
-             * Title
-             * @default
-             */
-            title: string;
         };
         /** SayRequest */
         SayRequest: {
@@ -7303,133 +7262,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SentTheDraftResponse"];
                 };
-            };
-            /** @description No credential, or one this deployment rejects. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-            /** @description No such thing, or not yours. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-            /** @description The system's state says no, not the request. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-            /** @description The request cannot be processed as asked. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-            /** @description Something this depends on is unavailable. */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-        };
-    };
-    run_started_v1_chat_run_started_post: {
-        parameters: {
-            query?: {
-                device_id?: string | null;
-            };
-            header?: {
-                "X-Device-Secret"?: string;
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RunStartedRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description No credential, or one this deployment rejects. */
             401: {

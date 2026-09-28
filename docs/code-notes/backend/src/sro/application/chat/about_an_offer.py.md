@@ -46,25 +46,6 @@ Code: `DraftsForTheAsker = Callable[[RequestContext, Pending, str], Awaitable[bo
 
 > Ask, in the operator's own conversation, for what an offer still needs.
 
-## `SayTheRunStarted`, [line 202](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L202): Docstring
-
-> Put a run into the conversation that authorised it.
->
-> The thread is the spine of a piece of work: the request arrives, the
-> question is asked, the answer lands, and until now the story stopped
-> there. The run started in the worker, its card was drawn on Home, and
-> nothing in the conversation said which run came of the sentence somebody
-> had just typed -- so the one place that holds the whole decision held
-> everything except its result.
->
-> A `run` message with the id on it is all the panel needs: the ledger has
-> drawn a live card under one since the skills path existed, and the rig
-> path never wrote one.
->
-> Said by the browser rather than by the door that decided it, which is
-> backwards-looking but true: the run is started in the worker, because the
-> credential lives there, so the worker is the only thing that knows the id.
-
 ## `AskAboutTheOffer._only_required`, [line 43](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L43): Docstring
 
 > What this question asks for is the job's REQUIRED fields only; the
@@ -218,7 +199,7 @@ Code: `**({"unconfirmed": True} if ask_to_run else {}),`
 > to. A reply that completes it is asked about rather than started; a value
 > question from a card press was the press's own yes.
 
-## `AskAboutTheOffer.execute`, [line 188](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L188): Comment
+## `AskAboutTheOffer.execute`, [line 189](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L189): Comment
 
 Code: `if self._drafts is not None and mail_thread.strip():`
 
@@ -230,17 +211,6 @@ Code: `if self._drafts is not None and mail_thread.strip():`
 > run starts, so a run never comes up short and never asks anybody.
 >
 > Nothing here can stop the question that has already been asked.
-
-## `SayTheRunStarted.execute`, [line 215](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L215): Comment
-
-Code: `speaker=Speaker.SYSTEM,`
-
-> SYSTEM and not ASSISTANT, which is the distinction `announce`
-> draws: this is a thing that HAPPENED, not a thing anybody said.
-> It also must not be mistaken for a question -- `pending_job`
-> reads back the last thing the assistant decided, and a run
-> announcement standing where a question should be would answer
-> the next sentence into nothing.
 
 ## `AskAboutTheOffer._should_we`, [line 99](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L99): Note
 

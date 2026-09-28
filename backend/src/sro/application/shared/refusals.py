@@ -7,3 +7,7 @@ class OverCap(Exception):
 
 class Unattributed(Exception):
     """A model call was made for no tenant, so no cap or bill sees it."""
+
+
+class RunRefused(Exception):
+    code = "run_refused"

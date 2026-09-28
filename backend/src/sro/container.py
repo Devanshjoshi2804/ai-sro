@@ -13,7 +13,7 @@ from sqlalchemy.pool import NullPool
 from sro.application.analytics.audit import ReadAudit
 from sro.application.analytics.summary import ReadSummary
 from sro.application.capture.devices import ReadRoster, RestoreDevice, RevokeDevice
-from sro.application.chat.about_an_offer import AskAboutTheOffer, SayTheRunStarted
+from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.ask_the_asker import DraftForTheAsker, SendTheDraft
 from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.from_the_mail import FromTheMail
@@ -779,6 +779,9 @@ class Container:
             run_lookups=self.run_lookups(),
             answers=IsItAnAnswer(self.asker),
             answer_run=self.answer_run(),
+            start=self.start_workflow_run(),
+            spawn=self.pursuits.spawn,
+            attempts=self.record_attempt(),
         )
 
     def ask_about_the_offer(self) -> AskAboutTheOffer:
@@ -789,9 +792,6 @@ class Container:
 
     def send_the_draft(self) -> SendTheDraft:
         return SendTheDraft(self.unit_of_work(), self.tools, self.clock, self.ids)
-
-    def say_the_run_started(self) -> SayTheRunStarted:
-        return SayTheRunStarted(self.unit_of_work(), self.clock, self.ids)
 
     def from_the_mail(self) -> FromTheMail:
         return FromTheMail(

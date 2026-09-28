@@ -182,6 +182,7 @@ class AskAboutTheOffer:
                 "from_step": pending.from_step,
                 "watched": pending.watched,
                 **({"unconfirmed": True} if ask_to_run else {}),
+                **({"offer": offer} if offer else {}),
                 **asking_state(pending),
             },
         )
@@ -199,23 +200,4 @@ class AskAboutTheOffer:
         return asked
 
 
-class SayTheRunStarted:
-    def __init__(self, uow: UnitOfWork, clock: Clock, ids: IdFactory) -> None:
-        self._uow = uow
-        self._clock = clock
-        self._ids = ids
-
-    async def execute(self, ctx: RequestContext, *, run_id: str, title: str) -> None:
-        if not run_id.strip():
-            return
-        await SayWhatHappened(self._uow, self._clock, self._ids).execute(
-            ctx,
-            for_operator=PrincipalId(ctx.principal_id.value),
-            text=f"Running {title}…" if title.strip() else "Running it…",
-            speaker=Speaker.SYSTEM,
-            decision={"kind": Said.RUN, "run_id": run_id, "title": title},
-        )
-        logger.info("%s: %s is running as %s", ctx.tenant_id.value, title or "a job", run_id)
-
-
-__all__ = ["AskAboutTheOffer", "SayTheRunStarted"]
+__all__ = ["AskAboutTheOffer"]

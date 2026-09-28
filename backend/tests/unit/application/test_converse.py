@@ -30,9 +30,17 @@ from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.template import Template
 from sro.domain.skill.workflow import Step, Workflow
 from tests import factories as f
+from tests.unit.application.rig.test_start_workflow_run import _starter
 from tests.unit.domain.test_the_recorded_login import _job as _login_job
 from tests.unit.domain.test_the_recorded_login import _sign_in
-from tests.unit.fakes import FakeClock, FakeEmbedder, FakeIdFactory, FakeUnitOfWork
+from tests.unit.fakes import (
+    FakeClock,
+    FakeDurableExecution,
+    FakeEmbedder,
+    FakeIdFactory,
+    FakeUnitOfWork,
+)
+from tests.unit.runtime_support import save_step
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
 
@@ -262,10 +270,21 @@ async def _with_a_job(
             steps=[Step(order=0, says="s", system=None, cites=["g"])],
         )
     )
+    await uow.gestures.add_gestures(tuple(save_step(gid="g")[1].values()))
     ids, clock = FakeIdFactory(), FakeClock()
     resolver = ResolveIntent(uow, PlanTask(Retrieve(uow, FakeEmbedder())))
     reads = _PlacesTheJob(placed, raises=raises)
-    return Converse(uow, resolver, clock, ids, reads_jobs=reads, can_gather=can_gather)
+    return Converse(
+        uow,
+        resolver,
+        clock,
+        ids,
+        reads_jobs=reads,
+        can_gather=can_gather,
+        start=_starter(
+            uow, durable=FakeDurableExecution(), steel_tenants=frozenset({f.TENANT.value})
+        ),
+    )
 
 
 async def test_a_sentence_about_a_mined_job_is_answered_by_the_rig() -> None:

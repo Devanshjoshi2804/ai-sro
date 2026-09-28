@@ -54,6 +54,21 @@ def _click(page: str, at: float, name: str) -> dict[str, Any]:
     }
 
 
+def _saved(at: float) -> dict[str, Any]:
+    """The save's own POST, as the recorder sends it: the mixed job writes."""
+    return {
+        "kind": "request",
+        "request": {
+            "request_id": f"r{next(_ids)}",
+            "method": "POST",
+            "url": "https://wms.example/api/customer-types",
+            "started_at": _stamp(at),
+            "status": 201,
+        },
+        "tab_id": 1,
+    }
+
+
 def _recorded(*events: dict[str, Any]) -> list[Gesture]:
     batch = Batch.model_validate(
         {
@@ -88,6 +103,7 @@ async def _world() -> FakeUnitOfWork:
     mixed = _recorded(
         _click(GMAIL, 100, "Alex R, New customer type, please set up NRT2 for the pilot"),
         _click(WMS, 130, "Save"),
+        _saved(130.1),
     )
     async with uow:
         await uow.gestures.add_gestures((*mail, *mixed))

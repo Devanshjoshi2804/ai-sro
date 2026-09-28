@@ -19,7 +19,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/understa
 > reached `understand`, and a cap checked after the call is a cap that has
 > already paid for the call it stops.
 
-## `Understood`, [line 27](../../../../../../../backend/src/sro/application/chat/understand.py#L27): Docstring
+## `Understood`, [line 28](../../../../../../../backend/src/sro/application/chat/understand.py#L28): Docstring
 
 > What one sentence came to, and what reading it cost.
 >
@@ -28,7 +28,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/understa
 > went through the model and has to be billed for. A reading the caller
 > cannot bill is a model call nobody can defend at the end of the month.
 
-## `Understood`, [line 32](../../../../../../../backend/src/sro/application/chat/understand.py#L32): Note on the line above
+## `Understood`, [line 33](../../../../../../../backend/src/sro/application/chat/understand.py#L33): Note on the line above
 
 Code: `sure: bool = True`
 
@@ -40,14 +40,14 @@ Code: `sure: bool = True`
 > on, because a guess that creates one wrong record is a nuisance and the
 > same guess against a list of twenty is twenty wrong records.
 
-## `Understood`, [line 34](../../../../../../../backend/src/sro/application/chat/understand.py#L34): Note on the line above
+## `Understood`, [line 35](../../../../../../../backend/src/sro/application/chat/understand.py#L35): Note on the line above
 
 Code: `also: list[str] = field(default_factory=list)`
 
 > The other jobs it nearly said, ids only, for the question a person is
 > asked. Filtered to jobs this tenant actually holds, like `workflow_id`.
 
-## `Understood`, [line 36](../../../../../../../backend/src/sro/application/chat/understand.py#L36): Note on the line above
+## `Understood`, [line 37](../../../../../../../backend/src/sro/application/chat/understand.py#L37): Note on the line above
 
 Code: `items: list[dict[str, str]] = field(default_factory=list)`
 
@@ -57,7 +57,7 @@ Code: `items: list[dict[str, str]] = field(default_factory=list)`
 > performs exactly as a job run for none, so a caller that ignores this is
 > not wrong, only limited to the first thing somebody asked for.
 
-## `Understood`, [line 38](../../../../../../../backend/src/sro/application/chat/understand.py#L38): Note on the line above
+## `Understood`, [line 39](../../../../../../../backend/src/sro/application/chat/understand.py#L39): Note on the line above
 
 Code: `aside: dict[str, str] = field(default_factory=dict)`
 
@@ -68,7 +68,7 @@ Code: `aside: dict[str, str] = field(default_factory=dict)`
 > value this threw away. Set aside rather than in `values`, because `values`
 > is what the job itself declares and this is not that.
 
-## `Understood`, [line 40](../../../../../../../backend/src/sro/application/chat/understand.py#L40): Note on the line above
+## `Understood`, [line 41](../../../../../../../backend/src/sro/application/chat/understand.py#L41): Note on the line above
 
 Code: `unasked: list[str] = field(default_factory=list)`
 
@@ -84,7 +84,7 @@ Code: `unasked: list[str] = field(default_factory=list)`
 > The run already says this after the press. Nobody can consent to a write
 > they cannot see, and after the press is after the record.
 
-## `read_utterance`, [line 142](../../../../../../../backend/src/sro/application/chat/understand.py#L142): Docstring
+## `read_utterance`, [line 144](../../../../../../../backend/src/sro/application/chat/understand.py#L144): Docstring
 
 > One sentence, read against this tenant's jobs, with the bill written down.
 >
@@ -97,7 +97,7 @@ Code: `unasked: list[str] = field(default_factory=list)`
 > money and returned nothing. `now` is the caller's clock rather than one
 > read here, so a test can move it.
 
-## `read_utterance`, [line 150](../../../../../../../backend/src/sro/application/chat/understand.py#L150): Comment
+## `read_utterance`, [line 152](../../../../../../../backend/src/sro/application/chat/understand.py#L152): Comment
 
 Code: `facts = await job_facts(uow, tenant_id, await uow.workflows.known(tenant_id), now=now)`
 
@@ -108,7 +108,7 @@ Code: `facts = await job_facts(uow, tenant_id, await uow.workflows.known(tenant_
 > facts, before the model call. The sign-in names come from `logins_of`,
 > which reads the sign-in jobs' landing evidence the facts do not carry.
 
-## `read_utterance`, [line 169](../../../../../../../backend/src/sro/application/chat/understand.py#L169): Comment
+## `read_utterance`, [line 171](../../../../../../../backend/src/sro/application/chat/understand.py#L171): Comment
 
 Code: `workflow_id=got.workflow_id,`
 
@@ -116,7 +116,7 @@ Code: `workflow_id=got.workflow_id,`
 > nobody holds. The sentence it read is not here and has nowhere to
 > go: `ChatReading` has no field for it.
 
-## `understand`, [line 65](../../../../../../../backend/src/sro/application/chat/understand.py#L65): Docstring
+## `understand`, [line 66](../../../../../../../backend/src/sro/application/chat/understand.py#L66): Docstring
 
 > R1's reader: one model call over the whole request (a mail thread or a
 > chat sentence), a few candidate jobs ranked in code, and the standing
@@ -127,7 +127,7 @@ Code: `workflow_id=got.workflow_id,`
 > carries empty data rather than None, so the mail door does not take it
 > for a model failure and release the mail to be read again forever.
 
-## `understand`, [line 77](../../../../../../../backend/src/sro/application/chat/understand.py#L77): Comment
+## `understand`, [line 78](../../../../../../../backend/src/sro/application/chat/understand.py#L78): Comment
 
 Code: `[shown(one) for one in candidates], indent=2, ensure_ascii=False`
 
@@ -136,7 +136,7 @@ Code: `[shown(one) for one in candidates], indent=2, ensure_ascii=False`
 > nothing else in this system uses. Every json.dumps on a path to a
 > prompt or to the store says so.
 
-## `shown`, [line 47](../../../../../../../backend/src/sro/application/chat/understand.py#L47): Docstring
+## `shown`, [line 48](../../../../../../../backend/src/sro/application/chat/understand.py#L48): Docstring
 
 > What the reader sees of a candidate: each field's name, the labels the
 > screen shows, the operator's aliases for it, the values seen in it, and
@@ -145,7 +145,7 @@ Code: `[shown(one) for one in candidates], indent=2, ensure_ascii=False`
 > this", a claim about history rather than about the job. The eval suite
 > builds its cases from this same form.
 
-## `read_request`, [line 98](../../../../../../../backend/src/sro/application/chat/understand.py#L98): Docstring
+## `read_request`, [line 99](../../../../../../../backend/src/sro/application/chat/understand.py#L99): Docstring
 
 > The one way a request is read, for the chat door and the mail door alike.
 > A request that names a sign-in chore more than any work job is answered
@@ -155,12 +155,12 @@ Code: `[shown(one) for one in candidates], indent=2, ensure_ascii=False`
 > never a job value. The caller passes them: the mail door reads them once
 > per look.
 
-## `held_runs`, [line 116](../../../../../../../backend/src/sro/application/chat/understand.py#L116): Docstring
+## `held_runs`, [line 118](../../../../../../../backend/src/sro/application/chat/understand.py#L118): Docstring
 
 > Held runs per job, from the run tallies: the second key of the canonical
 > copy among duplicate titles, after the number of parameters.
 
-## `offer_check`, [line 120](../../../../../../../backend/src/sro/application/chat/understand.py#L120): Docstring
+## `offer_check`, [line 122](../../../../../../../backend/src/sro/application/chat/understand.py#L122): Docstring
 
 > C1's follow-up (amendment 2, item 6): the request's values reach the
 > compile check, so a value for a field gone from its form (`field_gone`)
@@ -172,13 +172,18 @@ Code: `[shown(one) for one in candidates], indent=2, ensure_ascii=False`
 > second compile. It runs in its own unit of work in the mail door: no
 > session is held across the model call.
 
-## `read_request`, [line 98](../../../../../../backend/src/sro/application/chat/understand.py#L98): Note
+## `read_request`, [line 99](../../../../../../backend/src/sro/application/chat/understand.py#L99): Note
 
 > `also` are candidates beside the ranked jobs, never ranked or cut by
 > `K_CANDIDATES`. The chat door passes the built-in mail actions (M4); the mail
 > door passes none, so a mail is never offered a reply of its own.
+>
+> A request that is exactly a ranked job's title (`normal`) is that job, sure,
+> and no model is asked (J1): typing a title back to "Did you mean X or Y?"
+> used to be read again and asked again. Only ranked learned jobs are picked
+> this way; a built-in has no fields to say what it still needs.
 
-## `read_utterance`, [line 142](../../../../../../backend/src/sro/application/chat/understand.py#L142): Note
+## `read_utterance`, [line 144](../../../../../../backend/src/sro/application/chat/understand.py#L144): Note
 
 > The chat door: the built-in mail actions are always candidates, so "send an
 > email to ..." reaches one even for a tenant with no mined job -- and such a

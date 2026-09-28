@@ -28,7 +28,7 @@ from sro.domain.chat.request import Candidate
 from sro.domain.execution.field_classes import field_classes
 from sro.domain.execution.mail_job import built_ins
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel, KnowledgeEntry, KnowledgeId
-from sro.domain.observation.gesture import Action, Gesture, Target
+from sro.domain.observation.gesture import Action, Call, Gesture, Target
 from sro.domain.prompts.read_request import READ_REQUEST
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
@@ -438,6 +438,14 @@ async def test_the_examples_are_read_off_the_gestures_the_jobs_cite() -> None:
                 tab_id=7,
                 frame_url=None,
                 action=Action(kind="type", at=20.0, value="A", target=Target(name="Client code")),
+                requests=[
+                    Call(
+                        method="POST",
+                        url="https://wms.example/api/clients",
+                        status=201,
+                        started_at=20.0,
+                    )
+                ],
             ),
             Gesture(
                 id="g",

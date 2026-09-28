@@ -14,6 +14,7 @@ from sro.application.skill.job_facts import JobFacts, job_facts
 from sro.domain.chat.reading import ChatReading, new_chat_id
 from sro.domain.chat.request import Candidate, read_of
 from sro.domain.execution.compiled import why_not
+from sro.domain.execution.compose import normal
 from sro.domain.execution.mail_job import built_ins
 from sro.domain.prompts.read_request import READ_REQUEST
 from sro.domain.shared.identifiers import TenantId
@@ -107,10 +108,11 @@ async def read_request(
     chore = chore_named(text, facts)
     if chore is not None:
         return Understood(chore.workflow.id, Answer(data={}), cannot_run=[K_A_CHORE])
-    ranked = rank_jobs(text, facts, held=held)
-    return await understand(
-        text, [*(candidate_of(one, logins=logins) for one in ranked), *also], asker
-    )
+    ranked = [candidate_of(one, logins=logins) for one in rank_jobs(text, facts, held=held)]
+    named = next((one for one in ranked if normal(one.title) == normal(text)), None)
+    if named is not None:
+        return Understood(named.id, Answer(data={}), missing=sorted(named.required))
+    return await understand(text, [*ranked, *also], asker)
 
 
 async def held_runs(uow: UnitOfWork, tenant_id: TenantId) -> dict[str, int]:

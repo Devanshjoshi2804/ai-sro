@@ -2389,7 +2389,7 @@ async def test_a_mail_for_a_job_that_cannot_run_is_answered_with_why_never_dropp
     (one,) = looked.offered
     assert one.workflow_id == JOB and not one.started and one.asked
     assert one.cannot_run == [
-        "Step 0: has no evidence a browser can act on: Type the customer type"
+        "Step 0: has no evidence a browser can act on: Type the customer type and save it"
     ]
     assert world.durable.runs_started == []
     last = (await _thread(world.uow)).messages[-1]

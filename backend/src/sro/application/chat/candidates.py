@@ -8,10 +8,12 @@ from sro.application.skill.job_facts import JobFacts
 from sro.domain.chat.asked_by import mails_behind, texts
 from sro.domain.chat.request import K_CANDIDATES, Candidate
 from sro.domain.execution.compose import alias_map, normal
-from sro.domain.execution.mail_job import is_mail_only
+from sro.domain.execution.evidence import writes
+from sro.domain.execution.mail_job import is_mail_only, sends_mail
+from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.hosts import origin_of
 from sro.domain.skill.signing_in import Logins
-from sro.domain.skill.workflow import ordered_cites
+from sro.domain.skill.workflow import Workflow, cited_ids, ordered_cites
 
 _NONE: Mapping[str, int] = MappingProxyType({})
 
@@ -50,6 +52,17 @@ def _first(one: JobFacts, held: Mapping[str, int]) -> tuple[int, int, str]:
     return -len(job.parameters), -held.get(job.id, 0), job.id
 
 
+def _a_fragment(job: Workflow, by_id: Mapping[str, Gesture]) -> bool:
+    return all(one in by_id for one in cited_ids(job)) and not any(
+        writes(step, by_id) or sends_mail(step, by_id) for step in job.steps
+    )
+
+
+def _a_job(one: JobFacts) -> bool:
+    job, by_id = one.workflow, one.by_id
+    return not job.chore and not is_mail_only(job, by_id) and not _a_fragment(job, by_id)
+
+
 def rank_jobs(
     said: str,
     facts: Sequence[JobFacts],
@@ -59,7 +72,7 @@ def rank_jobs(
 ) -> list[JobFacts]:
     copies: dict[str, list[JobFacts]] = {}
     for one in facts:
-        if not one.workflow.chore and not is_mail_only(one.workflow, one.by_id):
+        if _a_job(one):
             copies.setdefault(normal(one.workflow.title), []).append(one)
     canonical = [min(same, key=lambda one: _first(one, held)) for same in copies.values()]
     asked = words(said)

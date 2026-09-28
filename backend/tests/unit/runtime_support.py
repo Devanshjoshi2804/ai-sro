@@ -245,9 +245,9 @@ def save_step(
     return step, by_id
 
 
-def type_then_save_step() -> tuple[Step, dict[str, Gesture]]:
+def type_then_save_step(gid: str = "ges_save") -> tuple[Step, dict[str, Gesture]]:
     _, typed = type_step(after=AfterState(value=None, visible=True, enabled=True))
-    _, saved = save_step(status=201)
+    _, saved = save_step(status=201, gid=gid)
     by_id = {**typed, **saved}
     step = Step(
         order=3,
@@ -400,7 +400,7 @@ def type_step(
 
 
 async def save_job(uow: UnitOfWork, workflow_id: str) -> Workflow:
-    step, by_id = type_step()
+    step, by_id = type_then_save_step(gid="ges_job_save")
     job = replace(
         _WORKFLOW,
         id=workflow_id,

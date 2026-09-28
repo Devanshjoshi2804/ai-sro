@@ -16737,7 +16737,7 @@
           "threads"
         ],
         "summary": "Run From Thread",
-        "description": "Start a run and write it into the conversation that asked for it.\n\nThe same run as `/v1/skills/{id}/runs`, kept where it belongs: an operator\nwho filled in a card and pressed the button has had a conversation, and a\nresult that lives only in the browser's memory is gone on the next render.",
+        "description": "Start a run and write it into the conversation that asked for it.\n\nThe same run as `/v1/skills/{id}/runs`, kept where it belongs: an operator\nwho filled in a card and pressed the button has had a conversation, and a\nresult that lives only in the browser's memory is gone on the next render.\n\n409 when the caller did not open the thread, checked before any run\nstarts: a run written into somebody else's thread stands over their offer.",
         "operationId": "run_from_thread_v1_threads__thread_id__runs_post",
         "parameters": [
           {
@@ -17314,7 +17314,7 @@
           "threads"
         ],
         "summary": "Pursue",
-        "description": "Say go: work a task out on the screen, when nobody has demonstrated it.\n\nAccepted rather than performed. A pursuit is twelve gestures long, each one\na screenshot to a hosted model and back, and running it inside this request\nheld the whole API until it finished -- which is not a slow endpoint, it is\nan outage with a good excuse. What comes back is an address to watch.",
+        "description": "Say go: work a task out on the screen, when nobody has demonstrated it.\n\nAccepted rather than performed. A pursuit is twelve gestures long, each one\na screenshot to a hosted model and back, and running it inside this request\nheld the whole API until it finished -- which is not a slow endpoint, it is\nan outage with a good excuse. What comes back is an address to watch.\n\n409 when the caller did not open the thread, checked before anything is\ndriven: the pursuit's note is written into this thread when it ends.",
         "operationId": "pursue_v1_threads__thread_id__pursue_post",
         "parameters": [
           {
@@ -24057,7 +24057,7 @@
           "workflow-runs"
         ],
         "summary": "Answer Workflow Run",
-        "description": "Answer the question a Steel run is waiting on.\n\nA run that asks lets go of its browser tab and waits; this hands it the\nanswer and it takes a browser again and carries on from the step that\nasked, never from the start. 202 because the run carries on after this\nreturns, in its own workflow.\n\nA one-time code is the one question a run waits on while keeping its page,\nbecause the code belongs to that page: the person types it there, then\nanswers here with an empty value. A password question is answered the\nsame way, after the password is stored with `PUT /v1/secrets`. A question\nabout a write the run sent and could not confirm needs the operator's\n`verdict`: `done` settles it, `not_done` lets the run try it again.\n\nA run of another tenant is a 404. A 409 `Conflict` for: a run no longer\nrunning; no question standing, or another one than `question_id`; a\nquestion already answered differently, or a field question already\nanswered by another operator; a value on anything but a value,\nfield or recipient question; a field answer that is not one of its\nchoices; a recipient answer that is not an address, or not from the\noperator who started the run; a missing verdict on a write in doubt. Only the question id\nreaches the run's workflow; the answer itself is kept on the run.",
+        "description": "Answer the question a Steel run is waiting on.\n\nA run that asks lets go of its browser tab and waits; this hands it the\nanswer and it takes a browser again and carries on from the step that\nasked, never from the start. 202 because the run carries on after this\nreturns, in its own workflow.\n\nA one-time code is the one question a run waits on while keeping its page,\nbecause the code belongs to that page: the person types it there, then\nanswers here with an empty value. A password question is answered the\nsame way, after the password is stored with `PUT /v1/secrets`. A question\nabout a write the run sent and could not confirm needs the operator's\n`verdict`: `done` settles it, `not_done` lets the run try it again.\n\nOnly the operator who started the run answers its questions, of every\nkind; a run with no recorded starter takes no answer from anybody.\n\nA run of another tenant is a 404. A 409 `Conflict` for: a run no longer\nrunning; no question standing, or another one than `question_id`; an\nanswer from anybody but the run's starter; a question already answered\ndifferently; a value on anything but a value, field or recipient\nquestion; a field answer that is not one of its choices; a recipient\nanswer that is not an address; a missing verdict on a write in doubt.\nOnly the question id reaches the run's workflow; the answer itself is\nkept on the run.",
         "operationId": "answer_workflow_run_v1_workflow_runs__run_id__answer_post",
         "parameters": [
           {

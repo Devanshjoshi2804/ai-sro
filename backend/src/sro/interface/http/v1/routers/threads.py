@@ -76,9 +76,13 @@ async def run_from_thread(
     The same run as `/v1/skills/{id}/runs`, kept where it belongs: an operator
     who filled in a card and pressed the button has had a conversation, and a
     result that lives only in the browser's memory is gone on the next render.
+
+    409 when the caller did not open the thread, checked before any run
+    starts: a run written into somebody else's thread stands over their offer.
     """
     if not body.skill_id:
         raise InvariantViolation("a run started from a thread must name a skill_id")
+    await container.converse().may_start(ctx, thread_id=ThreadId(thread_id))
     skill_id = SkillId(body.skill_id)
     skill = await container.get_skill().execute(ctx, skill_id=skill_id)
     await container.start_run().check(
@@ -127,7 +131,11 @@ async def pursue(
     a screenshot to a hosted model and back, and running it inside this request
     held the whole API until it finished -- which is not a slow endpoint, it is
     an outage with a good excuse. What comes back is an address to watch.
+
+    409 when the caller did not open the thread, checked before anything is
+    driven: the pursuit's note is written into this thread when it ends.
     """
+    await container.converse().may_start(ctx, thread_id=ThreadId(thread_id))
     if (busy := container.pursuits.working()) is not None:
         raise Conflict(
             f"a pursuit is already working on {busy.goal!r}; there is one browser, "

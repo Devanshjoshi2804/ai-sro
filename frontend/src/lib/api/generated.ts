@@ -1381,6 +1381,9 @@ export interface paths {
          *     The same run as `/v1/skills/{id}/runs`, kept where it belongs: an operator
          *     who filled in a card and pressed the button has had a conversation, and a
          *     result that lives only in the browser's memory is gone on the next render.
+         *
+         *     409 when the caller did not open the thread, checked before any run
+         *     starts: a run written into somebody else's thread stands over their offer.
          */
         post: operations["run_from_thread_v1_threads__thread_id__runs_post"];
         delete?: never;
@@ -1423,6 +1426,9 @@ export interface paths {
          *     a screenshot to a hosted model and back, and running it inside this request
          *     held the whole API until it finished -- which is not a slow endpoint, it is
          *     an outage with a good excuse. What comes back is an address to watch.
+         *
+         *     409 when the caller did not open the thread, checked before anything is
+         *     driven: the pursuit's note is written into this thread when it ends.
          */
         post: operations["pursue_v1_threads__thread_id__pursue_post"];
         delete?: never;
@@ -1966,14 +1972,17 @@ export interface paths {
          *     about a write the run sent and could not confirm needs the operator's
          *     `verdict`: `done` settles it, `not_done` lets the run try it again.
          *
+         *     Only the operator who started the run answers its questions, of every
+         *     kind; a run with no recorded starter takes no answer from anybody.
+         *
          *     A run of another tenant is a 404. A 409 `Conflict` for: a run no longer
-         *     running; no question standing, or another one than `question_id`; a
-         *     question already answered differently, or a field question already
-         *     answered by another operator; a value on anything but a value,
-         *     field or recipient question; a field answer that is not one of its
-         *     choices; a recipient answer that is not an address, or not from the
-         *     operator who started the run; a missing verdict on a write in doubt. Only the question id
-         *     reaches the run's workflow; the answer itself is kept on the run.
+         *     running; no question standing, or another one than `question_id`; an
+         *     answer from anybody but the run's starter; a question already answered
+         *     differently; a value on anything but a value, field or recipient
+         *     question; a field answer that is not one of its choices; a recipient
+         *     answer that is not an address; a missing verdict on a write in doubt.
+         *     Only the question id reaches the run's workflow; the answer itself is
+         *     kept on the run.
          */
         post: operations["answer_workflow_run_v1_workflow_runs__run_id__answer_post"];
         delete?: never;

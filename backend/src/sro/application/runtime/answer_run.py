@@ -9,6 +9,7 @@ from sro.application.ports.durable import DurableExecution
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.execution.mail_job import mailboxes
 from sro.domain.execution.progress import Progress
+from sro.domain.execution.workflow_run import answers_for
 from sro.domain.shared.errors import Conflict, NotFound
 
 K_ANSWER = 500
@@ -41,6 +42,8 @@ class AnswerRun:
             run = await uow.workflow_runs.get(ctx.tenant_id, run_id)
         if run is None:
             raise NotFound("no such run")
+        if not answers_for(run, ctx.principal_id.value):
+            raise Conflict("only the operator who started this run answers its questions")
         progress = Progress.of(run.progress)
         asking = progress.asking
         kind = asking.get("kind")
@@ -49,8 +52,6 @@ class AnswerRun:
             raise Conflict("that run is no longer running")
         if not asking or asking.get("id") != question_id:
             raise Conflict("that is not the question this run is waiting on")
-        if kind == "recipient" and run.started_by != ctx.principal_id.value:
-            raise Conflict("only the operator who started this run says who its mail goes to")
         if value and kind not in ("value", "field", "recipient"):
             raise Conflict(
                 "only a question for a value takes one: a password is stored with "
@@ -73,8 +74,6 @@ class AnswerRun:
                 raise Conflict("who a mail goes to is answered with one or more addresses")
             answer |= {"address": ", ".join(named), "by": ctx.principal_id.value}
         if asking.get("answered"):
-            if asking.get("by", answer.get("by")) != answer.get("by"):
-                raise Conflict("that question was already answered by another operator")
             if any(asking.get(key, "") != said for key, said in answer.items()):
                 raise Conflict("that question was already answered")
         else:

@@ -4,14 +4,11 @@ from dataclasses import replace
 
 import pytest
 
-from sro.application.context import RequestContext
 from sro.application.runtime.answer_run import AnswerRun
 from sro.application.runtime.fill_field import Filled
 from sro.application.runtime.step import Superseded
 from sro.domain.execution.progress import Progress
 from sro.domain.observation.gesture import Outline, OutlineField
-from sro.domain.shared.errors import Conflict
-from sro.domain.shared.identifiers import PrincipalId
 from tests.unit.runtime_support import CTX, TENANT, SteelRun, save_step, steel_run
 
 FIELDS = (
@@ -54,19 +51,6 @@ async def test_a_label_the_operator_picks_becomes_an_alias_for_that_job() -> Non
         "Department",
         "clerk",
     )
-
-
-async def test_the_alias_is_the_answering_operators_not_the_runs() -> None:
-    world, asked = await _asked_where_cost_centre_goes()
-    lead = RequestContext(tenant_id=TENANT, principal_id=PrincipalId("lead"))
-
-    await AnswerRun(world.uow, world.durable).execute(
-        lead, run_id=world.run_id, question_id=asked, value="Department"
-    )
-    await world.run_steps.answered(CTX, world.run_id, asked)
-
-    (alias,) = await world.uow.workflows.aliases_for(TENANT, (await world.job()).id)
-    assert alias.confirmed_by == "lead"
 
 
 async def test_leaving_the_value_out_teaches_nothing() -> None:
@@ -207,17 +191,6 @@ async def test_one_of_two_same_labels_is_taught_with_its_role_and_not_asked_agai
     assert (alias.field, alias.role) == ("Department", "textbox")
     progress = Progress.of((await world.uow.workflow_runs.get(TENANT, again)).progress)
     assert [(one["label"], one["role"]) for one in progress.composed] == [("Department", "textbox")]
-
-
-async def test_a_second_operators_press_on_an_answered_field_is_refused() -> None:
-    world, asked = await _asked_where_cost_centre_goes()
-    lead = RequestContext(tenant_id=TENANT, principal_id=PrincipalId("lead"))
-    press = AnswerRun(world.uow, world.durable).execute
-    await press(CTX, run_id=world.run_id, question_id=asked, value="Department")
-    await press(CTX, run_id=world.run_id, question_id=asked, value="Department")
-
-    with pytest.raises(Conflict, match="another operator"):
-        await press(lead, run_id=world.run_id, question_id=asked, value="Department")
 
 
 async def test_an_answer_whose_unit_of_work_rolls_back_leaves_no_alias() -> None:

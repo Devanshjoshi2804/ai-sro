@@ -29,6 +29,15 @@ def mail_key(message: str) -> str:
     return f"mail:{message}"
 
 
+K_ELSEWHERE = "a reply its starter's own look has to take"
+
+K_TAKEN = "a reply its starter's own look took"
+
+
+def elsewhere_key(run_id: str, question_id: str) -> str:
+    return f"elsewhere:{run_id}:{question_id}"
+
+
 def sent_key(message: str) -> str:
     """This system sent it -- apart from mail_key, which only says it was read."""
     return f"sent:{message}"

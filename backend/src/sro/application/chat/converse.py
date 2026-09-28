@@ -45,8 +45,9 @@ from sro.domain.chat.request import K_A_LOGIN
 from sro.domain.chat.standing import last_run, of_the_run, stands
 from sro.domain.chat.thread import Message, MessageId, Said, Speaker, Thread, ThreadId
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
+from sro.domain.execution.workflow_run import answers_for
 from sro.domain.lookup.asking import is_a_question
-from sro.domain.shared.errors import DomainError
+from sro.domain.shared.errors import Conflict, DomainError
 from sro.domain.skill.learned import demanded
 from sro.domain.skill.skill import Skill
 
@@ -117,7 +118,7 @@ class Converse:
 
     async def note(self, ctx: RequestContext, *, thread_id: ThreadId, text: str) -> None:
         async with self._uow as uow:
-            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            thread = _opened_by_the_caller(ctx, await uow.threads.get(ctx.tenant_id, thread_id))
             thread.say(
                 Message(
                     id=self._ids.new_message_id(),
@@ -145,12 +146,14 @@ class Converse:
         async with self._uow as uow:
             before = await uow.threads.get(ctx.tenant_id, thread_id)
         said_before = before.messages
-        if before.opened_by != ctx.principal_id and (
-            answering is not None
-            or pending_job(said_before) is not None
-            or offered_job(said_before) is not None
-        ):
-            return await self._only_said(ctx, thread_id=thread_id, text=text, said=K_NOT_YOURS)
+        try:
+            _opened_by_the_caller(ctx, before)
+        except Conflict:
+            told = None
+            if answering is None and pending_job(said_before) is None:
+                told = await self._what_stands(ctx, before)
+            self._told(before, text, told or K_NOT_YOURS)
+            return before
         if (
             answering is not None
             and pending_job(said_before, answering) is None
@@ -352,9 +355,8 @@ class Converse:
         if (run_id := last_run(thread.messages)) is not None:
             async with self._uow as uow:
                 run = await uow.workflow_runs.get(ctx.tenant_id, run_id)
-                seen = run is not None and ctx.principal_id.value in (
-                    thread.opened_by.value,
-                    run.started_by,
+                seen = run is not None and answers_for(
+                    run, ctx.principal_id.value, opened_by=thread.opened_by.value
                 )
                 job = (
                     run.pinned or await uow.workflows.get(ctx.tenant_id, run.workflow_id)
@@ -775,7 +777,10 @@ class Converse:
         self, ctx: RequestContext, *, thread_id: ThreadId, text: str, run_id: RunId
     ) -> Thread:
         async with self._uow as uow:
-            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            thread = _opened_by_the_caller(ctx, await uow.threads.get(ctx.tenant_id, thread_id))
+            run = await uow.workflow_runs.get(ctx.tenant_id, run_id.value)
+            if run is None or not answers_for(run, ctx.principal_id.value):
+                raise Conflict("a note goes only to a run you started")
             thread.say(
                 Message(
                     id=self._ids.new_message_id(),
@@ -789,6 +794,10 @@ class Converse:
             await uow.commit()
         return thread
 
+    async def may_start(self, ctx: RequestContext, *, thread_id: ThreadId) -> None:
+        async with self._uow as uow:
+            _opened_by_the_caller(ctx, await uow.threads.get(ctx.tenant_id, thread_id))
+
     async def started(
         self,
         ctx: RequestContext,
@@ -798,7 +807,7 @@ class Converse:
         skill: Skill,
     ) -> Thread:
         async with self._uow as uow:
-            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            thread = _opened_by_the_caller(ctx, await uow.threads.get(ctx.tenant_id, thread_id))
             thread.say(
                 Message(
                     id=self._ids.new_message_id(),
@@ -1230,3 +1239,9 @@ def _gathered(thread: Thread, skill_id: str | None) -> dict[str, str]:
             if isinstance(item, dict):
                 values.update({str(key): str(value) for key, value in item.items() if value})
     return values
+
+
+def _opened_by_the_caller(ctx: RequestContext, thread: Thread) -> Thread:
+    if thread.opened_by != ctx.principal_id:
+        raise Conflict("only the operator who opened this thread acts in it")
+    return thread

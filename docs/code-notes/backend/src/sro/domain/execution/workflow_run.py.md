@@ -319,3 +319,14 @@ Code: `pinned: Workflow | None = None`
 > leaves it out. None on an extension run, which holds its job in memory for
 > its whole life.
 
+## `answers_for`, [line 121](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L121): Note
+
+Code: `return principal in {run.started_by, opened_by} - {""}`
+
+> Who may answer a run: its starter alone (invariant 5; S1). `AnswerRun`
+> passes no opener, so the route and the mail door answer for the starter and
+> nobody else. `opened_by` is the opener of the thread the caller is in now,
+> which is not always the thread the run started from; chat's `_what_stands`
+> passes it only to say where the run stands, beside chat's own offers and
+> questions in that thread. Never pass it to grant an answer. An empty
+> `started_by` (a legacy row) matches nobody.

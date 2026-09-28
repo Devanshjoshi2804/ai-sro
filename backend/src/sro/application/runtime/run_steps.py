@@ -298,6 +298,7 @@ class RunSteps:
         async with self._uow as uow:
             await uow.workflow_runs.save(run)
             await uow.commit()
+        await SayWhatHappened(self._uow, self._clock, self._ids).answered_elsewhere(ctx, run)
         return run.outcome
 
     async def stopped(self, ctx: RequestContext, run_id: str) -> None:

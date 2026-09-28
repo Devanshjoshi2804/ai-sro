@@ -505,6 +505,10 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/reposit
 > extension refused BEFORE acting, never `timeout` and never a failure
 > the page itself answered. Idempotent -- a key nobody claimed is a
 > no-op, not an error.
+>
+> It answers whether a claim was there to give back, so two callers racing to
+> act on one mark can tell which of them removed it
+> (`SayWhatHappened.answered_elsewhere`).
 
 ## `GestureRepository.add_batch`, [line 355](../../../../../../../backend/src/sro/application/ports/repositories.py#L355): Docstring
 

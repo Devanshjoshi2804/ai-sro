@@ -28,7 +28,7 @@ Code: `K_REMEMBER = timedelta(days=30)`
 > comes round again is one nobody acted on in a month, and offering it a second
 > time is not the worst thing this could do.
 
-## `sent_to_others`, [line 100](../../../../../../../backend/src/sro/application/chat/mailbox.py#L100): Note
+## `sent_to_others`, [line 109](../../../../../../../backend/src/sro/application/chat/mailbox.py#L109): Note
 
 > Who else a request went to when the operator sent it: every To and Cc
 > address other than the mailbox's own, when the sender is the mailbox. So a
@@ -49,7 +49,7 @@ Code: `K_REMEMBER = timedelta(days=30)`
 > system's own sent mail was read back as the operator's; now `is_ours` is the
 > one check of `sent_key`, and the look calls it before it reads a mail.
 
-## `send_as_this_system`, [line 45](../../../../../../../backend/src/sro/application/chat/mailbox.py#L45): Comment
+## `send_as_this_system`, [line 54](../../../../../../../backend/src/sro/application/chat/mailbox.py#L54): Comment
 
 Code: `marker = secrets.token_hex(16)`
 

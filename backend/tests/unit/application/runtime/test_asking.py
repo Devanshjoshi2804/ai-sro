@@ -2,6 +2,7 @@ import asyncio
 
 import pytest
 
+from sro.application.context import RequestContext
 from sro.application.runtime.answer_run import AnswerRun
 from sro.application.runtime.step import WaitingForAPerson
 from sro.domain.execution.account import K_LEASE_TTL, LeaseState
@@ -9,6 +10,7 @@ from sro.domain.execution.lanes import Lane, StepResult
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.waiting import as_said, waiting_on
 from sro.domain.shared.errors import Conflict
+from sro.domain.shared.identifiers import PrincipalId
 from sro.domain.skill.signing_in import PageSignals
 from sro.domain.skill.tabs import MAIN
 from tests.unit.fakes import FakeDurableExecution, FakeUnitOfWork
@@ -95,6 +97,42 @@ async def test_only_a_question_for_a_value_takes_one_and_nothing_else_reaches_th
     saved = await uow.workflow_runs.get(TENANT, run.id)
     assert saved is not None
     assert "Hunter2" not in str(saved.progress)
+
+
+_SAID = {"value": "GGD", "field": "", "step": "", "recipient": "vendor@supplier.example"}
+
+
+@pytest.mark.parametrize("kind", sorted(_SAID))
+async def test_only_the_run_s_starter_answers_its_question_of_any_kind(kind: str) -> None:
+    """Invariant 5. Only `recipient` was checked against `started_by`, so
+    anybody in the tenant answered a run's value, field or step question."""
+    uow, durable = FakeUnitOfWork(), FakeDurableExecution()
+    run = await asking_steel_run(uow, kind=kind)
+    stranger = RequestContext(tenant_id=TENANT, principal_id=PrincipalId("someone-else"))
+
+    with pytest.raises(Conflict):
+        await AnswerRun(uow, durable).execute(
+            stranger, run_id=run.id, question_id=QID, value=_SAID[kind]
+        )
+    saved = await uow.workflow_runs.get(TENANT, run.id)
+    assert saved is not None and "answered" not in Progress.of(saved.progress).asking
+    assert durable.answered == []
+
+    await AnswerRun(uow, durable).execute(CTX, run_id=run.id, question_id=QID, value=_SAID[kind])
+
+    assert durable.answered == [(run.id, QID)]
+
+
+async def test_a_run_nobody_started_takes_no_answer_of_any_kind() -> None:
+    uow, durable = FakeUnitOfWork(), FakeDurableExecution()
+    run = await asking_steel_run(uow, kind="value")
+    run.started_by = ""
+    await uow.workflow_runs.save(run)
+
+    with pytest.raises(Conflict):
+        await AnswerRun(uow, durable).execute(CTX, run_id=run.id, question_id=QID, value="GGD")
+
+    assert durable.answered == []
 
 
 async def test_an_answer_to_another_question_or_to_none_is_refused() -> None:

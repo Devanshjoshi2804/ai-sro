@@ -28,6 +28,7 @@ class PageAnswer:
     pin: str | None = None
     repaired: bool = False
     held: str | None = field(default=None, repr=False)
+    xpath: str | None = None
 
 
 class PageGone(Exception):

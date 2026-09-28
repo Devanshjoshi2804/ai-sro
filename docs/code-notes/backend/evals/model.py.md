@@ -19,12 +19,12 @@ What a case, a scored case and a suite's report are, and the gate a prompt chang
 > fails the same prompt against itself about half the time. Accuracy and
 > sure-but-wrong stay exact: they are compared on the same frozen cases.
 
-## `Report.load`, [line 64](../../../../backend/evals/model.py#L64): Design
+## `Report.load`, [line 65](../../../../backend/evals/model.py#L65): Design
 
 > A baseline records the sorted ids of the cases it was scored on, so a run
 > is gated only against the same case set.
 
-## `report`, [line 73](../../../../backend/evals/model.py#L73): Design
+## `report`, [line 74](../../../../backend/evals/model.py#L74): Design
 
 > Sure-but-wrong is counted over all cases, not over the sure ones: a prompt
 > that grows less sure and no more right lowers it, and the gate wants that.
@@ -32,7 +32,7 @@ What a case, a scored case and a suite's report are, and the gate a prompt chang
 > timeout, a closed client, a call refused for no tenant) is counted in
 > `errors`, not passed off as an unsure miss.
 
-## `gate`, [line 93](../../../../backend/evals/model.py#L93): Design
+## `gate`, [line 95](../../../../backend/evals/model.py#L95): Design
 
 > Spec §2.2: "A prompt change merges only if accuracy holds or improves,
 > sure-but-wrong does not rise, and cost does not rise."

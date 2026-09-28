@@ -143,7 +143,7 @@ def scripted_driver(
     url: str = "",
     unsettled: bool = False,
     hit: Mapping[str, object] | None = None,
-    resolved: PageAnswer | None = None,
+    resolved: PageAnswer | Sequence[PageAnswer] | None = None,
     outline: Mapping[str, object] | None = None,
 ) -> FakePageDriver:
     driver = FakePageDriver(

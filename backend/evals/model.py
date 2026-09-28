@@ -59,6 +59,7 @@ class Report:
     errors: int = 0
     fallbacks: int = 0
     case_ids: tuple[str, ...] = ()
+    unreachable: int = 0
 
     @classmethod
     def load(cls, path: Path) -> Report:
@@ -70,7 +71,7 @@ def _at(ordered: list[float], q: float) -> float:
     return ordered[min(len(ordered) - 1, int(q * len(ordered)))] if ordered else 0.0
 
 
-def report(suite: str, prompt: Prompt, scored: Sequence[Scored]) -> Report:
+def report(suite: str, prompt: Prompt, scored: Sequence[Scored], *, unreachable: int = 0) -> Report:
     n = len(scored) or 1
     latencies = sorted(one.latency_s for one in scored)
     return Report(
@@ -87,6 +88,7 @@ def report(suite: str, prompt: Prompt, scored: Sequence[Scored]) -> Report:
         errors=sum(one.error is not None for one in scored),
         fallbacks=sum(one.fell_back for one in scored),
         case_ids=tuple(sorted(one.case_id for one in scored)),
+        unreachable=unreachable,
     )
 
 
@@ -114,9 +116,11 @@ def as_markdown(report: Report, failed: Sequence[str]) -> str:
     rows = [
         f"### make eval — {report.suite}: {report.prompt} v{report.version} on {report.model}",
         "",
-        "| cases | errors | fallbacks | accuracy | sure-but-wrong | cost/case | p50 | p95 |",
-        "|---|---|---|---|---|---|---|---|",
-        f"| {report.cases} | {report.errors} | {report.fallbacks} | {report.accuracy:.1%} | "
+        "| cases | unreachable | errors | fallbacks | accuracy | sure-but-wrong | cost/case "
+        "| p50 | p95 |",
+        "|---|---|---|---|---|---|---|---|---|",
+        f"| {report.cases} | {report.unreachable} | {report.errors} | {report.fallbacks} | "
+        f"{report.accuracy:.1%} | "
         f"{report.sure_but_wrong:.1%} | "
         f"${report.cost_per_case:.5f} | {report.p50_s:.2f} s | {report.p95_s:.2f} s |",
         "",

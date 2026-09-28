@@ -29,7 +29,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/page.py
 > out of `repr` so no log line or traceback prints a value; the other calls
 > leave it `None`.
 
-## `PageDriver`, [line 42](../../../../../../../backend/src/sro/application/ports/page.py#L42): Docstring
+## `PageDriver`, [line 43](../../../../../../../backend/src/sro/application/ports/page.py#L43): Docstring
 
 > S5 owns this file and this Protocol; the five methods X4 needs to drive
 > the recorded frame are here (`act`, `mark`, `calls_since`, `wait_for_call`,
@@ -39,12 +39,12 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/page.py
 > `restore_state`, `forget`) and `aclose`; a `Protocol` has no body to
 > conflict over, so the two additions merge as a plain union of methods.
 
-## `PageDriver.aclose`, [line 128](../../../../../../../backend/src/sro/application/ports/page.py#L128): Docstring
+## `PageDriver.aclose`, [line 129](../../../../../../../backend/src/sro/application/ports/page.py#L129): Docstring
 
 > The driver holds connections for the life of the process; whoever built
 > the container closes them on the way down.
 
-## `PageDriver.forget_calls`, [line 126](../../../../../../../backend/src/sro/application/ports/page.py#L126): Docstring
+## `PageDriver.forget_calls`, [line 127](../../../../../../../backend/src/sro/application/ports/page.py#L127): Docstring
 
 > Drops a tab's call log, request bodies included. The broker calls it on
 > the probe tab before handing it to the first run, so the sign-in POST,

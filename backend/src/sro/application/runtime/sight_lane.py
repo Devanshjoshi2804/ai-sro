@@ -73,7 +73,7 @@ class SightLane:
             return await self._settle(step, values, ctx, held, primary, tried)
 
         return await self._guarded(
-            _goal(step, values, primary),
+            sight_goal(step, values, primary),
             step.order,
             primary,
             watched,
@@ -388,7 +388,7 @@ def _taught(hit: Mapping[str, object] | None) -> dict[str, str]:
     return {"strategy": strategy, "query": query, "frame_path": json.dumps(hops)}
 
 
-def _goal(step: Step, values: Mapping[str, str], primary: Gesture) -> str:
+def sight_goal(step: Step, values: Mapping[str, str], primary: Gesture) -> str:
     given = ", ".join(f"{name} = {value}" for name, value in values.items() if value.strip())
     after = primary.action.after
     value = value_for(step, primary, values, None)

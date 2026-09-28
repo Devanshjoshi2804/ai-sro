@@ -2,16 +2,17 @@ from __future__ import annotations
 
 import json
 import shutil
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import asdict, replace
 from pathlib import Path
-from typing import Protocol
+from typing import Literal, Protocol
 
 from evals.model import Case, Report, Scored, as_markdown, gate, report
 from evals.redact import redacted
 from evals.replay import Replayed
 from evals.suites.mining import Mining
 from evals.suites.reader import Reader
+from evals.suites.repair import Repair
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.container import Container, build_container
@@ -33,7 +34,24 @@ class Suite(Protocol):
     async def run(self, case: Case, asker: Asker) -> Scored: ...
 
 
-SUITES: dict[str, Suite] = {"mining": Mining(), "reader": Reader()}
+def _repair(lane: Literal["sight", "ui"], container: Container | None) -> Suite:
+    if container is None:
+        raise SystemExit(f"the repair-{lane} suite needs a live page: it has no replayed cases")
+    vision = container.vision if lane == "sight" else None
+    return Repair(lane, vision, container.session_broker(), container.driver)
+
+
+SUITES: dict[str, Callable[[Container | None], Suite]] = {
+    "mining": lambda _: Mining(),
+    "reader": lambda _: Reader(),
+    "repair-sight": lambda c: _repair("sight", c),
+    "repair-ui": lambda c: _repair("ui", c),
+}
+
+
+def reachable(scored: Sequence[Scored]) -> tuple[list[Scored], int]:
+    kept = [one for one in scored if one.latency_s >= 0]
+    return kept, len(scored) - len(kept)
 
 
 def _thawed(path: Path) -> list[Case] | None:
@@ -81,7 +99,8 @@ async def frozen(
 async def run_suite(
     name: str, tenant: str, *, baseline: bool, limit: int | None = None, rebuild: bool = False
 ) -> int:
-    suite, container = SUITES[name], build_container()
+    container = build_container()
+    suite = SUITES[name](container)
     asker = suite.asker(container)
     if asker is None:
         raise SystemExit("make eval needs gemini_api_key and interpretation_enabled")
@@ -98,7 +117,8 @@ async def run_suite(
             one = await suite.run(case, asker)
             replace(case, answer=one.answer).save(results / name)
             scored.append(one)
-    now = report(name, suite.prompt, scored)
+    kept, unreachable = reachable(scored)
+    now = report(name, suite.prompt, kept, unreachable=unreachable)
     base = results / f"baseline-{name}.json"
     failed = gate(Report.load(base) if base.is_file() else None, now)
     out = results / f"{name}-{suite.prompt.name}-v{suite.prompt.version}.md"
@@ -112,7 +132,10 @@ async def run_suite(
 async def run_ci(*, live: bool, folder: Path = HERE / "ci") -> int:
     container = build_container() if live else None
     bad, seen = [], 0
-    for name, suite in SUITES.items():
+    for name, made in SUITES.items():
+        if not (folder / name).is_dir():
+            continue
+        suite = made(container)
         for path in sorted((folder / name).glob("*.json")):
             seen += 1
             case = Case.load(path)

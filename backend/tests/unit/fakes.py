@@ -1593,7 +1593,8 @@ class FakePageDriver:
 
     For a field nobody demonstrated, `resolve` records each payload in
     `resolved` and answers the scripted `resolved` answer (one control by
-    default), and `outline` answers the scripted live outline."""
+    default); a sequence of answers is handed out in order, the last one
+    repeating. `outline` answers the scripted live outline."""
 
     def __init__(
         self,
@@ -1606,7 +1607,7 @@ class FakePageDriver:
         url: str = "",
         unsettled: bool = False,
         hit: Mapping[str, object] | None = None,
-        resolved: PageAnswer | None = None,
+        resolved: PageAnswer | Sequence[PageAnswer] | None = None,
         outline: Mapping[str, object] | None = None,
     ) -> None:
         self.tabs: dict[str, str] = {}
@@ -1635,7 +1636,13 @@ class FakePageDriver:
         self.lands: str | None = None
         self.pointed: list[tuple[str, int, int, str | None]] = []
         self.aimed: list[Sequence[Mapping[str, object]] | None] = []
-        self._resolves = resolved if resolved is not None else PageAnswer(ok=True, candidates=1)
+        self._resolves = (
+            [PageAnswer(ok=True, candidates=1)]
+            if resolved is None
+            else [resolved]
+            if isinstance(resolved, PageAnswer)
+            else list(resolved)
+        )
         self._outline = outline
         self.resolved: list[dict[str, object]] = []
         self.cookie = ""
@@ -1751,7 +1758,7 @@ class FakePageDriver:
         self, session: SessionRef, target_id: str, payload: Mapping[str, object]
     ) -> PageAnswer:
         self.resolved.append(dict(payload))
-        return self._resolves
+        return self._resolves.pop(0) if len(self._resolves) > 1 else self._resolves[0]
 
     async def outline(
         self,

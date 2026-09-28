@@ -14,6 +14,7 @@ from sro.application.skill.job_facts import JobFacts, job_facts
 from sro.domain.chat.reading import ChatReading, new_chat_id
 from sro.domain.chat.request import Candidate, read_of
 from sro.domain.execution.compiled import why_not
+from sro.domain.execution.mail_job import built_ins
 from sro.domain.prompts.read_request import READ_REQUEST
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import Answer
@@ -101,12 +102,15 @@ async def read_request(
     *,
     held: Mapping[str, int],
     logins: Logins = Logins(),
+    also: Sequence[Candidate] = (),
 ) -> Understood:
     chore = chore_named(text, facts)
     if chore is not None:
         return Understood(chore.workflow.id, Answer(data={}), cannot_run=[K_A_CHORE])
     ranked = rank_jobs(text, facts, held=held)
-    return await understand(text, [candidate_of(one, logins=logins) for one in ranked], asker)
+    return await understand(
+        text, [*(candidate_of(one, logins=logins) for one in ranked), *also], asker
+    )
 
 
 async def held_runs(uow: UnitOfWork, tenant_id: TenantId) -> dict[str, int]:
@@ -150,6 +154,10 @@ async def read_utterance(
         asker,
         held=await held_runs(uow, tenant_id),
         logins=await logins_of(uow, tenant_id),
+        also=[
+            Candidate(one.id, one.title, fields=(), aliases={}, seen={})
+            for one in built_ins(tenant_id.value)
+        ],
     )
     got = await offer_check(uow, tenant_id, got, facts, now=now)
     answer = got.answer

@@ -50,7 +50,7 @@ from sro.domain.execution.compiled import why_not
 from sro.domain.execution.field_classes import field_classes
 from sro.domain.execution.gathering import Gathered
 from sro.domain.execution.learned_step import limits_for
-from sro.domain.execution.mail_job import is_mail_only
+from sro.domain.execution.mail_job import built_in, is_mail_only
 from sro.domain.execution.progress import run_budget
 from sro.domain.execution.takeover import Took, take_over
 from sro.domain.execution.verified_writes import VerifiedWrite
@@ -169,7 +169,7 @@ class StartWorkflowRun:
     ) -> WorkflowRun:
         asker_or_refuse(self._asker)
         now: datetime = self._clock.now()
-        steel = self.runs_on_steel(ctx)
+        steel = self.runs_on_steel(ctx) and built_in(workflow_id, ctx.tenant_id.value) is None
         async with self._uow as uow:
             why = await over_cap(uow, ctx.tenant_id, now=now, cap_usd=self._cap_usd)
             if why is not None:

@@ -341,7 +341,7 @@ Code: `K_EVERY_FORM = 400`
 
 ## `StartWorkflowRun.execute`, [line 172](../../../../../../../backend/src/sro/application/execution/workflow_runs.py#L172): Note
 
-Code: `steel = self.runs_on_steel(ctx)`
+Code: `steel = self.runs_on_steel(ctx) and built_in(workflow_id, ctx.tenant_id.value) is None`
 
 > A Steel run holds no browser of the operator's, so the connected-browser
 > and one-run-per-browser refusals are the extension's alone. Its row stores
@@ -1315,3 +1315,9 @@ Code: `await then(uow, run)`
 > in a colleague's window is one operator driving another's hand (invariant
 > 5). This is what the deleted `resumeTheJob` did from inside the browser,
 > now decided where every door can reach it.
+
+## `StartWorkflowRun.execute`, [line 149](../../../../../../backend/src/sro/application/execution/workflow_runs.py#L149): Note
+
+> A built-in mail action never runs on Steel, whatever the tenant: it is the
+> draft path the user tested on QA -- written, shown, sent on the press. A
+> mined mail-only job keeps S2's rule and runs where the tenant runs.

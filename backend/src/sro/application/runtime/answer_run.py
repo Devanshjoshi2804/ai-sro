@@ -8,7 +8,7 @@ from sro.application.context import RequestContext
 from sro.application.execution.mail_job import K_BODY
 from sro.application.ports.durable import DurableExecution
 from sro.application.ports.repositories import UnitOfWork
-from sro.domain.execution.mail_job import MAIL_BODY, mailboxes
+from sro.domain.execution.mail_job import DRAFT_QUESTIONS, MAIL_BODY, WHICH_MAIL, mailboxes
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.workflow_run import answers_for
 from sro.domain.shared.errors import Conflict, NotFound
@@ -48,12 +48,12 @@ class AnswerRun:
         progress = Progress.of(run.progress)
         asking = progress.asking
         kind = asking.get("kind")
-        drafted = run.executor != "steel" and kind in ("recipient", MAIL_BODY)
+        drafted = run.executor != "steel" and kind in DRAFT_QUESTIONS
         if run.outcome != ("stopped" if drafted else "running"):
             raise Conflict("that run is no longer running")
         if not asking or asking.get("id") != question_id:
             raise Conflict("that is not the question this run is waiting on")
-        if value and kind not in ("value", "field", "recipient", MAIL_BODY):
+        if value and kind not in ("value", "field", *DRAFT_QUESTIONS):
             raise Conflict(
                 "only a question for a value takes one: a password is stored with "
                 "PUT /v1/secrets, a one-time code is typed on the page, and a step "
@@ -82,6 +82,10 @@ class AnswerRun:
         if kind == MAIL_BODY:
             if not chosen:
                 raise Conflict("what a mail says is answered with its words")
+            answer |= {"said": chosen, "by": ctx.principal_id.value}
+        if kind == WHICH_MAIL:
+            if not chosen:
+                raise Conflict("which mail is answered with words that find it")
             answer |= {"said": chosen, "by": ctx.principal_id.value}
         if asking.get("answered"):
             if any(asking.get(key, "") != said for key, said in answer.items()):

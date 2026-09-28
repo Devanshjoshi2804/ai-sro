@@ -129,3 +129,9 @@ Code: `aliased = labelled(normal(said.get(normal(name), "")), fields)`
 > A required parameter named by an alias is bound when the alias's label
 > belongs to a parameter a step fills: the label is resolved to that
 > parameter the way `field_of` resolves it, not compared by exact name.
+
+## `compile_job`, [line 60](../../../../../../backend/src/sro/domain/execution/compiled.py#L60): Note
+
+> A built-in mail action has no evidence and needs none: the Gmail tool writes
+> it, so its step is never `no_lane`. A mined job whose step has no gesture a
+> browser can act on still is, mail or not.

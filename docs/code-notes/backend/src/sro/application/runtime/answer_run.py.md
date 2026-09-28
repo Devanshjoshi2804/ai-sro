@@ -26,7 +26,7 @@ Code: `if not asking or asking.get("id") != question_id:`
 > operator's verdict. Without one the question stands and the write stays in
 > doubt, never sent again.
 
-## `AnswerRun.execute`, [line 90](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L90): Note
+## `AnswerRun.execute`, [line 94](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L94): Note
 
 Code: `progress.asking = {**asking, **answer}`
 
@@ -74,7 +74,7 @@ Code: `if not answers_for(run, ctx.principal_id.value):`
 
 ## `AnswerRun.execute`, [line 51](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L51): Comment
 
-Code: `drafted = run.executor != "steel" and kind in ("recipient", MAIL_BODY)`
+Code: `drafted = run.executor != "steel" and kind in DRAFT_QUESTIONS`
 
 > A drafted (non-Steel) mail job asks who its mail goes to, or what it says,
 > from a stopped run -- it holds no browser while it waits -- so those two
@@ -85,3 +85,9 @@ Code: `drafted = run.executor != "steel" and kind in ("recipient", MAIL_BODY)`
 > Steel a `mail_body` question stands on a running run and is signalled like
 > any other; it takes words, never a verdict, so a `done` can never mark an
 > unwritten mail sent (S4 round 1, I1).
+
+## `AnswerRun.execute`, [line 33](../../../../../../backend/src/sro/application/runtime/answer_run.py#L33): Note
+
+> `which_mail` (M4) is answered with words, like `mail_body`, and kept as
+> `said`; the redraft searches the mailbox with them and never adds them to
+> the writer's request.

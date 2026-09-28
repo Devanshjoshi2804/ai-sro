@@ -12,6 +12,7 @@ from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.container import Container
 from sro.domain.execution.compose import normal
+from sro.domain.execution.mail_job import is_mail_only
 from sro.domain.observation.gesture import Action, Component, Gesture, Target
 from sro.domain.observation.trim import is_secret
 from sro.domain.observation.values import frequencies_over, shared_values
@@ -95,7 +96,7 @@ class Mining:
                 continue
             cites = ordered_cites(workflow)
             cited = await uow.gestures.gestures_for(tenant_id, ids=tuple(cites))
-            if not cited:
+            if not cited or is_mail_only(workflow, {one.id: one for one in cited}):
                 continue
             streams = {one.stream_id for one in cited}
             around = await uow.gestures.gestures_for(

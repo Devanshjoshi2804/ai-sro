@@ -13,6 +13,7 @@ from evals.run import frozen, run_ci, write_candidates
 from evals.suites.mining import Mining, request_values
 from evals.suites.reader import Reader
 
+from sro.domain.observation.gesture import Gesture
 from sro.domain.prompts.mine import MINE
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow
@@ -196,14 +197,26 @@ async def test_a_mining_case_does_not_credit_a_value_typed_into_the_sign_ins_own
     assert not (await Mining().run(scored(logins), Replayed(answer))).passed
 
 
+def _work() -> Workflow:
+    """Open the mail that asked, then save it in the WMS: a job with a mail
+    step, never mail alone -- a mail-only doing is the Gmail tool's (M4)."""
+    return replace(_job(["m-work"], ["w-save"]), id="wfl_work")
+
+
+def _saved(tenant: str) -> Gesture:
+    return replace(
+        _gesture("w-save", said="Save", at=20, where="https://wms.example"), tenant=tenant
+    )
+
+
 async def test_a_mining_case_carries_the_recorded_sign_ins_boxes() -> None:
     uow = FakeUnitOfWork()
     async with uow:
         await uow.workflows.save(_signing_in_job("h"))
         await uow.gestures.add_gestures(tuple(_sign_in("h", user="clerk.one").values()))
         done = replace(_gesture("m-work", said="customer type GGD", at=9), tenant=f.TENANT.value)
-        await uow.gestures.add_gestures((done,))
-        work = replace(_job(["m-work"]), id="wfl_work", tenant=f.TENANT.value, signs_out=False)
+        await uow.gestures.add_gestures((done, _saved(f.TENANT.value)))
+        work = replace(_work(), tenant=f.TENANT.value, signs_out=False)
         await uow.workflows.save(work)
         await uow.commit()
 
@@ -517,11 +530,11 @@ async def test_a_sign_in_job_s_mails_are_no_reader_case() -> None:
         for n, one in enumerate(("m-work", "m-login"))
     }
     async with uow:
-        await uow.workflows.save(replace(_job(["m-work"]), id="wfl_work", tenant="acme"))
+        await uow.workflows.save(replace(_work(), tenant="acme"))
         await uow.workflows.save(
             replace(_job(["m-login"]), id="wfl_login", tenant="acme", title="Log in", signs_in=True)
         )
-        await uow.gestures.add_gestures(tuple(mails.values()))
+        await uow.gestures.add_gestures((*mails.values(), _saved("acme")))
         await uow.commit()
 
     cases = await Reader().cases(uow, f.TENANT)
@@ -538,11 +551,11 @@ async def test_a_chore_is_no_mining_case() -> None:
         for n, one in enumerate(("m-work", "m-login"))
     }
     async with uow:
-        await uow.workflows.save(replace(_job(["m-work"]), id="wfl_work", tenant="acme"))
+        await uow.workflows.save(replace(_work(), tenant="acme"))
         await uow.workflows.save(
             replace(_job(["m-login"]), id="wfl_login", tenant="acme", title="Log in", signs_in=True)
         )
-        await uow.gestures.add_gestures(tuple(done.values()))
+        await uow.gestures.add_gestures((*done.values(), _saved("acme")))
         await uow.commit()
 
     cases = await Mining().cases(uow, f.TENANT)

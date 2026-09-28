@@ -102,7 +102,7 @@ Code: `until: str`
 
 ## `asks_a_person`, [line 54](../../../../../../../backend/src/sro/domain/execution/waiting.py#L54): Note
 
-Code: `or (run.outcome == "stopped" and asking.get("kind") in ("recipient", MAIL_BODY))`
+Code: `or (run.outcome == "stopped" and asking.get("kind") in DRAFT_QUESTIONS)`
 
 > A drafted mail job waits `stopped` on its two questions, who it goes to and
 > what it says; a reply on its thread must find it either way (S4 round 1, M7),

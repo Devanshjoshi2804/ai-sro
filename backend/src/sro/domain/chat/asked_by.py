@@ -3,7 +3,12 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from sro.domain.execution.mail_job import MAILBOX_HOSTS, on_the_mailbox, sends_mail
+from sro.domain.execution.mail_job import (
+    MAILBOX_HOSTS,
+    on_the_mailbox,
+    sends_mail,
+    wrote_the_mailbox,
+)
 from sro.domain.observation.gesture import Gesture
 from sro.domain.skill.workflow import Step, Workflow
 
@@ -54,6 +59,27 @@ def only_reads_the_mail(step: Step, by_id: Mapping[str, Gesture]) -> bool:
     return not sends_mail(step, by_id)
 
 
+def by_hand(workflow: Workflow, step: Step, by_id: Mapping[str, Gesture]) -> bool:
+    if not only_reads_the_mail(step, by_id) or _leads_to_a_send(workflow, step, by_id):
+        return False
+    return any(
+        wrote_the_mailbox(by_id[one]) and _said(by_id[one]) is None
+        for one in step.cites
+        if one in by_id
+    )
+
+
+def _leads_to_a_send(workflow: Workflow, step: Step, by_id: Mapping[str, Gesture]) -> bool:
+    for later in sorted(workflow.steps, key=lambda one: one.order):
+        if later.order <= step.order:
+            continue
+        if sends_mail(later, by_id):
+            return True
+        if not only_reads_the_mail(later, by_id):
+            return False
+    return False
+
+
 def _said(gesture: Gesture) -> str | None:
     target = gesture.action.target
     said = " ".join(((target.name if target else None) or "").split())
@@ -62,4 +88,4 @@ def _said(gesture: Gesture) -> str | None:
     return said if len(said) <= K_TEXT else said[:K_TEXT] + "…"
 
 
-__all__ = ["K_EXAMPLES", "K_LEAST", "K_TEXT", "AskedBy", "mails_behind", "texts"]
+__all__ = ["K_EXAMPLES", "K_LEAST", "K_TEXT", "AskedBy", "by_hand", "mails_behind", "texts"]

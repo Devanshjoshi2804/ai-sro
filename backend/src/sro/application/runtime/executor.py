@@ -15,7 +15,7 @@ from sro.application.runtime.step import (
     StepLane,
     Stopped,
 )
-from sro.domain.chat.asked_by import only_reads_the_mail
+from sro.domain.chat.asked_by import by_hand, only_reads_the_mail
 from sro.domain.execution.evidence import primary_gesture
 from sro.domain.execution.lanes import Broken, Lane, StepResult, lanes_for
 from sro.domain.execution.mail_job import sends_mail
@@ -50,9 +50,10 @@ class StepExecutor:
         broken: Collection[Broken],
         start_url: str,
     ) -> tuple[StepResult, ...]:
-        if only_reads_the_mail(step, ctx.by_id):
+        mailbox = by_hand(ctx.workflow, step, ctx.by_id)
+        if only_reads_the_mail(step, ctx.by_id) and not mailbox:
             return (StepResult("read", Lane.TOOL, "the mail this run came from is already read"),)
-        tool = sends_mail(step, ctx.by_id)
+        tool = mailbox or sends_mail(step, ctx.by_id)
         adding = ctx.adding.get(step.order)
         known = set() if adding is None else set(adding.known.values())
         added_ok = adding is None or (

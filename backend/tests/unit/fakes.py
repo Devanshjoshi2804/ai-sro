@@ -91,7 +91,7 @@ from sro.domain.execution.belts import RunProof, state_verified
 from sro.domain.execution.compose import normal
 from sro.domain.execution.lanes import K_BROKEN_COOL_DOWN, Broken, Lane, SeenCall
 from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
-from sro.domain.execution.mail_job import JobRecipient
+from sro.domain.execution.mail_job import JobRecipient, built_in
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
 from sro.domain.execution.verified_writes import VerifiedWrite
@@ -2757,6 +2757,8 @@ class FakeWorkflowRepository:
         return tuple(deepcopy(row) for row in found)
 
     async def get(self, tenant_id: TenantId, workflow_id: str, *, lock: bool = False) -> Workflow:
+        if (made := built_in(workflow_id, tenant_id.value)) is not None:
+            return made
         row = self.rows.get(workflow_id)
         if row is None or row.tenant != tenant_id.value or workflow_id in self.retired:
             raise NotFound(f"workflow {workflow_id} was not found")

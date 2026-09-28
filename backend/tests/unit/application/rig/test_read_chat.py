@@ -247,14 +247,16 @@ async def test_the_jobs_it_is_read_against_are_the_ones_this_tenant_holds() -> N
     """Two tenants, because a door that read the tenant off anything but `ctx`
     passes every other assertion in this file. `rival` shares the store and
     holds nothing, so the job the model names is one nobody holds -- which is a
-    hallucination and not an offer."""
+    hallucination and not an offer. Since M4 the rival is still read -- against
+    the built-in mail actions every tenant has -- and never against acme's job."""
     uow = await _held()
     asker = FakeAsker(_answer("wfl_1", [{"field": "areaName", "value": "4", "quote": "zone 4"}]))
 
     got = await _read(uow, asker=asker).execute(_ctx(RIVAL), utterance=SAID)
 
     assert got.workflow_id is None
-    assert asker.asked == [], "it read the store's jobs, not this tenant's"
+    (asked,) = asker.asked
+    assert "wfl_1" not in str(asked["evidence"]), "it read the store's jobs, not this tenant's"
 
     assert [row.tenant for row in _billed_rows(uow)] == ["rival"], "billed to the wrong tenant"
 

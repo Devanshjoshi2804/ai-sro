@@ -6565,6 +6565,41 @@ async def test_the_step_that_opens_the_mail_is_not_performed_once_the_mail_is_re
     assert [one.verdict for one in run.steps[1:]] == ["held", "held"], run.steps
 
 
+async def test_a_step_that_changes_the_mailbox_stops_the_run_and_is_never_clicked() -> None:
+    """M4: an archive in the mailbox made Gmail's item-write call, so it is no
+    read of the request -- it was marked `not_needed` as if done. The Gmail tool
+    cannot archive and a run never clicks in the mailbox, so the run stops
+    there and says to do it by hand; nothing after it runs."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    archive = _demonstrated("mail-archive", {"threadId": "t1"})
+    archive.url = "https://mail.google.com/mail/u/0/#inbox/t1"
+    archive.system = "https://mail.google.com"
+    archive.requests = [
+        replace(archive.requests[0], url="https://mail.google.com/sync/u/0/i/s?hl=en&c=7")
+    ]
+    archive.action = replace(
+        archive.action, kind="click", value=None, target=Target(tag="div", name="Archive")
+    )
+    await uow.gestures.add_gestures((archive,))
+    for step in workflow.steps:
+        step.order += 1
+    workflow.steps.insert(
+        0, Step(order=0, says="Archive the request", system=None, cites=["mail-archive"])
+    )
+    await uow.workflows.save(workflow)
+    channel = FakeChannel(_looks(4))
+
+    run = await _ran(uow, workflow, channel=channel, asker=FakeAsker(), values={}, earned=True)
+
+    assert run.outcome == "stopped"
+    assert [(one.of_step, one.verdict) for one in run.steps] == [(0, "failed")], run.steps
+    assert "Gmail tool cannot" in run.steps[0].reason
+    assert not [
+        one for one in channel.sent if "mail.google.com" in json.dumps(one.get("payload") or {})
+    ], "it drove the operator's mailbox"
+
+
 async def test_a_step_that_sends_a_mail_is_not_a_step_that_reads_one() -> None:
     """Measured on the deployment, 2026-09-17 at 03:59.
 

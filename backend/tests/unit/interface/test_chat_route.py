@@ -454,7 +454,8 @@ async def test_the_jobs_read_against_are_the_ones_on_the_credential(
 ) -> None:
     """Two tenants, because a route that hardcoded `acme` -- or read the tenant
     off anything but `ctx` -- passes every other assertion in this file. The
-    rival holds nothing, so the job the model names is one nobody holds."""
+    rival holds nothing, so the job the model names is one nobody holds. Since
+    M4 the rival is read against the built-in mail actions alone."""
     asked = FakeAsker(_answer("wfl_1", [{"name": "areaName", "value": "ZONE4"}]))
     container.asker = asked
     app = create_app()
@@ -467,7 +468,8 @@ async def test_the_jobs_read_against_are_the_ones_on_the_credential(
         body = (await rival.post("/v1/ask", json={"said": SAID})).json()
 
     assert body["job"]["workflow_id"] is None
-    assert asked.asked == [], "the rival holds no job, so no model is asked"
+    (read,) = asked.asked
+    assert "wfl_1" not in str(read["evidence"]), "the rival holds no job but the built-ins"
     assert [row.tenant for row in _billed_rows(uow)] == ["rival"], "billed to the wrong tenant"
 
 

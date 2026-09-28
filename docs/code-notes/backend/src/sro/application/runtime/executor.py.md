@@ -11,9 +11,11 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/execu
 > rung). The walk stops at the first result that is not `failed`: a
 > `done`, a `read`, or an `unknown` the operator must settle. A step
 > that only reads the mail this run came from answers `read` with no
-> lane at all: the mail is already in hand.
+> lane at all: the mail is already in hand. A mailbox step that changed
+> the mailbox (`by_hand`: label, archive, move) goes to the tool lane,
+> never a browser, and the tool lane asks the operator (M4).
 
-## `StepExecutor.run`, [line 83](../../../../../../../backend/src/sro/application/runtime/executor.py#L83): Note
+## `StepExecutor.run`, [line 84](../../../../../../../backend/src/sro/application/runtime/executor.py#L84): Note
 
 Code: `if result.verdict == "unknown":`
 
@@ -26,7 +28,7 @@ Code: `if result.verdict == "unknown":`
 > the values makes it `done`, anything else leaves it `unknown` and the
 > operator is asked.
 
-## `StepExecutor.run`, [line 88](../../../../../../../backend/src/sro/application/runtime/executor.py#L88): Note
+## `StepExecutor.run`, [line 89](../../../../../../../backend/src/sro/application/runtime/executor.py#L89): Note
 
 Code: `if result.verdict != "failed" or result.expired:`
 
@@ -35,7 +37,7 @@ Code: `if result.verdict != "failed" or result.expired:`
 > wrong, and every lower lane drives the same session. Walking on would
 > spend each lane on the same refusal and mark lanes broken that are not.
 
-## `StepExecutor.run`, [line 65](../../../../../../../backend/src/sro/application/runtime/executor.py#L65): Note
+## `StepExecutor.run`, [line 66](../../../../../../../backend/src/sro/application/runtime/executor.py#L66): Note
 
 Code: `ladder = lanes_for(`
 
@@ -43,7 +45,7 @@ Code: `ladder = lanes_for(`
 > (it cites nothing, or only a scroll) has an empty ladder and answers
 > `()`: the caller says no lane could act, rather than the activity dying.
 
-## `StepExecutor.run`, [line 74](../../../../../../../backend/src/sro/application/runtime/executor.py#L74): Note
+## `StepExecutor.run`, [line 75](../../../../../../../backend/src/sro/application/runtime/executor.py#L75): Note
 
 Code: `except (NeedsAPerson, AccountBusy, PageGone) as why:`
 
@@ -54,7 +56,7 @@ Code: `except (NeedsAPerson, AccountBusy, PageGone) as why:`
 > stopped added to its reason: an `unknown` write stays `unknown` and a
 > failure keeps its fingerprint for whoever learns from it.
 
-## `StepExecutor.run`, [line 79](../../../../../../../backend/src/sro/application/runtime/executor.py#L79): Note
+## `StepExecutor.run`, [line 80](../../../../../../../backend/src/sro/application/runtime/executor.py#L80): Note
 
 Code: `except Exception as why:`
 
@@ -65,7 +67,7 @@ Code: `except Exception as why:`
 > class: the text may carry what the browser or the network said. An
 > operator's stop and a cancellation still propagate.
 
-## `StepExecutor.run`, [line 59](../../../../../../../backend/src/sro/application/runtime/executor.py#L59): Note
+## `StepExecutor.run`, [line 60](../../../../../../../backend/src/sro/application/runtime/executor.py#L60): Note
 
 Code: `set(adding.fresh) <= known <= set(learned_slots(ctx.workflow, step))`
 
@@ -81,7 +83,7 @@ Code: `set(adding.fresh) <= known <= set(learned_slots(ctx.workflow, step))`
 > save the record without the field the operator asked for, and nothing would
 > say so -- so that write goes through the page.
 
-## `StepExecutor._settled`, [line 108](../../../../../../../backend/src/sro/application/runtime/executor.py#L108): Note
+## `StepExecutor._settled`, [line 109](../../../../../../../backend/src/sro/application/runtime/executor.py#L109): Note
 
 Code: `keyed=confirmed_keys(step, values, ctx),`
 

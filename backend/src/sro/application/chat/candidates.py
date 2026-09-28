@@ -8,6 +8,7 @@ from sro.application.skill.job_facts import JobFacts
 from sro.domain.chat.asked_by import mails_behind, texts
 from sro.domain.chat.request import K_CANDIDATES, Candidate
 from sro.domain.execution.compose import alias_map, normal
+from sro.domain.execution.mail_job import is_mail_only
 from sro.domain.shared.hosts import origin_of
 from sro.domain.skill.signing_in import Logins
 from sro.domain.skill.workflow import ordered_cites
@@ -58,7 +59,7 @@ def rank_jobs(
 ) -> list[JobFacts]:
     copies: dict[str, list[JobFacts]] = {}
     for one in facts:
-        if not one.workflow.chore:
+        if not one.workflow.chore and not is_mail_only(one.workflow, one.by_id):
             copies.setdefault(normal(one.workflow.title), []).append(one)
     canonical = [min(same, key=lambda one: _first(one, held)) for same in copies.values()]
     asked = words(said)

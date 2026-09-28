@@ -123,19 +123,19 @@ Code: `K_SEND_WINDOW_S = 120.0`
 > press; two minutes allows a slow network and no more, since a second SENT mail
 > in that window makes the click ambiguous and grants nobody.
 
-## `JobRecipient`, [line 82](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L82): Docstring
+## `JobRecipient`, [line 123](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L123): Docstring
 
 > An address the job's operator said its mail goes to, answering the run's
 > `recipient` question -- with who said it and when, as an alias is kept. Only
 > that answer writes one (`RunSteps.answered`); a model never does.
 
-## `Allowed`, [line 89](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L89): Docstring
+## `Allowed`, [line 130](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L130): Docstring
 
 > Who a draft may go to besides the conversation's participants: `to` holds the
 > To and Cc of the mail the job's demonstration sent, and the addresses its
 > operator confirmed; `bcc` holds the Bcc of that mail, which stays Bcc.
 
-## `Checked`, [line 95](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L95): Docstring
+## `Checked`, [line 136](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L136): Docstring
 
 > A draft's verdict. `why` is empty when it may go, and says what was refused
 > otherwise -- the address, or the value -- for the operator's question. `logged`
@@ -145,7 +145,7 @@ Code: `K_SEND_WINDOW_S = 120.0`
 > answer; `to` and `bcc` are the addresses checked, and the only ones a header
 > is built from.
 
-## `mailboxes`, [line 103](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L103): Docstring
+## `mailboxes`, [line 144](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L144): Docstring
 
 > The addresses a header or an answer names, casefolded, or `None` when any
 > entry does not read as a plain ASCII address. Parsed by
@@ -155,7 +155,7 @@ Code: `K_SEND_WINDOW_S = 120.0`
 > rather than half-read by a pattern. An internationalised address is refused
 > too; the operator is asked instead.
 
-## `participants`, [line 136](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L136): Docstring
+## `participants`, [line 177](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L177): Docstring
 
 > Who the conversation lets a draft go to: the sender of every message, and the
 > To and Cc of every message the operator's own mailbox sent (`sent`, Gmail's
@@ -165,7 +165,7 @@ Code: `K_SEND_WINDOW_S = 120.0`
 > invariant 7): a reply-all to somebody only a sender cc'd asks first. Headers,
 > never bodies.
 
-## `sent_from`, [line 146](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L146): Docstring
+## `sent_from`, [line 187](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L187): Docstring
 
 > For each Send the job's evidence pressed, when it was pressed and the Gmail
 > threads its own send call (`POST mail.google.com/sync/u/N/i/s`, answered 2xx)
@@ -180,7 +180,7 @@ Code: `K_SEND_WINDOW_S = 120.0`
 > `msg-a:r…` id the API does not know. `thread-f` sits on the same calls. A
 > click with no thread, or no single SENT mail in the window, grants nobody.
 
-## `check_draft`, [line 180](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L180): Docstring
+## `check_draft`, [line 225](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L225): Docstring
 
 > Whether a draft may go, and to whom (`Checked`).
 >
@@ -208,13 +208,13 @@ Code: `K_SEND_WINDOW_S = 120.0`
 > the mail goes to is checked exactly as before, and it never names a
 > recipient.
 
-## `named_in`, [line 128](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L128): Docstring
+## `named_in`, [line 169](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L169): Docstring
 
 > Every address the operator's own words name, read word by word exactly as
 > `one_address_in` reads a reply (`_named`: punctuation stripped, then
 > `mailboxes`); an unreadable one names nobody.
 
-## `one_address_in`, [line 110](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L110): Docstring
+## `one_address_in`, [line 151](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L151): Docstring
 
 > The one address an operator's mail names in its own text, or `""`. The quote
 > is found by structure, never by an English "On …": the first `>` line starts
@@ -231,3 +231,49 @@ Code: `K_SEND_WINDOW_S = 120.0`
 > Ceiling: a client that quotes without `>` (Outlook's "From: … Sent: …" block)
 > is never answered by mail; the panel still is.
 
+## `WHICH_MAIL`, [line 80](../../../../../../backend/src/sro/domain/execution/mail_job.py#L80): Note on the line above
+
+Code: `WHICH_MAIL: Final = "which_mail"`
+
+> The question a reply or a forward asks its starter when it was started on no
+> mail (M4): which mail it acts on. Their answer is words that find it through
+> the Gmail tool's search; exactly one mail found is the run's conversation, and
+> none or several ask again. Never guessed. The words find a mail and are never
+> the request the writer is given.
+
+## `DRAFT_QUESTIONS`, [line 82](../../../../../../backend/src/sro/domain/execution/mail_job.py#L82): Note on the line above
+
+Code: `DRAFT_QUESTIONS: Final = ("recipient", MAIL_BODY, WHICH_MAIL)`
+
+> The questions a drafted mail job asks with its run stopped rather than
+> running: `AnswerRun` takes them on a stopped run and resumes the draft,
+> `Converse` routes the starter's words to them, and `asks_a_person` counts
+> them. The mail door's by-thread lookup still names only `recipient` and
+> `mail_body`: a run asking `which_mail` waits on no thread, so no reply can
+> reach it.
+
+## `SEND_A_MAIL`, [line 84](../../../../../../backend/src/sro/domain/execution/mail_job.py#L84): Note on the line above
+
+Code: `SEND_A_MAIL: Final = "mail_send"`
+
+> The built-in mail actions (M4, decided with the user 2026-09-28): send, reply
+> and forward are code, never mined jobs. Their ids are fixed and hold no row;
+> the workflow store's `get` hands one to every tenant, and `job_recipients`
+> keeps who their operators named under the same id.
+
+## `ON_A_MAIL`, [line 90](../../../../../../backend/src/sro/domain/execution/mail_job.py#L90): Note on the line above
+
+Code: `ON_A_MAIL: Final = frozenset({REPLY_TO_A_MAIL, FORWARD_A_MAIL})`
+
+> The built-ins that act on a mail: they need the conversation the run was
+> started on, or one the starter names (`WHICH_MAIL`). A send writes a new mail
+> and ignores any conversation it was started on.
+
+## `built_in`, [line 102](../../../../../../backend/src/sro/domain/execution/mail_job.py#L102): Docstring
+
+> A built-in mail action as a one-step job whose only system is the mailbox, so
+> `is_mail_only` holds and every door that starts a mail job starts it the same
+> way: `write_the_mail` with the starter's words, the draft card, the Send
+> press. Its evidence is the tenant's mined mail-only jobs (`_allowed`).
+> ponytail: a forward is written as a new mail in the forwarded conversation,
+> quoting what it may; the tool has no forward, so attachments do not travel.

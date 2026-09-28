@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
-from sro.domain.execution.mail_job import MAIL_BODY
+from sro.domain.execution.mail_job import DRAFT_QUESTIONS
 from sro.domain.execution.progress import K_BUDGET_MARGIN_S, Progress
 from sro.domain.execution.workflow_run import WorkflowRun
 
@@ -51,7 +51,7 @@ def asks_a_person(run: WorkflowRun) -> bool:
     return (
         bool(run.needs)
         or (run.outcome == "running" and bool(asking.get("id")))
-        or (run.outcome == "stopped" and asking.get("kind") in ("recipient", MAIL_BODY))
+        or (run.outcome == "stopped" and asking.get("kind") in DRAFT_QUESTIONS)
     )
 
 

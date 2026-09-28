@@ -665,7 +665,7 @@ class _Process:
         broker = SessionBroker(
             uow, world.pool, driver, world.locks, world.vault, world.clock, ui=UiLane(driver)
         )
-        api = ApiLane(HttpxCaller(), broker)
+        api = ApiLane(broker)
         executor = StepExecutor(
             RecordingLane(Lane.TOOL), api, UiLane(driver), RecordingLane(Lane.SIGHT), broker
         )

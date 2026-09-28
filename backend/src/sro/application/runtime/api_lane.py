@@ -8,7 +8,6 @@ from urllib.parse import quote, unquote, urlsplit, urlunsplit
 from sro.application.connection.check_session import is_login
 from sro.application.context import RequestContext
 from sro.application.execution.plan_step import replay_without_asking
-from sro.application.ports.http import HttpCaller
 from sro.application.runtime.broker import K_HEADERS_WAIT_S, SessionBroker
 from sro.application.runtime.step import Held, LaneContext, Stopped
 from sro.domain.execution.belts import carries_in_slot, confirming_read, expected_statuses
@@ -37,8 +36,7 @@ K_REPRESENTATION = frozenset({"content-type", "accept"})
 class ApiLane:
     lane = Lane.API
 
-    def __init__(self, http: HttpCaller, broker: SessionBroker) -> None:
-        self._http = http
+    def __init__(self, broker: SessionBroker) -> None:
         self._broker = broker
 
     async def execute(self, step: Step, values: Mapping[str, str], ctx: LaneContext) -> StepResult:
@@ -74,8 +72,13 @@ class ApiLane:
         ctx.check_stop()
         await ctx.about_to_write(self.lane)
         try:
-            answered = await self._http.send(
-                method, url, headers=headers, body=body if isinstance(body, str) else None
+            answered = await self._broker.send(
+                ctx.ctx,
+                held,
+                method,
+                url,
+                headers=headers,
+                body=body if isinstance(body, str) else None,
             )
         except (Stopped, asyncio.CancelledError):
             raise
@@ -166,7 +169,7 @@ class ApiLane:
         )
         if not _sendable(url, headers):
             return False
-        got = await self._http.send("GET", url, headers=headers)
+        got = await self._broker.send(ctx.ctx, held, "GET", url, headers=headers)
         return got.succeeded and carries_in_slot(got.text, planned.confirm)
 
 

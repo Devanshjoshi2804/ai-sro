@@ -26,6 +26,7 @@ from playwright.async_api import (
 from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
+from sro.application.ports.http import HttpResponse
 from sro.application.ports.page import PageAnswer, PageGone, PageUnsettled, SessionRef
 from sro.application.ports.vision import Screen
 from sro.domain.execution.lanes import SeenCall
@@ -49,6 +50,18 @@ K_ALIVE_RESERVE_S = 0.25
 K_APPEAR_S = 15
 K_APPEAR_POLL_S = 0.25
 _NOT_DRAWN_YET = frozenset({"control_not_found", "frame_not_found"})
+_BROWSER_OWNS = frozenset({"cookie", "host", "origin", "referer", "content-length", "connection"})
+_SEND = """async (c) => {
+  const stop = new AbortController();
+  const timer = setTimeout(() => stop.abort(), c.ms);
+  try {
+    const r = await fetch(c.url, {method: c.method, headers: c.headers, body: c.body ?? undefined,
+      credentials: "include", signal: stop.signal});
+    const headers = {};
+    r.headers.forEach((value, name) => { headers[name] = value; });
+    return {status: r.status, headers, text: await r.text(), redirected: r.redirected, url: r.url};
+  } finally { clearTimeout(timer); }
+}"""
 
 _SIGNALS = "() => globalThis.sroPage.signals()"
 _HIT_TEST = "([x, y]) => globalThis.sroPage.hitTest(x, y)"
@@ -354,6 +367,41 @@ class SteelDriver:
                 url, wait_until="domcontentloaded", timeout=K_ACTION_TIMEOUT_S * 1000
             ),
         )
+
+    async def send(
+        self,
+        session: SessionRef,
+        target_id: str,
+        method: str,
+        url: str,
+        *,
+        headers: Mapping[str, str],
+        body: str | None = None,
+        timeout_s: float = 30.0,
+    ) -> HttpResponse:
+        """A call made by the page itself: its cookies, its origin and whatever
+        the site's edge (Cloudflare, on Blue Yonder) granted the browser go with
+        it. The same call from the worker's own client was answered 302/404."""
+        page = await self._page(session, target_id)
+        got = await self._call(
+            session,
+            target_id,
+            page,
+            lambda: page.evaluate(
+                _SEND,
+                {
+                    "method": method,
+                    "url": url,
+                    "headers": {k: v for k, v in headers.items() if k.lower() not in _BROWSER_OWNS},
+                    "body": body,
+                    "ms": int(timeout_s * 1000),
+                },
+            ),
+        )
+        answered = dict(got.get("headers") or {})
+        if got.get("redirected"):
+            answered.setdefault("location", str(got.get("url") or ""))
+        return HttpResponse(int(got.get("status") or 0), answered, str(got.get("text") or ""))
 
     async def url_of(self, session: SessionRef, target_id: str) -> str:
         return (await self._page(session, target_id)).url

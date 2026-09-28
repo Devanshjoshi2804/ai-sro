@@ -1357,3 +1357,18 @@ async def test_act_waits_for_a_control_the_page_draws_late(
     )
 
     assert pressed.ok
+
+
+async def test_a_call_sent_through_the_page_is_the_page_s_own(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    """Greyorange, 2026-09-28: the proven POST sent from the worker's own client
+    was answered 404 and its GET 302, while the same call from inside the signed
+    -in page answered 200. A call the run makes goes out as the page's."""
+    target = await driver.open_tab(one, rig.url("/public"))
+
+    got = await driver.send(one, target, "GET", rig.url("/public"), headers={"Cookie": "x=1"})
+
+    assert got.status_code == 200 and "public" in got.text

@@ -257,7 +257,7 @@ class Container:
     driving_runs: AsyncConnection | None = None
 
     def api_lane(self) -> ApiLane:
-        return ApiLane(self.http, self.session_broker())
+        return ApiLane(self.session_broker())
 
     def ui_lane(self) -> UiLane:
         return UiLane(self.driver)

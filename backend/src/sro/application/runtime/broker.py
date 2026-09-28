@@ -4,7 +4,7 @@ import asyncio
 import contextlib
 import logging
 from collections import Counter
-from collections.abc import Collection
+from collections.abc import Collection, Mapping
 from dataclasses import replace
 from datetime import datetime, timedelta
 
@@ -12,6 +12,7 @@ from sro.application.connection.refusals import CodeAsked, RefusedCredentials, f
 from sro.application.connection.sign_in import tagged_logins
 from sro.application.context import RequestContext
 from sro.application.ports.browser import BrowserUnavailable
+from sro.application.ports.http import HttpResponse
 from sro.application.ports.locks import AccountBusy, AccountLocks
 from sro.application.ports.page import PageDriver, PageGone, SessionRef
 from sro.application.ports.pool import BrowserPool
@@ -110,6 +111,20 @@ class SessionBroker:
 
     async def signed_out(self, ctx: RequestContext, held: Held) -> bool:
         return a_sign_in_page(await self._driver.signals(held.session, held.target_id))
+
+    async def send(
+        self,
+        ctx: RequestContext,
+        held: Held,
+        method: str,
+        url: str,
+        *,
+        headers: Mapping[str, str],
+        body: str | None = None,
+    ) -> HttpResponse:
+        return await self._driver.send(
+            held.session, held.target_id, method, url, headers=headers, body=body
+        )
 
     async def go_to(self, ctx: RequestContext, held: Held, url: str) -> None:
         await self._driver.goto(held.session, held.target_id, url)

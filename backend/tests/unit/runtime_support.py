@@ -50,6 +50,7 @@ from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.execution.mail_job import Written
 from sro.application.lookup.run_lookups import RunLookups
+from sro.application.ports.http import HttpCaller
 from sro.application.ports.page import PageAnswer, SessionRef
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
@@ -318,9 +319,13 @@ def proven_write_step(
 
 
 def headers_broker(
-    headers: Mapping[str, str], *, driver: FakePageDriver | None = None
+    headers: Mapping[str, str],
+    *,
+    driver: FakePageDriver | None = None,
+    http: HttpCaller | None = None,
 ) -> SessionBroker:
     page = driver or FakePageDriver()
+    page.http = http
     page.cookie = headers.get("cookie", "")
     page.headers = {name: value for name, value in headers.items() if name != "cookie"}
     return SessionBroker(
@@ -989,7 +994,8 @@ def _worker(
         clock,
         ui=SigningLane(driver),
     )
-    api: ReadsBack = lanes.api if http is None else ApiLane(http, broker)
+    driver.http = http
+    api: ReadsBack = lanes.api if http is None else ApiLane(broker)
     executor = StepExecutor(tool or lanes.tool, api, lanes.ui, lanes.sight, broker)
     return broker, RunSteps(
         uow,

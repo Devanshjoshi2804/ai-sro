@@ -1638,6 +1638,8 @@ class FakePageDriver:
         self._resolves = resolved if resolved is not None else PageAnswer(ok=True, candidates=1)
         self._outline = outline
         self.resolved: list[dict[str, object]] = []
+        self.http: HttpCaller | None = None
+        self.sent: list[tuple[str, str, str]] = []
         self.cookie = ""
         self.headers: dict[str, str] = {}
         self.headers_after_mark: dict[str, str] | None = None
@@ -1675,6 +1677,24 @@ class FakePageDriver:
         self._tab(session, target_id)
         self.tabs[target_id] = url
         self.calls.append(("goto", session.context_id, target_id, url))
+
+    async def send(
+        self,
+        session: SessionRef,
+        target_id: str,
+        method: str,
+        url: str,
+        *,
+        headers: Mapping[str, str],
+        body: str | None = None,
+        timeout_s: float = 30.0,
+    ) -> HttpResponse:
+        """A call the page makes: answered by `http`, the scripted server
+        behind this page, and seen in `sent` as the tab that sent it."""
+        self.sent.append((target_id, method, url))
+        if self.http is None:
+            raise AssertionError("this page was sent a call with no server scripted behind it")
+        return await self.http.send(method, url, headers=headers, body=body, timeout_s=timeout_s)
 
     async def url_of(self, session: SessionRef, target_id: str) -> str:
         self._tab(session, target_id)

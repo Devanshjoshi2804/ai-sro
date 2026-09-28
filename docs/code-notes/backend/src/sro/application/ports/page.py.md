@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/application/ports/page.py`](../../../../../../../backend/src/sro/application/ports/page.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `SessionRef`, [line 15](../../../../../../../backend/src/sro/application/ports/page.py#L15): Docstring
+## `SessionRef`, [line 16](../../../../../../../backend/src/sro/application/ports/page.py#L16): Docstring
 
 > One account's browser: `context_id` is the browser context the pool made
 > for the account (the lease's `context_id`), and `cdp_url` is the CDP
@@ -12,7 +12,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/page.py
 > container and is not a browser context, so every call was `PageGone`
 > (S5 review I4).
 
-## `PageAnswer`, [line 21](../../../../../../../backend/src/sro/application/ports/page.py#L21): Docstring
+## `PageAnswer`, [line 22](../../../../../../../backend/src/sro/application/ports/page.py#L22): Docstring
 
 > `pin` and `repaired` are not in X4's brief's own sketch of this type; they
 > are the X2 review's binding amendment ("pass the pin from `act`'s answer
@@ -29,7 +29,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/page.py
 > out of `repr` so no log line or traceback prints a value; the other calls
 > leave it `None`.
 
-## `PageDriver`, [line 42](../../../../../../../backend/src/sro/application/ports/page.py#L42): Docstring
+## `PageDriver`, [line 43](../../../../../../../backend/src/sro/application/ports/page.py#L43): Docstring
 
 > S5 owns this file and this Protocol; the five methods X4 needs to drive
 > the recorded frame are here (`act`, `mark`, `calls_since`, `wait_for_call`,
@@ -39,12 +39,12 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/page.py
 > `restore_state`, `forget`) and `aclose`; a `Protocol` has no body to
 > conflict over, so the two additions merge as a plain union of methods.
 
-## `PageDriver.aclose`, [line 128](../../../../../../../backend/src/sro/application/ports/page.py#L128): Docstring
+## `PageDriver.aclose`, [line 141](../../../../../../../backend/src/sro/application/ports/page.py#L141): Docstring
 
 > The driver holds connections for the life of the process; whoever built
 > the container closes them on the way down.
 
-## `PageDriver.forget_calls`, [line 126](../../../../../../../backend/src/sro/application/ports/page.py#L126): Docstring
+## `PageDriver.forget_calls`, [line 139](../../../../../../../backend/src/sro/application/ports/page.py#L139): Docstring
 
 > Drops a tab's call log, request bodies included. The broker calls it on
 > the probe tab before handing it to the first run, so the sign-in POST,

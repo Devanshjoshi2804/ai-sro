@@ -29,9 +29,9 @@ async def test_a_replayed_write_confirmed_by_its_read_back_is_done() -> None:
     step, by_id, ledger = proven_write_step(read_back=LIST)
     ctx = lane_context(by_id, ledger=ledger)
 
-    result = await ApiLane(http, headers_broker({"cookie": "sid=1", "x-csrf-token": "t"})).execute(
-        step, RUN, ctx
-    )
+    result = await ApiLane(
+        headers_broker({"cookie": "sid=1", "x-csrf-token": "t"}, http=http)
+    ).execute(step, RUN, ctx)
 
     assert result.verdict == "done"
     assert http.sent[0]["headers"]["x-csrf-token"] == "t"
@@ -47,7 +47,7 @@ async def test_a_write_on_a_cookie_only_system_waits_for_no_token() -> None:
     step, by_id, ledger = proven_write_step(read_back=LIST)
     driver = FakePageDriver()
 
-    result = await ApiLane(http, headers_broker({"cookie": "sid=1"}, driver=driver)).execute(
+    result = await ApiLane(headers_broker({"cookie": "sid=1"}, driver=driver, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=ledger)
     )
 
@@ -60,7 +60,7 @@ async def test_the_broker_is_asked_with_the_full_request_url() -> None:
     driver = FakePageDriver()
     step, by_id, ledger = proven_write_step(read_back=None)
 
-    await ApiLane(http, headers_broker({}, driver=driver)).execute(
+    await ApiLane(headers_broker({}, driver=driver, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=ledger)
     )
 
@@ -71,7 +71,7 @@ async def test_a_recorded_header_the_session_also_names_is_sent_once() -> None:
     http = FakeHttpCaller()
     step, by_id, ledger = proven_write_step(read_back=None)
 
-    await ApiLane(http, headers_broker({"content-type": "application/json; v=2"})).execute(
+    await ApiLane(headers_broker({"content-type": "application/json; v=2"}, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=ledger)
     )
 
@@ -84,7 +84,7 @@ async def test_a_refused_session_asks_for_a_fresh_one(status: int) -> None:
     http.answer(status, "")
     step, by_id, ledger = proven_write_step(read_back=LIST)
 
-    result = await ApiLane(http, headers_broker({})).execute(
+    result = await ApiLane(headers_broker({}, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=ledger)
     )
 
@@ -100,7 +100,7 @@ async def test_a_refusal_after_a_fresh_sign_in_is_the_lanes_own_failure(status: 
 
     driver = scripted_driver(url="https://wms.example/app")
 
-    result = await ApiLane(http, headers_broker({}, driver=driver)).execute(
+    result = await ApiLane(headers_broker({}, driver=driver, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=ledger, reauthed=True)
     )
 
@@ -112,7 +112,7 @@ async def test_a_rejected_replay_hands_the_step_to_the_ui_lane() -> None:
     http.answer(400, '{"error": "bad"}')
     step, by_id, ledger = proven_write_step(read_back=LIST)
 
-    result = await ApiLane(http, headers_broker({})).execute(
+    result = await ApiLane(headers_broker({}, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=ledger)
     )
 
@@ -126,7 +126,7 @@ async def test_a_conflicting_replay_is_in_doubt_and_never_handed_on() -> None:
     http.answer(409, '{"error": "exists"}')
     step, by_id, ledger = proven_write_step(read_back=LIST)
 
-    result = await ApiLane(http, headers_broker({})).execute(
+    result = await ApiLane(headers_broker({}, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=ledger)
     )
 
@@ -139,7 +139,7 @@ async def test_a_server_error_on_a_write_is_in_doubt_not_failed() -> None:
     http.answer(502, "")
     step, by_id, ledger = proven_write_step(read_back=LIST)
 
-    result = await ApiLane(http, headers_broker({})).execute(
+    result = await ApiLane(headers_broker({}, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=ledger)
     )
 
@@ -152,7 +152,7 @@ async def test_a_write_with_no_read_back_is_unknown() -> None:
     http.answer(201, "{}")
     step, by_id, ledger = proven_write_step(read_back=None)
 
-    result = await ApiLane(http, headers_broker({})).execute(
+    result = await ApiLane(headers_broker({}, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=ledger)
     )
 
@@ -165,7 +165,7 @@ async def test_a_read_back_without_the_value_leaves_the_write_unknown() -> None:
     http.answer(200, '[{"name": "GT1"}]')
     step, by_id, ledger = proven_write_step(read_back=LIST)
 
-    result = await ApiLane(http, headers_broker({})).execute(
+    result = await ApiLane(headers_broker({}, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=ledger)
     )
 
@@ -177,7 +177,7 @@ async def test_a_call_lost_on_the_way_is_unknown() -> None:
     http.unreachable = True
     step, by_id, ledger = proven_write_step(read_back=LIST)
 
-    result = await ApiLane(http, headers_broker({})).execute(
+    result = await ApiLane(headers_broker({}, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=ledger)
     )
 
@@ -189,7 +189,7 @@ async def test_a_call_refused_while_sending_is_unknown_and_says_only_what_kind()
     http.malformed = True
     step, by_id, ledger = proven_write_step(read_back=LIST)
 
-    result = await ApiLane(http, headers_broker({})).execute(
+    result = await ApiLane(headers_broker({}, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=ledger)
     )
 
@@ -206,7 +206,7 @@ async def test_a_header_no_request_can_carry_is_refused_before_anything_is_sent(
     async def about_to_write(lane: Lane) -> None:
         warned.append("write")
 
-    result = await ApiLane(http, headers_broker({"x-csrf-token": "a\r\nb"})).execute(
+    result = await ApiLane(headers_broker({"x-csrf-token": "a\r\nb"}, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=ledger, about_to_write=about_to_write)
     )
 
@@ -222,7 +222,7 @@ async def test_a_created_answer_whose_body_cannot_be_decoded_is_unknown() -> Non
     step, by_id, ledger = proven_write_step(read_back=LIST)
 
     result = await ApiLane(
-        HttpxCaller(transport=httpx.MockTransport(server)), headers_broker({})
+        headers_broker({}, http=HttpxCaller(transport=httpx.MockTransport(server)))
     ).execute(step, RUN, lane_context(by_id, ledger=ledger))
 
     assert result.verdict == "unknown" and not result.never_left
@@ -236,7 +236,7 @@ async def test_a_write_the_ledger_never_watched_is_not_sent() -> None:
     async def about_to_write(lane: Lane) -> None:
         warned.append("write")
 
-    result = await ApiLane(http, headers_broker({})).execute(
+    result = await ApiLane(headers_broker({}, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=(), about_to_write=about_to_write)
     )
 
@@ -249,7 +249,7 @@ async def test_a_read_back_settles_an_unknown_write() -> None:
     http.answer(200, '[{"name": "GT1"}, {"name": "GT2"}]')
     step, by_id, ledger = proven_write_step(read_back=LIST)
 
-    settled = await ApiLane(http, headers_broker({})).read_back(
+    settled = await ApiLane(headers_broker({}, http=http)).read_back(
         step, RUN, lane_context(by_id, ledger=ledger)
     )
 
@@ -267,7 +267,7 @@ async def test_a_token_guarded_read_back_after_a_fresh_sign_in_waits_for_its_csr
     driver.headers_after_mark = {"x-csrf-token": "after"}
 
     settled = await ApiLane(
-        http, headers_broker({"x-csrf-token": "before"}, driver=driver)
+        headers_broker({"x-csrf-token": "before"}, driver=driver, http=http)
     ).read_back(step, RUN, lane_context(by_id, ledger=ledger, reauthed=True))
 
     assert settled == "done"
@@ -285,7 +285,7 @@ async def test_a_read_back_that_does_not_show_the_record_settles_nothing(body: s
     http.answer(200, body)
     step, by_id, ledger = proven_write_step(read_back=LIST)
 
-    settled = await ApiLane(http, headers_broker({})).read_back(
+    settled = await ApiLane(headers_broker({}, http=http)).read_back(
         step, RUN, lane_context(by_id, ledger=ledger)
     )
 
@@ -298,7 +298,7 @@ async def test_a_value_found_in_another_field_does_not_confirm_the_write() -> No
     http.answer(200, '[{"name": "GT1", "note": "GT2"}]')
     step, by_id, ledger = proven_write_step(read_back=LIST)
 
-    result = await ApiLane(http, headers_broker({})).execute(
+    result = await ApiLane(headers_broker({}, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=ledger)
     )
 
@@ -311,7 +311,7 @@ async def test_a_success_the_recording_never_saw_is_not_taken_as_done() -> None:
     http.answer(200, '[{"name": "GT2"}]')
     step, by_id, ledger = proven_write_step(read_back=LIST)
 
-    result = await ApiLane(http, headers_broker({})).execute(
+    result = await ApiLane(headers_broker({}, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=ledger)
     )
 
@@ -326,7 +326,7 @@ async def test_the_retry_after_a_fresh_sign_in_carries_the_new_token() -> None:
     driver.headers_after_mark = {"x-csrf-token": "after"}
     step, by_id, ledger = proven_write_step(read_back=None)
 
-    await ApiLane(http, headers_broker({}, driver=driver)).execute(
+    await ApiLane(headers_broker({}, driver=driver, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=ledger, reauthed=True)
     )
 
@@ -340,9 +340,9 @@ async def test_a_token_the_write_needs_that_the_session_lacks_is_refused_before_
         request_headers={"Content-Type": "application/json", "X-CSRF-Token": REDACTED},
     )
 
-    result = await ApiLane(http, headers_broker({"x-requested-with": "XMLHttpRequest"})).execute(
-        step, RUN, lane_context(by_id, ledger=ledger)
-    )
+    result = await ApiLane(
+        headers_broker({"x-requested-with": "XMLHttpRequest"}, http=http)
+    ).execute(step, RUN, lane_context(by_id, ledger=ledger))
 
     assert result.verdict == "failed" and result.never_left and result.expired
     assert not result.fingerprint
@@ -361,7 +361,7 @@ async def test_the_session_is_asked_to_wait_for_every_token_the_write_carried() 
         },
     )
 
-    await ApiLane(FakeHttpCaller(), headers_broker({}, driver=driver)).execute(
+    await ApiLane(headers_broker({}, driver=driver, http=FakeHttpCaller())).execute(
         step, RUN, lane_context(by_id, ledger=ledger)
     )
 
@@ -379,7 +379,9 @@ async def test_only_representation_headers_come_from_the_recording() -> None:
         },
     )
 
-    await ApiLane(http, headers_broker({})).execute(step, RUN, lane_context(by_id, ledger=ledger))
+    await ApiLane(headers_broker({}, http=http)).execute(
+        step, RUN, lane_context(by_id, ledger=ledger)
+    )
 
     assert http.sent[0]["headers"] == {
         "Content-Type": "application/json",
@@ -392,7 +394,7 @@ async def test_a_read_back_on_another_origin_is_never_sent() -> None:
     http.answer(201, "{}")
     step, by_id, ledger = proven_write_step(read_back="https://analytics.example/hit")
 
-    result = await ApiLane(http, headers_broker({})).execute(
+    result = await ApiLane(headers_broker({}, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=ledger)
     )
 
@@ -406,7 +408,7 @@ async def test_a_read_back_addressed_by_the_recorded_record_reads_this_runs_reco
     http.answer(200, '{"name": "GT2"}')
     step, by_id, ledger = proven_write_step(read_back="/api/customer-types/{name}")
 
-    result = await ApiLane(http, headers_broker({})).execute(
+    result = await ApiLane(headers_broker({}, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=ledger)
     )
 
@@ -419,7 +421,7 @@ async def test_a_read_back_naming_the_recorded_value_inside_a_segment_is_not_sen
     http.answer(201, "{}")
     step, by_id, ledger = proven_write_step(read_back="/api/customer-types?name={name}")
 
-    result = await ApiLane(http, headers_broker({})).execute(
+    result = await ApiLane(headers_broker({}, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=ledger)
     )
 
@@ -432,7 +434,7 @@ async def test_a_redirect_off_the_host_is_in_doubt_and_asks_for_a_fresh_session(
     http.answer(302, "", headers={"location": "https://idp.example/login"})
     step, by_id, ledger = proven_write_step(read_back=LIST)
 
-    result = await ApiLane(http, headers_broker({})).execute(
+    result = await ApiLane(headers_broker({}, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=ledger)
     )
 
@@ -445,7 +447,7 @@ async def test_a_redirect_on_the_same_host_is_in_doubt_but_the_session_stands() 
     http.answer(303, "", headers={"location": "/app/customer-types/ct-9"})
     step, by_id, ledger = proven_write_step(read_back=LIST)
 
-    result = await ApiLane(http, headers_broker({})).execute(
+    result = await ApiLane(headers_broker({}, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=ledger)
     )
 
@@ -464,7 +466,7 @@ async def test_a_replay_with_an_absent_optional_value_sends_no_key_for_it() -> N
         ],
     )
 
-    await ApiLane(http, headers_broker({})).execute(
+    await ApiLane(headers_broker({}, http=http)).execute(
         step, RUN, lane_context(by_id, ledger=ledger, workflow=job)
     )
 

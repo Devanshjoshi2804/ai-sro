@@ -4,6 +4,7 @@ from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Protocol
 
+from sro.application.ports.http import HttpResponse
 from sro.application.ports.vision import Screen
 from sro.domain.execution.lanes import SeenCall, StepResult
 from sro.domain.observation.gesture import AfterState
@@ -100,6 +101,18 @@ class PageDriver(Protocol):
     async def close_tab(self, session: SessionRef, target_id: str) -> None: ...
 
     async def goto(self, session: SessionRef, target_id: str, url: str) -> None: ...
+
+    async def send(
+        self,
+        session: SessionRef,
+        target_id: str,
+        method: str,
+        url: str,
+        *,
+        headers: Mapping[str, str],
+        body: str | None = None,
+        timeout_s: float = 30.0,
+    ) -> HttpResponse: ...
 
     async def url_of(self, session: SessionRef, target_id: str) -> str: ...
 

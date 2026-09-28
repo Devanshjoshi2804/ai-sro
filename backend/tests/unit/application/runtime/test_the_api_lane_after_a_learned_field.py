@@ -71,7 +71,9 @@ async def _api_write(read_back: dict[str, object]) -> StepResult:
     ctx = lane_context(
         by_id, ledger=ledger, adding={write.order: _as_fill_for_builds_it()}, workflow=job
     )
-    result = await ApiLane(http, headers_broker({"cookie": "sid=1"})).execute(write, VALUES, ctx)
+    result = await ApiLane(headers_broker({"cookie": "sid=1"}, http=http)).execute(
+        write, VALUES, ctx
+    )
     assert json.loads(str(http.sent[0]["body"])) == {"name": "GT2", "department": "Finance"}
     return result
 

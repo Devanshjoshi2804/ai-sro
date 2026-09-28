@@ -20,18 +20,37 @@ from sro.domain.execution.evidence import primary_gesture, writes
 from sro.domain.prompts.sight import SIGHT
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 
-_BROKEN_KEYS = ("css_path", "xpath", "test_id", "component", "text")
-_BROKEN_ATTRIBUTES = ("name", "autocomplete", "id")
+Break = Literal["restructured", "relabelled", "repair"]
+_SELECTORS = ("css_path", "xpath", "test_id")
 _UNREACHABLE = -1.0
 
 
-def broken(payload: Mapping[str, object]) -> dict[str, object]:
+def broken(payload: Mapping[str, object], how: Break) -> dict[str, object]:
+    """The recorded target as the page no longer matches it.
+
+    restructured: the build changed, so every selector is stale; the label stays.
+    relabelled: the label changed; the structure stays.
+    repair: only what repair scores by and no locator can use -- the chain
+    (a locator only when longer than one), bounds and placeholder."""
     target = dict(payload.get("target") or {})  # type: ignore[call-overload]
-    for key in _BROKEN_KEYS:
+    attributes = dict(target.get("attributes") or {})
+    if how == "relabelled":
+        target.pop("text", None)
+        target["name"] = f"{target.get('name') or ''} (renamed)".strip()
+        return {**payload, "target": target, "learned": None}
+    for key in _SELECTORS:
         target.pop(key, None)
-    attributes = target.get("attributes") or {}
-    target["attributes"] = {k: v for k, v in attributes.items() if k not in _BROKEN_ATTRIBUTES}
-    target["name"] = f"{target.get('name') or ''} (renamed)".strip()
+    attributes.pop("id", None)
+    if how == "restructured":
+        target.pop("component", None)
+    else:
+        for key in ("name", "text"):
+            target.pop(key, None)
+        for key in ("name", "autocomplete"):
+            attributes.pop(key, None)
+        chain = (target.get("component") or {}).get("chain") or ()
+        target["component"] = {"chain": list(chain)}
+    target["attributes"] = attributes
     return {**payload, "target": target, "learned": None}
 
 
@@ -48,9 +67,11 @@ class Repair:
         vision: VisionDriver | None,
         broker: SessionBroker,
         driver: PageDriver,
+        how: Break = "repair",
     ) -> None:
-        self.name = f"repair-{lane}"
+        self.name = f"repair-{lane}" if how == "repair" else f"resolve-{how}"
         self._lane, self._vision, self._broker, self._driver = lane, vision, broker, driver
+        self._how = how
 
     def asker(self, container: Container) -> Asker | None:
         return Replayed(None)
@@ -102,10 +123,21 @@ class Repair:
             return Scored(case.id, False, False, 0.0, _UNREACHABLE)
         started = time.monotonic()
         if self._lane == "ui":
-            got = await self._driver.resolve(held.session, held.target_id, broken(payload))
+            got = await self._driver.resolve(
+                held.session, held.target_id, broken(payload, self._how)
+            )
             named = got.ok and got.candidates == 1
-            passed = named and got.matched_by == "repair" and got.xpath == held_by.xpath
-            return Scored(case.id, passed, named, 0.0, time.monotonic() - started)
+            if self._how == "repair" and named and got.matched_by != "repair":
+                return Scored(case.id, False, False, 0.0, _UNREACHABLE)
+            passed = named and got.xpath == held_by.xpath
+            return Scored(
+                case.id,
+                passed,
+                named,
+                0.0,
+                time.monotonic() - started,
+                answer={"matched_by": got.matched_by},
+            )
         if self._vision is None:
             raise SystemExit("the repair-sight suite needs vision_enabled and gemini_api_key")
         screen = await self._driver.screenshot(held.session, held.target_id)

@@ -4,7 +4,7 @@ The repair suite (spec §2.2 "Repair", §8 step 7, A9): the sight model and the
 UI lane's repair, each asked to find a proven step's control again once its
 recorded locator is broken on purpose, on a live page nothing acts on.
 
-## `Repair`, [line 42](../../../../../backend/evals/suites/repair.py#L42): Design
+## `Repair`, [line 61](../../../../../backend/evals/suites/repair.py#L61): Design
 
 > **Why a live page.** A case must show which control actually held. UI
 > repair runs in page code against a DOM, and no DOM is stored (E6 replaced
@@ -31,7 +31,7 @@ recorded locator is broken on purpose, on a live page nothing acts on.
 > books it to `model_spend`. The gate compares accuracy and sure-but-wrong
 > for the repair suites.
 
-## `Repair.cases`, [line 58](../../../../../backend/evals/suites/repair.py#L58): Design
+## `Repair.cases`, [line 79](../../../../../backend/evals/suites/repair.py#L79): Design
 
 > One case per step of a job with a held run (`workflows.proofs`), whose
 > primary gesture recorded a target with an `xpath` and a `page_url`. The
@@ -45,7 +45,7 @@ recorded locator is broken on purpose, on a live page nothing acts on.
 > and the recorded control is not there — it is counted unreachable.
 > Upgrade: replay the job's reads up to the step on the eval lease.
 
-## `Repair._scored`, [line 98](../../../../../backend/evals/suites/repair.py#L98): Design
+## `Repair._scored`, [line 119](../../../../../backend/evals/suites/repair.py#L119): Design
 
 > First the recorded payload is resolved with its `write` flag removed, so
 > page code cannot repair it: the page must show exactly one control by the
@@ -55,22 +55,32 @@ recorded locator is broken on purpose, on a live page nothing acts on.
 > (`evals.run.reachable`). A high count means the recorded pages are not
 > reachable by URL, not that repair failed.
 >
-> Pass rules. `ui`: `resolve` of the `broken` payload answered one control,
-> `matched_by == "repair"`, and its `xpath` is the recorded control's. A
-> control found by a locator that survived is not a repair and does not
-> pass. `sight`: the model's point, hit-tested and resolved back through the
+> Pass rules. `ui`: `resolve` of the `broken` payload answered one control
+> whose `xpath` is the recorded control's; `matched_by` is kept in the
+> case's answer. For the `repair` break a control found by any strategy but
+> `repair` is unreachable, not failed: the kept chain is itself a locator
+> when longer than one, and the page then never reaches repair. For the
+> `restructured` and `relabelled` breaks any strategy counts: the lane
+> landing on the right control is what the runtime needs, and landing on
+> another is the sure-but-wrong it must never do. `sight`: the model's
+> point, hit-tested and resolved back through the
 > hit's own `{strategy, query}` and frame path (the way the sight lane learns
 > a locator), is that same control. `sure` is "the lane named a control at
 > all": a model with no point, or a repair that found nothing, is unsure.
 
 ## `broken`, [line 28](../../../../../backend/evals/suites/repair.py#L28): Design
 
-> Breaks the recorded locator the way a page change would: drops every key
-> a direct strategy in page code's `find` locates by — `css_path`, `xpath`,
-> `test_id`, `component`, `text`, and the `name`, `autocomplete` and `id`
-> attributes that `attributeSelector` builds from — and renames the control,
-> so `within_role_name` misses too. It keeps what only `repair`'s score
-> reads: `role`, `tag`, `landmarks`, `bounds` and the other attributes. A
-> kept direct locator would find the control first and the suite would
-> score that locator, not repair; the dropped keys cost repair nothing,
-> because repair runs only after every direct strategy found nothing.
+> Breaks the recorded target three ways (user ruling 2026-09-28). A kept
+> direct locator finds the control before anything else runs, so each break
+> drops exactly what its change would make stale:
+>
+> - `restructured` — a new build: `css_path`, `xpath`, `test_id`, the whole
+>   `component` and the `id` attribute go; the label (`name`, `text`) and
+>   the `name`/`autocomplete` attributes stay.
+> - `relabelled` — a new label: `name` is renamed and `text` goes; the
+>   structure stays.
+> - `repair` — only what `repair`'s score reads and no locator can use:
+>   `name`, `text`, the selectors, the component's query and item id, and
+>   the `id`/`name`/`autocomplete` attributes go; the chain (+2), bounds
+>   (+1) and `placeholder` (+1) stay, so a control can reach
+>   `REPAIR_THRESHOLD` (3). The first break alone left at most 2.

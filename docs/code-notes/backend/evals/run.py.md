@@ -2,7 +2,7 @@
 
 The three commands behind `make eval`, `make eval-ci` and `make eval-redact`.
 
-## `frozen`, [line 82](../../../../backend/evals/run.py#L82): Design
+## `frozen`, [line 86](../../../../backend/evals/run.py#L86): Design
 
 > The case set is built from the database once, to
 > `cases/<tenant>/<suite>.json`, and every later run reads that file. On
@@ -14,7 +14,7 @@ The three commands behind `make eval`, `make eval-ci` and `make eval-redact`.
 > The next `baseline=1` run writes the new baseline. The first build retires
 > the same way, so a hand-deleted case file cannot leave a baseline behind.
 
-## `run_suite`, [line 99](../../../../backend/evals/run.py#L99): Design
+## `run_suite`, [line 103](../../../../backend/evals/run.py#L103): Design
 
 > LIVE: reads the database and spends model money, billed to the tenant
 > (`about(tenant=...)`): it lands in that tenant's `model_spend` and counts
@@ -35,7 +35,7 @@ The three commands behind `make eval`, `make eval-ci` and `make eval-redact`.
 > service needs `SRO_INTERPRETATION_ENABLED=true` and the Gemini key (the
 > `api` service has both).
 
-## `run_ci`, [line 132](../../../../backend/evals/run.py#L132): Design
+## `run_ci`, [line 136](../../../../backend/evals/run.py#L136): Design
 
 > Offline: each committed case's recorded answer must conform to its prompt's
 > schema, and the production entry point, fed that answer through
@@ -43,7 +43,7 @@ The three commands behind `make eval`, `make eval-ci` and `make eval-redact`.
 > through each suite's production asker, billed to the tenant `eval`. An
 > empty set fails: a guard with nothing in it guards nothing.
 
-## `write_candidates`, [line 157](../../../../backend/evals/run.py#L157): Design
+## `write_candidates`, [line 161](../../../../backend/evals/run.py#L161): Design
 
 > Redacts the answered cases of one tenant into `candidates/<tenant>/<suite>/`
 > (gitignored), only those whose id is in the current frozen case set: an
@@ -58,7 +58,7 @@ The three commands behind `make eval`, `make eval-ci` and `make eval-redact`.
 > `run_ci` builds only the suites that have a `ci/<name>` folder; repair has
 > none.
 
-## `reachable`, [line 52](../../../../backend/evals/run.py#L52): Design
+## `reachable`, [line 56](../../../../backend/evals/run.py#L56): Design
 
 > A case scored with `latency_s == -1` never reached its page (the repair
 > suite's unreachable case). It is left out of the report's rates and

@@ -12,7 +12,7 @@ from evals.redact import redacted
 from evals.replay import Replayed
 from evals.suites.mining import Mining
 from evals.suites.reader import Reader
-from evals.suites.repair import Repair
+from evals.suites.repair import Break, Repair
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.container import Container, build_container
@@ -34,11 +34,13 @@ class Suite(Protocol):
     async def run(self, case: Case, asker: Asker) -> Scored: ...
 
 
-def _repair(lane: Literal["sight", "ui"], container: Container | None) -> Suite:
+def _repair(
+    lane: Literal["sight", "ui"], container: Container | None, how: Break = "repair"
+) -> Suite:
     if container is None:
-        raise SystemExit(f"the repair-{lane} suite needs a live page: it has no replayed cases")
+        raise SystemExit(f"the {lane} lane's suites need a live page: they have no replayed cases")
     vision = container.vision if lane == "sight" else None
-    return Repair(lane, vision, container.session_broker(), container.driver)
+    return Repair(lane, vision, container.session_broker(), container.driver, how)
 
 
 SUITES: dict[str, Callable[[Container | None], Suite]] = {
@@ -46,6 +48,8 @@ SUITES: dict[str, Callable[[Container | None], Suite]] = {
     "reader": lambda _: Reader(),
     "repair-sight": lambda c: _repair("sight", c),
     "repair-ui": lambda c: _repair("ui", c),
+    "resolve-restructured": lambda c: _repair("ui", c, "restructured"),
+    "resolve-relabelled": lambda c: _repair("ui", c, "relabelled"),
 }
 
 

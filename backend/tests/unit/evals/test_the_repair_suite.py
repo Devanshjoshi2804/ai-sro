@@ -134,20 +134,44 @@ async def test_ui_repair_that_names_another_control_is_sure_and_wrong() -> None:
     assert (scored.passed, scored.sure) == (False, True)
 
 
-async def test_a_control_found_by_a_surviving_locator_is_not_a_repair() -> None:
-    """The broken target must reach the page with nothing left to find it by,
-    or the suite scores the locator that survived and calls it repair."""
+async def test_a_control_a_surviving_locator_finds_first_is_not_a_repair_case() -> None:
+    """The kept chain is itself a locator when longer than one; the page then
+    never reaches repair, so the case measures nothing about it."""
     driver = scripted_driver(
         url="https://wms.example/app",
         resolved=[
             PageAnswer(ok=True, candidates=1, matched_by="xpath", xpath="/html/body/div[2]"),
-            PageAnswer(ok=True, candidates=1, matched_by="text", xpath="/html/body/div[2]"),
+            PageAnswer(
+                ok=True, candidates=1, matched_by="component_chain", xpath="/html/body/div[2]"
+            ),
         ],
     )
 
     scored = await Repair("ui", None, _Broker(), driver).run(_case(write=False), None)
 
-    assert (scored.passed, scored.sure) == (False, True)
+    assert (scored.passed, scored.sure, scored.latency_s) == (False, False, -1.0)
+
+
+@pytest.mark.parametrize(
+    ("xpath", "passed"), [("/html/body/div[2]", True), ("/html/body/div[3]", False)]
+)
+async def test_a_broken_target_resolved_by_any_locator_passes_only_on_the_control_that_held(
+    xpath: str, passed: bool
+) -> None:
+    driver = scripted_driver(
+        url="https://wms.example/app",
+        resolved=[
+            PageAnswer(ok=True, candidates=1, matched_by="xpath", xpath="/html/body/div[2]"),
+            PageAnswer(ok=True, candidates=1, matched_by="text", xpath=xpath),
+        ],
+    )
+
+    scored = await Repair("ui", None, _Broker(), driver, "restructured").run(
+        _case(write=False), None
+    )
+
+    assert (scored.passed, scored.sure) == (passed, True)
+    assert scored.answer == {"matched_by": "text"}
 
 
 async def test_the_recorded_control_is_found_without_repair_and_the_broken_one_with() -> None:
@@ -166,7 +190,7 @@ async def test_the_recorded_control_is_found_without_repair_and_the_broken_one_w
     assert repaired["write"] is False and repaired["learned"] is None
 
 
-def test_a_broken_target_keeps_only_what_repair_scores_by() -> None:
+def _recorded_payload() -> dict[str, object]:
     target = Target(
         tag="button",
         role="tab",
@@ -175,22 +199,44 @@ def test_a_broken_target_keeps_only_what_repair_scores_by() -> None:
         test_id="orders",
         css_path="div > button",
         xpath="/html/body/div[2]",
-        component=Component(item_id="orders-tab", chain=("tabpanel", "tab")),
+        component=Component(item_id="orders-tab", query="#orders-tab", chain=("tabpanel", "tab")),
         bounds={"x": 1.0, "y": 2.0, "width": 30.0, "height": 10.0},
         attributes={"name": "orders", "autocomplete": "off", "id": "t1", "placeholder": "Tab"},
         landmarks=(Landmark("navigation", "Main"),),
     )
     gesture = _gesture("g-1", target=target)
-    payload = ui_payload(_step(["g-1"]), gesture, None, None, {"g-1": gesture})
+    return ui_payload(_step(["g-1"]), gesture, None, None, {"g-1": gesture})
 
-    gone = broken(payload)["target"]
+
+def test_a_repair_break_keeps_only_what_repair_scores_by() -> None:
+    gone = broken(_recorded_payload(), "repair")["target"]
 
     assert isinstance(gone, dict)
-    assert not {"text", "test_id", "css_path", "xpath", "component"} & set(gone)
+    assert not {"name", "text", "test_id", "css_path", "xpath"} & set(gone)
+    assert gone["component"] == {"chain": ["tabpanel", "tab"]}
     assert gone["attributes"] == {"placeholder": "Tab"}
-    assert gone["name"] == "Orders (renamed)"
-    assert (gone["role"], gone["tag"], gone["bounds"]) == ("tab", "button", target.bounds)
+    assert (gone["role"], gone["tag"], gone["bounds"]["width"]) == ("tab", "button", 30.0)
     assert list(gone["landmarks"]) == [{"role": "navigation", "name": "Main"}]
+
+
+def test_a_restructured_target_loses_every_selector_and_keeps_its_label() -> None:
+    gone = broken(_recorded_payload(), "restructured")["target"]
+
+    assert isinstance(gone, dict)
+    assert not {"test_id", "css_path", "xpath", "component"} & set(gone)
+    assert gone["attributes"] == {"name": "orders", "autocomplete": "off", "placeholder": "Tab"}
+    assert (gone["name"], gone["text"]) == ("Orders", "Orders")
+
+
+def test_a_relabelled_target_loses_its_label_and_keeps_its_structure() -> None:
+    recorded = _recorded_payload()
+    gone = broken(recorded, "relabelled")["target"]
+
+    assert isinstance(gone, dict)
+    assert gone["name"] == "Orders (renamed)" and "text" not in gone
+    assert {k: v for k, v in gone.items() if k != "name"} == {
+        k: v for k, v in recorded["target"].items() if k not in ("name", "text")
+    }
 
 
 async def test_a_sight_point_is_resolved_back_through_the_hit_s_own_locator() -> None:
@@ -355,7 +401,14 @@ def test_unreachable_cases_are_counted_and_left_out_of_the_measure() -> None:
 
 
 def test_the_repair_suites_are_run_by_name() -> None:
-    assert {"mining", "reader", "repair-sight", "repair-ui"} <= set(SUITES)
+    assert {
+        "mining",
+        "reader",
+        "repair-sight",
+        "repair-ui",
+        "resolve-restructured",
+        "resolve-relabelled",
+    } <= set(SUITES)
 
 
 def test_a_repair_suite_needs_the_live_stack() -> None:

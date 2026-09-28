@@ -13,7 +13,7 @@ from sro.application.execution.pursuits import PursuitProgress, PursuitState
 from sro.application.intent.pursue import compose
 from sro.domain.chat.thread import ThreadId
 from sro.domain.execution.run import Medium, RunId
-from sro.domain.observation.attempts import DONE, NOTHING
+from sro.domain.observation.attempts import DONE, NOTHING, REFUSED
 from sro.domain.shared.errors import Conflict, InvariantViolation, NotFound
 from sro.domain.shared.identifiers import SkillId
 from sro.interface.http.deps import AboutThread, ContainerDep, ContextDep
@@ -227,12 +227,19 @@ async def say(
         answering=body.answering,
     )
     last = thread.messages[-1] if thread.messages else None
-    decided = str((last.decision or {}).get("kind") or "") if last else ""
+    said = (last.decision or {}) if last else {}
+    decided = str(said.get("kind") or "")
+    started = str(said.get("run_id") or "")
+    refused = decided == "job" and not started
     await container.record_attempt().execute(
         ctx,
         asked_for="say something in a conversation",
-        came_of=DONE if decided else NOTHING,
-        why="" if decided else "nothing was made of what was said",
-        about={"thread": thread_id, "run": body.run_id or ""},
+        came_of=REFUSED if refused else DONE if decided else NOTHING,
+        why=last.text
+        if last is not None and refused
+        else ""
+        if decided
+        else "nothing was made of what was said",
+        about={"thread": thread_id, "run": started or body.run_id or ""},
     )
     return ThreadDetail.of_thread(thread)

@@ -643,7 +643,7 @@ function Choices({ ids, onPick }: { ids: string[]; onPick: (text: string) => voi
   );
 }
 
-function ChatTurn({
+export function ChatTurn({
   message,
   onAsk,
   threadId,
@@ -663,6 +663,7 @@ function ChatTurn({
   const decision = message.decision as {
     matched_skill_id?: string | null;
     matched_skill_name?: string | null;
+    workflow_id?: string | null;
     run_id?: string | null;
     matched_version?: number | null;
     confident?: boolean;
@@ -713,6 +714,17 @@ function ChatTurn({
         )}
 
         {decision.note && <div style={{ fontSize: 12, color: ink.textSoft }}>{decision.note}</div>}
+
+        {/* The run a yes here started on the backend: without this the
+            thread says "Running" and the operator has nowhere to watch it. */}
+        {decision.workflow_id && decision.run_id && (
+          <Link
+            href={`/jobs/runs/${decision.run_id}`}
+            style={{ color: ink.accentDeep, fontSize: 12 }}
+          >
+            Watch the run
+          </Link>
+        )}
 
         {/* A question with the answers next to it. Printing "which did you
             mean: A or B?" and then leaving the operator to retype one of them

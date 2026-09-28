@@ -95,7 +95,10 @@ async def test_two_presses_of_one_question_give_one_answer_and_one_run(
 
     told = [(reply.messages[-1].decision or {}).get("run_id") for reply in (one, other)]
     (run,) = await _runs(session_factory)
-    assert sorted(str(it) for it in told) == sorted(["None", run.id]), told
+    # The loser is told the run it lost to wherever it found the question
+    # closed under the lock; a press that read it closed before it ever
+    # started names nothing, and the panel's refresh finds the run instead.
+    assert run.id in told and set(told) <= {None, run.id}, told
     said = await _said(session_factory, thread_id)
     assert [m.decision.get("run_id") for m in said if m.text.startswith("Running ")] == [run.id]
     assert any(m.text.startswith("That question is no longer open") for m in said)

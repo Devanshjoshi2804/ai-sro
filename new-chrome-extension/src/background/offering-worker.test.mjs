@@ -180,6 +180,8 @@ let approveRefusal = null;
 let offerRefusal = null;
 let chatRead = null;
 let threadSaid = null;
+/** What `GET /v1/threads/current` answers: the thread as the panel rereads it. */
+let threadCurrent = null;
 let askedAbout = null;
 /** Every tab the worker reloaded to repair its recording. */
 const reloads = [];
@@ -233,6 +235,8 @@ const rigServer = async (url, options = {}) => {
   // The evidence door takes what this browser recorded, as the backend does.
   if (path === "/v1/observations") return json({ accepted: 1, rejected: [] });
   if (path === "/v1/observations/artifacts") return json({}, 201);
+  if (path === "/v1/threads/current")
+    return json(threadCurrent || { id: "thr-1", messages: [] });
   if (path === "/v1/threads/thr-1/messages")
     return json(threadSaid || { id: "thr-1", messages: [] });
   if (path === "/v1/chat")
@@ -1985,6 +1989,75 @@ test("a yes the backend already started is watched, never started again", async 
   );
   threadSaid = null;
   held.delete("sro.activeRun");
+});
+
+/** A thread whose yes was said somewhere else: the backend's "Running", then a
+ * later "no longer open" from a second press that lost the race to it. */
+function startedElsewhere(runId) {
+  return {
+    id: "thr-1",
+    messages: [
+      {
+        id: "m1",
+        speaker: "assistant",
+        text: "Running Compose and Send Email now.",
+        said_at: "2026-09-28T10:20:02Z",
+        decision: { kind: "job", workflow_id: "wfl_mail", resume: true, run_id: runId },
+      },
+      { id: "m2", speaker: "operator", text: "yes", said_at: "2026-09-28T10:20:03Z" },
+      {
+        id: "m3",
+        speaker: "assistant",
+        text: "That question is no longer open, so nothing was done.",
+        said_at: "2026-09-28T10:20:03Z",
+        decision: {},
+      },
+    ],
+  };
+}
+
+test("a run a yes in the console started is watched when the thread is next read", async () => {
+  // S2 review M2: the backend starts the run from every door, but the panel
+  // watched only the run its own reply named -- a console yes left the ledger
+  // saying "Running" with no card under it.
+  ready();
+  const served = rigRunServed;
+  rigRunServed = { id: "run-7", outcome: "running", steps: [] };
+  threadCurrent = startedElsewhere("run-7");
+
+  await send({ kind: "thread" });
+  await until(
+    () => held.get("sro.activeRun")?.runId === "run-7",
+    "the panel never watched the run the console's yes started",
+  );
+
+  assert.equal(held.get("sro.activeRun").source, "rig");
+  assert.deepEqual(
+    calls.filter((call) => call.path === "/v1/workflow-runs"),
+    [],
+    "this browser started a run the backend had already started",
+  );
+  held.delete("sro.activeRun");
+  rigRunServed = served;
+  threadCurrent = null;
+});
+
+test("a run the thread names that has already ended is not brought back", async () => {
+  ready();
+  const served = rigRunServed;
+  rigRunServed = { id: "run-6", outcome: "held", steps: [] };
+  threadCurrent = startedElsewhere("run-6");
+
+  await send({ kind: "thread" });
+  await until(
+    () => calls.some((call) => call.path === "/v1/workflow-runs/run-6"),
+    "the run was never looked at",
+  );
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
+  assert.equal(held.get("sro.activeRun") ?? null, null, "an ended run was watched again");
+  rigRunServed = served;
+  threadCurrent = null;
 });
 
 test("a mail the backend already asked about in the conversation is not also a card", async () => {

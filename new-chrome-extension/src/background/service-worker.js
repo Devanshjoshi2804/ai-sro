@@ -2219,8 +2219,11 @@ async function handle(message, sender) {
     // rig, whose jobs come with their steps already. `nudge-answer`,
     // `never-watch-site`, `revise-run`, `say-to-run`, `look-in-the-mail` and
     // `panel-open` went the same way: nothing sent them.
-    case "thread":
-      return api.currentThread();
+    case "thread": {
+      const thread = await api.currentThread();
+      void watchTheRunIn(thread);
+      return thread;
+    }
     case "new-thread":
       // A conversation somebody deliberately started. `current` answers with
       // the newest, so nothing else has to be told which one to draw.
@@ -2314,6 +2317,9 @@ async function handle(message, sender) {
       // read it and placed no job at all.
       else if (!stillAsking(said))
         void offerFromWords(message.text, message.tabId ?? null);
+      // A yes that lost the race to another panel is told only that the
+      // question closed; the run it lost to is further up the same thread.
+      void watchTheRunIn(said);
       return said;
     }
     case "run-skill":
@@ -3113,9 +3119,47 @@ async function holdTheQuestion(thread) {
   return waiting;
 }
 
+/** The newest run the conversation names, whoever's yes started it. */
+function runNamedIn(thread) {
+  for (const message of [...(thread?.messages || [])].reverse()) {
+    if (message.speaker !== "assistant") continue;
+    if (message.decision?.run_id) return message.decision.run_id;
+  }
+  return null;
+}
+
+/** Runs already looked at once, so a thread whose newest run ended long ago
+ * costs one read per worker, not one a minute. */
+const lookedAtRuns = new Set();
+
+/** Watch the run the backend started from a yes said anywhere -- the console,
+ * another panel, a mail -- the way this panel watches its own.
+ *
+ * Only while nothing else is being watched, and only a run still going: a
+ * finished run's card is `finishedRun`'s, and adopting it again would bring
+ * back a card the operator already saw end. */
+async function watchTheRunIn(thread) {
+  const runId = runNamedIn(thread);
+  if (!runId || lookedAtRuns.has(runId) || (await state.activeRun())) return;
+  lookedAtRuns.add(runId);
+  if ((await state.finishedRun())?.runId === runId) return;
+  let run;
+  try {
+    run = await api.rigRun(runId);
+  } catch {
+    lookedAtRuns.delete(runId);
+    return;
+  }
+  if (run.status !== "running" || (await state.activeRun())) return;
+  await state.setActiveRun({ runId, at: Date.now(), source: "rig" });
+  void pollRigRun();
+}
+
 async function lookForAQuestion() {
   try {
-    await holdTheQuestion(await api.currentThread());
+    const thread = await api.currentThread();
+    void watchTheRunIn(thread);
+    await holdTheQuestion(thread);
   } catch {
     // Offline, or a backend that has no threads. Leave whatever is held: a
     // question does not stop waiting because a poll failed.

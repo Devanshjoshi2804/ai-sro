@@ -182,6 +182,7 @@ class AskAboutTheOffer:
                 "from_step": pending.from_step,
                 "watched": pending.watched,
                 **({"unconfirmed": True} if ask_to_run else {}),
+                **({"offer": offer} if offer else {}),
                 **asking_state(pending),
             },
         )

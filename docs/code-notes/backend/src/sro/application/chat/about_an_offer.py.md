@@ -199,7 +199,7 @@ Code: `**({"unconfirmed": True} if ask_to_run else {}),`
 > to. A reply that completes it is asked about rather than started; a value
 > question from a card press was the press's own yes.
 
-## `AskAboutTheOffer.execute`, [line 188](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L188): Comment
+## `AskAboutTheOffer.execute`, [line 189](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L189): Comment
 
 Code: `if self._drafts is not None and mail_thread.strip():`
 

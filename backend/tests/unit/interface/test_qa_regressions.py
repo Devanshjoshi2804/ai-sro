@@ -16,10 +16,13 @@ import httpx
 import pytest
 from httpx import ASGITransport
 
+from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.context import RequestContext
 from sro.application.execution.answer import read_answer
 from sro.application.intent.narrow import _mentions
+from sro.domain.chat.asking import Pending
 from sro.domain.execution.run import Run, RunId
+from sro.domain.observation.attempts import REFUSED
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import DeviceId, SkillId
 from sro.domain.skill.promotion import PromotionStage
@@ -29,8 +32,11 @@ from sro.interface.http.deps import get_container
 from sro.interface.http.errors import _status_for
 from sro.interface.http.v1.routers.stream import _events
 from tests import factories as f
-from tests.unit.fakes import FakeUnitOfWork
+from tests.unit.fakes import FakeClock, FakeIdFactory, FakeUnitOfWork
 from tests.unit.interface.test_http import _FakeContainer, token_for
+from tests.unit.runtime_support import save_job
+
+CTX = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
 
 
 @pytest.fixture
@@ -481,3 +487,32 @@ async def _first_events(
                     seen[name] = json.loads(data)
     await events.aclose()
     return seen
+
+
+class TestAYesThatStartedNothing:
+    async def test_is_recorded_as_refused_not_done(
+        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
+    ) -> None:
+        """A chat yes the start refused was counted `done`: the conversation
+        said something, so the door called it done, and QA's count of refusals
+        on greyorange read none."""
+        await save_job(uow, "wfl_1")
+        thread_id = (await client.post("/v1/threads")).json()["id"]
+        await AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()).execute(
+            CTX,
+            Pending(
+                workflow_id="wfl_1", title="Save it", values={"Customer Type": "GT2"}, missing=()
+            ),
+            ask_to_run=True,
+        )
+
+        said = await client.post(f"/v1/threads/{thread_id}/messages", json={"text": "yes"})
+
+        assert said.json()["messages"][-1]["text"].startswith("Nothing was started: ")
+        ((came_of, why, run),) = [
+            (one.came_of, one.why, one.about.get("run", ""))
+            for one in uow.attempts.rows
+            if one.asked_for == "say something in a conversation"
+        ]
+        assert (came_of, run) == (REFUSED, "")
+        assert why.startswith("Nothing was started: ")

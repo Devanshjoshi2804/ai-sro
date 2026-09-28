@@ -769,6 +769,8 @@ class Container:
             run_lookups=self.run_lookups(),
             answers=IsItAnAnswer(self.asker),
             start=self.start_workflow_run(),
+            spawn=self.pursuits.spawn,
+            attempts=self.record_attempt(),
         )
 
     def ask_about_the_offer(self) -> AskAboutTheOffer:

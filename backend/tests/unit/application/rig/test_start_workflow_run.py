@@ -306,7 +306,7 @@ def _on_steel(uow: FakeUnitOfWork) -> StartWorkflowRun:
 async def test_a_steel_run_is_never_started_part_way_through_a_job() -> None:
     uow = await _held()
 
-    with pytest.raises(RunRefused, match="which of your gestures"):
+    with pytest.raises(RunRefused, match="cannot tell what was already done"):
         await _press(_on_steel(uow), values={"clientCode": "NEWTESTS"}, from_step=2)
 
     assert uow.workflow_runs.rows == {}

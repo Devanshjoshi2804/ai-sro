@@ -117,6 +117,20 @@ class WorkflowRun:
     pinned: Workflow | None = None
 
 
+SETTLED = frozenset({"done", "skipped", "not_needed"})
+
+
+def end_the_steps(steps: list[RunStep], reason: str) -> None:
+    last = steps[-1] if steps else None
+    if last is None or last.verdict in SETTLED:
+        order = 0 if last is None else last.order + 1
+        steps.append(
+            RunStep(order=order, says="", verdict="failed", verdict_by="none", reason=reason)
+        )
+    else:
+        last.verdict, last.verdict_by, last.reason = "failed", "none", reason
+
+
 def answers_for(run: WorkflowRun, principal: str, *, opened_by: str = "") -> bool:
     return principal in {run.started_by, opened_by} - {""}
 

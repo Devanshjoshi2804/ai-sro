@@ -25,7 +25,7 @@ Comments and docstrings for [`backend/src/sro/application/execution/stuck_runs.p
 > never holds. The operator hears one line in their current thread through
 > `SayWhatHappened`, the path a run's other notes take.
 
-## `CloseStuckRuns._budget`, [line 77](../../../../../../../backend/src/sro/application/execution/stuck_runs.py#L77): Note
+## `CloseStuckRuns._budget`, [line 80](../../../../../../../backend/src/sro/application/execution/stuck_runs.py#L80): Note
 
 > The budget the run was started with, from its pinned job (or the job, for a
 > row older than pinning) and the evidence it cites -- `start_on_steel`'s own

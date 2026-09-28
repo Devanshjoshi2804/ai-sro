@@ -96,7 +96,12 @@ from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.waiting import Durably, asks_a_person
-from sro.domain.execution.workflow_run import ENDED, RunStep, WorkflowRun, already_running
+from sro.domain.execution.workflow_run import (
+    ENDED,
+    WorkflowRun,
+    already_running,
+    end_the_steps,
+)
 from sro.domain.knowledge.entry import (
     EntryKind,
     EvidenceLevel,
@@ -2584,13 +2589,7 @@ class FakeWorkflowRunRepository:
             key=lambda run: (when(run.started_at), run.id),
         )
         for run in orphans:
-            if run.steps:
-                last = run.steps[-1]
-                last.verdict, last.verdict_by, last.reason = "failed", "none", reason
-            else:
-                run.steps.append(
-                    RunStep(order=0, says="", verdict="failed", verdict_by="none", reason=reason)
-                )
+            end_the_steps(run.steps, reason)
             run.outcome = "failed"
             run.finished_at = now
         return len(orphans)
@@ -2622,13 +2621,7 @@ class FakeWorkflowRunRepository:
         found.outcome, found.finished_at = "failed", _stored(at)
         if not found.needs:
             found.awaiting = None
-        if found.steps:
-            last = found.steps[-1]
-            last.verdict, last.verdict_by, last.reason = "failed", "none", reason
-        else:
-            found.steps.append(
-                RunStep(order=0, says="", verdict="failed", verdict_by="none", reason=reason)
-            )
+        end_the_steps(found.steps, reason)
         if self.on_save is not None:
             self.on_save(deepcopy(found))
         return True

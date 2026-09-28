@@ -49,10 +49,13 @@ class CloseStuckRuns:
         return tuple(closed)
 
     async def _close(self, run: WorkflowRun) -> bool:
+        durable = await self._durably(run)
+        if durable == "open":
+            return False
         tenant = TenantId(run.tenant)
         budget, title = await self._budget(tenant, run)
         now = self._clock.now()
-        if not stuck(run, budget_s=budget, now=now, durable=await self._durably(run)):
+        if not stuck(run, budget_s=budget, now=now, durable=durable):
             return False
         async with self._uow as uow:
             won = await uow.workflow_runs.close_stuck(

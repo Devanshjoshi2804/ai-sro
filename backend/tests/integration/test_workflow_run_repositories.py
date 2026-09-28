@@ -1200,6 +1200,31 @@ class TestStuckRuns:
             await uow.commit()
         return won
 
+    async def test_a_step_that_finished_keeps_its_verdict_and_the_reason_goes_after_it(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Resuming starts at the last step's order: a finished save marked
+        failed would be saved a second time."""
+        run = _run(
+            device_id="",
+            executor="steel",
+            progress={"step": 1},
+            steps=[RunStep(order=0, says="save", verdict="done", verdict_by="status")],
+        )
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+
+        assert await self._sweep(session_factory, run) is True
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            kept = await uow.workflow_runs.get(TENANT, run.id)
+        assert kept is not None and kept.outcome == "failed"
+        assert [(one.order, one.verdict, one.reason) for one in kept.steps] == [
+            (0, "done", ""),
+            (1, "failed", self.STUCK),
+        ]
+
     async def test_a_finish_that_holds_the_row_wins_and_the_sweep_does_nothing(
         self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
     ) -> None:

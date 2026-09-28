@@ -319,7 +319,7 @@ Code: `pinned: Workflow | None = None`
 > leaves it out. None on an extension run, which holds its job in memory for
 > its whole life.
 
-## `answers_for`, [line 121](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L121): Note
+## `answers_for`, [line 135](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L135): Note
 
 Code: `return principal in {run.started_by, opened_by} - {""}`
 
@@ -330,3 +330,14 @@ Code: `return principal in {run.started_by, opened_by} - {""}`
 > passes it only to say where the run stands, beside chat's own offers and
 > questions in that thread. Never pass it to grant an answer. An empty
 > `started_by` (a legacy row) matches nobody.
+
+## `end_the_steps`, [line 123](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L123): Docstring
+
+> Record why a run ended without its own finish (the stuck-run sweep, the
+> startup orphan sweep). A step that settled (`done`, `skipped`,
+> `not_needed`) keeps its verdict and the reason goes on a new step after it:
+> resuming starts again at the last step's order (`begins_again_at`), so a
+> finished write marked failed would be performed a second time.
+>
+> A run that died before its first step gets a step of its own: the reason
+> has to land somewhere the panel shows it.

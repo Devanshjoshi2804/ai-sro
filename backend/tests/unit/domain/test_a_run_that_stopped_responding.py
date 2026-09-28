@@ -11,8 +11,8 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 from sro.domain.execution.progress import K_BUDGET_MARGIN_S
-from sro.domain.execution.waiting import stuck
-from sro.domain.execution.workflow_run import RunStep, WorkflowRun
+from sro.domain.execution.waiting import STUCK, stuck
+from sro.domain.execution.workflow_run import RunStep, WorkflowRun, end_the_steps
 
 STARTED = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
 BUDGET = 120.0
@@ -75,3 +75,31 @@ def test_a_run_whose_workflow_closed_is_stuck_at_once_even_while_it_asks() -> No
     asking = _run(progress={"asking": {"id": "q-1", "kind": "code", "text": "the code?"}})
 
     assert stuck(asking, budget_s=BUDGET, now=STARTED, durable="closed")
+
+
+def test_a_step_that_finished_keeps_its_verdict_and_the_run_resumes_after_it() -> None:
+    """`begins_again_at` restarts at the last step's order: marking a finished
+    write failed would perform that write a second time."""
+    steps = [
+        RunStep(order=0, says="open", verdict="done"),
+        RunStep(order=1, says="save", verdict="done"),
+    ]
+
+    end_the_steps(steps, STUCK)
+
+    assert [(one.order, one.verdict) for one in steps] == [(0, "done"), (1, "done"), (2, "failed")]
+    assert steps[-1].reason == STUCK
+
+
+def test_a_step_that_never_finished_takes_the_reason_itself() -> None:
+    steps = [
+        RunStep(order=0, says="open", verdict="done"),
+        RunStep(order=1, says="save", verdict="held"),
+    ]
+
+    end_the_steps(steps, STUCK)
+
+    assert [(one.order, one.verdict, one.reason) for one in steps] == [
+        (0, "done", ""),
+        (1, "failed", STUCK),
+    ]

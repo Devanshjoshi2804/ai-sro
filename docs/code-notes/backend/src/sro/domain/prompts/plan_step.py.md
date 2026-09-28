@@ -2,7 +2,7 @@
 
 Notes on [`backend/src/sro/domain/prompts/plan_step.py`](../../../../../../../backend/src/sro/domain/prompts/plan_step.py). Each note names the code it explains (function or class, then the line in the current file).
 
-## module, [line 25](../../../../../../../backend/src/sro/domain/prompts/plan_step.py#L25): Note on the line above
+## module, [line 26](../../../../../../../backend/src/sro/domain/prompts/plan_step.py#L26): Note on the line above
 
 Code: `PLAN_STEP = Prompt(`
 
@@ -25,13 +25,13 @@ Code: `PLAN_STEP = Prompt(`
 > The words the model is told are unchanged; the envelope is new, and the first
 > `make eval` on the repair suite measures it.
 
-## module, [line 42](../../../../../../../backend/src/sro/domain/prompts/plan_step.py#L42): Comment
+## module, [line 43](../../../../../../../backend/src/sro/domain/prompts/plan_step.py#L43): Comment
 
 Code: `"properties": {`
 
 > kind first, why last: decide, then explain.
 
-## module, [line 28](../../../../../../../backend/src/sro/domain/prompts/plan_step.py#L28): Note on the line above
+## module, [line 29](../../../../../../../backend/src/sro/domain/prompts/plan_step.py#L29): Note on the line above
 
 Code: `model="gemini-3.8-flash",`
 
@@ -48,7 +48,7 @@ Code: `model="gemini-3.8-flash",`
 >
 > It was the setting `gemini_plan_model` until the prompts became records.
 
-## module, [line 72](../../../../../../../backend/src/sro/domain/prompts/plan_step.py#L72): Note on the line above
+## module, [line 92](../../../../../../../backend/src/sro/domain/prompts/plan_step.py#L92): Note on the line above
 
 Code: `PLAN_STEP_ESCALATED = replace(`
 

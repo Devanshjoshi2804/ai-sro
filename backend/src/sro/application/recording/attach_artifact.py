@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import mimetypes
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -13,6 +14,8 @@ from sro.application.ports.transcription import TranscribedSegment, Transcriber
 from sro.domain.recording.artifact import ArtifactKind, MediaArtifact
 from sro.domain.recording.narration import NarrationSegment
 from sro.domain.shared.identifiers import RecordingId, TenantId
+
+logger = logging.getLogger(__name__)
 
 
 def _place(
@@ -83,8 +86,13 @@ class AttachArtifact:
 
         transcript_uri: str | None = None
         segments: tuple[NarrationSegment, ...] = ()
+        transcribed: tuple[TranscribedSegment, ...] | None = None
         if kind is ArtifactKind.AUDIO and self._transcriber.available:
-            transcribed = await self._transcriber.transcribe(data, content_type=content_type)
+            try:
+                transcribed = await self._transcriber.transcribe(data, content_type=content_type)
+            except Exception:
+                logger.exception("%s: the narration could not be transcribed", recording_id)
+        if transcribed is not None:
             segments = _place(transcribed, recorded_from or now)
             transcript_key = artifact_key(
                 ctx.tenant_id, recording_id, ArtifactKind.TRANSCRIPT, "application/json"

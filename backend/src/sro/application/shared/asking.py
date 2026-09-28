@@ -55,7 +55,6 @@ async def ask(
         cost_usd=first.cost_usd + second.cost_usd,
         unpriced=first.unpriced or second.unpriced,
         fell_back=True,
-        malformed=first.malformed or second.malformed,
     )
 
 
@@ -104,7 +103,6 @@ async def _asked(
             dropped=dropped,
             error=answer.error
             or f"{prompt.name} v{prompt.version}: the answer does not match its schema",
-            malformed=True,
         )
     return answer if data is answer.data else replace(answer, data=data, dropped=dropped)
 

@@ -25,14 +25,8 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/transcript
 
 Code: `if answer.data is None:`
 
-> Model output is data crossing a trust boundary; a bad shape is silence --
-> `Answer.malformed` is how the caller tells the two `data is None` cases
-> apart. `ask`'s schema check sets it when a model answered but the shape
-> broke `TRANSCRIBE`'s schema (GC 10): that stays silence, since a
-> demonstration is still perfectly usable without narration and a malformed
-> response must not fail the upload the operator is waiting on.
->
-> A call that failed on both models -- neither model produced anything to
-> check against the schema -- is a different failure and is not silence: it
-> raises, so an outage on both flash models is never read as "nobody said
-> anything."
+> No usable segments from either model -- a call that failed, or an answer
+> that broke `TRANSCRIBE`'s schema (GC 10) -- raises. An empty transcript
+> would say nobody spoke, which nobody knows. The upload the operator is
+> waiting on does not ride on this: `AttachArtifact` keeps the audio and
+> attaches no transcript when this raises.

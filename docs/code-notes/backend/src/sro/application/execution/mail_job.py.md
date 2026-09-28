@@ -117,6 +117,11 @@ Code: `K_BODY = 2000`
 > than `K_SENT_THREADS`), clicks looked up in Sent, threads and messages read,
 > SENT mails in the window, and clicks that found none, more than one, or
 > exactly one. Addresses never reach it.
+>
+> A built-in mail action (M4) has no evidence of its own. Its Send clicks and
+> confirmed recipients are the tenant's mined mail-only jobs' (`_mail_jobs`) --
+> the jobs it replaced, never retired, so what they were shown sending to is
+> still who a mail may go to -- beside whoever was named on the built-in.
 
 ## `send_the_mail`, [line 290](../../../../../../../backend/src/sro/application/execution/mail_job.py#L290): Docstring
 
@@ -151,6 +156,11 @@ Code: `K_BODY = 2000`
 > to it are `Progress.told`, trusted as the request is; `shown` is the refused
 > draft they said yes to. The card carries `named`, the addresses kept once the
 > press sends it.
+>
+> Which conversation (M4): a send writes a new mail, whatever it was started
+> on; a reply or a forward needs one, and asks `which_mail` before anything is
+> written when it was started on none. A mined job uses the one it was
+> started on, as before.
 
 ## `_conversation`, [line 418](../../../../../../../backend/src/sro/application/execution/mail_job.py#L418): Docstring
 
@@ -215,3 +225,24 @@ Code: `"job": workflow.id,`
 > text written from mail, never a run step's reason (S4 round 1, M6). `AnswerRun` takes an answer on a stopped
 > drafted run for this one kind, and resumes it through `redraft_the_mail_job`
 > rather than a Temporal signal.
+
+## `_mail_jobs`, [line 262](../../../../../../../backend/src/sro/application/execution/mail_job.py#L262): Docstring
+
+> The tenant's mined jobs that are mail alone, with their cited gestures: the
+> evidence a built-in mail action is granted recipients from. Read from the
+> evidence each time, as `rank_jobs` flags them.
+
+## `_mails_found`, [line 273](../../../../../../../backend/src/sro/application/execution/mail_job.py#L273): Docstring
+
+> The conversations a Gmail search finds: one `search_threads`, capped at
+> `K_SENT_THREADS` hits, then `get_message` for each hit's thread. Both the
+> Sent lookup of a Send click and the starter's `which_mail` answer use it;
+> the callers decide what one, none or several mean.
+
+## `redraft_the_mail_job`, [line 440](../../../../../../../backend/src/sro/application/execution/mail_job.py#L440): Note
+
+> A `which_mail` answer is searched for once its question is closed by the
+> compare-and-set: exactly one conversation found becomes the run's (its
+> `awaiting`), and the draft is written on it; none or several ask again with
+> the count. Its words are never the writer's request. Two presses of one
+> answer draft once: the second finds the question closed.

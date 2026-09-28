@@ -6,14 +6,16 @@ import logging
 import uuid
 from datetime import timedelta
 
-from temporalio.client import Client, WorkflowFailureError
+from temporalio.client import Client, WorkflowExecutionStatus, WorkflowFailureError
 from temporalio.common import WorkflowIDReusePolicy
 from temporalio.exceptions import WorkflowAlreadyStartedError
+from temporalio.service import RPCError, RPCStatusCode
 
 from sro.application.context import RequestContext
 from sro.application.execution.execute_skill import NotRunnable
 from sro.domain.execution.progress import K_BUDGET_MARGIN_S
 from sro.domain.execution.run import RunId
+from sro.domain.execution.waiting import Durably
 from sro.domain.shared.identifiers import SkillId
 from sro.infrastructure.temporal.activities import RunRef, StartRunRequest
 from sro.infrastructure.temporal.queues import DEFAULT_QUEUE, RUNS_QUEUE
@@ -103,6 +105,18 @@ class TemporalDurableExecution:
 
     async def cancel_run(self, run_id: str) -> None:
         await (await self._connect()).get_workflow_handle(f"workflow-run-{run_id}").cancel()
+
+    async def run_state(self, run_id: str) -> Durably:
+        handle = (await self._connect()).get_workflow_handle(f"workflow-run-{run_id}")
+        try:
+            described = await handle.describe()
+        except RPCError as error:
+            if error.status is RPCStatusCode.NOT_FOUND:
+                return "unknown"
+            raise
+        if described.status is None:
+            return "unknown"
+        return "open" if described.status is WorkflowExecutionStatus.RUNNING else "closed"
 
 
 def _root_message(error: BaseException) -> str:

@@ -77,7 +77,7 @@ Code: `_ONE_RUNNING = "uq_workflow_runs_one_running_per_device"`
 > to something else entirely, which is a warehouse record written from
 > somebody's unrelated sentence.
 
-## `SqlWorkflowRunRepository._with_steps`, [line 472](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L472): Docstring
+## `SqlWorkflowRunRepository._with_steps`, [line 532](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L532): Docstring
 
 > One query for every run's steps rather than one per run.
 
@@ -341,7 +341,7 @@ Code: `run.steps.append(`
 > The reason has to land somewhere the panel shows it, and a
 > run that died before its first step has nowhere.
 
-## `SqlWorkflowRunRepository._rows`, [line 470](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L470): Comment
+## `SqlWorkflowRunRepository._rows`, [line 530](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L530): Comment
 
 Code: `return select(WorkflowRunRow).execution_options(populate_existing=True)`
 
@@ -377,3 +377,22 @@ Code: `if column.name not in ("id", "progress", "pinned")`
 > `pinned` is written by the insert and never by the update: a run's version is
 > fixed when it starts, and no later save -- whatever copy of the run it holds --
 > may move it.
+
+## `SqlWorkflowRunRepository.running`, [line 468](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L468): Note
+
+> Every tenant's `running` rows, both executors, oldest first. Only the
+> stuck-run sweep reads it, and nobody is making that request.
+
+## `SqlWorkflowRunRepository.close_stuck`, [line 477](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L477): Note
+
+> Closes a stuck run as `failed` in one compare-and-set: on
+> `outcome = 'running'`, so a real `finish` that committed first wins and is
+> never overwritten, and two sweeps close the row once (the second waits on the
+> first's row lock and then matches nothing); and on the `progress` the sweep
+> read, so a run that moved since then is alive and left alone. A sweep that
+> commits first wins instead, and the late `finish` cannot reopen it: `save`
+> keeps an ended outcome. `awaiting` is cleared unless the run still `needs`
+> values, as `finish` does.
+>
+> The reason lands on the step the run died in, or on a step 0 when it had
+> none, the same as `fail_orphans`.

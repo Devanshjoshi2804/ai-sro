@@ -95,7 +95,7 @@ from sro.domain.execution.mail_job import JobRecipient
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
 from sro.domain.execution.verified_writes import VerifiedWrite
-from sro.domain.execution.waiting import asks_a_person
+from sro.domain.execution.waiting import Durably, asks_a_person
 from sro.domain.execution.workflow_run import ENDED, RunStep, WorkflowRun, already_running
 from sro.domain.knowledge.entry import (
     EntryKind,
@@ -429,6 +429,12 @@ class FakeDurableExecution:
         """Every argument of each `answer_run` call, in order: what a signal
         to the run's workflow would carry into its history."""
 
+        self.ended: set[str] = set()
+        """Runs whose workflow has closed -- timed out, terminated, or lost
+        with its worker -- without the row hearing of it. A run in
+        `runs_started` and not here is still open; one in neither was never
+        handed over, which Temporal answers as not found."""
+
     async def execute_skill(
         self,
         ctx: RequestContext,
@@ -470,6 +476,11 @@ class FakeDurableExecution:
 
     async def cancel_run(self, run_id: str) -> None:
         self.cancelled.append(run_id)
+
+    async def run_state(self, run_id: str) -> Durably:
+        if run_id in self.ended:
+            return "closed"
+        return "open" if any(one == run_id for one, _ in self.runs_started) else "unknown"
 
 
 class FakeRecordingRepository:
@@ -2583,6 +2594,44 @@ class FakeWorkflowRunRepository:
             run.outcome = "failed"
             run.finished_at = now
         return len(orphans)
+
+    async def running(self) -> tuple[WorkflowRun, ...]:
+        return tuple(
+            deepcopy(run)
+            for run in sorted(self.rows.values(), key=lambda run: (when(run.started_at), run.id))
+            if run.outcome == "running"
+        )
+
+    async def close_stuck(
+        self,
+        tenant_id: TenantId,
+        run_id: str,
+        *,
+        reason: str,
+        at: str,
+        was: Mapping[str, object],
+    ) -> bool:
+        found = self.rows.get(run_id)
+        if (
+            found is None
+            or found.tenant != tenant_id.value
+            or found.outcome != "running"
+            or found.progress != dict(was)
+        ):
+            return False
+        found.outcome, found.finished_at = "failed", _stored(at)
+        if not found.needs:
+            found.awaiting = None
+        if found.steps:
+            last = found.steps[-1]
+            last.verdict, last.verdict_by, last.reason = "failed", "none", reason
+        else:
+            found.steps.append(
+                RunStep(order=0, says="", verdict="failed", verdict_by="none", reason=reason)
+            )
+        if self.on_save is not None:
+            self.on_save(deepcopy(found))
+        return True
 
 
 class FakeWorkflowRepository:

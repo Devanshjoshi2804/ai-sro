@@ -481,6 +481,18 @@ class WorkflowRunRepository(Protocol):
 
     async def fail_orphans(self, reason: str) -> int: ...
 
+    async def running(self) -> tuple[WorkflowRun, ...]: ...
+
+    async def close_stuck(
+        self,
+        tenant_id: TenantId,
+        run_id: str,
+        *,
+        reason: str,
+        at: str,
+        was: Mapping[str, object],
+    ) -> bool: ...
+
 
 class WorkflowRepository(Protocol):
     async def save(self, workflow: Workflow) -> None: ...

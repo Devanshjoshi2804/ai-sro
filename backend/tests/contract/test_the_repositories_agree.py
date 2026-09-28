@@ -1265,6 +1265,97 @@ class TestWorkflowRuns:
         assert [step.order for step in elsewhere.steps] == [0]
         assert elsewhere.steps[0].reason == "the worker restarted"
 
+    async def test_running_lists_every_tenant_s_running_rows_oldest_first(
+        self, store: UnitOfWork
+    ) -> None:
+        async with store as work:
+            await work.workflow_runs.save(
+                _run("run_late", outcome="running", started_at=_at(11), executor="steel")
+            )
+            await work.workflow_runs.save(
+                _run("run_b", tenant=OTHER_TENANT, outcome="running", started_at=_at(10))
+            )
+            await work.workflow_runs.save(_run("run_a", outcome="running", started_at=_at(10)))
+            await work.workflow_runs.save(_run("run_done", started_at=_at(9)))
+            await work.commit()
+
+        async with store as work:
+            running = await work.workflow_runs.running()
+
+        assert [run.id for run in running] == ["run_a", "run_b", "run_late"]
+
+    async def test_close_stuck_closes_a_running_row_once_and_lands_the_reason_on_a_step(
+        self, store: UnitOfWork
+    ) -> None:
+        async with store as work:
+            await work.workflow_runs.save(
+                _run(
+                    "run_stuck",
+                    outcome="running",
+                    progress={"step": 1},
+                    awaiting={"server": "s", "thread": "t", "until": _at(23)},
+                    steps=[RunStep(order=0, says="scan", verdict="held")],
+                )
+            )
+            await work.workflow_runs.save(
+                _run("run_bare", outcome="running", device_id=OTHER_DEVICE.value)
+            )
+            await work.commit()
+
+        async with store as work:
+            assert await work.workflow_runs.close_stuck(
+                TENANT, "run_stuck", reason="stuck", at=_at(12), was={"step": 1}
+            )
+            assert await work.workflow_runs.close_stuck(
+                TENANT, "run_bare", reason="stuck", at=_at(12), was={}
+            )
+            await work.commit()
+
+        async with store as work:
+            assert not await work.workflow_runs.close_stuck(
+                TENANT, "run_stuck", reason="again", at=_at(13), was={"step": 1}
+            )
+            await work.commit()
+
+        async with store as work:
+            closed = await work.workflow_runs.get(TENANT, "run_stuck")
+            bare = await work.workflow_runs.get(TENANT, "run_bare")
+        assert closed is not None and bare is not None
+        assert (closed.outcome, closed.finished_at) == ("failed", _at(12))
+        assert closed.awaiting is None
+        assert [(one.verdict, one.verdict_by, one.reason) for one in closed.steps] == [
+            ("failed", "none", "stuck")
+        ]
+        assert [(one.order, one.says, one.reason) for one in bare.steps] == [(0, "", "stuck")]
+
+    async def test_close_stuck_leaves_an_ended_a_moved_or_another_tenant_s_run_alone(
+        self, store: UnitOfWork
+    ) -> None:
+        async with store as work:
+            await work.workflow_runs.save(_run("run_done", outcome="stopped"))
+            await work.workflow_runs.save(
+                _run("run_moved", outcome="running", progress={"step": 2})
+            )
+            await work.commit()
+
+        async with store as work:
+            assert not await work.workflow_runs.close_stuck(
+                TENANT, "run_done", reason="stuck", at=_at(12), was={}
+            )
+            assert not await work.workflow_runs.close_stuck(
+                TENANT, "run_moved", reason="stuck", at=_at(12), was={"step": 1}
+            )
+            assert not await work.workflow_runs.close_stuck(
+                OTHER_TENANT, "run_moved", reason="stuck", at=_at(12), was={"step": 2}
+            )
+            await work.commit()
+
+        async with store as work:
+            done = await work.workflow_runs.get(TENANT, "run_done")
+            moved = await work.workflow_runs.get(TENANT, "run_moved")
+        assert done is not None and (done.outcome, done.steps) == ("stopped", [])
+        assert moved is not None and (moved.outcome, moved.steps) == ("running", [])
+
     async def test_an_ended_run_is_never_saved_back_to_running(self, store: UnitOfWork) -> None:
         async with store as work:
             await work.workflow_runs.save(

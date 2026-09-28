@@ -465,6 +465,66 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
             await self.save(run)
         return len(orphans)
 
+    async def running(self) -> tuple[WorkflowRun, ...]:
+        query = self._rows().where(WorkflowRunRow.outcome == "running")
+        rows = (
+            await self._session.execute(
+                query.order_by(WorkflowRunRow.started_at, WorkflowRunRow.id)
+            )
+        ).scalars()
+        return await self._with_steps(rows.all())
+
+    async def close_stuck(
+        self,
+        tenant_id: TenantId,
+        run_id: str,
+        *,
+        reason: str,
+        at: str,
+        was: Mapping[str, object],
+    ) -> bool:
+        won = await self._session.execute(
+            update(WorkflowRunRow)
+            .where(
+                WorkflowRunRow.id == run_id,
+                WorkflowRunRow.tenant_id == tenant_id.value,
+                WorkflowRunRow.outcome == "running",
+                WorkflowRunRow.progress == dict(was),
+            )
+            .values(
+                outcome="failed",
+                finished_at=when(at),
+                awaiting=case(
+                    (func.jsonb_array_length(WorkflowRunRow.needs) > 0, WorkflowRunRow.awaiting),
+                    else_=None,
+                ),
+            )
+            .returning(WorkflowRunRow.id)
+        )
+        if won.first() is None:
+            return False
+        last = await self._session.scalar(
+            select(func.max(WorkflowRunStepRow.ord)).where(WorkflowRunStepRow.run_id == run_id)
+        )
+        if last is None:
+            await self._session.execute(
+                pg_insert(WorkflowRunStepRow).values(
+                    _step_values(
+                        run_id,
+                        RunStep(
+                            order=0, says="", verdict="failed", verdict_by="none", reason=reason
+                        ),
+                    )
+                )
+            )
+        else:
+            await self._session.execute(
+                update(WorkflowRunStepRow)
+                .where(WorkflowRunStepRow.run_id == run_id, WorkflowRunStepRow.ord == last)
+                .values(verdict="failed", verdict_by="none", reason=reason)
+            )
+        return True
+
     @staticmethod
     def _rows() -> Select[tuple[WorkflowRunRow]]:
         return select(WorkflowRunRow).execution_options(populate_existing=True)

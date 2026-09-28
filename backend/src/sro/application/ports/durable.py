@@ -4,6 +4,7 @@ from typing import Protocol
 
 from sro.application.context import RequestContext
 from sro.domain.execution.run import RunId
+from sro.domain.execution.waiting import Durably
 from sro.domain.shared.identifiers import SkillId
 
 
@@ -26,3 +27,5 @@ class DurableExecution(Protocol):
     async def answer_run(self, run_id: str, question_id: str) -> None: ...
 
     async def cancel_run(self, run_id: str) -> None: ...
+
+    async def run_state(self, run_id: str) -> Durably: ...

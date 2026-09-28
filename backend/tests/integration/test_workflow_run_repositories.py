@@ -10,6 +10,8 @@ was a storage rule and renamed where the route half is plan 4's.
 
 from __future__ import annotations
 
+import asyncio
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 
@@ -1148,3 +1150,139 @@ class TestOneSkillRunPerBrowser:
 
         async with SqlUnitOfWork(session_factory) as uow:
             assert await uow.runs.in_flight(TENANT, DeviceId("dev_1")) is None
+
+
+async def _until_it_waits(engine: AsyncEngine, running: asyncio.Future[Any]) -> None:
+    """Returns once some session waits on a row lock, or `running` has ended."""
+    async with engine.connect() as watching:
+        while not running.done():
+            waiting = await watching.scalar(
+                text(
+                    "SELECT count(*) FROM pg_stat_activity"
+                    " WHERE datname = current_database() AND wait_event_type = 'Lock'"
+                )
+            )
+            if waiting:
+                return
+            await asyncio.sleep(0.01)
+
+
+class TestStuckRuns:
+    """D10: `close_stuck` is a compare-and-set on `outcome = 'running'` and on
+    the progress the sweep read, so whichever of the real `finish` and the
+    sweep commits first owns the row, and the other changes nothing."""
+
+    STUCK = "the run stopped responding and was closed after its time ran out"
+
+    async def _stuck_run(self, session_factory: async_sessionmaker[AsyncSession]) -> WorkflowRun:
+        run = _run(
+            device_id="",
+            executor="steel",
+            progress={"step": 1},
+            steps=[RunStep(order=0, says="save", verdict="held", verdict_by="status")],
+        )
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+        return run
+
+    async def _sweep(
+        self, session_factory: async_sessionmaker[AsyncSession], run: WorkflowRun
+    ) -> bool:
+        async with SqlUnitOfWork(session_factory) as uow:
+            won = await uow.workflow_runs.close_stuck(
+                TENANT,
+                run.id,
+                reason=self.STUCK,
+                at="2026-09-05T11:00:00+00:00",
+                was={"step": 1},
+            )
+            await uow.commit()
+        return won
+
+    async def test_a_finish_that_holds_the_row_wins_and_the_sweep_does_nothing(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        run = await self._stuck_run(session_factory)
+
+        async with SqlUnitOfWork(session_factory) as finishing:
+            finished = await finishing.workflow_runs.get(TENANT, run.id)
+            assert finished is not None
+            finished.outcome, finished.finished_at = "held", "2026-09-05T10:59:00+00:00"
+            await finishing.workflow_runs.save(finished)
+            racing = asyncio.ensure_future(self._sweep(session_factory, run))
+            await _until_it_waits(engine, racing)
+            assert not racing.done(), "the sweep waited on the finish's row lock"
+            await finishing.commit()
+
+        assert await racing is False
+        async with SqlUnitOfWork(session_factory) as uow:
+            kept = await uow.workflow_runs.get(TENANT, run.id)
+        assert kept is not None and kept.outcome == "held"
+        assert [(one.verdict, one.reason) for one in kept.steps] == [("held", "")]
+
+    async def test_a_sweep_that_holds_the_row_wins_and_the_late_finish_cannot_rewrite_it(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        run = await self._stuck_run(session_factory)
+        late = replace(run, outcome="held")
+
+        async def finish() -> None:
+            async with SqlUnitOfWork(session_factory) as uow:
+                await uow.workflow_runs.save(late)
+                await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as sweeping:
+            assert await sweeping.workflow_runs.close_stuck(
+                TENANT,
+                run.id,
+                reason=self.STUCK,
+                at="2026-09-05T11:00:00+00:00",
+                was={"step": 1},
+            )
+            racing = asyncio.ensure_future(finish())
+            await _until_it_waits(engine, racing)
+            await sweeping.commit()
+        await racing
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            closed = await uow.workflow_runs.get(TENANT, run.id)
+        assert closed is not None and closed.outcome == "failed"
+
+    async def test_two_sweeps_at_once_close_the_row_once(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        run = await self._stuck_run(session_factory)
+
+        async with SqlUnitOfWork(session_factory) as first:
+            assert await first.workflow_runs.close_stuck(
+                TENANT,
+                run.id,
+                reason=self.STUCK,
+                at="2026-09-05T11:00:00+00:00",
+                was={"step": 1},
+            )
+            second = asyncio.ensure_future(self._sweep(session_factory, run))
+            await _until_it_waits(engine, second)
+            assert not second.done(), "the second sweep waited on the first's row lock"
+            await first.commit()
+
+        assert await second is False
+        async with SqlUnitOfWork(session_factory) as uow:
+            closed = await uow.workflow_runs.get(TENANT, run.id)
+        assert closed is not None and closed.outcome == "failed"
+        assert [(one.verdict, one.reason) for one in closed.steps] == [("failed", self.STUCK)]
+        assert closed.finished_at == "2026-09-05T11:00:00+00:00"
+
+    async def test_a_run_that_moved_since_the_sweep_read_it_is_not_closed(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        run = await self._stuck_run(session_factory)
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert await uow.workflow_runs.record_progress(TENANT, run.id, {"step": 2})
+            await uow.commit()
+
+        assert await self._sweep(session_factory, run) is False
+        async with SqlUnitOfWork(session_factory) as uow:
+            kept = await uow.workflow_runs.get(TENANT, run.id)
+        assert kept is not None and kept.outcome == "running"

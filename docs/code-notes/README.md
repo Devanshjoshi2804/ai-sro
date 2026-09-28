@@ -85,6 +85,7 @@ Line numbers are correct as of the commit that moved the notes. When the code mo
 | [`backend/src/sro/application/execution/run_workflow.py`](backend/src/sro/application/execution/run_workflow.py.md) | 213 |
 | [`backend/src/sro/application/execution/self_heal.py`](backend/src/sro/application/execution/self_heal.py.md) | 17 |
 | [`backend/src/sro/application/execution/stops.py`](backend/src/sro/application/execution/stops.py.md) | 3 |
+| [`backend/src/sro/application/execution/stuck_runs.py`](backend/src/sro/application/execution/stuck_runs.py.md) | 3 |
 | [`backend/src/sro/application/execution/verify.py`](backend/src/sro/application/execution/verify.py.md) | 39 |
 | [`backend/src/sro/application/execution/vision_step.py`](backend/src/sro/application/execution/vision_step.py.md) | 5 |
 | [`backend/src/sro/application/execution/workflow_runs.py`](backend/src/sro/application/execution/workflow_runs.py.md) | 74 |

@@ -29,10 +29,11 @@ import logging
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from sro.application.context import RequestContext
 from sro.application.execution import run_workflow as runner_module
 from sro.application.execution.approvals import K_APPROVAL_WAIT_S, Approvals
 from sro.application.execution.effects import can_try_again
@@ -57,6 +58,7 @@ from sro.application.execution.run_workflow import (
     write_key,
 )
 from sro.application.execution.stops import Stops
+from sro.application.execution.stuck_runs import CloseStuckRuns
 from sro.application.ports.agent import DeviceUnreachable
 from sro.application.ports.channel import Reply
 from sro.application.shared.refusals import OverCap
@@ -79,7 +81,9 @@ from tests.unit.domain.rig.conftest import gestures as _gestures
 from tests.unit.fakes import (
     FakeAsker,
     FakeChannel,
+    FakeClock,
     FakeGestureRepository,
+    FakeIdFactory,
     FakeToolCallRepository,
     FakeUnitOfWork,
     FakeWorkflowRepository,
@@ -4167,6 +4171,54 @@ async def test_a_live_write_waits_for_approval_and_goes_out_when_it_comes() -> N
     run = await task
     assert run.outcome == "held"
     assert [s["kind"] for s in channel.sent].count("ui.perform") == 2
+
+
+async def test_a_run_waiting_on_an_approval_is_never_closed_as_stuck(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """D10: a run parked in front of a person is waiting, not stuck -- however
+    long past its budget the sweep finds it, it stays `running` and the
+    approval still lands on it. The job is filed under another tenant here, so
+    the sweep cannot find it and budgets the run at the floor: the wait, not a
+    long budget, is what keeps it open."""
+    uow = await _fixture()
+    workflow = await _workflow(uow)
+    channel = FakeChannel({**_looks(4), "ui.perform": [_performed(), _performed()]})
+    asker = _PerSchemaAsker(
+        plan=_plan("type", "THIRD"), verdict=Answer(data={"held": True, "why": "ok"})
+    )
+    approvals = Approvals()
+    task = asyncio.create_task(
+        _ran(
+            uow,
+            workflow,
+            channel=channel,
+            asker=asker,
+            values={"clientCode": "THIRD"},
+            approvals=approvals,
+        )
+    )
+    run_id = await _parked(approvals)
+
+    async def never_released(ctx: RequestContext, run_id: str) -> None:
+        raise AssertionError(f"{run_id} is not stuck and nothing of it is released")
+
+    sweep = CloseStuckRuns(
+        uow,
+        durable=None,
+        release=never_released,
+        clock=FakeClock(datetime.now(UTC) + timedelta(days=30)),
+        ids=FakeIdFactory(),
+    )
+    with caplog.at_level(logging.ERROR):
+        assert await sweep.execute() == ()
+    assert not caplog.records, caplog.text
+
+    saved = await uow.workflow_runs.get(TENANT, run_id)
+    assert saved is not None and saved.outcome == "running"
+    assert saved.steps[-1].verdict == "awaiting"
+    assert approvals.approve(run_id) is True
+    assert (await task).outcome == "held"
 
 
 class _RecordsTheWait(Approvals):

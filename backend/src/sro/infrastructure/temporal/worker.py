@@ -60,6 +60,13 @@ async def keep_sessions_open(container: Container, every_seconds: float) -> None
             for tenant, count in expired.items():
                 logger.info("%s: %s confirmation(s) expired unanswered", tenant, count)
         try:
+            closed = await container.close_stuck_runs().execute()
+        except Exception:
+            logger.exception("the stuck-run sweep could not finish")
+        else:
+            for run_id in closed:
+                logger.info("%s stopped responding and was closed", run_id)
+        try:
             swept = await container.keep_sessions_open().sweep()
         except Exception:
             logger.exception("the session keeper could not finish its sweep")

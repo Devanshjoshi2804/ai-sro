@@ -520,6 +520,17 @@ class SqlThreadRepository(ThreadRepository):
         rows = (await self._session.execute(query)).scalars().all()
         return tuple(row_to_thread(row) for row in rows)
 
+    async def holding(
+        self, tenant_id: TenantId, *, opened_by: PrincipalId, message_id: str
+    ) -> Thread | None:
+        query = select(ThreadRow).where(
+            ThreadRow.tenant_id == tenant_id.value,
+            ThreadRow.opened_by == opened_by.value,
+            ThreadRow.messages.contains([{"id": {"value": message_id}}]),
+        )
+        row = (await self._session.execute(query.limit(1))).scalar_one_or_none()
+        return row_to_thread(row) if row is not None else None
+
     async def _row(
         self, tenant_id: TenantId, thread_id: ThreadId, *, lock: bool = False
     ) -> ThreadRow:

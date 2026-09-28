@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from dataclasses import replace
+from typing import TYPE_CHECKING
 
 from sro.application.chat.read_chat import ReadChat
 from sro.application.chat.reading_an_answer import IsItAnAnswer
@@ -49,11 +50,16 @@ from sro.domain.chat.standing import last_run, of_the_run, stands
 from sro.domain.chat.thread import Message, MessageId, Said, Speaker, Thread, ThreadId
 from sro.domain.execution.compose import alias_map
 from sro.domain.execution.field_classes import field_classes
+from sro.domain.execution.mail_job import MAIL_BODY
+from sro.domain.execution.progress import Progress
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
 from sro.domain.execution.workflow_run import answers_for
 from sro.domain.lookup.asking import is_a_question
 from sro.domain.shared.errors import Conflict, DomainError
 from sro.domain.skill.skill import Skill
+
+if TYPE_CHECKING:
+    from sro.application.runtime.answer_run import AnswerRun
 
 logger = logging.getLogger(__name__)
 
@@ -104,8 +110,10 @@ class Converse:
         answers: IsItAnAnswer | None = None,
         plan_lookups: PlanLookups | None = None,
         run_lookups: RunLookups | None = None,
+        answer_run: AnswerRun | None = None,
     ) -> None:
         self._uow = uow
+        self._answer_run = answer_run
         self._resolver = resolver
         self._reads_jobs = reads_jobs
         self._answers = answers
@@ -158,6 +166,12 @@ class Converse:
                 told = await self._what_stands(ctx, before)
             self._told(before, text, told or K_NOT_YOURS)
             return before
+        run_asks = asked_under(said_before, answering)
+        answer = self._answer_run
+        if run_asks is not None and answer and await self._open_in_words(ctx, run_asks):
+            return await self._answer_the_run(
+                ctx, answer, thread_id=thread_id, text=text, asked=run_asks
+            )
         if (
             answering is not None
             and pending_job(said_before, answering) is None
@@ -180,7 +194,11 @@ class Converse:
             if about != "another_task":
                 await self._also_said(ctx, thread_id=thread_id, text=text)
                 return await self._ask_it_again(
-                    ctx, thread_id=thread_id, pending=waiting, said_before=said_before
+                    ctx,
+                    thread_id=thread_id,
+                    pending=waiting,
+                    asked=asked,
+                    said_before=said_before,
                 )
             placed = await self._placed_by_the_rig(ctx, text)
             await self._carry_on(
@@ -193,7 +211,7 @@ class Converse:
                 standing=True,
             )
             return await self._ask_it_again(
-                ctx, thread_id=thread_id, pending=waiting, said_before=said_before
+                ctx, thread_id=thread_id, pending=waiting, asked=asked, said_before=said_before
             )
         return await self._carry_on(
             ctx,
@@ -203,6 +221,64 @@ class Converse:
             parameters=parameters,
             answering=answering,
         )
+
+    async def _open_in_words(self, ctx: RequestContext, asked: Message) -> bool:
+        decision = asked.decision or {}
+        if decision.get("kind") != "run_asks" or decision.get("asks") not in (
+            "recipient",
+            MAIL_BODY,
+        ):
+            return False
+        async with self._uow as uow:
+            run = await uow.workflow_runs.get(ctx.tenant_id, str(decision.get("run_id") or ""))
+        asking = Progress.of(run.progress).asking if run is not None else {}
+        return asking.get("id") == decision.get("question_id") and not asking.get("answered")
+
+    async def _answer_the_run(
+        self,
+        ctx: RequestContext,
+        answer: AnswerRun,
+        *,
+        thread_id: ThreadId,
+        text: str,
+        asked: Message,
+    ) -> Thread:
+        decision = asked.decision or {}
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.OPERATOR,
+                    text=text,
+                    said_at=self._clock.now(),
+                )
+            )
+            await uow.threads.save(thread)
+            await uow.commit()
+        said = "Got it -- the run goes on with that."
+        try:
+            await answer.execute(
+                ctx,
+                run_id=str(decision.get("run_id") or ""),
+                question_id=str(decision.get("question_id") or ""),
+                value=text,
+            )
+        except Conflict as refused:
+            said = f"{refused}; the question still stands."
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.ASSISTANT,
+                    text=said,
+                    said_at=self._clock.now(),
+                )
+            )
+            await uow.threads.save(thread)
+            await uow.commit()
+        return thread
 
     async def _only_said(
         self, ctx: RequestContext, *, thread_id: ThreadId, text: str, said: str = K_CLOSED
@@ -394,6 +470,7 @@ class Converse:
         *,
         thread_id: ThreadId,
         pending: Pending,
+        asked: Message,
         said_before: Sequence[Message] = (),
     ) -> Thread:
         async with self._uow as uow:
@@ -417,6 +494,7 @@ class Converse:
                         "limits": dict(pending.limits),
                         "from_step": pending.from_step,
                         "mail_thread": pending.mail_thread,
+                        "offer": _chained(asked),
                         **asking_state(pending),
                     },
                 )
@@ -527,6 +605,7 @@ class Converse:
                             "limits": dict(filled.limits),
                             "from_step": filled.from_step,
                             "mail_thread": filled.mail_thread,
+                            "offer": _chained(still),
                             **asking_state(filled),
                         },
                     )
@@ -583,7 +662,7 @@ class Converse:
                 "mail_thread": offered.mail_thread,
                 "can_find": self._can_gather,
                 "watched": offered.watched,
-                "offer": str((still.decision or {}).get("offer") or asked.value),
+                "offer": _chained(still),
             }
             said = f"Running {offered.title} now." if ready else question(offered)
             if let_go(text):
@@ -1240,6 +1319,10 @@ def _gathered(thread: Thread, skill_id: str | None) -> dict[str, str]:
             if isinstance(item, dict):
                 values.update({str(key): str(value) for key, value in item.items() if value})
     return values
+
+
+def _chained(asked: Message) -> str:
+    return str((asked.decision or {}).get("offer") or asked.id.value)
 
 
 def _opened_by_the_caller(ctx: RequestContext, thread: Thread) -> Thread:

@@ -5,6 +5,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from email.utils import getaddresses
+from typing import Final
 from urllib.parse import urlsplit
 
 from sro.domain.observation.gesture import Call, Gesture
@@ -71,6 +72,10 @@ K_SENT_THREADS = 10
 K_SEND_WINDOW_S = 120.0
 
 REQUEST = "request"
+
+MAIL_BODY: Final = "mail_body"
+
+DRAFTED = "mail_draft"
 
 
 @dataclass(frozen=True, slots=True)
@@ -181,6 +186,7 @@ def check_draft(
     values: Mapping[str, str],
     allowed: Allowed,
     request: Sequence[str] = (),
+    vouched: Sequence[str] = (),
 ) -> Checked:
     wanted = mailboxes(to)
     if wanted is None:
@@ -208,7 +214,7 @@ def check_draft(
         str(one.get("id") or ""): f"{one.get('subject') or ''} {one.get('body') or ''}"
         for one in conversation
     } | {REQUEST: " ".join(request)}
-    proven = _values_in(values.values()) | _values_in(
+    proven = _values_in((*values.values(), *vouched)) | _values_in(
         str(one.get("value") or "")
         for one in cited
         if quoted_in(str(one.get("value") or ""), said.get(str(one.get("message") or ""), ""))

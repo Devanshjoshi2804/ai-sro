@@ -59,7 +59,7 @@ from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.executor import StepExecutor
 from sro.application.runtime.fill_field import Filled, FillField
 from sro.application.runtime.run_steps import RunSteps
-from sro.application.runtime.step import Held, LaneContext, ReadsBack
+from sro.application.runtime.step import Held, LaneContext, ReadsBack, StepLane
 from sro.application.runtime.teach import Teach
 from sro.domain.execution.account import K_LEASE_TTL, Account, Lease, LeaseState, new_lease_id
 from sro.domain.execution.compose import Adding, Composed
@@ -970,6 +970,7 @@ def _worker(
     lanes: Lanes,
     fill: FillField | None = None,
     http: FakeHttpCaller | None = None,
+    tool: StepLane | None = None,
 ) -> tuple[SessionBroker, RunSteps]:
     broker = SessionBroker(
         uow,
@@ -981,7 +982,7 @@ def _worker(
         ui=SigningLane(driver),
     )
     api: ReadsBack = lanes.api if http is None else ApiLane(http, broker)
-    executor = StepExecutor(lanes.tool, api, lanes.ui, lanes.sight, broker)
+    executor = StepExecutor(tool or lanes.tool, api, lanes.ui, lanes.sight, broker)
     return broker, RunSteps(
         uow,
         broker,

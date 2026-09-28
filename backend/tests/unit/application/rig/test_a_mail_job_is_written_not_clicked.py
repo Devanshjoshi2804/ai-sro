@@ -368,7 +368,6 @@ async def _write(
         uow=uow or FakeUnitOfWork(),
         tools=mailbox,
         asker=_written(to, body),
-        clock=FakeClock(),
     )
 
 
@@ -568,7 +567,6 @@ async def test_the_model_sees_who_each_message_went_to_and_its_id() -> None:
         uow=FakeUnitOfWork(),
         tools=_Mailbox(),
         asker=asker,
-        clock=FakeClock(),
     )
 
     sent = str(asker.asked[0]["evidence"])

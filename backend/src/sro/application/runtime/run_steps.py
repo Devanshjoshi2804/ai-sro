@@ -43,7 +43,7 @@ from sro.domain.execution.compose import (
 )
 from sro.domain.execution.evidence import primary_gesture, writes
 from sro.domain.execution.lanes import Lane, StepResult, cites_key
-from sro.domain.execution.mail_job import sends_mail
+from sro.domain.execution.mail_job import MAIL_BODY, sends_mail
 from sro.domain.execution.progress import Progress, StepMark
 from sro.domain.execution.takeover import OPERATOR
 from sro.domain.execution.waiting import read_wait
@@ -361,6 +361,8 @@ class RunSteps:
                     taught = JobAlias(name, hit.label, by, self._clock.now(), role)
         if kind == "recipient":
             await keep_the_named(ctx, self._uow, workflow.id, asking, at=self._clock.now())
+        if kind == MAIL_BODY:
+            progress.told.append(asking.get("said", ""))
         if kind == "step" and verdict:
             ordered = _ordered(workflow)
             index = progress.step
@@ -469,7 +471,14 @@ class RunSteps:
             held=held,
             stop=stop,
             thread=waiting.thread if waiting else "",
-            request=await the_operator_s_words(ctx, self._uow, run),
+            request=(
+                (
+                    *await the_operator_s_words(ctx, self._uow, run),
+                    *Progress.of(run.progress).told,
+                )
+                if sends_mail(step, by_id)
+                else ()
+            ),
             about_to_write=about_to_write,
         )
 

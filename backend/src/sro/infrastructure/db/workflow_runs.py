@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sro.application.ports.repositories import WorkflowRunRepository
+from sro.domain.execution.mail_job import MAIL_BODY
 from sro.domain.execution.workflow_run import (
     ENDED,
     Executor,
@@ -383,7 +384,9 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
                     ),
                     and_(
                         WorkflowRunRow.outcome == "stopped",
-                        WorkflowRunRow.progress["asking"]["kind"].astext == "recipient",
+                        WorkflowRunRow.progress["asking"]["kind"].astext.in_(
+                            ("recipient", MAIL_BODY)
+                        ),
                     ),
                 ),
             )

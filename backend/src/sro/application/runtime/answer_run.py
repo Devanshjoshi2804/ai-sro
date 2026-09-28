@@ -5,10 +5,10 @@ from collections.abc import Awaitable, Callable
 from typing import Literal
 
 from sro.application.context import RequestContext
-from sro.application.execution.mail_job import MAIL_BODY
+from sro.application.execution.mail_job import K_BODY
 from sro.application.ports.durable import DurableExecution
 from sro.application.ports.repositories import UnitOfWork
-from sro.domain.execution.mail_job import mailboxes
+from sro.domain.execution.mail_job import MAIL_BODY, mailboxes
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.workflow_run import answers_for
 from sro.domain.shared.errors import Conflict, NotFound
@@ -60,6 +60,11 @@ class AnswerRun:
                 "is answered by its verdict"
             )
         chosen = value.strip()
+        holds = K_BODY if kind == MAIL_BODY else K_ANSWER
+        if len(chosen) > holds:
+            raise Conflict(
+                f"that answer is {len(chosen)} characters and this question takes {holds}"
+            )
         if kind == "field" and chosen and chosen not in json.loads(asking.get("choices") or "[]"):
             raise Conflict("a field is answered by one of the choices it offered, or left out")
         if verdict and kind != "step":

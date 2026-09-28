@@ -534,7 +534,6 @@ class StartWorkflowRun:
                 uow=self._uow,
                 tools=tools,
                 asker=asker,
-                clock=self._clock,
             )
 
         async def send(mail: Written) -> tuple[str, str]:

@@ -768,6 +768,7 @@ class Container:
             plan_lookups=self.plan_lookups(),
             run_lookups=self.run_lookups(),
             answers=IsItAnAnswer(self.asker),
+            answer_run=self.answer_run(),
         )
 
     def ask_about_the_offer(self) -> AskAboutTheOffer:
@@ -885,7 +886,6 @@ class Container:
                 uow=self.unit_of_work(),
                 tools=self.tools,
                 asker=asker,
-                clock=self.clock,
             )
 
         async def send(mail: Written) -> tuple[str, str]:

@@ -29,7 +29,8 @@ async def test_the_writer_is_given_the_evidence_the_job_was_shown_with() -> None
     lane = ToolLane(lambda ctx: MailHand(write=write, send=lambda m: _sent([], m, "msg-1")))
     step, by_id = mail_send_step()
 
-    await lane.execute(step, {}, lane_context(by_id, held=None))
+    with pytest.raises(NeedsAPerson):
+        await lane.execute(step, {}, lane_context(by_id, held=None))
 
     assert seen == [by_id]
 
@@ -43,15 +44,22 @@ async def test_a_step_that_sends_nothing_never_left() -> None:
     assert (result.verdict, result.never_left) == ("failed", True)
 
 
-async def test_an_unwritten_mail_never_left() -> None:
+async def test_an_unwritten_mail_asks_its_starter_what_it_should_say() -> None:
+    """S4 ruling 2 on Steel: a mail that cannot be written is a question that
+    takes words, not a failed step answered done or not_done. Nothing was
+    sent, so nothing is in doubt."""
+    sent: list[Written] = []
     lane = ToolLane(
-        lambda ctx: MailHand(write=write_unwritten, send=lambda m: _sent([], m, "msg-1"))
+        lambda ctx: MailHand(write=write_unwritten, send=lambda m: _sent(sent, m, "msg-1"))
     )
     step, by_id = mail_send_step()
 
-    result = await lane.execute(step, {}, lane_context(by_id, held=None))
+    with pytest.raises(NeedsAPerson) as asked:
+        await lane.execute(step, {}, lane_context(by_id, held=None))
 
-    assert (result.verdict, result.never_left) == ("failed", True)
+    assert asked.value.kind == "mail_body"
+    assert asked.value.question == "no addressee found. What should the mail say?"
+    assert sent == []
 
 
 async def test_send_raising_is_unknown_and_may_have_sent() -> None:

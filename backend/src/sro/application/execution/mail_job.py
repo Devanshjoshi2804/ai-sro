@@ -10,7 +10,6 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from sro.application.chat.announce import SayWhatHappened
-from sro.application.chat.ask_the_asker import DRAFTED
 from sro.application.chat.mailbox import (
     K_REMEMBER,
     SERVER,
@@ -18,7 +17,6 @@ from sro.application.chat.mailbox import (
     is_ours,
     send_as_this_system,
 )
-from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
@@ -28,7 +26,9 @@ from sro.application.shared.asking import ask
 from sro.domain.chat.asking import said_yes, the_request
 from sro.domain.chat.thread import Speaker
 from sro.domain.execution.mail_job import (
+    DRAFTED,
     K_SEND_WINDOW_S,
+    MAIL_BODY,
     Allowed,
     JobRecipient,
     check_draft,
@@ -52,8 +52,6 @@ K_BODY = 2000
 
 AWAITING_THE_PRESS = "drafted — read it in the conversation and press Send it"
 
-MAIL_BODY = "mail_body"
-
 WHAT_IT_SAYS = "What should the mail say?"
 
 
@@ -65,6 +63,8 @@ class Written:
     thread: str
     in_reply_to: str
     bcc: str = ""
+    job: str = ""
+    named: tuple[str, ...] = ()
 
 
 class Unaddressed(str):
@@ -72,7 +72,7 @@ class Unaddressed(str):
 
 
 class Unwritten(str):
-    draft: str = ""
+    draft: dict[str, str]
 
 
 async def write_the_mail(
@@ -86,10 +86,68 @@ async def write_the_mail(
     uow: UnitOfWork,
     tools: ToolCaller,
     asker: Asker,
-    clock: Clock,
+    shown: Mapping[str, str] | None = None,
 ) -> Written | str:
     conversation = await _conversation(ctx, tools, thread) if thread else []
     allowed = await _allowed(ctx, uow, tools, workflow, by_id)
+    data = (
+        shown
+        if shown is not None
+        else await _write(ctx, workflow, values, conversation, allowed, request, asker)
+    )
+    if isinstance(data, str):
+        return f"the mail could not be written: {data}"
+    to = " ".join(str(data.get("to") or "").split())
+    subject = " ".join(str(data.get("subject") or "").split())
+    body = str(data.get("body") or "").strip()
+    if not body:
+        return "the mail could not be written: the model said nothing"
+    cited = data.get("cited")
+    checked = check_draft(
+        to=to,
+        body=body,
+        cited=[one for one in cited if isinstance(one, Mapping)] if isinstance(cited, list) else [],
+        conversation=conversation,
+        values=values,
+        allowed=allowed,
+        request=request,
+        vouched=(body,) if shown is not None else (),
+    )
+    if checked.why:
+        logger.info(
+            "%s: the draft of %s was refused: %s", ctx.tenant_id.value, workflow.id, checked.logged
+        )
+        if checked.recipient:
+            return Unaddressed(f"{checked.why} -- nothing was sent; who does this mail go to?")
+        refused = Unwritten(f"{checked.why} -- nothing was sent")
+        refused.draft = {"to": to, "subject": subject, "body": body}
+        return refused
+    latest = conversation[-1] if conversation else {}
+    return Written(
+        to=", ".join(checked.to),
+        subject=subject,
+        body=body,
+        thread=thread,
+        in_reply_to=str(latest.get("rfc822_message_id") or ""),
+        bcc=", ".join(checked.bcc),
+        job=workflow.id,
+        named=tuple(
+            one
+            for one in (*checked.to, *checked.bcc)
+            if one in named_in(request) and one not in allowed.to | allowed.bcc
+        ),
+    )
+
+
+async def _write(
+    ctx: RequestContext,
+    workflow: Workflow,
+    values: Mapping[str, str],
+    conversation: Sequence[Mapping[str, object]],
+    allowed: Allowed,
+    request: Sequence[str],
+    asker: Asker,
+) -> Mapping[str, object] | str:
     written = await ask(
         asker,
         WRITE_MAIL,
@@ -125,52 +183,7 @@ async def write_the_mail(
             ),
         },
     )
-    data: Mapping[str, object] = written.data or {}
-    to = " ".join(str(data.get("to") or "").split())
-    body = str(data.get("body") or "").strip()
-    if not body:
-        return f"the mail could not be written: {written.error or 'the model said nothing'}"
-    cited = data.get("cited")
-    checked = check_draft(
-        to=to,
-        body=body,
-        cited=[one for one in cited if isinstance(one, Mapping)] if isinstance(cited, list) else [],
-        conversation=conversation,
-        values=values,
-        allowed=allowed,
-        request=request,
-    )
-    if checked.why:
-        logger.info(
-            "%s: the draft of %s was refused: %s", ctx.tenant_id.value, workflow.id, checked.logged
-        )
-        if checked.recipient:
-            return Unaddressed(f"{checked.why} -- nothing was sent; who does this mail go to?")
-        refused = Unwritten(f"{checked.why} -- nothing was sent")
-        refused.draft = body
-        return refused
-    named = [
-        one
-        for one in (*checked.to, *checked.bcc)
-        if one in named_in(request) and one not in allowed.to | allowed.bcc
-    ]
-    if named:
-        await keep_the_named(
-            ctx,
-            uow,
-            workflow.id,
-            {"address": ", ".join(named), "by": ctx.principal_id.value},
-            at=clock.now(),
-        )
-    latest = conversation[-1] if conversation else {}
-    return Written(
-        to=", ".join(checked.to),
-        subject=" ".join(str(data.get("subject") or "").split()),
-        body=body,
-        thread=thread,
-        in_reply_to=str(latest.get("rfc822_message_id") or ""),
-        bcc=", ".join(checked.bcc),
-    )
+    return written.data or written.error or "the model said nothing"
 
 
 async def _allowed(
@@ -254,6 +267,9 @@ async def send_the_mail(
     sent_id = str(said.get("id") or "") if isinstance(said, dict) else ""
     if not sent_id:
         return "", f"Gmail did not say the mail went: {answered.text[:200]}"
+    if mail.named:
+        by = {"address": ", ".join(mail.named), "by": ctx.principal_id.value}
+        await keep_the_named(ctx, uow, mail.job, by, at=clock.now())
     return sent_id, ""
 
 
@@ -277,7 +293,7 @@ async def draft_the_mail_job(
     asker: Asker,
     clock: Clock,
     ids: IdFactory,
-    answers: Sequence[str] = (),
+    shown: Mapping[str, str] | None = None,
 ) -> WorkflowRun:
     waiting = read_wait(run.awaiting) if run.awaiting else None
     thread = waiting.thread if waiting else ""
@@ -287,29 +303,32 @@ async def draft_the_mail_job(
         run.values,
         thread,
         by_id=by_id,
-        request=(*await the_operator_s_words(ctx, uow, run), *answers),
+        request=(*await the_operator_s_words(ctx, uow, run), *Progress.of(run.progress).told),
         uow=uow,
         tools=tools,
         asker=asker,
-        clock=clock,
+        shown=shown,
     )
     if isinstance(written, Unaddressed):
         return await _ask(ctx, uow, run, "recipient", written, clock=clock, ids=ids)
     if isinstance(written, Unwritten):
+        draft = written.draft
         return await _ask(
             ctx,
             uow,
             run,
             MAIL_BODY,
-            f"{written}. The draft said:\n\n{written.draft}\n\nSay yes to make those words "
-            f"yours, or write what it should say instead.",
+            written,
+            f"{written}. The draft said:\n\nTo: {draft['to']}\nSubject: {draft['subject']}\n\n"
+            f"{draft['body']}\n\nSay yes to use exactly this draft, or write what the "
+            f"mail should say instead.",
             clock=clock,
             ids=ids,
-            draft=written.draft,
+            draft=json.dumps(draft, ensure_ascii=False),
         )
     if isinstance(written, str):
         return await _ask(
-            ctx, uow, run, MAIL_BODY, f"{written}. {WHAT_IT_SAYS}", clock=clock, ids=ids
+            ctx, uow, run, MAIL_BODY, written, f"{written}. {WHAT_IT_SAYS}", clock=clock, ids=ids
         )
 
     await SayWhatHappened(uow, clock, ids).execute(
@@ -327,6 +346,7 @@ async def draft_the_mail_job(
             "thread": written.thread,
             "in_reply_to": written.in_reply_to,
             "job": workflow.id,
+            **({"named": ", ".join(written.named)} if written.named else {}),
         },
     )
     run.steps.append(
@@ -382,7 +402,9 @@ async def redraft_the_mail_job(
         return run
     await keep_the_named(ctx, uow, workflow.id, asking, at=clock.now())
     said = asking.get("said", "")
-    answers = (said, asking["draft"]) if said_yes(said) and asking.get("draft") else (said,)
+    shown = json.loads(asking["draft"]) if said_yes(said) and asking.get("draft") else None
+    if said and shown is None:
+        progress.told.append(said)
     was, progress.asking = run.progress, {}
     async with uow as unit:
         taken = await unit.workflow_runs.record_progress(
@@ -402,7 +424,7 @@ async def redraft_the_mail_job(
         asker=asker,
         clock=clock,
         ids=ids,
-        answers=tuple(one for one in answers if one.strip()),
+        shown=shown,
     )
 
 
@@ -411,8 +433,10 @@ async def the_operator_s_words(
 ) -> tuple[str, ...]:
     if not run.offer or not run.started_by:
         return ()
-    starter = RequestContext(ctx.tenant_id, PrincipalId(run.started_by))
-    thread = await ReadThreads(uow).current(starter)
+    async with uow as unit:
+        thread = await unit.threads.holding(
+            ctx.tenant_id, opened_by=PrincipalId(run.started_by), message_id=run.offer
+        )
     return the_request(thread.messages, run.offer, run.workflow_id) if thread else ()
 
 
@@ -438,6 +462,7 @@ async def _ask(
     run: WorkflowRun,
     kind: str,
     why: str,
+    text: str = "",
     *,
     clock: Clock,
     ids: IdFactory,
@@ -447,7 +472,7 @@ async def _ask(
     progress.asking = {
         "id": f"q_{secrets.token_hex(16)}",
         "kind": kind,
-        "text": why,
+        "text": text or why,
         "step": "0",
         **({"draft": draft} if draft else {}),
     }
@@ -463,7 +488,7 @@ async def _ask(
     await SayWhatHappened(uow, clock, ids).execute(
         ctx,
         for_operator=PrincipalId(run.started_by) if run.started_by else ctx.principal_id,
-        text=why,
+        text=text or why,
         speaker=Speaker.ASSISTANT,
         decision={
             "kind": "run_asks",

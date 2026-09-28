@@ -427,23 +427,23 @@ Code: `driving_runs: AsyncConnection | None = None`
 > Everything that used to take ``self.browser`` takes this instead, so
 > an unowned session cannot be produced by anything this system runs.
 
-## `Container.ask_about_the_offer`, [line 773](../../../../../backend/src/sro/container.py#L773): Docstring
+## `Container.ask_about_the_offer`, [line 774](../../../../../backend/src/sro/container.py#L774): Docstring
 
 > The card's way into the conversation the chat door already runs.
 
-## `Container.draft_for_the_asker`, [line 776](../../../../../backend/src/sro/container.py#L776): Docstring
+## `Container.draft_for_the_asker`, [line 777](../../../../../backend/src/sro/container.py#L777): Docstring
 
 > Write the mail to whoever asked. It cannot send one.
 
-## `Container.send_the_draft`, [line 779](../../../../../backend/src/sro/container.py#L779): Docstring
+## `Container.send_the_draft`, [line 780](../../../../../backend/src/sro/container.py#L780): Docstring
 
 > Send the mail a person read and pressed. It cannot write one.
 
-## `Container.say_the_run_started`, [line 782](../../../../../backend/src/sro/container.py#L782): Docstring
+## `Container.say_the_run_started`, [line 783](../../../../../backend/src/sro/container.py#L783): Docstring
 
 > The other half of the spine: what came of the answer.
 
-## `Container.from_the_mail`, [line 785](../../../../../backend/src/sro/container.py#L785): Docstring
+## `Container.from_the_mail`, [line 786](../../../../../backend/src/sro/container.py#L786): Docstring
 
 > The rung that reads an arriving mail for what it asks.
 >
@@ -452,7 +452,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > unbuildable on a deployment with no key, instead of refusing at the one
 > call that needs a model. The guard is in `FromTheMail.execute`.
 
-## `Container.can_gather`, [line 808](../../../../../backend/src/sro/container.py#L808): Docstring
+## `Container.can_gather`, [line 809](../../../../../backend/src/sro/container.py#L809): Docstring
 
 > Whether a run of a mined job can go and find a value nobody typed.
 >
@@ -466,7 +466,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > to read and a model to read it with. A deployment missing either still
 > asks for the values, because on that one nothing can go and find them.
 
-## `Container.start_workflow_run`, [line 843](../../../../../backend/src/sro/container.py#L843): Docstring
+## `Container.start_workflow_run`, [line 844](../../../../../backend/src/sro/container.py#L844): Docstring
 
 > The press on a mined job. Not `start_run` above, which mints the row
 > for a skill run keyed on a `RunId`.
@@ -623,7 +623,7 @@ Code: `answers=IsItAnAnswer(self.asker),`
 > standing at the panel waiting to find out what happens to the
 > sentence they just pressed Enter on.
 
-## `Container.from_the_mail`, [line 790](../../../../../backend/src/sro/container.py#L790): Comment
+## `Container.from_the_mail`, [line 791](../../../../../backend/src/sro/container.py#L791): Comment
 
 Code: `clock=self.clock,`
 
@@ -633,7 +633,7 @@ Code: `clock=self.clock,`
 > For the one thing this door says in the operator's own thread:
 > that a reply has answered the question standing there.
 
-## `Container.start_workflow_run`, [line 854](../../../../../backend/src/sro/container.py#L854): Comment
+## `Container.start_workflow_run`, [line 855](../../../../../backend/src/sro/container.py#L855): Comment
 
 Code: `vault=self.vault,`
 
@@ -641,7 +641,7 @@ Code: `vault=self.vault,`
 > never held it: the recorder struck the field out, and this is the
 > only place a run can get one.
 
-## `Container.start_workflow_run`, [line 855](../../../../../backend/src/sro/container.py#L855): Comment
+## `Container.start_workflow_run`, [line 856](../../../../../backend/src/sro/container.py#L856): Comment
 
 Code: `retrieve=self.retrieve_knowledge(),`
 
@@ -649,21 +649,21 @@ Code: `retrieve=self.retrieve_knowledge(),`
 > so the person who taps Approve is shown it. Built here and not
 > in the runner, which never learns what a vector store is.
 
-## `Container.start_workflow_run`, [line 856](../../../../../backend/src/sro/container.py#L856): Comment
+## `Container.start_workflow_run`, [line 857](../../../../../backend/src/sro/container.py#L857): Comment
 
 Code: `gather=GatherContext(tools=self.tools, asker=self.asker)`
 
 > Where a value comes from when nobody typed one: the operator's
 > own mailbox, reached as them.
 
-## `Container.start_workflow_run`, [line 859](../../../../../backend/src/sro/container.py#L859): Comment
+## `Container.start_workflow_run`, [line 860](../../../../../backend/src/sro/container.py#L860): Comment
 
 Code: `ids=self.ids,`
 
 > What names the message a run writes when it comes up short and
 > asks the operator for what it could not find.
 
-## `Container.start_workflow_run`, [line 860](../../../../../backend/src/sro/container.py#L860): Comment
+## `Container.start_workflow_run`, [line 861](../../../../../backend/src/sro/container.py#L861): Comment
 
 Code: `asker_drafts=self._drafting,`
 

@@ -952,3 +952,12 @@ Code: `await uow.tool_calls.remember(ctx.tenant_id, key, tool=K_TAKEN, at=dateti
 > same thread after the starter took it; their `_elsewhere` then finds the
 > key held and marks nothing, where a forgotten key let it mark again and
 > `finish` told a false note (S1 round 3, N1 in reverse).
+
+## `FromTheMail._read`, [line 244](../../../../../../../backend/src/sro/application/chat/from_the_mail.py#L244): Note
+
+Code: `if back is not None and (back.executor == "steel" or waits in ("recipient", MAIL_BODY)):`
+
+> A drafted run asking what its mail says is found by a reply on its thread and
+> goes to `_answer_the_run`, which never answers `mail_body` (invariant 7) --
+> rather than falling through to be read as a new request and offering the
+> same job again for the same thread (S4 round 1, M7).

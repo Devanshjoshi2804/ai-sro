@@ -6,7 +6,9 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/answe
 
 > The longest answer a run is handed, in characters. An answer is a choice,
 > a value or a short "done it"; a mail reply carries its whole quoted thread,
-> which is cut here rather than kept whole.
+> which is cut here rather than kept whole. A `mail_body` answer is a mail's
+> words and takes `K_BODY` (S4 round 1, M2); a longer answer of either is a 409
+> that says the limit, where a bare 422 said nothing the panel could show.
 
 ## `AnswerRun.execute`, [line 54](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L54): Note
 
@@ -24,7 +26,7 @@ Code: `if not asking or asking.get("id") != question_id:`
 > operator's verdict. Without one the question stands and the write stays in
 > doubt, never sent again.
 
-## `AnswerRun.execute`, [line 85](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L85): Note
+## `AnswerRun.execute`, [line 90](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L90): Note
 
 Code: `progress.asking = {**asking, **answer}`
 
@@ -43,7 +45,7 @@ Code: `progress.asking = {**asking, **answer}`
 > `not_done` says the write never happened so the lanes may try it again,
 > and empty says nothing about it.
 
-## `AnswerRun.execute`, [line 63](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L63): Note
+## `AnswerRun.execute`, [line 68](../../../../../../../backend/src/sro/application/runtime/answer_run.py#L68): Note
 
 Code: `if kind == "field" and chosen and chosen not in json.loads(asking.get("choices") or "[]"):`
 
@@ -79,4 +81,7 @@ Code: `drafted = run.executor != "steel" and kind in ("recipient", MAIL_BODY)`
 > questions are answered on a stopped run, and carried out by `resume` (the job
 > redrafted) instead of a Temporal signal, which no workflow would receive. A
 > `mail_body` answer is the starter's words, kept as `said`; empty is refused.
-> The mail door never answers one: it reads only `value` and `recipient`.
+> The mail door never answers one: it reads only `value` and `recipient`. On
+> Steel a `mail_body` question stands on a running run and is signalled like
+> any other; it takes words, never a verdict, so a `done` can never mark an
+> unwritten mail sent (S4 round 1, I1).

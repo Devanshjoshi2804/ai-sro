@@ -4,6 +4,7 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from difflib import SequenceMatcher
+from itertools import pairwise
 
 from sro.domain.chat.request import Candidate, field_of, refusal
 from sro.domain.chat.thread import Message, Said, Speaker
@@ -350,26 +351,22 @@ def _offer(decision: Mapping[str, object]) -> tuple[str, str]:
 
 
 def the_request(messages: Sequence[Message], offer: str, workflow_id: str) -> tuple[str, ...]:
-    at = next((n for n, one in enumerate(messages) if one.id.value == offer), None)
-    if at is None or not _chats_about(messages[at], workflow_id):
-        return ()
-    start = at
-    while start and not _started(messages[start - 1]):
-        before = messages[start - 1]
-        if before.speaker is not Speaker.OPERATOR and not _chats_about(before, workflow_id):
-            break
-        start -= 1
-    end = at
-    while end + 1 < len(messages) and not _started(messages[end]):
-        after = messages[end + 1]
-        if after.speaker is not Speaker.OPERATOR and not _chats_about(after, workflow_id):
-            break
-        end += 1
+    chain = {offer} if offer else set()
+    for one in reversed(messages):
+        if one.id.value in chain and _chats_about(one, workflow_id) and _link(one):
+            chain.add(_link(one))
     return tuple(
-        one.text
-        for one in messages[start : end + 1]
-        if one.speaker is Speaker.OPERATOR and one.text.strip()
+        before.text
+        for before, one in pairwise(messages)
+        if _chats_about(one, workflow_id)
+        and (one.id.value in chain or _link(one) in chain)
+        and before.speaker is Speaker.OPERATOR
+        and before.text.strip()
     )
+
+
+def _link(message: Message) -> str:
+    return str((message.decision or {}).get("offer") or "")
 
 
 def _chats_about(message: Message, workflow_id: str) -> bool:
@@ -379,10 +376,6 @@ def _chats_about(message: Message, workflow_id: str) -> bool:
         and decision.get("kind") in (JOB, NEEDS)
         and _offer(decision) == (workflow_id, "")
     )
-
-
-def _started(message: Message) -> bool:
-    return message.speaker is Speaker.ASSISTANT and bool((message.decision or {}).get("resume"))
 
 
 def pending_job(messages: Sequence[Message], answering: str | None = None) -> Pending | None:

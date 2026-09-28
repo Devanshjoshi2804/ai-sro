@@ -32,23 +32,27 @@ from sro.domain.chat.asking import (
     Pending,
     answered,
     asked_under,
+    asking_state,
+    cannot_without,
     let_go,
+    named_in,
     of_the_offer,
     offered_job,
     pending_job,
     question,
     said_yes,
     too_long_for,
+    turned_down,
 )
-from sro.domain.chat.is_it_an_answer import said_as_the_value
-from sro.domain.chat.request import K_A_LOGIN
+from sro.domain.chat.request import Candidate
 from sro.domain.chat.standing import last_run, of_the_run, stands
 from sro.domain.chat.thread import Message, MessageId, Said, Speaker, Thread, ThreadId
+from sro.domain.execution.compose import alias_map
+from sro.domain.execution.field_classes import field_classes
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
 from sro.domain.execution.workflow_run import answers_for
 from sro.domain.lookup.asking import is_a_question
 from sro.domain.shared.errors import Conflict, DomainError
-from sro.domain.skill.learned import demanded
 from sro.domain.skill.skill import Skill
 
 logger = logging.getLogger(__name__)
@@ -335,20 +339,16 @@ class Converse:
             return waiting
         async with self._uow as uow:
             job = await uow.workflows.get(ctx.tenant_id, waiting.workflow_id)
+            aliases = (
+                await uow.workflows.aliases_for(ctx.tenant_id, waiting.workflow_id) if job else ()
+            )
         if job is None or not job.parameters:
             return waiting
-        wanted = {
-            str(name)
-            for one in job.parameters
-            if isinstance(one, dict)
-            and isinstance(name := one.get("name"), str)
-            and name
-            and demanded(one)
-        }
+        fields = field_classes(job, {}, {})
+        known = Candidate(job.id, job.title, fields, alias_map(aliases), {})
+        wanted = {one.name for one in fields if one.kind == "required"}
         still = tuple(name for name in waiting.missing if name in wanted)
-        if still == waiting.missing:
-            return waiting
-        return replace(waiting, missing=still) if still else None
+        return replace(waiting, missing=still, known=known) if still else None
 
     async def _what_stands(self, ctx: RequestContext, thread: Thread) -> str | None:
         now = self._clock.now()
@@ -417,6 +417,7 @@ class Converse:
                         "limits": dict(pending.limits),
                         "from_step": pending.from_step,
                         "mail_thread": pending.mail_thread,
+                        **asking_state(pending),
                     },
                 )
             )
@@ -429,9 +430,8 @@ class Converse:
     ) -> tuple[str | None, str]:
         if let_go(text) or self._answers is None:
             return text, ""
-        named = said_as_the_value(pending, text)
-        if named is not None:
-            return named, ""
+        if named_in(pending, text):
+            return text, ""
         read = await self._answers.execute(ctx, pending, text)
         if read.answers:
             return read.value or text, ""
@@ -483,8 +483,9 @@ class Converse:
                         "mail_thread": pending.mail_thread,
                     },
                 )
+            elif (filled := answered(pending, text, logins)).without:
+                said, decision = cannot_without(filled)
             else:
-                filled = answered(pending, text, logins)
                 refused = too_long_for(pending, text)
                 said, decision = (
                     (
@@ -503,6 +504,7 @@ class Converse:
                             "resume": True,
                             "watched": filled.watched,
                             "offer": asked.value,
+                            **({"dropped": list(filled.dropped)} if filled.dropped else {}),
                         },
                     )
                     if filled.ready
@@ -512,9 +514,7 @@ class Converse:
                             f"{filled.asking_for} takes {refused}. "
                             f"What should {filled.asking_for} be?"
                             if refused is not None
-                            else f"That is {K_A_LOGIN}. {question(filled)}"
-                            if filled == pending
-                            else question(filled)
+                            else turned_down(filled) + question(filled)
                         ),
                         {
                             "kind": NEEDS,
@@ -527,6 +527,7 @@ class Converse:
                             "limits": dict(filled.limits),
                             "from_step": filled.from_step,
                             "mail_thread": filled.mail_thread,
+                            **asking_state(filled),
                         },
                     )
                 )

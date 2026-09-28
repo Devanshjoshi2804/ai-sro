@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+import re
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field, replace
+from difflib import SequenceMatcher
 
-from sro.domain.chat.request import refusal
-from sro.domain.chat.thread import Message, Speaker
+from sro.domain.chat.request import Candidate, field_of, refusal
+from sro.domain.chat.thread import Message, Said, Speaker
 from sro.domain.execution.field_classes import FieldLimits
+from sro.domain.lookup.asking import is_a_question
 from sro.domain.skill.signing_in import Logins
 
 NEEDS = "needs_values"
@@ -75,21 +78,141 @@ class Pending:
 
     confirmed: bool = True
 
+    options: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+
+    dropped: tuple[str, ...] = ()
+
+    without: tuple[str, ...] = ()
+
+    refused: Mapping[str, str] = field(default_factory=dict)
+
+    which: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+
+    doubted: tuple[str, ...] = ()
+
+    doubting: tuple[str, ...] = ()
+
+    known: Candidate | None = None
+
     @property
     def asking_for(self) -> str:
         return self.missing[0] if self.missing else ""
 
     @property
     def ready(self) -> bool:
-        return not self.missing
+        return not self.missing and not self.without
+
+
+def _holds(pending: Pending, name: str) -> str:
+    said = []
+    if (holds := pending.limits.get(name)) is not None:
+        said.append(f"takes {holds} characters")
+    if choices := pending.options.get(name):
+        said.append("is one of " + ", ".join(choices))
+    return f"{name} {' and '.join(said)}." if said else ""
 
 
 def question(pending: Pending) -> str:
-    asked = pending.asking_for
-    holds = pending.limits.get(asked)
-    if holds is None:
-        return f"What should {asked} be?"
-    return f"{asked} takes {holds} characters. What should it be?"
+    wanted = pending.missing
+    if len(wanted) <= 1:
+        asked = pending.asking_for
+        holds = _holds(pending, asked)
+        return f"{holds} What should it be?" if holds else f"What should {asked} be?"
+    held = [one for one in (_holds(pending, name) for name in wanted) if one]
+    return " ".join(
+        [
+            *held,
+            f"What should {_listed(wanted)} be?",
+            "Say them as " + "; ".join(f"{name}: …" for name in wanted) + ".",
+        ]
+    )
+
+
+def asks(pending: Pending) -> list[dict[str, object]]:
+    return [
+        {
+            "name": name,
+            "max_length": pending.limits.get(name),
+            "options": list(pending.options.get(name, ())),
+        }
+        for name in pending.missing
+    ]
+
+
+def asking_state(pending: Pending) -> dict[str, object]:
+    return {
+        "asks": asks(pending),
+        **({"offered": [list(one) for one in pending.offered]} if pending.offered else {}),
+        **({"dropped": list(pending.dropped)} if pending.dropped else {}),
+        **({"doubted": list(pending.doubted)} if pending.doubted else {}),
+        **(
+            {"options": {name: list(one) for name, one in pending.options.items()}}
+            if pending.options
+            else {}
+        ),
+    }
+
+
+def turned_down(pending: Pending) -> str:
+    return "".join(
+        [
+            *(f"I did not take {name}: it is {why}. " for name, why in pending.refused.items()),
+            *(
+                f"Did you mean to skip {name}, or is it part of the value? "
+                for name in pending.doubting
+            ),
+            *(
+                f'I could not tell which field "{said}" is: {_listed(names, "or")}. '
+                for said, names in pending.which.items()
+            ),
+        ]
+    )
+
+
+def cannot_without(pending: Pending, *, ran: bool = False) -> tuple[str, dict[str, object]]:
+    lacking = _listed(pending.without)
+    said = (
+        f"{pending.title} stopped — it needs {lacking} to run, and you said you do not have it."
+        if ran
+        else f"{pending.title} cannot run without {lacking}, and you said you do not have it, "
+        "so nothing was started."
+    )
+    return (
+        f"{said} When you have it, ask for {pending.title} again.",
+        {
+            "kind": Said.NOTE,
+            "workflow_id": pending.workflow_id,
+            "mail_thread": pending.mail_thread,
+            "cannot_run": [f"it needs {lacking}"],
+            "values": dict(pending.values),
+            "dropped": list(pending.dropped),
+        },
+    )
+
+
+def still_to_ask(pending: Pending, messages: Sequence[Message]) -> Pending:
+    last = next(
+        (
+            one.decision
+            for one in reversed(messages)
+            if one.speaker is Speaker.ASSISTANT
+            and one.decision
+            and one.decision.get("workflow_id") == pending.workflow_id
+        ),
+        None,
+    )
+    if not last or not last.get("resume") or _strings(last.get("values")) != dict(pending.values):
+        return pending
+    dropped = tuple(dict.fromkeys((*pending.dropped, *_names(last.get("dropped")))))
+    return replace(
+        pending,
+        missing=tuple(name for name in pending.missing if name not in dropped),
+        without=tuple(
+            dict.fromkeys((*pending.without, *(n for n in pending.missing if n in dropped)))
+        ),
+        offered=(),
+        dropped=dropped,
+    )
 
 
 def unusable(values: Mapping[str, str], limits: Mapping[str, int]) -> tuple[str, ...]:
@@ -158,10 +281,10 @@ def also_set(pending: Pending) -> str:
     )
 
 
-def _listed(names: Sequence[str]) -> str:
+def _listed(names: Sequence[str], joined: str = "and") -> str:
     if len(names) <= 1:
         return "".join(names)
-    return ", ".join(names[:-1]) + " and " + names[-1]
+    return ", ".join(names[:-1]) + f" {joined} " + names[-1]
 
 
 def _last_time(offered: Sequence[tuple[str, str]]) -> str:
@@ -182,6 +305,8 @@ def too_long_for(pending: Pending, said: str) -> int | None:
     asked = pending.asking_for
     holds = pending.limits.get(asked)
     value = said.strip()[:K_SAID]
+    if named_in(pending, value):
+        return None
     return holds if holds is not None and len(value) > holds else None
 
 
@@ -246,7 +371,20 @@ def pending_job(messages: Sequence[Message], answering: str | None = None) -> Pe
         from_step=_step(decision.get("from_step")),
         mail_thread=str(decision.get("mail_thread") or ""),
         confirmed=not decision.get("unconfirmed"),
+        options=_choices(decision.get("options")),
+        dropped=_names(decision.get("dropped")),
+        doubted=_names(decision.get("doubted")),
     )
+
+
+def _names(said: object) -> tuple[str, ...]:
+    return tuple(str(one) for one in said) if isinstance(said, list | tuple) else ()
+
+
+def _choices(said: object) -> dict[str, tuple[str, ...]]:
+    if not isinstance(said, dict):
+        return {}
+    return {str(key): _names(one) for key, one in said.items() if isinstance(one, list | tuple)}
 
 
 def _pairs(said: object) -> tuple[tuple[str, str], ...]:
@@ -315,37 +453,290 @@ def offered_job(messages: Sequence[Message], answering: str | None = None) -> Pe
     )
 
 
+K_WITH_WHAT_WE_HAVE = re.compile(
+    r"(?<!\w)(?:run|go|do)(?:\s+it)?\s+(?:with\s+)?what(?:ever)?\s+we(?:'ve)?\s+(?:have|got)(?!\w)",
+    re.I,
+)
+
+K_DROP = re.compile(
+    r"(?<!\w)(?:(?:i|we)\s+)?(?:(?:do\s*n[o']?t|do\s+not)\s+have|skip|without)\s+"
+    r"(?:(?:the|a|an|any)\s+)?(?P<what>\S.*)$",
+    re.I | re.S,
+)
+
+K_HOLDING = re.compile(
+    r"(?<!\w)(?:do\s*n[o']?t\s+know|do\s+not\s+know|let\s+me\s+check|not\s+yet|no\s+idea"
+    r"|will\s+check|check\s+later"
+    r"|(?:do\s*n[o']?t|do\s+not)\s+have\s+[^,;.]*?(?<!\w)(?:yet|for\s+now|right\s+now|at\s+the\s+moment))"
+    r"(?!\w)",
+    re.I,
+)
+
+K_CLAUSE = re.compile(r"[,;\n]+|[.!?]+(?=\s|$)|\s+and\s+", re.I)
+
+K_LABELLED = re.compile(
+    r"^\s*(?P<label>[^\W\d][\w '-]{0,60}?)\s*(?::-|:|=)(?!//)\s*(?P<value>.*)$", re.S
+)
+
+K_NOT_READY = re.compile(r"(?<!\w)(?:yet|for\s+now|right\s+now|at\s+the\s+moment)(?!\w)", re.I)
+
+K_FIRST_PERSON = re.compile(r"(?:(?:i|we)\s+)?(?:do\s*n[o']?t|do\s+not)\s+have", re.I)
+
+K_WHAT_ENDS = re.compile(r"[.!?]+(?=\s|$)|\s+(?:just|but|so|then|please|yet)(?!\w)", re.I)
+
+K_PRONOUNS = frozenset({"it", "that", "this", "them", "those", "one"})
+
+K_LIKE = 0.8
+
+K_MARGIN = 0.1
+
+
+def _words(said: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", said.lower())
+
+
+def _labels(pending: Pending, name: str) -> tuple[str, ...]:
+    known = pending.known
+    one = next((each for each in known.fields if each.name == name), None) if known else None
+    return (name, *(one.labels if one else ()))
+
+
+def _score(said: str, label: str) -> float:
+    if _plain(said) == _plain(label):
+        return 1.0
+    one, other = _words(said), _words(label)
+    if not one or len(one) != len(other):
+        return 0.0
+    return min(SequenceMatcher(None, a, b).ratio() for a, b in zip(one, other, strict=True))
+
+
+def _field(said: str, pending: Pending) -> tuple[str | None, tuple[str, ...]]:
+    askable = _askable(pending)
+    hit = field_of(said, pending.known) if pending.known is not None else None
+    if hit is not None and hit[0] in askable:
+        return hit[0], ()
+    exact = [
+        name
+        for name in askable
+        if any(_plain(one) == _plain(said) for one in _labels(pending, name))
+    ]
+    if len(exact) == 1:
+        return exact[0], ()
+    scored = sorted(
+        ((max(_score(said, one) for one in _labels(pending, name)), name) for name in askable),
+        reverse=True,
+    )
+    best = scored[0] if scored else (0.0, "")
+    runner = scored[1][0] if len(scored) > 1 else 0.0
+    if not exact and best[0] >= K_LIKE and best[0] - runner >= K_MARGIN:
+        return best[1], ()
+    words = set(_words(said))
+    near = tuple(exact) or tuple(
+        name
+        for score, name in scored
+        if score >= K_LIKE or (words and 2 * _shared(words, _labels(pending, name)) >= len(words))
+    )
+    return None, near
+
+
+def _shared(words: set[str], labels: Sequence[str]) -> int:
+    theirs = {one for label in labels for one in _words(label)}
+    return sum(
+        1
+        for word in words
+        if word in theirs or (len(word) >= 3 and any(one.startswith(word) for one in theirs))
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class _Reply:
+    named: dict[str, str] = field(default_factory=dict)
+    dropped: tuple[str, ...] = ()
+    which: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    all_the_rest: bool = False
+    holding: bool = False
+    doubt: dict[str, str] = field(default_factory=dict)
+
+    @property
+    def says_what_it_is(self) -> bool:
+        return bool(self.named or self.dropped or self.which or self.all_the_rest or self.doubt)
+
+
+@dataclass(slots=True)
+class _Value:
+    name: str
+    start: int
+    end: int
+    open: bool
+
+
+def _clauses(said: str) -> list[tuple[int, int]]:
+    spans, at = [], 0
+    for cut in K_CLAUSE.finditer(said):
+        spans.append((at, cut.start()))
+        at = cut.end()
+    return [*spans, (at, len(said))]
+
+
+def _dropping(
+    clause: str, pending: Pending
+) -> tuple[re.Match[str], str, str | None, tuple[str, ...]] | None:
+    drop = K_DROP.search(clause)
+    if drop is None or K_NOT_READY.search(drop.group("what")):
+        return None
+    what = K_WHAT_ENDS.split(drop.group("what"), maxsplit=1)[0].strip()
+    name, near = _field(what, pending)
+    return drop, what, name, near
+
+
+def _label_of(label: str, pending: Pending) -> tuple[str | None, tuple[str, ...]]:
+    name, near = _field(label, pending)
+    if name is not None or near:
+        return name, near
+    other = field_of(label, pending.known) if pending.known is not None else None
+    return None, (other[0],) if other is not None else ()
+
+
+def _starts(clause: str, pending: Pending) -> bool:
+    labelled = K_LABELLED.match(clause)
+    if labelled is not None and any(_label_of(labelled.group("label"), pending)):
+        return True
+    drop = _dropping(clause, pending)
+    return (
+        (drop is not None and (drop[2] is not None or bool(drop[3])))
+        or K_HOLDING.search(clause) is not None
+        or K_WITH_WHAT_WE_HAVE.search(clause) is not None
+    )
+
+
+def _exactly(what: str, name: str, pending: Pending) -> bool:
+    hit = field_of(what, pending.known) if pending.known is not None else None
+    return (hit is not None and hit[0] == name) or any(
+        _plain(one) == _plain(what) for one in _labels(pending, name)
+    )
+
+
+def _read(pending: Pending, said: str) -> _Reply:
+    if is_a_question(said):
+        return _Reply(holding=True)
+    reply = _Reply(all_the_rest=K_WITH_WHAT_WE_HAVE.search(said) is not None)
+    dropped: list[str] = []
+    holding = K_HOLDING.search(said) is not None
+    values: list[_Value] = []
+    for start, end in _clauses(said):
+        clause = said[start:end]
+        if not clause.strip():
+            continue
+        if values and values[-1].open and not _starts(clause, pending):
+            values[-1].end = end
+            continue
+        if values:
+            values[-1].open = False
+        labelled = K_LABELLED.match(clause)
+        cut = end
+        doubt = ""
+        if (drop := _dropping(clause, pending)) is not None:
+            match, what, name, near = drop
+            inside = labelled is not None and match.start() >= labelled.start("value")
+            if (
+                inside
+                and not K_FIRST_PERSON.match(match.group(0))
+                and name is not None
+                and _exactly(what, name, pending)
+                and name not in pending.doubted
+            ):
+                doubt = name
+            elif not inside or K_FIRST_PERSON.match(match.group(0)):
+                if name is not None:
+                    dropped.append(name)
+                elif near:
+                    reply.which[what] = near
+                elif _words(what) and set(_words(what)) <= K_PRONOUNS:
+                    holding = True
+                if name is not None or near:
+                    cut = start + match.start()
+        if labelled is None or start + labelled.start("value") > cut:
+            continue
+        name, near = _label_of(labelled.group("label"), pending)
+        if name is not None:
+            values.append(_Value(name, start + labelled.start("value"), cut, cut == end))
+            if doubt:
+                reply.doubt[name] = doubt
+        elif near:
+            reply.which[labelled.group("label").strip()] = near
+    for one in values:
+        value = said[one.start : one.end].strip()
+        if value and one.name not in reply.named:
+            reply.named[one.name] = value
+    return replace(reply, dropped=tuple(dict.fromkeys(dropped)), holding=holding)
+
+
+def _askable(pending: Pending) -> tuple[str, ...]:
+    return (*pending.missing, *(name for name, _ in pending.offered))
+
+
+def named_in(pending: Pending, said: str) -> bool:
+    return _read(pending, said).says_what_it_is
+
+
+def _limits(pending: Pending, name: str) -> FieldLimits:
+    return FieldLimits(max_length=pending.limits.get(name), options=pending.options.get(name))
+
+
+def _the_option(pending: Pending, said: str) -> str | None:
+    fits = [
+        name
+        for name in pending.missing
+        if any(_plain(one) == _plain(said) for one in pending.options.get(name, ()))
+    ]
+    return fits[0] if len(fits) == 1 else None
+
+
 def answered(pending: Pending, said: str, logins: Logins = Logins()) -> Pending:
     value = said.strip()[:K_SAID]
     if not value or not pending.missing:
         return pending
-    asked = pending.missing[0]
-    if refusal(value, value, FieldLimits(max_length=pending.limits.get(asked)), logins):
-        return pending
-    filled = {asked, *_twins(asked, pending.missing[1:])}
-    return Pending(
-        workflow_id=pending.workflow_id,
-        title=pending.title,
-        values={**pending.values, **dict.fromkeys(filled, value)},
-        missing=tuple(name for name in pending.missing if name not in filled),
-        items=pending.items,
-        watched=pending.watched,
-        limits=pending.limits,
-        from_step=pending.from_step,
-        mail_thread=pending.mail_thread,
+    reply = _read(pending, value)
+    named = {name: one for name, one in reply.named.items() if name not in reply.doubt}
+    which = dict(reply.which)
+    if not reply.says_what_it_is and not reply.holding:
+        if len(pending.missing) == 1:
+            named = {pending.missing[0]: value}
+        elif (only := _the_option(pending, value)) is not None:
+            named = {only: value}
+        else:
+            which = {value: pending.missing}
+    refused = {
+        name: why
+        for name, one in named.items()
+        if (why := refusal(one, value, _limits(pending, name), logins))
+    }
+    taken = {name: one for name, one in named.items() if name not in refused}
+    not_had = (
+        *reply.dropped,
+        *(
+            name
+            for name in _askable(pending)
+            if reply.all_the_rest and name not in taken and name not in refused
+        ),
     )
-
-
-def _twins(asked: str, rest: Iterable[str]) -> set[str]:
-    one = _plain(asked)
-    return {other for other in rest if _shares(one, _plain(other))}
+    gone = set(taken) | set(not_had)
+    return replace(
+        pending,
+        values={**pending.values, **taken},
+        missing=tuple(name for name in pending.missing if name not in gone),
+        offered=tuple(one for one in pending.offered if one[0] not in gone),
+        dropped=tuple(dict.fromkeys((*pending.dropped, *not_had))),
+        without=tuple(
+            dict.fromkeys((*pending.without, *(n for n in pending.missing if n in not_had)))
+        ),
+        refused=refused,
+        which=which,
+        doubting=tuple(dict.fromkeys(reply.doubt.values())),
+        doubted=tuple(dict.fromkeys((*pending.doubted, *reply.doubt.values()))),
+        confirmed=True,
+    )
 
 
 def _plain(name: str) -> str:
     return "".join(letter for letter in name.lower() if letter.isalnum())
-
-
-def _shares(one: str, other: str) -> bool:
-    if not one or not other:
-        return False
-    return one.endswith(other) or other.endswith(one)

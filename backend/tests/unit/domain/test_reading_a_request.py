@@ -400,7 +400,9 @@ def test_a_job_s_own_username_field_is_filled_like_any_other() -> None:
 def test_a_chat_answer_that_is_a_sign_in_name_is_not_taken() -> None:
     """thr_163b in chat: a bare "RKUCHIYAGM" under a pending Address question."""
     pending = Pending("wfl_client", "Create a Client", {}, ("Address",))
-    assert answered(pending, "RKUCHIYAGM", SIGNED) == pending
+    refused = answered(pending, "RKUCHIYAGM", SIGNED)
+    assert (refused.values, refused.missing) == ({}, ("Address",))
+    assert refused.refused == {"Address": "a sign-in name, never a job's value"}
     assert answered(pending, "12 Main St", SIGNED).values == {"Address": "12 Main St"}
 
 

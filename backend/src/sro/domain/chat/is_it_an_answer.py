@@ -23,27 +23,8 @@ def plainly_a_value(pending: Pending, said: str) -> bool:
     return holds is None or len(value) <= holds
 
 
-K_SAID_AS = (":", "=")
-
-
-def said_as_the_value(pending: Pending, said: str) -> str | None:
-    value = said.strip()
-    for mark in K_SAID_AS:
-        head, found, rest = value.partition(mark)
-        if not found:
-            continue
-        return rest.strip() or None if _plainly(head) == _plainly(pending.asking_for) else None
-    return None
-
-
-def _plainly(name: str) -> str:
-    return " ".join(name.replace("_", " ").replace("-", " ").lower().split())
-
-
 __all__ = [
     "K_ONE_WORD",
     "K_PROSE",
-    "K_SAID_AS",
     "plainly_a_value",
-    "said_as_the_value",
 ]

@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import datetime
 
 from sro.application.chat.announce import SayWhatHappened
+from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
 from sro.application.execution.declared import declared_limits, names_of, screen_for
@@ -35,9 +36,18 @@ from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.vault import CredentialVault
 from sro.application.shared.refusals import OverCap
 from sro.application.skill.job_facts import job_facts
-from sro.domain.chat.asking import NEEDS, Pending, also_set, question
+from sro.domain.chat.asking import (
+    NEEDS,
+    Pending,
+    also_set,
+    asking_state,
+    cannot_without,
+    question,
+    still_to_ask,
+)
 from sro.domain.chat.thread import Speaker
 from sro.domain.execution.compiled import why_not
+from sro.domain.execution.field_classes import field_classes
 from sro.domain.execution.gathering import Gathered
 from sro.domain.execution.learned_step import limits_for
 from sro.domain.execution.mail_job import is_mail_only
@@ -192,7 +202,7 @@ class StartWorkflowRun:
                 str(declared["name"])
                 for declared in workflow.parameters
                 if declared.get("name")
-                and (not steel or demanded(declared))
+                and demanded(declared)
                 and any(str(declared["name"]) not in one for one in supplied)
             )
             blank = sorted(
@@ -404,6 +414,16 @@ class StartWorkflowRun:
             await uow.workflow_runs.save(saved)
             await uow.commit()
 
+    async def _no_longer_waiting(self, ctx: RequestContext, run_id: str) -> None:
+        async with self._uow as uow:
+            saved = await uow.workflow_runs.get(ctx.tenant_id, run_id)
+            if saved is None:
+                return
+            saved.needs = []
+            saved.awaiting = None
+            await uow.workflow_runs.save(saved)
+            await uow.commit()
+
     async def _ask_for_values(self, ctx: RequestContext, run: WorkflowRun, title: str) -> None:
         if not run.needs or self._ids is None:
             return
@@ -420,35 +440,54 @@ class StartWorkflowRun:
             )
         by_id = {gesture.id: gesture for gesture in cited}
         steps = workflow.steps if workflow else []
-        limits = limits_for(
-            steps,
-            learnt,
-            await declared_limits(
-                self._uow,
-                ctx.tenant_id,
-                names_of(workflow) if workflow else [],
-                await screen_for(self._uow, ctx.tenant_id, workflow) if workflow else "",
-            ),
+        declared = await declared_limits(
+            self._uow,
+            ctx.tenant_id,
+            names_of(workflow) if workflow else [],
+            await screen_for(self._uow, ctx.tenant_id, workflow) if workflow else "",
         )
-        pending = Pending(
-            workflow_id=run.workflow_id,
-            title=title,
-            values=dict(run.values),
-            missing=tuple(run.needs),
-            items=tuple(dict(one) for one in run.items),
-            watched=run.watched,
-            limits=limits,
-            offered=offerable(workflow.parameters, run.values) if workflow else (),
-            from_step=(
-                begins_again_at(workflow, by_id, stopped_at=run.steps[-1].order)
-                if workflow and run.steps
-                else 0
-            ),
+        limits = limits_for(steps, learnt, declared)
+        fields = (
+            field_classes(workflow, by_id, {one.ord: one for one in learnt}, declared)
+            if workflow
+            else ()
         )
+        operator = PrincipalId(run.started_by) if run.started_by else ctx.principal_id
+        thread = await ReadThreads(self._uow).current(RequestContext(ctx.tenant_id, operator))
+        pending = still_to_ask(
+            Pending(
+                workflow_id=run.workflow_id,
+                title=title,
+                values=dict(run.values),
+                missing=tuple(run.needs),
+                items=tuple(dict(one) for one in run.items),
+                watched=run.watched,
+                limits=limits,
+                offered=offerable(workflow.parameters, run.values) if workflow else (),
+                from_step=(
+                    begins_again_at(workflow, by_id, stopped_at=run.steps[-1].order)
+                    if workflow and run.steps
+                    else 0
+                ),
+                options={
+                    one.name: one.limits.options
+                    for one in fields
+                    if one.limits.options and one.name in run.needs
+                },
+            ),
+            thread.messages if thread else (),
+        )
+        if pending.without:
+            await self._no_longer_waiting(ctx, run.id)
+            said, noted = cannot_without(pending, ran=True)
+            await SayWhatHappened(self._uow, self._clock, self._ids).execute(
+                ctx, for_operator=operator, text=said, speaker=Speaker.ASSISTANT, decision=noted
+            )
+            return
         await SayWhatHappened(self._uow, self._clock, self._ids).execute(
             ctx,
-            for_operator=PrincipalId(run.started_by) if run.started_by else ctx.principal_id,
-            text=_asking(run.needs, title, limits)
+            for_operator=operator,
+            text=_asking(pending.missing, title, limits)
             + (f"{also} " if (also := also_set(pending)) else "")
             + question(pending),
             speaker=Speaker.ASSISTANT,
@@ -464,6 +503,7 @@ class StartWorkflowRun:
                 "offered": [list(one) for one in pending.offered],
                 "from_step": pending.from_step,
                 "from_run": run.id,
+                **asking_state(pending),
             },
         )
         if self._asker_drafts is not None:

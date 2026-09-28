@@ -24,6 +24,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from sro.application.chat.about_an_offer import AskAboutTheOffer
+from sro.application.chat.converse import Converse, StartThread
 from sro.application.context import RequestContext
 from sro.application.execution import workflow_runs as door
 from sro.application.execution.approvals import Approvals
@@ -31,8 +33,13 @@ from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.execution.run_workflow import run_workflow
 from sro.application.execution.stops import Stops
 from sro.application.execution.workflow_runs import RunRefused, StartWorkflowRun
+from sro.application.intent.plan_task import PlanTask
+from sro.application.intent.resolve import ResolveIntent
+from sro.application.knowledge.retrieve import Retrieve
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
+from sro.domain.chat.asking import NEEDS, Pending
+from sro.domain.chat.thread import Message
 from sro.domain.execution.compose import Composed, with_field
 from sro.domain.execution.progress import Progress, run_budget
 from sro.domain.execution.takeover import Took
@@ -50,6 +57,7 @@ from tests.unit.fakes import (
     FakeChannel,
     FakeClock,
     FakeDurableExecution,
+    FakeEmbedder,
     FakeGestureRepository,
     FakeIdFactory,
     FakeUnitOfWork,
@@ -446,6 +454,17 @@ async def test_a_steel_run_starts_without_an_optional_value_it_will_skip() -> No
     assert run.executor == "steel"
 
 
+async def test_a_browser_run_starts_without_an_optional_value_it_will_skip() -> None:
+    """F1 round 3, item 11: the browser twin. An absent optional value never
+    blocks a start; `RunSteps` and `_skippable` skip its step."""
+    uow = await _held(_workflow(parameters=[{"name": "clientCode", "required": False}]))
+
+    run = await _press(_starter(uow), values={})
+
+    assert run.executor != "steel"
+    assert run.values == {}
+
+
 async def test_each_steel_run_keeps_the_steps_its_job_had_when_it_started() -> None:
     uow = await _held(_workflow(parameters=[{"name": "clientCode", "required": False}]))
     first = await _press(_on_steel(uow), values={})
@@ -758,8 +777,10 @@ async def test_a_value_that_arrived_padded_is_stored_trimmed() -> None:
 async def test_a_declared_parameter_with_no_value_at_all_is_refused() -> None:
     """The planner falls back to whatever the recording contained when a step
     has no value, which for a declared parameter is somebody else's client
-    code."""
-    uow = await _held()
+    code. Required, since F1 round 3 (item 11): an absent OPTIONAL value never
+    blocks a start -- its step is skipped, and `value_for` never types the
+    recording for a parameter."""
+    uow = await _held(_workflow(parameters=[{"name": "clientCode", "required": True}]))
 
     with pytest.raises(RunRefused) as refused:
         await _press(_starter(uow), values={})
@@ -1386,6 +1407,155 @@ async def test_the_question_offers_the_fields_the_page_does_not_ask_for() -> Non
     assert "I can also set Department and Manufacturer" in asked.text
     assert "Customer Type" not in asked.text.split("I can also set")[1].split(" — ")[0], (
         "the field the page DOES ask for was offered as optional"
+    )
+
+
+K_FIELDS: list[dict[str, object]] = [
+    {"name": "Customer Type", "names": ["Customer Type*"], "seen_values": ["GGD"]},
+    {"name": "Description", "names": ["Description*"], "seen_values": ["first"]},
+    {"name": "Department", "names": ["Department"], "seen_values": ["IN", "new"]},
+    {"name": "Manufacturer", "names": ["Manufacturer"], "seen_values": ["OUTSIDE"]},
+]
+
+
+async def _short_of(
+    uow: FakeUnitOfWork,
+    needs: list[str],
+    answered_with: str = "",
+    values: Mapping[str, str] | None = None,
+) -> tuple[WorkflowRun, StartWorkflowRun]:
+    """A run that stopped short. With `answered_with`, it is the run an answer
+    in chat started, end to end (invariant 16): the card's door asks
+    (`AskAboutTheOffer`), `Converse` takes the answer, and the press starts
+    the run with exactly the values and step that answer's `resume` decision
+    hands the browser. Without it -- or with `values` -- the run is pressed
+    some other way."""
+    workflow = await uow.workflows.get(TENANT, "wfl_1")
+    workflow.parameters = [dict(one) for one in K_FIELDS]
+    # A job that could be stored: each field is filled by a step of its own.
+    for step, one in zip(workflow.steps, K_FIELDS, strict=False):
+        step.parameters = [str(one["name"])]
+    await uow.workflows.save(workflow)
+    pressed: Mapping[str, str] = {} if values is None else values
+    from_step = 0
+    if answered_with:
+        ids, clock = FakeIdFactory(), FakeClock(NOW)
+        thread = await StartThread(uow, clock, ids).execute(_ctx())
+        await AskAboutTheOffer(uow, clock, ids).execute(
+            _ctx(),
+            Pending(
+                workflow_id=workflow.id,
+                title=workflow.title,
+                values={},
+                missing=("Customer Type", "Description"),
+            ),
+        )
+        converse = Converse(
+            uow, ResolveIntent(uow, PlanTask(Retrieve(uow, FakeEmbedder()))), clock, ids
+        )
+        said = await converse.execute(_ctx(), thread_id=thread.id, text=answered_with)
+        started = said.messages[-1].decision
+        assert started is not None and started["resume"] is True, said.messages[-1].text
+        if values is None:
+            pressed = dict(started["values"])  # type: ignore[call-overload]
+        from_step = int(started["from_step"])  # type: ignore[call-overload]
+    run = await _press(_starter(uow), values=pressed, from_step=from_step)
+    run = await uow.workflow_runs.get(TENANT, run.id) or run
+    run.steps = [RunStep(order=0, says="type the code", verdict="failed", verdict_by="read")]
+    run.needs = needs
+    await uow.workflow_runs.save(run)
+    starter = StartWorkflowRun(
+        uow,
+        channel=_Browsers(),
+        asker=_A_MODEL,
+        clock=FakeClock(NOW),
+        cap_usd=CAP,
+        stops=Stops(),
+        approvals=Approvals(),
+        one_time_secrets=OneTimeSecrets(),
+        ids=FakeIdFactory(),
+    )
+    return run, starter
+
+
+async def _asked_last(uow: FakeUnitOfWork, run: WorkflowRun) -> Message:
+    threads = await uow.threads.list_for_tenant(
+        TENANT, opened_by=PrincipalId(run.started_by), limit=1
+    )
+    return threads[0].messages[-1]
+
+
+async def test_a_run_short_of_several_values_asks_for_all_of_them_in_one_question() -> None:
+    """F1: greyorange asked for one value a turn, 44% of its turns."""
+    uow = await _held()
+    # Pressed with both, and the run found neither would do (a box too short).
+    run, starter = await _short_of(
+        uow,
+        ["Customer Type", "Description"],
+        values={"Customer Type": "NEWSROTEST", "Description": "north dock"},
+    )
+
+    await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
+
+    asked = await _asked_last(uow, run)
+    assert asked.text.count("?") == 1, asked.text
+    assert "What should Customer Type and Description be?" in asked.text
+    assert asked.decision is not None
+    assert [one["name"] for one in asked.decision["asks"]] == ["Customer Type", "Description"]
+
+
+async def test_the_run_an_answer_started_does_not_offer_again_what_that_ask_offered() -> None:
+    uow = await _held()
+    run, starter = await _short_of(uow, ["Customer Type"], "Customer Type: GGD, Description: first")
+
+    await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
+
+    asked = await _asked_last(uow, run)
+    assert asked.decision is not None and asked.decision["kind"] == NEEDS
+    assert "I can also set" not in asked.text, "an optional field was offered twice in one ask"
+
+
+async def test_a_run_started_some_other_way_is_a_fresh_ask() -> None:
+    """I3: the earlier ask's drop and offer belong to that ask."""
+    uow = await _held()
+    run, starter = await _short_of(
+        uow,
+        ["Customer Type"],
+        "Customer Type: GGD, Description: first, skip Manufacturer",
+        values={"Customer Type": "NEWSROTEST", "Description": "first"},
+    )
+
+    await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
+
+    asked = await _asked_last(uow, run)
+    assert "I can also set Department and Manufacturer" in asked.text, asked.text
+
+
+async def test_a_run_that_needs_a_field_its_ask_dropped_stops_and_stops_waiting() -> None:
+    """I4. The answer dropped Manufacturer while it was optional; the job has
+    since learnt it as required, and the run that answer started needs it."""
+    uow = await _held()
+    run, starter = await _short_of(
+        uow, ["Manufacturer"], "Customer Type: GGD, Description: first, skip Manufacturer"
+    )
+    workflow = await uow.workflows.get(TENANT, run.workflow_id)
+    workflow.parameters = [
+        *K_FIELDS[:3],
+        {"name": "Manufacturer", "names": ["Manufacturer*"], "seen_values": ["OUTSIDE"]},
+    ]
+    await uow.workflows.save(workflow)
+    run.awaiting = {"kind": "values"}
+    await uow.workflow_runs.save(run)
+
+    await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
+
+    asked = await _asked_last(uow, run)
+    assert "stopped — it needs Manufacturer to run" in asked.text, asked.text
+    assert "Nothing was started" not in asked.text and "nothing was started" not in asked.text
+    assert asked.decision is not None and asked.decision["kind"] != NEEDS
+    saved = await uow.workflow_runs.get(TENANT, run.id)
+    assert saved is not None and saved.needs == [] and saved.awaiting is None, (
+        "the run is still counted as waiting on a person"
     )
 
 

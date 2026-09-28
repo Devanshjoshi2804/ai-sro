@@ -7,8 +7,8 @@ never gets taken for a code.
 
 from __future__ import annotations
 
-from sro.domain.chat.asking import Pending
-from sro.domain.chat.is_it_an_answer import plainly_a_value, said_as_the_value
+from sro.domain.chat.asking import Pending, answered, named_in
+from sro.domain.chat.is_it_an_answer import plainly_a_value
 
 
 def _asking(**over: object) -> Pending:
@@ -60,10 +60,12 @@ def test_a_value_the_person_named_themselves_needs_nobody_to_read_it() -> None:
     value with no move except typing it again and being refused again."""
     asking = _asking(missing=("Address",))
 
-    assert said_as_the_value(asking, "Address: testing for new purpose") == (
-        "testing for new purpose"
-    )
-    assert said_as_the_value(asking, "address = SRO Depot One") == "SRO Depot One"
+    for said, value in (
+        ("Address: testing for new purpose", "testing for new purpose"),
+        ("address = SRO Depot One", "SRO Depot One"),
+    ):
+        assert named_in(asking, said), said
+        assert answered(asking, said).values == {"Address": value}
 
 
 def test_only_the_field_standing_in_front_of_them() -> None:
@@ -72,8 +74,10 @@ def test_only_the_field_standing_in_front_of_them() -> None:
     whole module exists to have replaced."""
     asking = _asking(missing=("Address",))
 
-    assert said_as_the_value(asking, "url: http://wms/clients") is None
-    assert said_as_the_value(asking, "Name: SROCL01") is None
+    # A label that is no field of this ask is part of the text (F1 round 2,
+    # item 12): with Address the one field open, it is the reading's to judge.
+    for said in ("url: http://wms/clients", "Name: SROCL01"):
+        assert not named_in(asking, said), said
 
 
 def test_a_name_is_the_same_name_however_the_form_spells_it() -> None:
@@ -81,15 +85,17 @@ def test_a_name_is_the_same_name_however_the_form_spells_it() -> None:
     of them: `customertype-longDescription` is asked for as it is declared."""
     asking = _asking(missing=("long_description",))
 
-    assert said_as_the_value(asking, "Long Description: north dock") == "north dock"
+    assert answered(asking, "Long Description: north dock").values == {
+        "long_description": "north dock"
+    }
 
 
 def test_naming_the_field_and_saying_nothing_after_it_is_not_a_value() -> None:
-    assert said_as_the_value(_asking(missing=("Address",)), "Address:") is None
+    assert not named_in(_asking(missing=("Address",)), "Address:")
 
 
 def test_a_sentence_that_names_no_field_is_read_the_ordinary_way() -> None:
-    assert said_as_the_value(_asking(missing=("Address",)), "has reply arrived") is None
+    assert not named_in(_asking(missing=("Address",)), "has reply arrived")
 
 
 def test_a_box_roomy_enough_for_prose_takes_prose() -> None:

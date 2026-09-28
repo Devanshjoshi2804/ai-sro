@@ -214,3 +214,59 @@ Integration (**written, not run**): `tests/integration/test_asking_once.py`
 
 - The drop phrases are a fixed English set. Anything else goes to the model reading as before, which never drops.
 - `from_the_mail.py` still writes its NEEDS decision without `asks` or `dropped`. Mail never answers a field question (invariant 7), so this round leaves it alone.
+
+## Round 2
+
+This round covers findings 9, 10, 12, 13, 14 and 16 of `task-F1-rereview-1.md`, as the controller listed them; the file is not in the repository. Every change was test first, and every test goes through the real code path (rule 16).
+
+### What changed
+
+- **9 (Critical): a named value is never cut silently.** `_read` in `domain/chat/asking.py` now works by position in the original text (`_clauses`, `_Value`).
+  - A clause boundary (comma, semicolon, full stop, " and ") ends a value only when the next clause starts something of this ask (`_starts`): a label that `_field` resolves to one of its fields, a drop phrase naming one, or "with what we have".
+  - Otherwise the clause is joined back onto the value, keeping its separator.
+  - Inside a named value, only a first-person "don't have X" ends the value (`K_FIRST_PERSON`). So "sold without discount" stays whole and Discount is not dropped, while "Customer Type: RRF i dont have manufacturer" still splits. I2's second sentence also still splits, because "create it without discount" is its own clause.
+- **10:** added a `ponytail:` note on `still_to_ask` about the limit of matching a run to its ask by values, and the upgrade path: carry the `resume` decision's `offer` id onto the run when a migration is next allowed.
+- **12:** a label is asked about only when it is close to a field of this ask (a clear fuzzy match, or sharing at least half its words with the field's name) or names another field of the job (`_label_of`, via `field_of`). Any other "Word:" is plain text, so with one field open, "Name: SROCL01", "Attn: Bob, 5 Main St", "Note: fragile" and "Re: order 55" fill that field. "Code: 123" is still asked about under Zip Code, and "Ship From Code: SG1" under Ship To Code.
+- **13:** "I don't have the department yet" and "… for now" are "not ready" (`K_NOT_READY`, and the extended `K_HOLDING`). Nothing is dropped, nothing is taken, and the field stays asked.
+- **14:** the stale `said_as_the_value` mention in `converse.py.md` now names `asking.named_in`. `grep said_as_the_value docs/code-notes` finds nothing.
+- **16:** `_short_of` in `test_start_workflow_run.py` now starts its run through the real press. The card asks, `Converse` answers, and `StartWorkflowRun.execute` (`_press`) starts the run with exactly the `values` and `from_step` of that answer's `resume` decision. "Pressed some other way" is a press with other values, so nothing is overwritten on the run. The fixture job fills each field with a step of its own, as a stored job must.
+
+### Tests
+
+These 7 fail on the round-1 code (`39be016`) and pass now:
+- `test_asking.py`:
+  - item 9: "black and white", "12 Main St, Springfield", "5 St. Louis Ave" and "Retail, wholesale and export" stay whole;
+  - item 9: "sold without discount" stays whole and does not drop Discount;
+  - item 9: the next label of this ask still ends a value ("Customer Type: GGD; Customer Type Description: black and white");
+  - item 12: the four labels that name no field fill the one open field;
+  - item 13: "yet" / "for now" is not a drop.
+- `test_is_it_an_answer.py`: "url: …" and "Name: SROCL01" under Address go to the reading, per item 12.
+- `test_converse.py`: in chat, "Customer Type: GGD; Customer Type Description: black and white" keeps both values whole.
+
+Also added:
+- `test_asking.py`: a label naming another field of the job is asked about. It already passed on the round-1 code, so it guards the item-12 exception rather than proving a fix.
+
+Rebuilt:
+- The four run-side tests now go through the real press (item 16).
+
+The round-1 I2 probes still pass: "Customer Type: RRF i dont have manufacturer" and "Customer Type: RRF, create it without discount".
+
+### Gates
+
+- `uv run pytest tests/unit tests/contract -q`: **4931 passed, 83 errors**. The errors are the Postgres-only `[sql]` params, the same as on the base.
+- mypy `src tests evals`: clean.
+- ruff check and ruff format: clean.
+- lint-imports: 4 kept, 0 broken.
+- `check_code_notes.py`: 0 stale, 0 dead.
+- Integration: `tests/integration/test_asking_once.py` is unchanged this round and still **written, not run**.
+- **Worker restart needed.**
+
+### Rulings
+
+- Ruling: inside a named value, only a first-person "(I/we) don't have X" ends the value; "skip X" and "without X" there are words of the value. As a clause of their own, all drop phrases count — this is the only reading that keeps both "Customer Type: RRF i dont have manufacturer" (I2) and "Description: sold without discount" (item 9) — cost if wrong: "Customer Type: RRF skip manufacturer" in one clause makes "RRF skip manufacturer" the value. R1's limit or options check may refuse it, and the operator sees it before the run.
+- Ruling: "close to a field of this ask" (item 12) means a clear fuzzy match, or sharing at least half its words with the field's name — so "Code" is close to Zip Code and "Ship From Code" to Ship To Code, but "Name", "Attn", "Note" and "Re" are close to nothing — cost if wrong: a one-word label that shares a word with a field (for example "Code: …" under Zip Code) gets one question instead of being taken as text.
+- Ruling: "not ready" is "don't have X" followed, in the same clause, by "yet", "for now", "right now" or "at the moment" — cost if wrong: another "not yet" wording that uses "don't have" drops X for this ask only (I3). The operator can start the job again.
+
+### Concerns
+
+- **The browser press refuses optional values nobody gave.** Found by item 16's real press. `StartWorkflowRun.execute` refuses a browser run (one that is not Steel) whose job has optional parameters nobody gave, when the deployment cannot gather: `absent` counts every parameter unless the run is Steel (commit `099a47e`). So on a browser deployment with no mailbox, a chat answer that leaves optional fields out (F1's "the run goes without them") produces a `resume` the press refuses. The rebuilt tests press as a Steel tenant, which is the configuration where such a run really starts. Making the browser rule match `RunSteps`, where an absent optional value skips its step, belongs to the owner of that guard; this round does not widen into it.

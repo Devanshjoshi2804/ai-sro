@@ -600,3 +600,75 @@ def test_i3_a_drop_holds_for_the_run_its_own_answer_started_and_no_other() -> No
         ],
     )
     assert moved_on == later
+
+
+# --- F1 round 2: a named value is never cut silently --------------------------
+
+
+def test_9_a_value_runs_on_until_a_clause_that_starts_something_of_this_ask() -> None:
+    for name, said, value in (
+        ("Description", "Description: black and white", "black and white"),
+        ("Address", "Address: 12 Main St, Springfield", "12 Main St, Springfield"),
+        ("Address", "Address: 5 St. Louis Ave", "5 St. Louis Ave"),
+        (
+            "Description",
+            "Description: Retail, wholesale and export",
+            "Retail, wholesale and export",
+        ),
+    ):
+        filled = answered(_waiting(name, "Customer Type"), said)
+        assert filled.values == {name: value}, said
+
+
+def test_9_a_drop_word_inside_a_value_is_part_of_the_value() -> None:
+    pending = _waiting("Description", "Customer Type", offered=("Discount",))
+
+    filled = answered(pending, "Description: sold without discount")
+
+    assert filled.values == {"Description": "sold without discount"}
+    assert filled.dropped == (), "a word of the value dropped a field"
+
+
+def test_9_the_next_label_of_this_ask_still_ends_a_value() -> None:
+    pending = _waiting("Customer Type", "Customer Type Description")
+
+    filled = answered(pending, "Customer Type: GGD; Customer Type Description: black and white")
+
+    assert filled.values == {
+        "Customer Type": "GGD",
+        "Customer Type Description": "black and white",
+    }
+
+
+def test_12_a_label_that_is_no_field_is_part_of_the_one_value_asked_for() -> None:
+    for said in ("Name: SROCL01", "Attn: Bob, 5 Main St", "Note: fragile", "Re: order 55"):
+        filled = answered(_waiting("Address"), said)
+        assert filled.values == {"Address": said}, said
+        assert filled.which == {}, said
+
+
+def test_12_a_label_that_names_another_field_of_the_job_is_asked_about() -> None:
+    known = Candidate(
+        id="wfl_1",
+        title="Create a Customer Type",
+        fields=(
+            FieldClass("Address", "required", ("Address",), FieldLimits()),
+            FieldClass("Department", "sometimes", ("Department",), FieldLimits()),
+        ),
+        aliases={},
+        seen={},
+    )
+
+    filled = answered(_waiting("Address", known=known), "Department: IN")
+
+    assert filled.values == {} and "Department" in filled.which
+
+
+def test_13_not_having_it_yet_is_not_ready_and_the_field_stays_asked() -> None:
+    pending = _waiting("Customer Type", offered=("Department",))
+
+    for said in ("I don't have the department yet", "i dont have the department for now"):
+        filled = answered(pending, said)
+        assert filled.dropped == (), said
+        assert filled.offered == (("Department", ""),), said
+        assert filled.values == {} and filled.missing == ("Customer Type",), said

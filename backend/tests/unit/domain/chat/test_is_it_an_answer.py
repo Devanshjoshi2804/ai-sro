@@ -74,12 +74,10 @@ def test_only_the_field_standing_in_front_of_them() -> None:
     whole module exists to have replaced."""
     asking = _asking(missing=("Address",))
 
-    # Not taken for Address, and asked about instead (F1 round 1, C2): a label
-    # that names no field of this ask is never a bare value.
+    # A label that is no field of this ask is part of the text (F1 round 2,
+    # item 12): with Address the one field open, it is the reading's to judge.
     for said in ("url: http://wms/clients", "Name: SROCL01"):
-        filled = answered(asking, said)
-        assert filled.values == {} and filled.missing == ("Address",), said
-        assert list(filled.which.values()) == [("Address",)], said
+        assert not named_in(asking, said), said
 
 
 def test_a_name_is_the_same_name_however_the_form_spells_it() -> None:

@@ -1406,24 +1406,32 @@ K_FIELDS: list[dict[str, object]] = [
 
 
 async def _short_of(
-    uow: FakeUnitOfWork, needs: list[str], answered_with: str = ""
+    uow: FakeUnitOfWork,
+    needs: list[str],
+    answered_with: str = "",
+    values: Mapping[str, str] | None = None,
 ) -> tuple[WorkflowRun, StartWorkflowRun]:
     """A run that stopped short. With `answered_with`, it is the run an answer
-    in chat started: the card's door asked (`AskAboutTheOffer`), `Converse`
-    took the answer, and the run carries exactly the values that answer's job
-    decision holds (invariant 16) -- nothing here writes a decision by hand."""
-    run = await _press(_starter(uow))
-    workflow = await uow.workflows.get(TENANT, run.workflow_id)
+    in chat started, end to end (invariant 16): the card's door asks
+    (`AskAboutTheOffer`), `Converse` takes the answer, and the press starts
+    the run with exactly the values and step that answer's `resume` decision
+    hands the browser. Without it -- or with `values` -- the run is pressed
+    some other way."""
+    workflow = await uow.workflows.get(TENANT, "wfl_1")
     workflow.parameters = [dict(one) for one in K_FIELDS]
+    # A job that could be stored: each field is filled by a step of its own.
+    for step, one in zip(workflow.steps, K_FIELDS, strict=False):
+        step.parameters = [str(one["name"])]
     await uow.workflows.save(workflow)
-    run.values = {}
+    pressed: Mapping[str, str] = {} if values is None else values
+    from_step = 0
     if answered_with:
         ids, clock = FakeIdFactory(), FakeClock(NOW)
         thread = await StartThread(uow, clock, ids).execute(_ctx())
         await AskAboutTheOffer(uow, clock, ids).execute(
             _ctx(),
             Pending(
-                workflow_id=run.workflow_id,
+                workflow_id=workflow.id,
                 title=workflow.title,
                 values={},
                 missing=("Customer Type", "Description"),
@@ -1435,7 +1443,17 @@ async def _short_of(
         said = await converse.execute(_ctx(), thread_id=thread.id, text=answered_with)
         started = said.messages[-1].decision
         assert started is not None and started["resume"] is True, said.messages[-1].text
-        run.values = dict(started["values"])  # type: ignore[call-overload]
+        if values is None:
+            pressed = dict(started["values"])  # type: ignore[call-overload]
+        from_step = int(started["from_step"])  # type: ignore[call-overload]
+    # A Steel tenant's press: the configuration where a run starts without the
+    # optional values nobody gave (see the report's Round 2 concern on the
+    # browser press).
+    starting = _starter(
+        uow, steel_tenants=frozenset({TENANT.value}), durable=FakeDurableExecution()
+    )
+    run = await _press(starting, values=pressed, from_step=from_step)
+    run = await uow.workflow_runs.get(TENANT, run.id) or run
     run.steps = [RunStep(order=0, says="type the code", verdict="failed", verdict_by="read")]
     run.needs = needs
     await uow.workflow_runs.save(run)
@@ -1463,7 +1481,12 @@ async def _asked_last(uow: FakeUnitOfWork, run: WorkflowRun) -> Message:
 async def test_a_run_short_of_several_values_asks_for_all_of_them_in_one_question() -> None:
     """F1: greyorange asked for one value a turn, 44% of its turns."""
     uow = await _held()
-    run, starter = await _short_of(uow, ["Customer Type", "Description"])
+    # Pressed with both, and the run found neither would do (a box too short).
+    run, starter = await _short_of(
+        uow,
+        ["Customer Type", "Description"],
+        values={"Customer Type": "NEWSROTEST", "Description": "north dock"},
+    )
 
     await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
 
@@ -1489,10 +1512,11 @@ async def test_a_run_started_some_other_way_is_a_fresh_ask() -> None:
     """I3: the earlier ask's drop and offer belong to that ask."""
     uow = await _held()
     run, starter = await _short_of(
-        uow, ["Customer Type"], "Customer Type: GGD, Description: first, skip Manufacturer"
+        uow,
+        ["Customer Type"],
+        "Customer Type: GGD, Description: first, skip Manufacturer",
+        values={"Customer Type": "NEWSROTEST", "Description": "first"},
     )
-    run.values = {"Customer Type": "NEWSROTEST", "Description": "first"}
-    await uow.workflow_runs.save(run)
 
     await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
 

@@ -132,7 +132,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > the right default and leaves somebody who typed a real value with no move
 > except typing it again and being refused again. `question` already names
 > that loop as the thing this design must not be, for the length case. This
-> is the same exit for the reading case: `said_as_the_value` takes a value
+> is the same exit for the reading case: `asking.named_in` takes a value
 > the person named themselves without asking anybody, and this is the only
 > place they are ever told so.
 

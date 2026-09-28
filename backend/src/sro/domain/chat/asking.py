@@ -456,7 +456,9 @@ K_DROP = re.compile(
 
 K_HOLDING = re.compile(
     r"(?<!\w)(?:do\s*n[o']?t\s+know|do\s+not\s+know|let\s+me\s+check|not\s+yet|no\s+idea"
-    r"|will\s+check|check\s+later)(?!\w)",
+    r"|will\s+check|check\s+later"
+    r"|(?:do\s*n[o']?t|do\s+not)\s+have\s+[^,;.]*?(?<!\w)(?:yet|for\s+now|right\s+now|at\s+the\s+moment))"
+    r"(?!\w)",
     re.I,
 )
 
@@ -465,6 +467,10 @@ K_CLAUSE = re.compile(r"[,;\n]+|[.!?]+(?=\s|$)|\s+and\s+", re.I)
 K_LABELLED = re.compile(
     r"^\s*(?P<label>[^\W\d][\w '-]{0,60}?)\s*(?::-|:|=)(?!//)\s*(?P<value>.*)$", re.S
 )
+
+K_NOT_READY = re.compile(r"(?<!\w)(?:yet|for\s+now|right\s+now|at\s+the\s+moment)(?!\w)", re.I)
+
+K_FIRST_PERSON = re.compile(r"(?:(?:i|we)\s+)?(?:do\s*n[o']?t|do\s+not)\s+have", re.I)
 
 K_WHAT_ENDS = re.compile(r"[.!?]+(?=\s|$)|\s+(?:just|but|so|then|please|yet)(?!\w)", re.I)
 
@@ -519,7 +525,11 @@ def _field(said: str, pending: Pending) -> tuple[str | None, tuple[str, ...]]:
         name
         for score, name in scored
         if score >= K_LIKE
-        or (words and words <= {w for one in _labels(pending, name) for w in _words(one)})
+        or (
+            words
+            and 2 * len(words & {w for one in _labels(pending, name) for w in _words(one)})
+            >= len(words)
+        )
     )
     return None, near
 
@@ -537,36 +547,92 @@ class _Reply:
         return bool(self.named or self.dropped or self.which or self.all_the_rest)
 
 
+@dataclass(slots=True)
+class _Value:
+    name: str
+    start: int
+    end: int
+    open: bool
+
+
+def _clauses(said: str) -> list[tuple[int, int]]:
+    spans, at = [], 0
+    for cut in K_CLAUSE.finditer(said):
+        spans.append((at, cut.start()))
+        at = cut.end()
+    return [*spans, (at, len(said))]
+
+
+def _dropping(
+    clause: str, pending: Pending
+) -> tuple[re.Match[str], str, str | None, tuple[str, ...]] | None:
+    drop = K_DROP.search(clause)
+    if drop is None or K_NOT_READY.search(drop.group("what")):
+        return None
+    what = K_WHAT_ENDS.split(drop.group("what"), maxsplit=1)[0].strip()
+    name, near = _field(what, pending)
+    return drop, what, name, near
+
+
+def _label_of(label: str, pending: Pending) -> tuple[str | None, tuple[str, ...]]:
+    name, near = _field(label, pending)
+    if name is not None or near:
+        return name, near
+    other = field_of(label, pending.known) if pending.known is not None else None
+    return None, (other[0],) if other is not None else ()
+
+
+def _starts(clause: str, pending: Pending) -> bool:
+    labelled = K_LABELLED.match(clause)
+    if labelled is not None and _field(labelled.group("label"), pending)[0] is not None:
+        return True
+    drop = _dropping(clause, pending)
+    return (drop is not None and (drop[2] is not None or bool(drop[3]))) or (
+        K_WITH_WHAT_WE_HAVE.search(clause) is not None
+    )
+
+
 def _read(pending: Pending, said: str) -> _Reply:
     if is_a_question(said):
         return _Reply(holding=True)
     reply = _Reply(all_the_rest=K_WITH_WHAT_WE_HAVE.search(said) is not None)
     dropped: list[str] = []
     holding = K_HOLDING.search(said) is not None
-    for clause in K_CLAUSE.split(said):
-        rest = clause.strip()
-        if not rest:
+    values: list[_Value] = []
+    for start, end in _clauses(said):
+        clause = said[start:end]
+        if not clause.strip():
             continue
-        if (drop := K_DROP.search(rest)) is not None:
-            what = K_WHAT_ENDS.split(drop.group("what"), maxsplit=1)[0].strip()
-            name, near = _field(what, pending)
-            if name is not None:
-                dropped.append(name)
-                rest = rest[: drop.start()].strip()
-            elif near:
-                reply.which[what] = near
-                rest = rest[: drop.start()].strip()
-            elif _words(what) and set(_words(what)) <= K_PRONOUNS:
-                holding = True
-        labelled = K_LABELLED.match(rest)
-        if labelled is None:
+        if values and values[-1].open and not _starts(clause, pending):
+            values[-1].end = end
             continue
-        name, near = _field(labelled.group("label"), pending)
-        value = labelled.group("value").strip()
-        if name is not None and value and name not in reply.named:
-            reply.named[name] = value
-        elif name is None:
-            reply.which[labelled.group("label").strip()] = near or pending.missing
+        if values:
+            values[-1].open = False
+        labelled = K_LABELLED.match(clause)
+        cut = end
+        if (drop := _dropping(clause, pending)) is not None:
+            match, what, name, near = drop
+            inside = labelled is not None and match.start() >= labelled.start("value")
+            if not inside or K_FIRST_PERSON.match(match.group(0)):
+                if name is not None:
+                    dropped.append(name)
+                elif near:
+                    reply.which[what] = near
+                elif _words(what) and set(_words(what)) <= K_PRONOUNS:
+                    holding = True
+                if name is not None or near:
+                    cut = start + match.start()
+        if labelled is None or start + labelled.start("value") > cut:
+            continue
+        name, near = _label_of(labelled.group("label"), pending)
+        if name is not None:
+            values.append(_Value(name, start + labelled.start("value"), cut, cut == end))
+        elif near:
+            reply.which[labelled.group("label").strip()] = near
+    for one in values:
+        value = said[one.start : one.end].strip()
+        if value and one.name not in reply.named:
+            reply.named[one.name] = value
     return replace(reply, dropped=tuple(dict.fromkeys(dropped)), holding=holding)
 
 

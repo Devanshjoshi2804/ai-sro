@@ -288,6 +288,15 @@ Code: `refused: Mapping[str, str] = field(default_factory=dict)`
 > `without`) and nothing is offered again: it was offered once, in that
 > ask's opening. Anything else -- a card press, a "yes", a new request, a
 > run with other values -- is a fresh ask, and returns `pending` as it is.
+>
+> ponytail: the run-to-ask attribution is by values, because the run row
+> carries no link to the ask whose answer started it. Ceiling: a run started
+> outside this thread with byte-identical values, while that ask's `resume`
+> decision is still the thread's latest about the job, inherits that ask's
+> drops (it is not offered the optional fields again, and a dropped field it
+> needs ends with the note). Upgrade path: carry the answer's offer id (the
+> `resume` decision's `offer`) onto the run when a migration is next allowed,
+> and match on it here instead of on values.
 
 ## `unusable`, [line 209](../../../../../../../backend/src/sro/domain/chat/asking.py#L209): Docstring
 
@@ -450,7 +459,7 @@ Code: `K_DROP = re.compile(`
 > nothing, so "skip the queue at dock 4" is still a description -- except
 > a bare pronoun ("skip it"), which is a holding reply, not a value.
 
-## module, [line 473](../../../../../../../backend/src/sro/domain/chat/asking.py#L473): Note on the line above
+## module, [line 479](../../../../../../../backend/src/sro/domain/chat/asking.py#L479): Note on the line above
 
 Code: `K_LIKE = 0.8`
 
@@ -462,27 +471,37 @@ Code: `K_LIKE = 0.8`
 > name with a different number of words never matches -- "code" is not Zip
 > Code. Stdlib `difflib`, no dependency.
 
-## `_read`, [line 540](../../../../../../../backend/src/sro/domain/chat/asking.py#L540): Docstring
+## `_read`, [line 595](../../../../../../../backend/src/sro/domain/chat/asking.py#L595): Docstring
 
-> The reply, clause by clause (F1 round 1, I2): a clause ends at a comma,
-> semicolon, full stop or " and " (`K_CLAUSE`), and a drop phrase ends the
-> value before it. A "Name: value" (also `=` and `:-`, the form greyorange
-> writes) counts only at a clause start (M3), so a label inside a value is
-> part of the value. Every name resolves through `_field`: the job's own
-> labels and R2's aliases first (`request.field_of`, via `Pending.known`;
-> I1), then an exact normalised name, then a fuzzy match that must be
-> unambiguous. A label naming no field is asked about, never read as a bare
-> value ("Code: 123" never fills Zip Code). A question ("is_a_question") is
-> read by nothing here: it goes to the reader.
+> The reply, clause by clause, with every value cut from the ORIGINAL text by
+> position (F1 round 2, item 9). A clause ends at a comma, semicolon, full
+> stop or " and " (`K_CLAUSE`), but a named value is never cut silently: the
+> next clause ends it only when that clause starts something of THIS ask
+> (`_starts`) -- a label `_field` resolves to one of its fields, a drop
+> phrase naming one, or "run with what we have". Otherwise the clause is
+> joined back onto the value with its separator, so "black and white",
+> "12 Main St, Springfield", "5 St. Louis Ave" and "Retail, wholesale and
+> export" stay whole.
+>
+> Inside a named value only a first-person "don't have X" (`K_FIRST_PERSON`)
+> ends it and drops X ("Customer Type: RRF i dont have manufacturer"); "sold
+> without discount" is the value, and Discount is not dropped. A "Name:"
+> label counts only at a clause start (M3). A label is asked about only when
+> it is close to a field of this ask or names another field of the job
+> (`_label_of`, item 12); any other "Word:" is text, so with one field open
+> "Attn: Bob, 5 Main St" is that field's value. Names resolve through the
+> job's labels and R2's aliases first (`request.field_of`, via
+> `Pending.known`; I1). A question is read by nothing here: it goes to the
+> reader.
 
-## `named_in`, [line 577](../../../../../../../backend/src/sro/domain/chat/asking.py#L577): Docstring
+## `named_in`, [line 643](../../../../../../../backend/src/sro/domain/chat/asking.py#L643): Docstring
 
 > Whether the reply says what it is: a named value, a drop, "run with what
 > we have", or a label to ask about. Such a reply needs no model to read it
 > (`Converse._is_it_an_answer`). Anything else -- another task, a lookup,
 > "don't know", "let me check" -- goes to the reader (F1 round 1, C1).
 
-## `answered`, [line 594](../../../../../../../backend/src/sro/domain/chat/asking.py#L594): Docstring
+## `answered`, [line 660](../../../../../../../backend/src/sro/domain/chat/asking.py#L660): Docstring
 
 > The same job with this answer in it, and the next question outstanding.
 >
@@ -521,7 +540,7 @@ Code: `if also := also_set(pending):`
 > Before rather than after, because the question is what the next sentence
 > answers and a question buried above an offer gets the offer's answer.
 
-## `answered`, [line 611](../../../../../../../backend/src/sro/domain/chat/asking.py#L611): Comment
+## `answered`, [line 677](../../../../../../../backend/src/sro/domain/chat/asking.py#L677): Comment
 
 Code: `if (why := refusal(one, value, _limits(pending, name), logins))`
 

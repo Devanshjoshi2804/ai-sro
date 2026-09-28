@@ -2004,3 +2004,25 @@ async def test_a_second_press_under_a_question_a_drop_already_ended_is_refused()
 
     assert said.messages[-1].text == "That question is no longer open, so nothing was done."
     assert not any((one.decision or {}).get("kind") == "job" for one in said.messages)
+
+
+async def test_round_2_named_values_are_never_cut_in_chat() -> None:
+    """Item 9: "black and white" was taken as "black"."""
+    uow = FakeUnitOfWork()
+    await _taught(uow)
+    converse, thread_id, _ = await _asked_by_the_card(
+        uow, ["Customer Type", "Customer Type Description"]
+    )
+
+    said = await converse.execute(
+        CTX,
+        thread_id=thread_id,
+        text="Customer Type: GGD; Customer Type Description: black and white",
+    )
+
+    last = said.messages[-1]
+    assert last.decision is not None and last.decision["kind"] == "job", last.text
+    assert last.decision["values"] == {
+        "Customer Type": "GGD",
+        "Customer Type Description": "black and white",
+    }

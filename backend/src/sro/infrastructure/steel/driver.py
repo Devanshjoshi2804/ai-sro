@@ -184,6 +184,7 @@ class SteelDriver:
             link.pages.pop(target_id, None)
             link.owners.pop(target_id, None)
             link.openers.pop(target_id, None)
+            link.handed.discard(target_id)
             self._tabs.pop(page, None)
             tab.pending.clear()
             tab.settled.set()

@@ -7,8 +7,9 @@ from sro.application.context import RequestContext
 from sro.application.runtime.step import Held, LaneContext, Superseded, WaitingForAPerson
 from sro.domain.execution.account import K_LEASE_TTL, LeaseState
 from sro.domain.execution.lanes import Lane, StepResult
+from sro.domain.skill.signing_in import PageSignals
 from sro.domain.skill.tabs import MAIN
-from tests.unit.runtime_support import CTX, SteelRun, steel_run
+from tests.unit.runtime_support import APP, CTX, SteelRun, steel_run
 
 POPUP = "opened_from:main"
 
@@ -168,3 +169,52 @@ async def test_a_tab_opened_by_an_attempt_another_one_superseded_is_closed() -> 
 
     assert opened and opened[0] not in world.driver.tabs
     assert len(world.lanes.ui.contexts) == 1
+
+
+async def _a_code_asked_in_the_popup() -> tuple[SteelRun, str]:
+    world = await steel_run(tabs=(MAIN, POPUP))
+    await world.vault.store(world.account.vault_key("password"), "pw")
+    await world.run_steps.prepare(CTX, world.run_id)
+    await world.run_steps.acquire(CTX, world.run_id)
+    world.driver.popups[world.progress().tabs[MAIN]] = "tab-9"
+    world.lanes.ui.answers(
+        StepResult("done", Lane.UI), StepResult("failed", Lane.UI, "signed out", expired=True)
+    )
+
+    def signed_out_in_the_popup(ctx: LaneContext) -> None:
+        if ctx.held is not None and ctx.held.target_id == "tab-9":
+            code = PageSignals(APP, autocomplete=frozenset({"one-time-code"}))
+            world.driver.signals_on["tab-9"] = code
+
+    world.lanes.ui.on_execute(signed_out_in_the_popup)
+    await _step(world)
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    await world.run_steps.release(CTX, world.run_id)
+    assert world.progress().asking["kind"] == "code"
+    assert world.progress().marks[1].tab == POPUP
+    await world.answer(outcome.asking)
+    return world, world.progress().lease
+
+
+async def test_a_code_still_asked_in_the_popup_is_seen_there_and_asked_again() -> None:
+    world, lease = await _a_code_asked_in_the_popup()
+
+    asked = await world.run_steps.acquire(CTX, world.run_id)
+
+    assert asked
+    assert world.uow.browser_sessions.leases[lease].state is LeaseState.WAITING
+    assert world.progress().tabs[POPUP] == "tab-9"
+
+
+async def test_a_code_answered_in_the_popup_resumes_there_and_leaves_its_page_alone() -> None:
+    world, lease = await _a_code_asked_in_the_popup()
+    del world.driver.signals_on["tab-9"]
+    before = len(world.driver.calls)
+
+    assert await world.run_steps.acquire(CTX, world.run_id) == ""
+
+    assert world.uow.browser_sessions.leases[lease].state is LeaseState.READY
+    assert not [one for one in world.driver.calls[before:] if one[0] == "goto"]
+    world.lanes.ui.answers(StepResult("done", Lane.UI))
+    await _step(world)
+    assert _acted_in(world)[-1] == "tab-9"

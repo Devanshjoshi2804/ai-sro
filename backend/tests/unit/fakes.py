@@ -1567,10 +1567,11 @@ class FakePageDriver:
     call as a tuple starting with the method name, for tests that check what
     was asked of the driver rather than only its answers.
 
-    `signals` answers `signals_for_every_tab`, except that with
-    `shows_sign_in_until_signed` a context not yet in `signed` answers a
-    password form: whoever drives the recorded sign-in adds the context to
-    `signed`, unless `refuses` says the system turns the password away.
+    `signals` answers `signals_for_every_tab`, except that a tab named in
+    `signals_on` answers its own, and with `shows_sign_in_until_signed` a
+    context not yet in `signed` answers a password form: whoever drives the
+    recorded sign-in adds the context to `signed`, unless `refuses` says the
+    system turns the password away.
     `expire_session` signs every context out, the way a system ending its
     session server-side does.
 
@@ -1628,6 +1629,7 @@ class FakePageDriver:
         self._holds = holds
         self._unsettled = unsettled
         self.signals_for_every_tab = PageSignals(url or "https://wms.example/app", password=sign_in)
+        self.signals_on: dict[str, PageSignals] = {}
         self.shows_sign_in_until_signed = False
         self.refuses = False
         self.signed: set[str] = set()
@@ -1839,6 +1841,8 @@ class FakePageDriver:
     async def signals(self, session: SessionRef, target_id: str) -> PageSignals:
         if self._unsettled:
             raise PageUnsettled(f"tab {target_id} did not settle")
+        if target_id in self.signals_on:
+            return self.signals_on[target_id]
         if self.shows_sign_in_until_signed and session.context_id not in self.signed:
             return PageSignals(self.tabs.get(target_id, ""), password=True)
         return self.signals_for_every_tab

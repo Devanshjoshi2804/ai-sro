@@ -398,16 +398,23 @@ class RunSteps:
         if run.outcome != "running":
             return ""
         progress = Progress.of(run.progress)
+        acting = progress.marks.get(_standing(_ordered(workflow), progress).order, StepMark()).tab
+        role = acting if acting in progress.tabs else MAIN
         try:
-            if progress.lease and progress.tabs.get(MAIN):
+            if progress.lease and progress.tabs.get(role):
                 with contextlib.suppress(PageGone):
                     kept = await self._broker.reattach(
-                        ctx, progress.lease, progress.tabs[MAIN], holder=run.id
+                        ctx, progress.lease, progress.tabs[role], holder=run.id
                     )
                     if kept.lease.state is not LeaseState.WAITING:
                         return ""
                     held = await self._broker.resume(
-                        ctx, kept.lease.id, kept.target_id, progress.start_url, holder=run_id
+                        ctx,
+                        kept.lease.id,
+                        kept.target_id,
+                        progress.start_url,
+                        holder=run_id,
+                        main=role == MAIN,
                     )
                     await self._keep_tab(ctx, run, progress, held)
                     return ""

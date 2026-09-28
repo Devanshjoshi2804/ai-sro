@@ -208,7 +208,14 @@ class SessionBroker:
         return await self.acquire(ctx, lease.account, start_url, holder=holder)
 
     async def resume(
-        self, ctx: RequestContext, lease_id: str, target_id: str, start_url: str, *, holder: str
+        self,
+        ctx: RequestContext,
+        lease_id: str,
+        target_id: str,
+        start_url: str,
+        *,
+        holder: str,
+        main: bool = True,
     ) -> Held:
         async with self._uow as uow:
             lease = await uow.browser_sessions.get_lease(ctx.tenant_id, lease_id)
@@ -232,7 +239,8 @@ class SessionBroker:
             until = now + K_LEASE_TTL
             if not await self._settle(ctx, lease, LeaseState.READY, until=until, now=now):
                 raise PageGone(f"lease {lease_id} was lost while it waited for a person")
-            await self._driver.goto(held.session, target_id, start_url)
+            if main:
+                await self._driver.goto(held.session, target_id, start_url)
             await self._save_state(lease, held.session)
             await CodeAsked(self._vault).clear(lease.account.vault_key("password"))
             await self._driver.forget_calls(held.session, target_id)

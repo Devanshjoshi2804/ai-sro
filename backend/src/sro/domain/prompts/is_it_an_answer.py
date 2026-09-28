@@ -39,7 +39,7 @@ When it IS an answer, give the value alone -- not the sentence around it."""
 
 IS_IT_AN_ANSWER = Prompt(
     name="is_it_an_answer",
-    version=1,
+    version=2,
     model="gemini-3.8-flash",
     fallback_model="gemini-3.7-flash",
     thinking=None,
@@ -66,6 +66,13 @@ IS_IT_AN_ANSWER = Prompt(
             },
         },
     },
+    rules=(
+        "The value you give is typed into a live warehouse system and nobody checks it first.",
+        "When you are not sure it answers, `answers` is false and `value` is empty.",
+        "`value` is copied from `typed` exactly as written: never completed, corrected or "
+        "taken from `asked`.",
+        "`why` goes to a log: never repeat a password, a one-time code or a token in it.",
+    ),
     edge_cases=(
         EdgeCase(
             '"use N056" typed to "What should Code be?"',
@@ -78,6 +85,14 @@ IS_IT_AN_ANSWER = Prompt(
         EdgeCase(
             '"create an equipment type instead"',
             "not an answer, `another_task`",
+        ),
+        EdgeCase(
+            '"N056, or was it N065?" typed to "What should Code be?"',
+            "not an answer: it is not sure itself",
+        ),
+        EdgeCase(
+            '"the code is acme-n056" typed to "What should Code be?"',
+            "answers, value `acme-n056` exactly as typed",
         ),
     ),
 )

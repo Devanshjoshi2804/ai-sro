@@ -281,6 +281,10 @@ _STATED: tuple[tuple[Prompt, str, str], ...] = (
     (EXTRACT_VALUES, "ask", "A value you are not sure of goes in `missing`"),
     (EXTRACT_VALUES, "citations", "Every value is copied from `request` or `context`"),
     (EXTRACT_VALUES, "secrets", "Never copy a password, a one-time code or a token into a set"),
+    (IS_IT_AN_ANSWER, "autonomy", "typed into a live warehouse system and nobody checks it first"),
+    (IS_IT_AN_ANSWER, "ask", "When you are not sure it answers, `answers` is false"),
+    (IS_IT_AN_ANSWER, "citations", "`value` is copied from `typed` exactly as written"),
+    (IS_IT_AN_ANSWER, "secrets", "never repeat a password, a one-time code or a token in it"),
 )
 
 

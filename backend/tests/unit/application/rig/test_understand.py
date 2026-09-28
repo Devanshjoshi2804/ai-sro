@@ -409,10 +409,32 @@ async def test_a_job_nobody_mailed_about_carries_no_empty_list_to_argue_with() -
 
 
 async def test_the_examples_are_read_off_the_gestures_the_jobs_cite() -> None:
+    """The mail that asked is the job's first step; the client is made in the
+    WMS. A job that is mail alone is the Gmail tool's, never a candidate (M4)."""
     uow = FakeUnitOfWork()
-    await uow.workflows.save(WFS[0])
+    await uow.workflows.save(
+        replace(
+            WFS[0],
+            steps=[
+                Step(order=0, says="open the mail", system=None, cites=["g"]),
+                Step(order=1, says="s", system=None, cites=["w"], parameters=["clientCode"]),
+            ],
+        )
+    )
     await uow.gestures.add_gestures(
         (
+            Gesture(
+                id="w",
+                tenant=TENANT.value,
+                stream_id="str-1",
+                batch_id="bat-1",
+                at=20.0,
+                url="https://wms.example/clients",
+                system="https://wms.example",
+                tab_id=7,
+                frame_url=None,
+                action=Action(kind="type", at=20.0, value="A", target=Target(name="Client code")),
+            ),
             Gesture(
                 id="g",
                 tenant=TENANT.value,

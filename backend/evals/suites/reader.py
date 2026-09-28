@@ -17,6 +17,7 @@ from sro.domain.chat.asked_by import mails_behind, texts
 from sro.domain.chat.request import Candidate
 from sro.domain.execution.compose import normal
 from sro.domain.execution.field_classes import FieldClass, FieldLimits
+from sro.domain.execution.mail_job import is_mail_only
 from sro.domain.prompts.read_request import READ_REQUEST
 from sro.domain.prompts.record import quoted_in
 from sro.domain.shared.identifiers import TenantId
@@ -74,7 +75,7 @@ class Reader:
         found = []
         for one in facts:
             workflow = one.workflow
-            if workflow.signs_in:
+            if workflow.signs_in or is_mail_only(workflow, one.by_id):
                 continue
             same = [w.id for w in workflows if normal(w.title) == normal(workflow.title)]
             for mail in texts(mails_behind(workflow, one.by_id)):

@@ -10,8 +10,3 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/gemini/nul
 > are the part that actually runs, are captured either way. And candidates keep
 > their derived titles and get no join suggestions, which is a duller list rather
 > than a broken one.
-
-## `NoInterpreter.name_task`, [line 14](../../../../../../../backend/src/sro/infrastructure/gemini/null_interpreter.py#L14): Docstring
-
-> Nothing, so the derived title stands. A deployment that may not call
-> a hosted model still mines, still offers candidates, still teaches.

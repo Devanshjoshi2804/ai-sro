@@ -15,7 +15,7 @@ import pytest
 from sro.application.context import RequestContext
 from sro.application.ports.vision import Screen
 from sro.application.recording.attach_artifact import AttachArtifact
-from sro.domain.prompts.interpret import INTERPRET, JUDGE_VARIANT, JUDGE_WORKFLOW, NAME_SKILL
+from sro.domain.prompts.interpret import INTERPRET
 from sro.domain.prompts.read_sentence import EXTRACT_VALUES, READ_SENTENCE
 from sro.domain.prompts.sight import SIGHT, SIGHT_ESCALATED
 from sro.domain.prompts.transcribe import TRANSCRIBE
@@ -115,28 +115,17 @@ async def test_parameter_names_are_fenced_because_they_are_page_labels() -> None
     assert _closes(evidence) == _opens(evidence) == 2
 
 
-async def test_the_interpreter_asks_each_question_on_its_own_record() -> None:
+async def test_the_interpreter_asks_on_its_record() -> None:
     models = _Models()
     interpreter = GeminiInterpreter(client=_client(models))
 
     await interpreter.read(_BREAKOUT)
-    await interpreter.name_task(_BREAKOUT)
-    await interpreter.judge_join("variant", _BREAKOUT, "the other")
-    await interpreter.judge_join("workflow", _BREAKOUT, "the other")
-    await interpreter.judge_join("guess", "one", "two")
 
-    read, named, variant, workflow = models.asked
-    for asked, prompt in (
-        (read, INTERPRET),
-        (named, NAME_SKILL),
-        (variant, JUDGE_VARIANT),
-        (workflow, JUDGE_WORKFLOW),
-    ):
-        assert asked["model"] == prompt.model
-        assert asked["contents"][0] == prompt.instructions
-        evidence = asked["contents"][1]
-        assert _closes(evidence) == _opens(evidence) >= 1, prompt.name
-    assert len(models.asked) == 4, "a kind nobody wrote a question for is never asked"
+    [asked] = models.asked
+    assert asked["model"] == INTERPRET.model
+    assert asked["contents"][0] == INTERPRET.instructions
+    evidence = asked["contents"][1]
+    assert _closes(evidence) == _opens(evidence) >= 1
 
 
 async def test_the_transcriber_asks_on_its_record() -> None:

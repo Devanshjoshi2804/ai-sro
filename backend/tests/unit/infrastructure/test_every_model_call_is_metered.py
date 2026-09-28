@@ -136,16 +136,15 @@ async def test_the_interpreter_is_capped_and_billed() -> None:
 
     with about(tenant="acme"):
         await interpreter.read("evidence")
-        await interpreter.name_task("evidence")
 
-    assert [(row.tenant, row.in_tokens) for row in _rows(uow)] == [("acme", 100)] * 2
+    assert [(row.tenant, row.in_tokens) for row in _rows(uow)] == [("acme", 100)]
 
     capped = FakeUnitOfWork()
     await capped.spend.record(_spent("acme", 6.0))
     over, _ = _metered(models, cap_usd=5.0, uow=capped)
     with about(tenant="acme"):
         await GeminiInterpreter(client=over).read("evidence")
-    assert models.called == 2
+    assert models.called == 1
 
 
 async def test_the_vision_driver_is_billed() -> None:

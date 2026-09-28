@@ -31,7 +31,7 @@ Plain text, no placeholders, no signature beyond the operator's name if you know
 
 WRITE_MAIL = Prompt(
     name="write_mail",
-    version=4,
+    version=5,
     model="gemini-3.8-flash",
     fallback_model="gemini-3.7-flash",
     thinking=None,

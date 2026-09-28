@@ -25,7 +25,7 @@ Code: `K_FENCE = "untrusted"`
 > where the operator's sentence stops and the system's begins; a named block it
 > does see the edges of.
 
-## `Prompt`, [line 30](../../../../../../../backend/src/sro/domain/prompts/record.py#L30): Docstring
+## `Prompt`, [line 36](../../../../../../../backend/src/sro/domain/prompts/record.py#L36): Docstring
 
 > `role` is the old prompt's text up to its first blank line and `task` is
 > the rest, both moved verbatim when the prompts became records; `role` +
@@ -33,7 +33,7 @@ Code: `K_FENCE = "untrusted"`
 > `output_schema` is a `Mapping` so a record cannot be edited in place;
 > `ask` hands the asker a `dict` copy.
 
-## `Prompt.evidence`, [line 60](../../../../../../../backend/src/sro/domain/prompts/record.py#L60): Docstring
+## `Prompt.evidence`, [line 66](../../../../../../../backend/src/sro/domain/prompts/record.py#L66): Docstring
 
 > The task first, the evidence, then the task again.
 >
@@ -45,20 +45,20 @@ Code: `K_FENCE = "untrusted"`
 > the shape of every prompt: `instructions` opens with the task, and this
 > closes with it, once each.
 
-## `fenced`, [line 90](../../../../../../../backend/src/sro/domain/prompts/record.py#L90): Docstring
+## `fenced`, [line 96](../../../../../../../backend/src/sro/domain/prompts/record.py#L96): Docstring
 
 > A fence the text inside cannot close. Any closing tag in the text is
 > written `<\/untrusted`, so the one closing tag in the block is the one
 > this function wrote. "Any" is `_CLOSES`: case and whitespace do not matter,
 > because a model reads `</UNTRUSTED>` and `</ untrusted>` as the same close.
 
-## `quoted_in`, [line 95](../../../../../../../backend/src/sro/domain/prompts/record.py#L95): Docstring
+## `quoted_in`, [line 101](../../../../../../../backend/src/sro/domain/prompts/record.py#L101): Docstring
 
 > Whether a quote a model cites occurs in what it was given. Whitespace and
 > case are folded, because a model re-wraps and re-cases what it quotes; an
 > empty quote proves nothing and is never "in" anything.
 
-## `conforms`, [line 100](../../../../../../../backend/src/sro/domain/prompts/record.py#L100): Docstring
+## `conforms`, [line 106](../../../../../../../backend/src/sro/domain/prompts/record.py#L106): Docstring
 
 > Whether an answer matches its schema. A miss is no answer (Global Constraint
 > 10): code validates every model answer, and an answer that breaks its schema
@@ -72,7 +72,7 @@ Code: `K_FENCE = "untrusted"`
 > the subset reaches. Upgrade path: `jsonschema`, once a record needs more.
 > Keys the schema does not name are allowed, as Gemini allows them.
 
-## `Prompt.kept`, [line 68](../../../../../../../backend/src/sro/domain/prompts/record.py#L68): Docstring
+## `Prompt.kept`, [line 74](../../../../../../../backend/src/sro/domain/prompts/record.py#L74): Docstring
 
 > The answer with every item of the record's `unit` that breaks its schema
 > dropped, and the rest kept. A record names its unit when its answer is a
@@ -95,7 +95,7 @@ Code: `K_FENCE = "untrusted"`
 > whole answer unsure, because the answer means nothing without it. An absent
 > optional field is left absent, not filled in.
 
-## `Prompt`, [line 42](../../../../../../../backend/src/sro/domain/prompts/record.py#L42): Note on the line above
+## `Prompt`, [line 48](../../../../../../../backend/src/sro/domain/prompts/record.py#L48): Note on the line above
 
 Code: `fallback_model: str | None = None`
 
@@ -122,7 +122,7 @@ Code: `fallback_model: str | None = None`
 > its markdown shows the count, so a run that leaned on 3.7-flash is visible
 > without changing the gate.
 
-## `conforms`, [line 124](../../../../../../../backend/src/sro/domain/prompts/record.py#L124): Note on the line above
+## `conforms`, [line 130](../../../../../../../backend/src/sro/domain/prompts/record.py#L130): Note on the line above
 
 Code: `pattern = schema.get("pattern")`
 
@@ -130,3 +130,17 @@ Code: `pattern = schema.get("pattern")`
 > model is told the same pattern (Gemini honours `pattern`); this is the
 > check that it kept to it. `re.search`, so a pattern is found anywhere in
 > the string, as JSON Schema means it.
+
+## module, [line 21](../../../../../../../backend/src/sro/domain/prompts/record.py#L21): Note
+
+Code: `SECRETS_RULE = (`
+
+> The two rules every product prompt shares -- what it is given is data, and a
+> secret is never written into an answer -- are said once, here, and appended by
+> `Prompt.instructions` after each record's own rules. P5 first wrote them into
+> every record in its own words: some twenty near-copies of one sentence, each
+> paid for on every call and each one more place to drift. A record's `rules`
+> hold only what was decided for that record (MINE's small, once, mail and
+> chores; PLAN_STEP's secret fields filled by the run; TRANSCRIBE's `[secret]`).
+> `UNTRUSTED_RULE` names images and audio as well, since a screenshot or a
+> narration is not fenced text and the per-record copies existed to cover them.

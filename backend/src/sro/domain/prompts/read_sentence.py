@@ -51,8 +51,6 @@ READ_SENTENCE = Prompt(
         "your reading first.",
         "When you are unsure, give a low confidence rather than a confident guess.",
         "Every value in `values` is copied from `sentence` or `before` as written.",
-        "Never put a password, a one-time code or a token in `values`, even when the "
-        "sentence gives one.",
     ),
     edge_cases=(
         EdgeCase('"how many are there"', "wants `ask`"),
@@ -119,8 +117,6 @@ EXTRACT_VALUES = Prompt(
         "These values are typed into a live warehouse system with no person checking them first.",
         "A value you are not sure of goes in `missing`, not in a set.",
         "Every value is copied from `request` or `context`; a parameter name is never a value.",
-        "Never copy a password, a one-time code or a token into a set, even when the request "
-        "gives one.",
     ),
     edge_cases=(
         EdgeCase('"update these six SKUs", with six named', "six sets"),

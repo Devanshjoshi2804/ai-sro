@@ -31,24 +31,8 @@ class Reading:
     caveat: str = ""
 
 
-@dataclass(frozen=True, slots=True)
-class TaskName:
-    title: str = ""
-    because: str = ""
-
-
-@dataclass(frozen=True, slots=True)
-class Judgement:
-    joined: bool = False
-    because: str = ""
-
-
 class WorkflowInterpreter(Protocol):
     @property
     def available(self) -> bool: ...
 
     async def read(self, evidence: str) -> Reading: ...
-
-    async def name_task(self, evidence: str) -> TaskName: ...
-
-    async def judge_join(self, kind: str, first: str, second: str) -> Judgement: ...

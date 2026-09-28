@@ -48,7 +48,7 @@ Code: `model="gemini-3.8-flash",`
 >
 > It was the setting `gemini_plan_model` until the prompts became records.
 
-## module, [line 92](../../../../../../../backend/src/sro/domain/prompts/plan_step.py#L92): Note on the line above
+## module, [line 89](../../../../../../../backend/src/sro/domain/prompts/plan_step.py#L89): Note on the line above
 
 Code: `PLAN_STEP_ESCALATED = replace(`
 

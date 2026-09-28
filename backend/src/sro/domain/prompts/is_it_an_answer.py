@@ -71,7 +71,6 @@ IS_IT_AN_ANSWER = Prompt(
         "When you are not sure it answers, `answers` is false and `value` is empty.",
         "`value` is copied from `typed` exactly as written: never completed, corrected or "
         "taken from `asked`.",
-        "`why` goes to a log: never repeat a password, a one-time code or a token in it.",
     ),
     edge_cases=(
         EdgeCase(

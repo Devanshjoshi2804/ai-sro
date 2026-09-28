@@ -11,23 +11,14 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/gemini/int
 > name the values that look like inputs. It is never asked what the system *should*
 > do, or to invent a step nobody performed.
 
-## `_parse`, [line 90](../../../../../../../backend/src/sro/infrastructure/gemini/interpreter.py#L90): Docstring
+## `_parse`, [line 39](../../../../../../../backend/src/sro/infrastructure/gemini/interpreter.py#L39): Docstring
 
 > A bad shape is a reading with nothing in it, not an exception.
 >
 > The demonstration is still perfectly usable without a narrative: the calls
 > are the skill, and the description is what makes it findable.
 
-## `GeminiInterpreter._ask`, [line 65](../../../../../../../backend/src/sro/infrastructure/gemini/interpreter.py#L65): Docstring
-
-> A structured answer, or `None` for anything that went wrong.
->
-> Both callers of this are proposals about candidates -- a sentence on a
-> list and a suggestion beside it. Neither is worth an exception: what a
-> candidate *is* was decided before this was asked, and stands whatever
-> comes back.
-
-## `GeminiInterpreter.read`, [line 41](../../../../../../../backend/src/sro/infrastructure/gemini/interpreter.py#L41): Comment
+## `GeminiInterpreter.read`, [line 34](../../../../../../../backend/src/sro/infrastructure/gemini/interpreter.py#L34): Comment
 
 Code: `logger.warning("the interpreter did not answer; inducing without a reading")`
 

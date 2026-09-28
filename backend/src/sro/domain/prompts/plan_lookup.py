@@ -65,8 +65,7 @@ PLAN_LOOKUP = Prompt(
         "If you are not sure a lookup answers the question, leave it out.",
         "Every `target` and every `cites` entry is a key from the knowledge you were given, "
         "copied exactly.",
-        "Never put a password, a one-time code or a token in `params`, and never plan a "
-        "lookup for one.",
+        "Never plan a lookup for a password, a one-time code or a token.",
     ),
     edge_cases=(
         EdgeCase(

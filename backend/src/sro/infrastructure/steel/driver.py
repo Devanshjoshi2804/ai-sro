@@ -46,6 +46,9 @@ K_NO_DOCUMENT = frozenset({204, 205})
 K_SCROLL_PX = 400
 K_REQUESTS_KEPT = 200
 K_ALIVE_RESERVE_S = 0.25
+K_APPEAR_S = 15
+K_APPEAR_POLL_S = 0.25
+_NOT_DRAWN_YET = frozenset({"control_not_found", "frame_not_found"})
 
 _SIGNALS = "() => globalThis.sroPage.signals()"
 _HIT_TEST = "([x, y]) => globalThis.sroPage.hitTest(x, y)"
@@ -515,6 +518,17 @@ class SteelDriver:
         return (None, "frame_ambiguous") if holding else (page.main_frame, "")
 
     async def act(
+        self, session: SessionRef, target_id: str, payload: Mapping[str, object]
+    ) -> PageAnswer:
+        loop = asyncio.get_running_loop()
+        until = loop.time() + K_APPEAR_S
+        while True:
+            answer = await self._act_once(session, target_id, payload)
+            if answer.error_kind not in _NOT_DRAWN_YET or loop.time() >= until:
+                return answer
+            await asyncio.sleep(K_APPEAR_POLL_S)
+
+    async def _act_once(
         self, session: SessionRef, target_id: str, payload: Mapping[str, object]
     ) -> PageAnswer:
         page = await self._page(session, target_id)

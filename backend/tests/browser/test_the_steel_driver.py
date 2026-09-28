@@ -1340,3 +1340,20 @@ async def test_a_mark_whose_connection_went_away_is_page_gone(
 
     with pytest.raises(PageGone):
         await driver.mark(one, target)
+
+
+async def test_act_waits_for_a_control_the_page_draws_late(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    """Greyorange, 2026-09-28: a Steel sign-in clicked for the identity chooser
+    while the redirect was still drawing it, found nothing, and the run stopped.
+    A control the page has not drawn yet is waited for; nothing was sent meanwhile."""
+    target = await driver.open_tab(one, rig.url("/late"))
+
+    pressed = await driver.act(
+        one, target, {"action": "click", "value": None, "target": {"css_path": "#late"}}
+    )
+
+    assert pressed.ok

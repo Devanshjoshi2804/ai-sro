@@ -24,6 +24,11 @@ from sro.infrastructure.steel.client import websocket_debugger_url
 from sro.infrastructure.steel.driver import SteelDriver
 
 _PUBLIC_PAGE = "<!doctype html><html><body><h1>public</h1></body></html>"
+_LATE_PAGE = """<!doctype html><html><body><script>
+setTimeout(() => { const b = document.createElement("button"); b.id = "late";
+  b.textContent = "Late"; b.onclick = () => { b.textContent = "Pressed"; };
+  document.body.appendChild(b); }, 1500);
+</script></body></html>"""
 
 _FRAMED_PAGE = """<!doctype html><html><body>
   <iframe src="/public"></iframe><iframe src="/app"></iframe>
@@ -232,6 +237,8 @@ def _handler_for(rig: Rig) -> type[BaseHTTPRequestHandler]:
 
             if path == "/public":
                 self._html(_PUBLIC_PAGE)
+            elif path == "/late":
+                self._html(_LATE_PAGE)
             elif path == "/framed":
                 self._html(_FRAMED_PAGE)
             elif path == "/landing":

@@ -3,9 +3,10 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Coroutine, Sequence
 from dataclasses import replace
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
-from sro.application.chat.mailbox import SERVER
+from sro.application.chat.mailbox import SERVER, mail_key
 from sro.application.chat.read_chat import ReadChat
 from sro.application.chat.reading_an_answer import IsItAnAnswer
 from sro.application.chat.understand import Understood
@@ -50,11 +51,16 @@ from sro.domain.chat.asking import (
     turned_down,
 )
 from sro.domain.chat.request import Candidate
-from sro.domain.chat.standing import last_run, of_the_run, stands
+from sro.domain.chat.standing import last_run, of_a_mail_run, of_the_run, stands
 from sro.domain.chat.thread import Message, MessageId, Said, Speaker, Thread, ThreadId
 from sro.domain.execution.compose import alias_map
 from sro.domain.execution.field_classes import field_classes
-from sro.domain.execution.mail_job import DRAFT_QUESTIONS, built_in, built_ins
+from sro.domain.execution.mail_job import (
+    DRAFT_QUESTIONS,
+    LOOK_IN_THE_MAIL,
+    built_in,
+    built_ins,
+)
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.run import Run, RunId, RunStatus, StepDisposition
 from sro.domain.execution.workflow_run import OfferTaken, WorkflowRun, answers_for
@@ -64,6 +70,7 @@ from sro.domain.shared.errors import Conflict, DomainError
 from sro.domain.skill.skill import Skill
 
 if TYPE_CHECKING:
+    from sro.application.chat.from_the_mail import FromTheMail
     from sro.application.execution.workflow_runs import StartWorkflowRun
     from sro.application.runtime.answer_run import AnswerRun
 
@@ -101,6 +108,14 @@ class _Closed(Exception): ...
 
 NOT_ASKED = _NotAsked()
 
+K_MAIL_RUNS = 20
+
+K_MAIL_DAY = timedelta(days=1)
+
+K_LOOK = Candidate(
+    LOOK_IN_THE_MAIL, "Look in the mail for new work now", fields=(), aliases={}, seen={}
+)
+
 
 class Converse:
     def __init__(
@@ -123,8 +138,10 @@ class Converse:
         start: StartWorkflowRun | None = None,
         spawn: Callable[[Coroutine[object, object, None]], None] | None = None,
         attempts: RecordAttempt | None = None,
+        look: FromTheMail | None = None,
     ) -> None:
         self._uow = uow
+        self._look = look
         self._answer_run = answer_run
         self._resolver = resolver
         self._reads_jobs = reads_jobs
@@ -856,7 +873,9 @@ class Converse:
         if self._reads_jobs is None:
             return None
         try:
-            placed = await self._reads_jobs.execute(ctx, utterance=text)
+            placed = await self._reads_jobs.execute(
+                ctx, utterance=text, also=(K_LOOK,) if self._look is not None else ()
+            )
         except Exception:
             logger.info("the rig could not place %r; asking the skills instead", text[:40])
             return None
@@ -865,6 +884,8 @@ class Converse:
     async def _say_the_job(
         self, ctx: RequestContext, *, thread_id: ThreadId, text: str, placed: Understood
     ) -> Thread:
+        if placed.workflow_id == LOOK_IN_THE_MAIL and self._look is not None:
+            return await self._look_in_the_mail(ctx, self._look, thread_id=thread_id, text=text)
         mail = built_in(placed.workflow_id or "", ctx.tenant_id.value)
         if mail is not None and placed.sure and not placed.cannot_run and not placed.missing:
             request = Message(
@@ -978,6 +999,54 @@ class Converse:
             await uow.threads.save(thread)
             await uow.commit()
         return thread
+
+    async def _look_in_the_mail(
+        self, ctx: RequestContext, look: FromTheMail, *, thread_id: ThreadId, text: str
+    ) -> Thread:
+        await self._also_said(ctx, thread_id=thread_id, text=text)
+        started: set[str] = set()
+        try:
+            looked = await look.execute(ctx)
+            said = looked.said()
+            started = {mail_key(one.message) for one in looked.offered}
+        except (OverCap, AskerUnavailable) as refused:
+            said = f"I could not look in the mail: {refused}."
+        earlier = await self._mail_runs(ctx, besides=started)
+        if earlier:
+            said += "\nFrom the mail earlier:\n" + "\n".join(f"- {one}" for one in earlier)
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            thread.say(
+                Message(
+                    id=self._ids.new_message_id(),
+                    speaker=Speaker.ASSISTANT,
+                    text=said,
+                    said_at=self._clock.now(),
+                    decision={"kind": Said.MAIL_LOOKED},
+                )
+            )
+            await uow.threads.save(thread)
+            await uow.commit()
+        return thread
+
+    async def _mail_runs(self, ctx: RequestContext, *, besides: set[str]) -> list[str]:
+        since = self._clock.now() - K_MAIL_DAY
+        async with self._uow as uow:
+            runs = [
+                run
+                for run in await uow.workflow_runs.recent(ctx.tenant_id, limit=K_MAIL_RUNS)
+                if run.mail
+                and run.offer not in besides
+                and answers_for(run, ctx.principal_id.value)
+                and datetime.fromisoformat(run.started_at) >= since
+            ]
+            titles = {
+                run.id: run.pinned.title
+                if run.pinned is not None
+                else (await uow.workflows.get(ctx.tenant_id, run.workflow_id)).title
+                for run in runs
+            }
+        return [of_a_mail_run(run, titles[run.id]) for run in runs]
 
     async def _ask_which(
         self,

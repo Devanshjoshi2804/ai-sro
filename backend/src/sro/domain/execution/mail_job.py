@@ -93,6 +93,8 @@ FORWARD_A_MAIL: Final = "mail_forward"
 
 ON_A_MAIL: Final = frozenset({REPLY_TO_A_MAIL, FORWARD_A_MAIL})
 
+LOOK_IN_THE_MAIL: Final = "mail_look"
+
 _BUILT_IN: Final = {
     SEND_A_MAIL: ("Send an email", "writes a new email to whoever the operator names"),
     REPLY_TO_A_MAIL: ("Reply to an email", "answers the email in the conversation"),

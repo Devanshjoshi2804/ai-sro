@@ -11,6 +11,7 @@ from collections.abc import Mapping
 from dataclasses import asdict
 from datetime import datetime
 from typing import Annotated, Any, Literal
+from urllib.parse import quote
 
 from pydantic import BaseModel, Field, StrictInt, StringConstraints
 
@@ -2871,6 +2872,35 @@ class WorkflowRunStepModel(BaseModel):
         return cls(**asdict(step))
 
 
+class RunMailModel(BaseModel):
+    """The mail a run came from: who sent it, what it was called, when it
+    arrived and where to open it. Never its body -- the subject is as much of
+    the mail as leaves the mailbox.
+
+    A run a person started in answer to a mail's question knows only the
+    conversation, so everything but `thread` and `link` may be empty."""
+
+    subject: str = ""
+    sender: str = ""
+    arrived: str = ""
+    """ISO 8601, from the mail's own Date header; empty where it had none."""
+
+    thread: str = ""
+    link: str = ""
+    """The conversation in Gmail, for the card's "open the mail"."""
+
+    @classmethod
+    def of(cls, mail: Mapping[str, str]) -> RunMailModel:
+        thread = mail.get("thread", "")
+        return cls(
+            subject=mail.get("subject", ""),
+            sender=mail.get("sender", ""),
+            arrived=mail.get("arrived", ""),
+            thread=thread,
+            link=f"https://mail.google.com/mail/#all/{quote(thread)}" if thread else "",
+        )
+
+
 class WorkflowRunModel(BaseModel):
     """One run of a mined workflow, whole.
 
@@ -3012,6 +3042,16 @@ class WorkflowRunModel(BaseModel):
     browser. Null otherwise, and on every list row: only the one-run read asks
     Steel. The viewer's address and the tab, never a CDP url."""
 
+    offer: str | None = None
+    """The offer this run is the one run of -- `mail:<message id>` for a
+    mail's. The panel ends any card still offering it, so a mail that already
+    ran is shown as its run and never offered again."""
+
+    mail: RunMailModel | None = None
+    """The mail this run came from, on the list rows as well as the one-run
+    read: the panel's Home draws a card per mail-started run from the list it
+    polls. Null for every run no mail started."""
+
     @classmethod
     def of(
         cls,
@@ -3051,6 +3091,8 @@ class WorkflowRunModel(BaseModel):
             undoes_run=run.undoes_run,
             try_again=can_try_again(run),
             live_view_url=live_view_url or None,
+            offer=run.offer,
+            mail=RunMailModel.of(run.mail) if run.mail else None,
         )
 
 

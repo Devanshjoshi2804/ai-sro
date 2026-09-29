@@ -319,7 +319,7 @@ Code: `pinned: Workflow | None = None`
 > leaves it out. None on an extension run, which holds its job in memory for
 > its whole life.
 
-## `answers_for`, [line 144](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L144): Note
+## `answers_for`, [line 146](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L146): Note
 
 Code: `return principal in {run.started_by, opened_by} - {""}`
 
@@ -331,7 +331,7 @@ Code: `return principal in {run.started_by, opened_by} - {""}`
 > questions in that thread. Never pass it to grant an answer. An empty
 > `started_by` (a legacy row) matches nobody.
 
-## `end_the_steps`, [line 132](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L132): Docstring
+## `end_the_steps`, [line 134](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L134): Docstring
 
 > Record why a run ended without its own finish (the stuck-run sweep, the
 > startup orphan sweep). A step that settled (`done`, `skipped`,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
 
 from sro.application.chat.understand import Understood, read_utterance
@@ -9,6 +10,7 @@ from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.application.shared.refusals import OverCap
+from sro.domain.chat.request import Candidate
 
 __all__ = ["ReadChat"]
 
@@ -27,7 +29,9 @@ class ReadChat:
         self._clock = clock
         self._cap_usd = cap_usd
 
-    async def execute(self, ctx: RequestContext, *, utterance: str) -> Understood:
+    async def execute(
+        self, ctx: RequestContext, *, utterance: str, also: Sequence[Candidate] = ()
+    ) -> Understood:
         asker = asker_or_refuse(self._asker)
         now: datetime = self._clock.now()
         async with self._uow as uow:
@@ -40,4 +44,5 @@ class ReadChat:
                 utterance=utterance,
                 asker=asker,
                 now=now,
+                also=also,
             )

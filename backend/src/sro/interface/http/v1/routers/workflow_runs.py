@@ -175,6 +175,7 @@ async def list_workflow_runs(
     workflow_id: Annotated[str | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 20,
     awaiting: Annotated[bool, Query()] = False,
+    mine: Annotated[bool, Query()] = False,
 ) -> list[WorkflowRunModel]:
     """The most recent runs, newest first, as one row each.
 
@@ -202,9 +203,13 @@ async def list_workflow_runs(
     The rig did `max(1, min(limit, 200))`; a caller that asks for 5000 and
     silently gets 200 cannot tell a cap from a truncated answer, and FastAPI
     says this once, in the place the generated client reads.
+
+    `mine` keeps only the runs the caller started, out of the `limit` newest:
+    the panel's Home draws a card per mail-started run, and a colleague's mail
+    is not this operator's to be shown.
     """
     runs = await container.list_workflow_runs().execute(
-        ctx, workflow_id=workflow_id, limit=limit, awaiting=awaiting
+        ctx, workflow_id=workflow_id, limit=limit, awaiting=awaiting, mine=mine
     )
     return [WorkflowRunModel.of(run) for run in runs]
 

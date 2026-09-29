@@ -22868,7 +22868,7 @@
           "workflow-runs"
         ],
         "summary": "List Workflow Runs",
-        "description": "The most recent runs, newest first, as one row each.\n\nPorted from `runs` in `new_agent_arch/src/rig/api.py:1152`, and this keeps\nits order: newest first, capped. That is deliberately not\n`WorkflowRunRepository.for_workflow`'s ascending order -- that one is the\nevidence order `proofs` reads, and its docstring used to cite the rig for\nit, which is exactly backwards. A person opening a list wants what happened\nlast at the top.\n\n**The rows are whole, where the rig sent one line each with the full record\na `GET` away.** `WorkflowRunModel` is what the press already answers with,\nand a panel that has to make a second request per row to show a parked step\nis a panel that makes twenty.\n\nThat is also how the divergence this plan settles reaches the wire. The rig\nreported the deepest parked step of each run, in an `awaiting` field of its\nown; this reports every parked step, `ord` ascending, in `steps` -- the\nones with `verdict == \"awaiting\"`. **Plan 4b's ruling**, written here and on\n`WorkflowRunRepository.awaiting`: anyone may answer a parked run, and a\nqueue that hides all but the deepest step hides work from the person who\ncould clear it.\n\n`limit` is validated rather than clamped, which is the one other deviation.\nThe rig did `max(1, min(limit, 200))`; a caller that asks for 5000 and\nsilently gets 200 cannot tell a cap from a truncated answer, and FastAPI\nsays this once, in the place the generated client reads.",
+        "description": "The most recent runs, newest first, as one row each.\n\nPorted from `runs` in `new_agent_arch/src/rig/api.py:1152`, and this keeps\nits order: newest first, capped. That is deliberately not\n`WorkflowRunRepository.for_workflow`'s ascending order -- that one is the\nevidence order `proofs` reads, and its docstring used to cite the rig for\nit, which is exactly backwards. A person opening a list wants what happened\nlast at the top.\n\n**The rows are whole, where the rig sent one line each with the full record\na `GET` away.** `WorkflowRunModel` is what the press already answers with,\nand a panel that has to make a second request per row to show a parked step\nis a panel that makes twenty.\n\nThat is also how the divergence this plan settles reaches the wire. The rig\nreported the deepest parked step of each run, in an `awaiting` field of its\nown; this reports every parked step, `ord` ascending, in `steps` -- the\nones with `verdict == \"awaiting\"`. **Plan 4b's ruling**, written here and on\n`WorkflowRunRepository.awaiting`: anyone may answer a parked run, and a\nqueue that hides all but the deepest step hides work from the person who\ncould clear it.\n\n`limit` is validated rather than clamped, which is the one other deviation.\nThe rig did `max(1, min(limit, 200))`; a caller that asks for 5000 and\nsilently gets 200 cannot tell a cap from a truncated answer, and FastAPI\nsays this once, in the place the generated client reads.\n\n`mine` keeps only the runs the caller started, out of the `limit` newest:\nthe panel's Home draws a card per mail-started run, and a colleague's mail\nis not this operator's to be shown.",
         "operationId": "list_workflow_runs_v1_workflow_runs_get",
         "parameters": [
           {
@@ -22907,6 +22907,16 @@
               "type": "boolean",
               "default": false,
               "title": "Awaiting"
+            }
+          },
+          {
+            "name": "mine",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Mine"
             }
           },
           {
@@ -27810,6 +27820,38 @@
         "title": "RunFromPreviewRequest",
         "description": "The press. No `authorized_by` field: reading the preview and pressing\n`Do it` is the confirmation, not a second box to tick on top of it."
       },
+      "RunMailModel": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "title": "Subject",
+            "default": ""
+          },
+          "sender": {
+            "type": "string",
+            "title": "Sender",
+            "default": ""
+          },
+          "arrived": {
+            "type": "string",
+            "title": "Arrived",
+            "default": ""
+          },
+          "thread": {
+            "type": "string",
+            "title": "Thread",
+            "default": ""
+          },
+          "link": {
+            "type": "string",
+            "title": "Link",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "RunMailModel",
+        "description": "The mail a run came from: who sent it, what it was called, when it\narrived and where to open it. Never its body -- the subject is as much of\nthe mail as leaves the mailbox.\n\nA run a person started in answer to a mail's question knows only the\nconversation, so everything but `thread` and `link` may be empty."
+      },
       "RunModel": {
         "properties": {
           "id": {
@@ -30099,6 +30141,27 @@
               }
             ],
             "title": "Live View Url"
+          },
+          "offer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offer"
+          },
+          "mail": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunMailModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

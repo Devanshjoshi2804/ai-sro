@@ -2407,6 +2407,7 @@ class FakeWorkflowRunRepository:
         existing = self.rows.get(run.id)
         kept.progress = dict(run.progress) if existing is None else dict(existing.progress)
         kept.pinned = kept.pinned if existing is None else deepcopy(existing.pinned)
+        kept.mail = kept.mail if existing is None else deepcopy(existing.mail)
         # An ended run keeps how and when it ended, same as the store's
         # `CASE` on `outcome`/`finished_at`: a stale copy saved by a worker
         # that loaded the run before a stop cannot reopen it.

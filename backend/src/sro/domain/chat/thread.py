@@ -35,6 +35,8 @@ class Said(StrEnum):
 
     FAILURE = "failure"
 
+    MAIL_LOOKED = "mail_looked"
+
 
 @dataclass(frozen=True, slots=True)
 class Message:

@@ -1819,6 +1819,10 @@ export interface paths {
          *     The rig did `max(1, min(limit, 200))`; a caller that asks for 5000 and
          *     silently gets 200 cannot tell a cap from a truncated answer, and FastAPI
          *     says this once, in the place the generated client reads.
+         *
+         *     `mine` keeps only the runs the caller started, out of the `limit` newest:
+         *     the panel's Home draws a card per mail-started run, and a colleague's mail
+         *     is not this operator's to be shown.
          */
         get: operations["list_workflow_runs_v1_workflow_runs_get"];
         put?: never;
@@ -3676,6 +3680,42 @@ export interface components {
             /** Version */
             version: number;
         };
+        /**
+         * RunMailModel
+         * @description The mail a run came from: who sent it, what it was called, when it
+         *     arrived and where to open it. Never its body -- the subject is as much of
+         *     the mail as leaves the mailbox.
+         *
+         *     A run a person started in answer to a mail's question knows only the
+         *     conversation, so everything but `thread` and `link` may be empty.
+         */
+        RunMailModel: {
+            /**
+             * Subject
+             * @default
+             */
+            subject: string;
+            /**
+             * Sender
+             * @default
+             */
+            sender: string;
+            /**
+             * Arrived
+             * @default
+             */
+            arrived: string;
+            /**
+             * Thread
+             * @default
+             */
+            thread: string;
+            /**
+             * Link
+             * @default
+             */
+            link: string;
+        };
         /** RunModel */
         RunModel: {
             /** Id */
@@ -4677,6 +4717,9 @@ export interface components {
             undoes_run?: string | null;
             /** Live View Url */
             live_view_url?: string | null;
+            /** Offer */
+            offer?: string | null;
+            mail?: components["schemas"]["RunMailModel"] | null;
         };
         /**
          * WorkflowRunStepModel
@@ -14466,6 +14509,7 @@ export interface operations {
                 workflow_id?: string | null;
                 limit?: number;
                 awaiting?: boolean;
+                mine?: boolean;
             };
             header?: {
                 authorization?: string | null;

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import replace
 from datetime import timedelta
 from typing import Any
@@ -19,6 +20,7 @@ from sro.application.intent.resolve import Resolution, ResolveIntent
 from sro.application.knowledge.record_claim import Claim, RecordClaims
 from sro.application.knowledge.retrieve import Retrieve
 from sro.domain.chat.asking import NEEDS, Pending, offered_job, pending_job
+from sro.domain.chat.request import Candidate
 from sro.domain.chat.thread import Message, MessageId, Speaker, ThreadId
 from sro.domain.execution.run import RunId
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel
@@ -226,7 +228,9 @@ class _PlacesTheJob(ReadChat):
         self.raises = raises
         self.asked: list[str] = []
 
-    async def execute(self, ctx: RequestContext, *, utterance: str) -> Understood:
+    async def execute(
+        self, ctx: RequestContext, *, utterance: str, also: Sequence[Candidate] = ()
+    ) -> Understood:
         self.asked.append(utterance)
         if self.raises:
             raise RuntimeError("no model configured")

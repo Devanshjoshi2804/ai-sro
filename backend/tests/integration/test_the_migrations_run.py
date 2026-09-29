@@ -442,7 +442,7 @@ async def test_0089_leaves_every_job_to_be_brought_in_and_back(postgres_url: str
             await connection.execute(text("CREATE SCHEMA public"))
             await connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await _alembic(postgres_url, "upgrade", "head")
-        await _alembic(postgres_url, "downgrade", "-1")
+        await _alembic(postgres_url, "downgrade", "0088")
         async with engine.begin() as connection:
             await connection.execute(
                 text(
@@ -456,7 +456,7 @@ async def test_0089_leaves_every_job_to_be_brought_in_and_back(postgres_url: str
             upgraded = (
                 await connection.execute(text("SELECT id, parameters_rule FROM workflows"))
             ).all()
-        await _alembic(postgres_url, "downgrade", "-1")
+        await _alembic(postgres_url, "downgrade", "0088")
         async with engine.begin() as connection:
             kept = (await connection.execute(read)).scalars().all()
             columns = {
@@ -471,6 +471,33 @@ async def test_0089_leaves_every_job_to_be_brought_in_and_back(postgres_url: str
 
     assert [tuple(row) for row in upgraded] == [("wfl_old", None)]
     assert kept == ["wfl_old"] and "parameters_rule" not in columns
+
+
+async def test_0090_gives_every_run_an_empty_mail_and_takes_it_back(postgres_url: str) -> None:
+    """Additive: a run no mail started has none, and the downgrade drops only
+    the column."""
+    engine = create_async_engine(postgres_url)
+
+    async def columns() -> dict[str, bool]:
+        async with engine.begin() as connection:
+            return {
+                one["name"]: one["nullable"]
+                for one in await connection.run_sync(
+                    lambda sync: inspect(sync).get_columns("workflow_runs")
+                )
+            }
+
+    try:
+        await _alembic(postgres_url, "upgrade", "head")
+        upgraded = await columns()
+        await _alembic(postgres_url, "downgrade", "0089")
+        downgraded = await columns()
+        await _alembic(postgres_url, "upgrade", "head")
+    finally:
+        await engine.dispose()
+
+    assert upgraded.get("mail") is True
+    assert "mail" not in downgraded and "offer" in downgraded
 
 
 async def test_the_migrated_schema_is_the_schema_the_code_declares(postgres_url: str) -> None:

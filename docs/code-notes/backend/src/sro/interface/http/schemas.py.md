@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/interface/http/schemas.py`](../../../../../../../backend/src/sro/interface/http/schemas.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `TrackRecordModel`, [line 451](../../../../../../../backend/src/sro/interface/http/schemas.py#L451): Comment
+## `TrackRecordModel`, [line 452](../../../../../../../backend/src/sro/interface/http/schemas.py#L452): Comment
 
 Code: `clean_runs_needed: int = REQUIRED_CLEAN_RUNS`
 
@@ -11,7 +11,7 @@ Code: `clean_runs_needed: int = REQUIRED_CLEAN_RUNS`
 > would go on saying 10 the day `REQUIRED_CLEAN_RUNS` moved, and the bar
 > would disagree with the rule that actually refuses the promotion.
 
-## `SpendResponse.of`, [line 1673](../../../../../../../backend/src/sro/interface/http/schemas.py#L1673): Comment
+## `SpendResponse.of`, [line 1674](../../../../../../../backend/src/sro/interface/http/schemas.py#L1674): Comment
 
 Code: `return cls(cost_usd=round(day.cost_usd, 6), unpriced=day.blind, cap_usd=cap_usd)`
 

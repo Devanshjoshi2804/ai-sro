@@ -148,6 +148,7 @@ async def read_utterance(
     utterance: str,
     asker: Asker,
     now: datetime,
+    also: Sequence[Candidate] = (),
 ) -> Understood:
     facts = await job_facts(uow, tenant_id, await uow.workflows.known(tenant_id), now=now)
     got = await read_request(
@@ -157,8 +158,11 @@ async def read_utterance(
         held=await held_runs(uow, tenant_id),
         logins=await logins_of(uow, tenant_id),
         also=[
-            Candidate(one.id, one.title, fields=(), aliases={}, seen={})
-            for one in built_ins(tenant_id.value)
+            *(
+                Candidate(one.id, one.title, fields=(), aliases={}, seen={})
+                for one in built_ins(tenant_id.value)
+            ),
+            *also,
         ],
     )
     got = await offer_check(uow, tenant_id, got, facts, now=now)

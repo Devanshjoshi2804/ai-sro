@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sro.domain.chat.asking import NOTHING_NEW, shortened
 from sro.domain.chat.thread import Message
@@ -56,4 +56,35 @@ def of_the_run(run: WorkflowRun, title: str, now: datetime) -> str:
     return " ".join(said)
 
 
-__all__ = ["last_run", "of_the_run", "stands"]
+def of_a_mail_run(run: WorkflowRun, title: str) -> str:
+    subject = (run.mail or {}).get("subject", "")
+    about = f"'{subject}'" if subject.strip() else "a mail"
+    given = ", ".join(
+        f"{name} {shortened(value)}"
+        for name, value in run.values.items()
+        if value.strip() and not is_secret_field(name)
+    )
+    job = f"{title} ({given})" if given else title
+    if run.outcome == "running":
+        return f"{about} — already running: {job}"
+    at = _at(run.finished_at or "")
+    if run.outcome == "held":
+        return f"{about} — done{at}: {job}"
+    why = next(
+        (one.reason for one in reversed(run.steps) if one.verdict == "failed" and one.reason),
+        "",
+    )
+    return f"{about} — did not finish{at}: {job}" + (f" — {shortened(why)}" if why else "")
+
+
+def _at(when: str) -> str:
+    try:
+        moment = datetime.fromisoformat(when)
+    except ValueError:
+        return ""
+    return (
+        f" at {(moment if moment.tzinfo else moment.replace(tzinfo=UTC)).astimezone(UTC):%H:%M} UTC"
+    )
+
+
+__all__ = ["last_run", "of_a_mail_run", "of_the_run", "stands"]

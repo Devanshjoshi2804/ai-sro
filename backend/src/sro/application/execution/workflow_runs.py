@@ -7,6 +7,7 @@ from datetime import datetime
 from urllib.parse import urlencode
 
 from sro.application.chat.announce import SayWhatHappened
+from sro.application.chat.mailbox import SERVER
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
@@ -62,6 +63,7 @@ from sro.domain.execution.workflow_run import (
     RunStep,
     WorkflowRun,
     already_running,
+    answers_for,
     new_run_id,
     pin,
 )
@@ -74,6 +76,11 @@ from sro.domain.skill.learned import demanded, offerable
 from sro.domain.skill.reversals import addresses, asks_for, identifies, undoes
 from sro.domain.skill.shape import resumes_at
 from sro.domain.skill.workflow import MAIN, Workflow, cited_ids, ordered_cites
+
+
+def _on_the_mail(server: str, thread: str) -> dict[str, str]:
+    return {"thread": thread.strip()} if server == SERVER and thread.strip() else {}
+
 
 __all__ = [
     "AbortWorkflowRun",
@@ -166,6 +173,7 @@ class StartWorkflowRun:
         conversation: tuple[str, str] = ("", ""),
         undoes_run: str = "",
         offer: str = "",
+        mail: Mapping[str, str] | None = None,
         took_over: Took | None = None,
         device_secret: str = "",
         then: Callable[[UnitOfWork, WorkflowRun], Awaitable[None]] | None = None,
@@ -285,6 +293,7 @@ class StartWorkflowRun:
                 offer=offer.strip() or None,
                 progress=first_progress,
                 pinned=pin(workflow),
+                mail={**_on_the_mail(*conversation), **(mail or {})} or None,
             )
             await uow.workflow_runs.save(run)
             if then is not None:
@@ -671,6 +680,7 @@ class ListWorkflowRuns:
         workflow_id: str | None,
         limit: int,
         awaiting: bool,
+        mine: bool = False,
     ) -> tuple[WorkflowRun, ...]:
 
         async with self._uow as uow:
@@ -679,9 +689,12 @@ class ListWorkflowRuns:
                 parked = frozenset(
                     run_id for run_id, _, _ in await uow.workflow_runs.awaiting(ctx.tenant_id)
                 )
-            return await uow.workflow_runs.recent(
+            runs = await uow.workflow_runs.recent(
                 ctx.tenant_id, limit=limit, workflow_id=workflow_id, ids=parked
             )
+        return (
+            tuple(run for run in runs if answers_for(run, ctx.principal_id.value)) if mine else runs
+        )
 
 
 class GetWorkflowRun:

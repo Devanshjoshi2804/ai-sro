@@ -782,6 +782,7 @@ class Container:
             start=self.start_workflow_run(),
             spawn=self.pursuits.spawn,
             attempts=self.record_attempt(),
+            look=self.from_the_mail(),
         )
 
     def ask_about_the_offer(self) -> AskAboutTheOffer:

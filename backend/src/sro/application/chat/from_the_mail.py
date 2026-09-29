@@ -6,6 +6,7 @@ import re
 from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
+from email.utils import parsedate_to_datetime
 from types import MappingProxyType
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
@@ -118,6 +119,10 @@ class Offered:
 
     fresh: bool = True
 
+    sender: str = ""
+
+    arrived: str = ""
+
 
 @dataclass(frozen=True, slots=True)
 class LookedInTheMail:
@@ -125,6 +130,23 @@ class LookedInTheMail:
     read: int = 0
     why: str = ""
     spent: Answer = field(default_factory=Answer)
+    asks_nothing: tuple[str, ...] = ()
+    busy: int = 0
+    stopped: str = ""
+
+    def said(self) -> str:
+        lines = [f"{_about(one.subject)} — {_came_to(one)}." for one in self.offered]
+        lines += [f"a mail that asks for no job here: {_about(one)}." for one in self.asks_nothing]
+        if self.busy:
+            lines.append(
+                f"{self.busy} mail{' is' if self.busy == 1 else 's are'} being read by another "
+                "look right now; what it asks will show here when that look is done."
+            )
+        if self.stopped:
+            lines.append(f"the look stopped there: {self.stopped}.")
+        if not lines:
+            return f"Looked in the mail: {self.why}."
+        return "Looked in the mail:\n" + "\n".join(f"- {one}" for one in lines)
 
 
 class FromTheMail:
@@ -198,7 +220,13 @@ class FromTheMail:
                 await self._release(ctx, message)
                 logger.info("%s: the look stopped at %s -- %s", tenant, message, stopped)
                 return LookedInTheMail(
-                    offered=tuple(offered), read=look.read, why=str(stopped), spent=look.spent
+                    offered=tuple(offered),
+                    read=look.read,
+                    why=str(stopped),
+                    spent=look.spent,
+                    asks_nothing=tuple(look.asks_nothing),
+                    busy=reach.busy,
+                    stopped=str(stopped),
                 )
             except BaseException:
                 await self._release(ctx, message)
@@ -213,6 +241,8 @@ class FromTheMail:
             read=look.read,
             why=_sentence(offered, look.read, look.unsure, look.theirs),
             spent=look.spent,
+            asks_nothing=tuple(look.asks_nothing),
+            busy=reach.busy,
         )
         logger.info(
             "%s: looked in the mail -- %d read, %d offered (%s)",
@@ -228,7 +258,14 @@ class FromTheMail:
     ) -> Offered | None:
         workflows, asker, titles, held = known.workflows, known.asker, known.titles, known.held
         tenant = ctx.tenant_id.value
-        said, thread, subject, sent_to, marker = await self._body(ctx, message)
+        mail = await self._body(ctx, message)
+        said, thread, subject, sent_to, marker = (
+            mail.said,
+            mail.thread,
+            mail.subject,
+            mail.sent_to,
+            mail.marker,
+        )
         if not said:
             return None
         if await is_ours(
@@ -263,6 +300,7 @@ class FromTheMail:
             got = await offer_check(uow, ctx.tenant_id, got, known.facts, now=known.now)
         if got.workflow_id is None:
             logger.info("%s: read a mail that asks for no job this tenant holds", tenant)
+            look.asks_nothing.append(subject)
             return None
         if not got.sure:
             look.unsure += 1
@@ -311,6 +349,8 @@ class FromTheMail:
             sure=got.sure,
             sent_to=sent_to,
             cannot_run=got.cannot_run,
+            sender=mail.sender,
+            arrived=mail.arrived,
             fresh=not earlier
             or any(
                 not quoted_in(value, earlier)
@@ -428,6 +468,15 @@ class FromTheMail:
                 allow_focus=False,
                 conversation=(SERVER, one.thread),
                 offer=mail_key(one.message),
+                mail={
+                    name: value
+                    for name, value in (
+                        ("subject", one.subject),
+                        ("sender", one.sender),
+                        ("arrived", one.arrived),
+                    )
+                    if value
+                },
             )
         except OverCap:
             raise
@@ -438,6 +487,7 @@ class FromTheMail:
             return one
         if not await self._start.start_on_steel(ctx, run):
             return one
+        await self._arrived(ctx, one, run)
         if self._attempts is not None:
             await self._attempts.execute(
                 ctx,
@@ -446,6 +496,36 @@ class FromTheMail:
                 about={"run": run.id, "workflow": one.workflow_id, "thread": one.thread},
             )
         return replace(one, started=True)
+
+    async def _arrived(self, ctx: RequestContext, one: Offered, run: WorkflowRun) -> None:
+        if self._clock is None or self._ids is None:
+            return
+        given = ", ".join(
+            f"{name} {value}"
+            for name, value in run.values.items()
+            if value.strip() and not is_secret_field(name)
+        )
+        try:
+            await SayWhatHappened(self._uow, self._clock, self._ids).execute(
+                ctx,
+                for_operator=ctx.principal_id,
+                text=(
+                    f"A mail arrived{f' from {one.sender}' if one.sender else ''}: "
+                    f"{_about(one.subject)}. It asks for {one.title}"
+                    f"{f' with {given}' if given else ''}, so it is running now."
+                ),
+                speaker=Speaker.ASSISTANT,
+                decision={
+                    "kind": Said.RUN,
+                    "run_id": run.id,
+                    "offer": run.offer or "",
+                    "mail_thread": one.thread,
+                },
+            )
+        except Exception:
+            logger.exception(
+                "%s: the thread could not be told %s started", ctx.tenant_id.value, run.id
+            )
 
     async def _answering(self, ctx: RequestContext, thread: str) -> WorkflowRun | None:
         if not thread.strip():
@@ -764,7 +844,7 @@ class FromTheMail:
                     reach.whole = not reach.busy
                     return
                 took = await self._take(ctx, message, now=now)
-                reach.busy = reach.busy or took is None
+                reach.busy += took is None
                 if took:
                     yield message
             if not more:
@@ -809,30 +889,30 @@ class FromTheMail:
             if isinstance(row, dict) and isinstance(row.get("id"), str)
         ][:limit], _page_of(answered.text)
 
-    async def _body(
-        self, ctx: RequestContext, message: str
-    ) -> tuple[str, str, str, tuple[str, ...], str]:
+    async def _body(self, ctx: RequestContext, message: str) -> _Mail:
         answered = await self._tools.call(
             ctx.tenant_id, ctx.principal_id, SERVER, "get_message", {"id": message}
         )
         try:
             said = json.loads(answered.text)
         except ValueError:
-            return "", "", "", (), ""
+            return _Mail()
         if not isinstance(said, dict):
-            return "", "", "", (), ""
+            return _Mail()
         whole = " ".join(
             str(said.get(part) or "").strip() for part in ("subject", "body", "snippet")
         )
         whole = " ".join(whole.split())
-        return (
-            whole[:K_TEXT],
-            str(said.get("thread_id") or ""),
-            " ".join(str(said.get("subject") or "").split())[:K_SUBJECT],
-            sent_to_others(
+        return _Mail(
+            said=whole[:K_TEXT],
+            thread=str(said.get("thread_id") or ""),
+            subject=" ".join(str(said.get("subject") or "").split())[:K_SUBJECT],
+            sent_to=sent_to_others(
                 *(str(said.get(part) or "") for part in ("from", "to", "cc", "mailbox"))
             ),
-            str(said.get("marker") or ""),
+            marker=str(said.get("marker") or ""),
+            sender=" ".join(str(said.get("from") or "").split())[:K_SUBJECT],
+            arrived=_when(str(said.get("date") or "")),
         )
 
     async def _conversation(
@@ -918,12 +998,24 @@ class _Look:
     unsure: int = 0
     theirs: int = 0
     spent: Answer = field(default_factory=Answer)
+    asks_nothing: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)
 class _Reach:
     whole: bool = False
-    busy: bool = False
+    busy: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class _Mail:
+    said: str = ""
+    thread: str = ""
+    subject: str = ""
+    sent_to: tuple[str, ...] = ()
+    marker: str = ""
+    sender: str = ""
+    arrived: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -952,6 +1044,25 @@ def _page_of(answered: str) -> str:
         return ""
     more = said.get("next_page") if isinstance(said, dict) else None
     return more if isinstance(more, str) and K_PAGE_TOKEN.fullmatch(more) else ""
+
+
+def _when(date: str) -> str:
+    try:
+        return parsedate_to_datetime(date).isoformat() if date.strip() else ""
+    except (TypeError, ValueError):
+        return ""
+
+
+def _about(subject: str) -> str:
+    return f"'{subject}'" if subject.strip() else "a mail with no subject"
+
+
+def _came_to(one: Offered) -> str:
+    if one.started:
+        return f"started {one.title}; its card on Home shows how it goes"
+    if one.asked:
+        return f"{one.title}, asked about here"
+    return f"offered {one.title}; its card is on Home"
 
 
 def _reading_key(message: str) -> str:

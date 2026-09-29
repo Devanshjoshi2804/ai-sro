@@ -739,6 +739,13 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
         thought_tokens=33,
         cost_usd=0.44,
         unpriced=True,
+        offer="mail:m-9",
+        mail={
+            "subject": "new type",
+            "sender": "Alex R <alex.r@example.com>",
+            "thread": "t-1",
+            "arrived": "2025-02-11T22:58:00+00:00",
+        },
     )
 
     on_the_wire = WorkflowRunModel.of(
@@ -828,6 +835,16 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
         # This one HELD: there is nothing to try again.
         "try_again": False,
         "live_view_url": "https://steel.example/v1/sessions/debug?pageId=t-1",
+        "offer": "mail:m-9",
+        # The mail this run came from, and never its body: what the panel's
+        # card says arrived, and where to open it.
+        "mail": {
+            "subject": "new type",
+            "sender": "Alex R <alex.r@example.com>",
+            "arrived": "2025-02-11T22:58:00+00:00",
+            "thread": "t-1",
+            "link": "https://mail.google.com/mail/#all/t-1",
+        },
     }
 
 

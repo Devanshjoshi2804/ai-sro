@@ -97,7 +97,7 @@ Code: `unasked: list[str] = field(default_factory=list)`
 > money and returned nothing. `now` is the caller's clock rather than one
 > read here, so a test can move it.
 
-## `read_utterance`, [line 152](../../../../../../../backend/src/sro/application/chat/understand.py#L152): Comment
+## `read_utterance`, [line 153](../../../../../../../backend/src/sro/application/chat/understand.py#L153): Comment
 
 Code: `facts = await job_facts(uow, tenant_id, await uow.workflows.known(tenant_id), now=now)`
 
@@ -108,7 +108,7 @@ Code: `facts = await job_facts(uow, tenant_id, await uow.workflows.known(tenant_
 > facts, before the model call. The sign-in names come from `logins_of`,
 > which reads the sign-in jobs' landing evidence the facts do not carry.
 
-## `read_utterance`, [line 171](../../../../../../../backend/src/sro/application/chat/understand.py#L171): Comment
+## `read_utterance`, [line 175](../../../../../../../backend/src/sro/application/chat/understand.py#L175): Comment
 
 Code: `workflow_id=got.workflow_id,`
 

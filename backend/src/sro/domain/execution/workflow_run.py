@@ -125,6 +125,8 @@ class WorkflowRun:
 
     pinned: Workflow | None = None
 
+    mail: dict[str, str] | None = None
+
 
 SETTLED = frozenset({"done", "skipped", "not_needed"})
 

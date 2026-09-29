@@ -386,6 +386,7 @@ def _get(token: str, arguments: dict[str, Any], mailbox: str = "") -> str:
             "from": head.get("from", ""),
             "to": head.get("to", ""),
             "cc": head.get("cc", ""),
+            "date": head.get("date", ""),
             "sent": "SENT" in (full.get("labelIds") or []),
             "in_reply_to": head.get("in-reply-to", ""),
             "marker": head.get("x-sro-marker", ""),

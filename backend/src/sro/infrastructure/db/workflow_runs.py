@@ -64,6 +64,7 @@ def _run_values(run: WorkflowRun) -> dict[str, Any]:
         "executor": run.executor,
         "offer": run.offer,
         "pinned": None if run.pinned is None else workflow_json(run.pinned),
+        "mail": dict(run.mail) if run.mail else None,
     }
 
 
@@ -163,6 +164,11 @@ def _row_to_run(row: WorkflowRunRow, steps: list[RunStep]) -> WorkflowRun:
         executor=cast(Executor, row.executor),
         offer=row.offer,
         pinned=None if row.pinned is None else workflow_from_json(row.pinned),
+        mail=(
+            {str(key): str(value) for key, value in row.mail.items()}
+            if isinstance(row.mail, dict)
+            else None
+        ),
     )
 
 
@@ -192,7 +198,7 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
                     set_={
                         column.name: kept.get(column.name, statement.excluded[column.name])
                         for column in WorkflowRunRow.__table__.columns
-                        if column.name not in ("id", "progress", "pinned")
+                        if column.name not in ("id", "progress", "pinned", "mail")
                     },
                 )
             )

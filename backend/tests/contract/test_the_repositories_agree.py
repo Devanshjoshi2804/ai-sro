@@ -794,6 +794,27 @@ class TestWorkflows:
 
 
 class TestWorkflowRuns:
+    async def test_a_run_keeps_the_mail_it_came_from_as_first_written(
+        self, store: UnitOfWork
+    ) -> None:
+        """Written once, with the run: a later save of a copy that lost it --
+        a worker that loaded the row before the column existed -- leaves it."""
+        mail = {"subject": "new type", "sender": "Alex <a@x>", "thread": "t-1"}
+        async with store as work:
+            await work.workflow_runs.save(_run("run_mail", mail=dict(mail)))
+            await work.workflow_runs.save(_run("run_plain"))
+            await work.commit()
+        async with store as work:
+            await work.workflow_runs.save(_run("run_mail", mail=None, outcome="failed"))
+            await work.commit()
+
+        async with store as work:
+            kept = await work.workflow_runs.get(TENANT, "run_mail")
+            plain = await work.workflow_runs.get(TENANT, "run_plain")
+
+        assert kept is not None and kept.mail == mail
+        assert plain is not None and plain.mail is None
+
     async def test_for_workflow_is_oldest_first_on_the_instant_and_breaks_ties_on_the_id(
         self, store: UnitOfWork
     ) -> None:

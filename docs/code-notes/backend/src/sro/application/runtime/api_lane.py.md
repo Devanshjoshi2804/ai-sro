@@ -79,7 +79,7 @@ Code: `if missing:`
 > person answers `AccountBusy` and the run queues -- and retries with
 > fresh headers.
 
-## `ApiLane._confirmed`, [line 171](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L171): Comment
+## `ApiLane._confirmed`, [line 193](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L193): Comment
 
 > One check for `execute` and `read_back`. The confirming read goes only to
 > the write's own origin (a GET recorded after the write may be analytics or
@@ -89,7 +89,7 @@ Code: `if missing:`
 > string is not the record this run wrote. A write with no filled slots is
 > never confirmed by a read-back.
 
-## `_aimed`, [line 280](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L280): Comment
+## `_aimed`, [line 302](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L302): Comment
 
 > The recorded read names the recorded record. A path segment equal to a value
 > the recording saw for a filled parameter is replaced by this run's value. A
@@ -107,7 +107,7 @@ Code: `if status in K_AUTH_REFUSED and ctx.reauthed:`
 > the lane's own failure, with a fingerprint, and the step joins the
 > known-broken list instead of signing in again on every run.
 
-## `session_headers`, [line 207](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L207): Note on the line above
+## `session_headers`, [line 229](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L229): Note on the line above
 
 Code: `async def session_headers(`
 
@@ -117,7 +117,7 @@ Code: `async def session_headers(`
 > session did not answer itself. `wait_s` is how long the broker may wait for
 > the headers `needs` names; a caller with a budget passes what is left of it.
 
-## `needs_of`, [line 197](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L197): Note on the line above
+## `needs_of`, [line 219](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L219): Note on the line above
 
 Code: `def needs_of(recorded: Mapping[str, str]) -> list[str]:`
 
@@ -129,7 +129,7 @@ Code: `def needs_of(recorded: Mapping[str, str]) -> list[str]:`
 > read-back (so a read-back after `fresh=True` waits for its CSRF token rather
 > than answering from an empty since-mark log), and lookups.
 
-## `confirmed_keys`, [line 243](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L243): Function
+## `confirmed_keys`, [line 265](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L265): Function
 
 > The learned fields this write's read-back confirmed, as `StepResult.keyed`
 > reads (`{parameter: body_key}`), so `_settle_fields` holds them and a run

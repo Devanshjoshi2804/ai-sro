@@ -533,3 +533,25 @@ async def test_a_delete_is_done_when_its_record_no_longer_answers(
         ("DELETE", f"{WRITE}/GT2"),
         ("GET", f"{WRITE}/GT2"),
     ]
+
+
+async def test_a_create_that_names_its_record_is_confirmed_by_reading_that_record() -> None:
+    """Greyorange, 2026-09-29: the proven POST of a transport equipment type
+    answered 201 with resourceId AITE6*!trlr_typ, and the run ended unclear:
+    the read it confirmed by was the recording's GET of dock access groups,
+    which never holds a new equipment type. The record the create named is
+    read at its own address, and its values confirm the write."""
+    http = FakeHttpCaller()
+    http.answer(201, '{"data": {"resourceId": "GT2*!x"}}')
+    http.answer(200, '{"data": {"name": "GT2"}}')
+    step, by_id, ledger = proven_write_step(read_back="/api/something-else")
+
+    result = await ApiLane(headers_broker({}, http=http)).execute(
+        step, RUN, lane_context(by_id, ledger=ledger)
+    )
+
+    assert result.verdict == "done"
+    assert [(one["method"], str(one["url"]).split("?")[0]) for one in http.sent] == [
+        ("POST", WRITE),
+        ("GET", f"{WRITE}/GT2%2A%21x"),
+    ]

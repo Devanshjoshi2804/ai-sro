@@ -140,7 +140,9 @@ class ApiLane:
                 f"the record still answers {after.status_code} after the delete",
             )
         try:
-            confirmed = await self._confirmed(step, planned, ctx, held, fresh=False)
+            confirmed = await self._its_record(planned, ctx, held, headers, made) or (
+                await self._confirmed(step, planned, ctx, held, fresh=False)
+            )
         except (Stopped, asyncio.CancelledError):
             raise
         except Exception as lost:
@@ -167,6 +169,26 @@ class ApiLane:
             return None
         confirmed = await self._confirmed(step, planned, ctx, ctx.held, fresh=ctx.reauthed)
         return "done" if confirmed else None
+
+    async def _its_record(
+        self,
+        planned: Planned,
+        ctx: LaneContext,
+        held: Held,
+        headers: Mapping[str, str],
+        made: Mapping[str, str],
+    ) -> bool:
+        """A create that answered with its record's id is read back there: the
+        recording's own confirming read can be a list that never holds the new
+        record (greyorange's transport job read its dock access groups)."""
+        record = str(made.get("resourceId") or "").strip()
+        if not record or not planned.confirm:
+            return False
+        parts = urlsplit(str(planned.payload["url"]))
+        url = urlunsplit(parts._replace(path=f"{parts.path.rstrip('/')}/{quote(record, safe='')}"))
+        reading = {k: v for k, v in headers.items() if k.lower() != "content-type"}
+        got = await self._broker.send(ctx.ctx, held, "GET", url, headers=reading)
+        return got.succeeded and carries_in_slot(got.text, planned.confirm)
 
     async def _confirmed(
         self, step: Step, planned: Planned, ctx: LaneContext, held: Held, *, fresh: bool

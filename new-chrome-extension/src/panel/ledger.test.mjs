@@ -183,6 +183,41 @@ test("a mail the server will not run by itself asks do it or leave it", () => {
   ]);
 });
 
+test("a mail's question whose offer already ran says so and offers nothing", () => {
+  // The user, 2026-09-29: the mail reader started the run itself, and the
+  // same request was still offered with a live yes. One mail, one offer, one
+  // run: the question keeps its words and loses its buttons once a message
+  // further down names a run of its offer.
+  const item = messages(
+    ledger(
+      {
+        id: "thr-1",
+        messages: [
+          {
+            id: "m1",
+            speaker: "assistant",
+            said_at: WHEN,
+            text: "Create a Customer Type. You sent this to colleague@example.com. Should our system do it?",
+            decision: { kind: "job", confirm: true, workflow_id: "wfl_1", offer: "mail:m-5" },
+          },
+          {
+            id: "m2",
+            speaker: "assistant",
+            said_at: WHEN,
+            text: "A mail arrived: 'new type'. It asks for Create a Customer Type, so it is running now.",
+            decision: { kind: "run", run_id: "run_7", offer: "mail:m-5", mail_thread: "t-5" },
+          },
+        ],
+      },
+      {},
+      { onPress: () => {} },
+    ),
+  )[0];
+
+  assert.deepEqual(of(item, "button"), []);
+  assert.match(words(item), /Already started/);
+});
+
 test("a decision this panel does not know renders its words and no buttons", () => {
   // Forward compatibility. The backend can reach a kind this copy of the
   // extension has never heard of, and every browser in the field is a copy

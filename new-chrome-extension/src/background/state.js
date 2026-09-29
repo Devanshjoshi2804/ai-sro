@@ -50,6 +50,8 @@ const KEYS = {
   nearMisses: "sro.nearMisses",
   said: "sro.said",
   repaired: "sro.repaired",
+  mailRuns: "sro.mailRuns",
+  mailRunsDismissed: "sro.mailRunsDismissed",
 };
 
 // Whichever deployment this build belongs to. `make gen-deployment` writes it;
@@ -343,6 +345,14 @@ export const state = {
    * alarm can still tell whether the run it was watching has ended. */
   activeRun: () => read(KEYS.activeRun, null),
   setActiveRun: (run) => write(KEYS.activeRun, run),
+
+  /** Today's runs a mail started, as `mailRunsOfToday` gave them, for Home's
+   * mail cards; and the ids somebody dismissed, so a card they closed stays
+   * closed for the rest of the day. */
+  mailRuns: () => read(KEYS.mailRuns, []),
+  setMailRuns: (runs) => write(KEYS.mailRuns, runs),
+  mailRunsDismissed: () => read(KEYS.mailRunsDismissed, []),
+  setMailRunsDismissed: (ids) => write(KEYS.mailRunsDismissed, ids),
 
   async forget() {
     await chrome.storage.local.remove(Object.values(KEYS));

@@ -149,6 +149,12 @@ export function asPanelRun(run) {
     // draws a line per thing so somebody watching knows which of the three
     // records is being made now, and how many are left.
     items: run.items || [],
+    // The offer this run is the one run of, and the mail it came from --
+    // subject, sender, when it arrived, where to open it; never its body.
+    // Home draws a card per mail run from these, and ends any card still
+    // offering what a run already took.
+    offer: run.offer || "",
+    mail: run.mail || null,
     steps: (run.steps || []).map((step) => ({
       index: step.order,
       // Which thing on the list this row was done for, and which step of the
@@ -431,6 +437,13 @@ export const api = {
     (await call(`/v1/workflow-runs?limit=${encodeURIComponent(limit)}`)).map(
       asPanelRun,
     ),
+
+  /** This operator's own newest runs -- `mine=true`, because a colleague's
+   * mail is not theirs to be shown on Home. */
+  myRuns: async (limit) =>
+    (
+      await call(`/v1/workflow-runs?limit=${encodeURIComponent(limit)}&mine=true`)
+    ).map(asPanelRun),
 
   /** Every job this tenant has mined, with how proven each is (`runs.proven`
    * of `runs.needed`) and whether the chat would offer it (`offered`). For

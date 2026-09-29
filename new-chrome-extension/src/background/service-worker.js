@@ -30,6 +30,11 @@ import {
   sweep,
 } from "../panel/nudge.js";
 import { decideOffer } from "./offering.js";
+import {
+  endTheOffersThatRan,
+  K_MAIL_RUNS,
+  mailRunsOfToday,
+} from "./mail-runs.js";
 import { chosen, resting, tailWith } from "./recognise.js";
 import { tripleOf } from "./shape.generated.js";
 import { hideNudge, showNudge } from "./showing.js";
@@ -122,6 +127,9 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     // and so is the look's own throttle, so this asks about as often as it
     // acts.
     void lookInTheMail();
+    // And the runs a mail started, which the backend's own look may have
+    // started with no panel open -- so Home has a card for each of them.
+    void lookForMailRuns();
   }
   if (alarm.name === FLUSH) void flushQueue();
 });
@@ -506,6 +514,21 @@ function jobInTheReply(thread) {
  * conversation correctly saying "I am still waiting on this one", and an open
  * offer to create a WAREHOUSE EQUIPMENT TYPE named after their sentence.
  */
+/** Whether that reply was the conversation looking in the mail.
+ *
+ * The door placed the sentence -- on the look, not on a job -- and said what
+ * it found. Reading the same words again at `/v1/ask` is a second model call
+ * about a sentence already answered, and one that could offer a job the look
+ * has just reported running.
+ */
+function lookedInTheMail(thread) {
+  for (const message of [...(thread?.messages || [])].reverse()) {
+    if (message.speaker !== "assistant") continue;
+    return message.decision?.kind === "mail_looked";
+  }
+  return false;
+}
+
 function stillAsking(thread) {
   for (const message of [...(thread?.messages || [])].reverse()) {
     if (message.speaker !== "assistant") continue;
@@ -2166,8 +2189,9 @@ async function handle(message, sender) {
       // And a sentence the thread is still holding a question open for is not
       // an unread sentence. `offerFromWords` is for the case where the door
       // read it and placed no job at all.
-      else if (!stillAsking(said))
+      else if (!stillAsking(said) && !lookedInTheMail(said))
         void offerFromWords(message.text, message.tabId ?? null);
+      if (lookedInTheMail(said)) void lookForMailRuns(true);
       // A yes that lost the race to another panel is told only that the
       // question closed; the run it lost to is further up the same thread.
       void watchTheRunIn(said);
@@ -2215,8 +2239,13 @@ async function handle(message, sender) {
         // mirrored `source` `noteFinished` reads; a record with no source is a
         // skill run. ponytail: `state.activeRun()` is one slot, so two runs
         // watched at once would answer for each other here.
+        // Or the caller's own record of it, where it holds one: a mail card
+        // draws a run nobody here adopted, and says it is a workflow run.
         const active = await state.activeRun();
-        if (active?.runId === message.runId && active.source === "rig") {
+        if (
+          message.source === "rig" ||
+          (active?.runId === message.runId && active.source === "rig")
+        ) {
           await api.rigAbort(message.runId);
         } else {
           await api.stopRun(message.runId);
@@ -2466,6 +2495,19 @@ async function handle(message, sender) {
       await state.setOffers(
         offers.filter((each) => each.id !== message.offerId),
       );
+      return { ok: true };
+    }
+    case "dismiss-mail-run": {
+      // Closed for the day: the run is untouched, only its card goes.
+      await serially(async () => {
+        const gone = await state.mailRunsDismissed();
+        await state.setMailRunsDismissed(
+          [message.runId, ...gone.filter((id) => id !== message.runId)].slice(0, 100),
+        );
+        await state.setMailRuns(
+          (await state.mailRuns()).filter((run) => run.id !== message.runId),
+        );
+      });
       return { ok: true };
     }
     case "status":
@@ -2992,6 +3034,52 @@ async function watchTheRunIn(thread) {
   void pollRigRun();
 }
 
+/** When the runs list was last read for mail runs, in this worker's life. */
+let mailRunsRead = 0;
+
+/** How often an open panel may re-read it: often enough that a mail card goes
+ * from running to done while somebody watches, and no more. The beat reads it
+ * once a minute with the panel shut. */
+const MAIL_RUNS_MS = 5_000;
+
+/** This operator's runs a mail started today, kept for Home -- and every open
+ * card offering what one of them already took, ended.
+ *
+ * A read of the backend's list and nothing else: the backend started these
+ * runs, and this browser only draws them. */
+async function lookForMailRuns(now = false) {
+  if (!now && Date.now() - mailRunsRead < MAIL_RUNS_MS) return;
+  mailRunsRead = Date.now();
+  try {
+    const runs = await api.myRuns(K_MAIL_RUNS);
+    const titles = new Map(
+      (await shapesFor()).map((shape) => [shape.id, shape.title]),
+    );
+    await serially(async () => {
+      const held = await state.nudges();
+      const nudges = endTheOffersThatRan(held, runs, Date.now());
+      for (const [n, was] of held.entries()) {
+        if (was === nudges[n]) continue;
+        void hideNudge(was.tabId);
+        void report(was, "accepted", nudges[n].runId);
+      }
+      await state.setNudges(nudges);
+      await state.setMailRuns(
+        mailRunsOfToday(runs, {
+          now: Date.now(),
+          dismissed: await state.mailRunsDismissed(),
+          titles,
+          nudges,
+        }),
+      );
+    });
+  } catch {
+    // Offline, or a backend that is restarting: the cards keep what they last
+    // said, and the next read tries again.
+    mailRunsRead = 0;
+  }
+}
+
 async function lookForAQuestion() {
   try {
     const thread = await api.currentThread();
@@ -3203,8 +3291,13 @@ async function status(sender = null) {
   // whose first tick failed. Guarded against piling up by `pollingRig`; not
   // awaited, for the same reason `checkFinishing` is not.
   if (active) void pollRigRun();
+  // And the mail runs, so a card goes from running to done while somebody is
+  // looking. Throttled inside; not awaited, for `checkFinishing`'s reason.
+  void lookForMailRuns();
   const shown = watchedRun(active);
   return {
+    // Today's runs a mail started, one card each on Home.
+    mailRuns: await state.mailRuns(),
     capturing: allowed.on,
     because: allowed.because,
     // A question this operator has not answered, off their own conversation.

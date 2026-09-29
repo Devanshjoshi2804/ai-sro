@@ -13,6 +13,7 @@ import { alreadyAnswered, composer, ledger, nudging } from "./ledger.js";
 import { runCard } from "./run-card.js";
 import { history } from "./history.js";
 import { learned, learnedHere } from "./learned.js";
+import { mailRunCard } from "./mail-run.js";
 import { panes } from "./panes.js";
 import { dayNamed, pending, when } from "./pending.js";
 import { needsAPress, strip } from "./strip.js";
@@ -342,11 +343,41 @@ function render(status) {
   // A question nobody has answered, before anything about what is happening
   // now. It is the one thing on this panel that is waiting on THEM.
   if (status.question) asks.unshift(theQuestion(status.question));
-  if (status.performing) now.push(performing(status));
+  // A run a mail started is drawn as its mail card -- arrived, noticed, how it
+  // went -- and never twice: its performing or finished card stands aside.
+  const mailRuns = status.mailRuns || [];
+  const fromMail = new Set(mailRuns.map((run) => run.id));
+  if (status.performing && !fromMail.has(status.performing.runId))
+    now.push(performing(status));
   // Placed after the run that is happening now and before what is wrong,
   // because it outranks neither -- it is a look back at the last thing this
   // browser did, not a fault.
-  if (status.finished) now.push(finished(status));
+  if (status.finished && !fromMail.has(status.finished.id))
+    now.push(finished(status));
+  for (const run of mailRuns) {
+    now.push(
+      mailRunCard(run, {
+        live: status.performing?.runId === run.id ? status.performing : null,
+        onOpen: (url) => void chrome.tabs.create({ url }),
+        onReview: (one) => openConsole(`/jobs/runs/${one.id}`),
+        onStop: async (one, button) => {
+          button.disabled = true;
+          const stopped = await ask({
+            kind: "abort-run",
+            runId: one.id,
+            source: one.source,
+          });
+          button.textContent = stopped?.error
+            ? `the run could not be told to stop: ${stopped.error}`
+            : "stopping — the step already sent will finish";
+        },
+        onDismiss: async (one) => {
+          await ask({ kind: "dismiss-mail-run", runId: one.id });
+          await refresh();
+        },
+      }),
+    );
+  }
   // What was learned on this system, and how far each job is toward writing
   // on its own. Below everything that is happening now: it is standing
   // information, and the loud cards above are the ones waiting on somebody.

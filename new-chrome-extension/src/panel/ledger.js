@@ -570,6 +570,12 @@ export function alreadyAnswered(messages) {
       if (decision.run_id) done.set(decision.run_id, "sent");
       if (decision.draft_id) done.set(decision.draft_id, "sent");
     }
+    // An offer a run has taken, whichever door started it -- the mail reader
+    // on its own, a card's press, a yes. One mail, one offer, one run: a
+    // question about it offering "Do it" beside that run is a second start
+    // somebody can press.
+    if (decision?.offer && decision.run_id)
+      done.set(`offer:${decision.offer}`, decision.run_id);
   }
   return done;
 }
@@ -987,6 +993,16 @@ function saying(
       choosing.append(one);
     }
     item.append(choosing);
+  } else if (
+    kind === "job" &&
+    message.decision.confirm &&
+    spent.get(`offer:${message.decision.offer}`)
+  ) {
+    item.dataset.answered = "started";
+    const where = document.createElement("p");
+    where.className = "detail";
+    where.textContent = "Already started — its card on Home shows how it goes.";
+    item.append(where);
   } else if (kind === "job" && message.decision.confirm) {
     // A request the server would not run by itself -- the operator's mail to
     // somebody else, or one on a thread that already ran. The press says the

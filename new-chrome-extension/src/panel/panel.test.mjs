@@ -61,6 +61,7 @@ const SOURCE = [
   // `ReferenceError: history is not defined`.
   readFileSync(path.join(here, "history.js"), "utf-8"),
   readFileSync(path.join(here, "learned.js"), "utf-8"),
+  readFileSync(path.join(here, "mail-run.js"), "utf-8"),
   readFileSync(path.join(here, "panel.js"), "utf-8"),
 ]
   .join("\n")
@@ -821,6 +822,78 @@ test("a run reading the mailbox says so, rather than saying Step 0", async () =>
     /Step 0/,
     "it said which step it was on instead",
   );
+});
+
+test("a run a mail started is one card on Home: arrived, noticed, how it went", async () => {
+  // QA 2026-09-29: the mail reader started the run on Steel and it held in
+  // 12 s, while Home said nothing about a mail at all. The card says where it
+  // came from and how it went, and it is the only card for that run -- the
+  // performing card stands aside for it.
+  const mail = {
+    subject: "create transport equipment type AITE4",
+    sender: "Devansh <devansh@example.com>",
+    arrived: "2026-09-29T11:02:07+05:30",
+    thread: "t-1",
+    link: "https://mail.google.com/mail/#all/t-1",
+  };
+  const { cards, sent, opened } = panel({
+    deviceId: "dev-1",
+    performing: {
+      runId: "run-9",
+      kind: "rig",
+      source: "rig",
+      since: new Date().toISOString(),
+      step: 1,
+      liveViewUrl: "https://steel.example/view",
+    },
+    mailRuns: [
+      {
+        id: "run-9",
+        source: "rig",
+        status: "running",
+        title: "Create a Transport Equipment Type",
+        values: { Equipment: "AITE4" },
+        started_at: new Date().toISOString(),
+        steps: [],
+        mail,
+      },
+      {
+        id: "run-8",
+        source: "rig",
+        status: "failed",
+        title: "Create a Transport Equipment Type",
+        values: { Equipment: "AITE3" },
+        started_at: new Date().toISOString(),
+        finished_at: new Date().toISOString(),
+        steps: [{ index: 0, outcome: "failed", reason: "the session expired" }],
+        mail: { ...mail, subject: "AITE3 please" },
+      },
+    ],
+  });
+
+  assert.equal(
+    cards.filter((one) => words(one).includes("is performing here")).length,
+    0,
+    "the mail's run was drawn twice",
+  );
+  const running = cards.find((one) => words(one).includes("AITE4 Arrived"));
+  assert.match(words(running), /Noticed: Create a Transport Equipment Type — Equipment: AITE4/);
+  assert.match(words(running), /Running/);
+  const failed = cards.find((one) => words(one).includes("AITE3 please"));
+  assert.match(words(failed), /Did not finish at \d\d:\d\d: the session expired/);
+
+  const press = (label) => buttons(running).find((one) => one.textContent === label);
+  press("Watch it run").listeners[0]();
+  press("Open the mail").listeners[0]();
+  await press("Stop").listeners[0]();
+  await settled();
+  assert.deepEqual(
+    opened.map((one) => one.url ?? one),
+    ["https://steel.example/view", "https://mail.google.com/mail/#all/t-1"],
+  );
+  assert.deepEqual(sentOf(sent, "abort-run"), [
+    { kind: "abort-run", runId: "run-9", source: "rig" },
+  ]);
 });
 
 test("it opens on Home, with the conversation one tap away", async () => {

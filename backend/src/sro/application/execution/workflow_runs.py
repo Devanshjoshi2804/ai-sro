@@ -48,7 +48,7 @@ from sro.domain.chat.asking import (
     question,
     still_to_ask,
 )
-from sro.domain.chat.thread import Speaker
+from sro.domain.chat.thread import K_ASKING, Speaker
 from sro.domain.execution.account import LIVE
 from sro.domain.execution.compiled import why_not
 from sro.domain.execution.field_classes import field_classes
@@ -492,6 +492,9 @@ class StartWorkflowRun:
         async with self._uow as uow:
             named = await uow.threads.naming(ctx.tenant_id, opened_by=operator, run_id=run.id)
         thread = named or await ReadThreads(self._uow).current(owner)
+        # A run started by an answer in an ask chat asks again in that chat: its
+        # own id would open another, and the question would leave its history.
+        asked_in = named.id if named is not None and named.id.value.startswith(K_ASKING) else None
         pending = still_to_ask(
             Pending(
                 workflow_id=run.workflow_id,
@@ -526,12 +529,14 @@ class StartWorkflowRun:
                 speaker=Speaker.ASSISTANT,
                 decision=noted,
                 about=mail_thread or run.id,
+                in_thread=asked_in,
             )
             return
         asked = await SayWhatHappened(self._uow, self._clock, self._ids).execute(
             ctx,
             for_operator=operator,
             about=mail_thread or run.id,
+            in_thread=asked_in,
             text=_asking(pending.missing, title, limits)
             + (f"{also} " if (also := also_set(pending)) else "")
             + question(pending),

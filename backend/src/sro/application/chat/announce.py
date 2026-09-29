@@ -27,9 +27,12 @@ class SayWhatHappened:
         decision: dict[str, object],
         speaker: Speaker = Speaker.SYSTEM,
         about: str = "",
+        in_thread: ThreadId | None = None,
     ) -> str:
         owner = RequestContext(ctx.tenant_id, for_operator)
-        found = await self._thread_for(owner, about=about, run_id=str(decision.get("run_id") or ""))
+        found = in_thread or await self._thread_for(
+            owner, about=about, run_id=str(decision.get("run_id") or "")
+        )
         async with self._uow as uow:
             said = await self._say(uow, owner, found, text=text, decision=decision, speaker=speaker)
             await uow.commit()

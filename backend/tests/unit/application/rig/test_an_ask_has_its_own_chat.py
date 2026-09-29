@@ -326,3 +326,40 @@ async def test_an_answered_draft_stays_answered_when_the_run_asks_again() -> Non
 
     assert sent_to == ""
     assert ask.mailbox.sent == [], "an answered draft was sent under a newer question"
+
+
+async def test_a_run_answered_in_its_ask_chat_asks_again_in_that_chat() -> None:
+    """A run with no mail asks in a chat keyed by its id. The answer given
+    there starts a new run -- a new id -- and when that one comes up short too,
+    its question belongs in the chat it was started from, not a third one."""
+    world = await _World().ready()
+    long = await _a_long_thread(world)
+    said = await world.converse().execute(CTX, thread_id=long.id, text="create customer type GT2")
+    await world.converse().execute(
+        CTX, thread_id=long.id, text="yes", answering=said.messages[-1].id.value
+    )
+    (first,) = await world.runs()
+    run = await world.uow.workflow_runs.get(f.TENANT, first)
+    assert run is not None
+    run.needs = ["Customer Type"]
+    run.outcome = "stopped"
+    await world.uow.workflow_runs.save(run)
+    await world.start._ask_for_values(CTX, run, world.title)
+    chat = await ReadThreads(world.uow).asking(CTX, first)
+    assert chat is not None
+
+    await world.converse().execute(CTX, thread_id=chat.id, text="VETC")
+    (again,) = [one for one in await world.runs() if one != first]
+    resumed = await world.uow.workflow_runs.get(f.TENANT, again)
+    assert resumed is not None
+    resumed.needs = ["Customer Type"]
+    resumed.outcome = "stopped"
+    await world.uow.workflow_runs.save(resumed)
+    await world.start._ask_for_values(CTX, resumed, world.title)
+
+    mine = await world.uow.threads.list_for_tenant(
+        f.TENANT, opened_by=PrincipalId(CTX.principal_id.value)
+    )
+    assert len(mine) == 2, "the resumed run asked in a chat of its own"
+    chat = await world.uow.threads.get(f.TENANT, chat.id)
+    assert _kinds(chat)[-1] == NEEDS

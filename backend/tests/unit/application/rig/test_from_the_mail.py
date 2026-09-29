@@ -596,12 +596,19 @@ async def test_a_cap_reached_while_starting_the_run_leaves_the_mail_unread() -> 
 
 
 async def _should_we(world: _MailWorld) -> dict[str, Any]:
-    """The newest "should I run it?", in whichever chat its mail was asked in."""
+    """The newest "should I run it?", in whichever chat its mail was asked in --
+    and it is the last word in that chat: nothing was said after the question."""
     chats = await world.uow.threads.list_for_tenant(f.TENANT, opened_by=CTX.principal_id)
-    asked = [one for chat in chats for one in chat.messages if (one.decision or {}).get("confirm")]
+    asked = [
+        (one, chat)
+        for chat in chats
+        for one in chat.messages
+        if (one.decision or {}).get("confirm")
+    ]
     assert asked, "nothing asked whether to run it"
-    last = max(asked, key=lambda one: one.said_at)
-    return dict(last.decision or {})
+    newest, chat = max(asked, key=lambda pair: pair[0].said_at)
+    assert chat.messages[-1] == newest, chat.messages[-1]
+    return dict(newest.decision or {})
 
 
 async def test_the_operator_s_mail_to_a_colleague_is_asked_about_and_never_run() -> None:

@@ -242,7 +242,15 @@ class ThreadRow(Base):
 
     messages: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
 
-    __table_args__ = (Index("ix_threads_tenant_opened", "tenant_id", "opened_at"),)
+    __table_args__ = (
+        Index("ix_threads_tenant_opened", "tenant_id", "opened_at"),
+        Index(
+            "ix_threads_messages",
+            "messages",
+            postgresql_using="gin",
+            postgresql_ops={"messages": "jsonb_path_ops"},
+        ),
+    )
 
 
 class BrowserSessionRow(Base):

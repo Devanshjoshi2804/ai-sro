@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import asyncio
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy import event
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.announce import SayWhatHappened
@@ -192,3 +193,40 @@ async def test_home_holds_an_old_chat_asked_something_new(
     """The standing-question read, through the real rows and their JSONB."""
     uow = await _held_in(SqlUnitOfWork(session_factory))
     await home_holds_every_standing_question(uow, UuidFactory())
+
+
+async def test_the_chat_naming_a_run_is_found_by_an_index_not_a_scan(
+    engine: AsyncEngine, session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """`naming` runs on every run announcement: a `messages @> ...` over the
+    operator's threads. The planner must be able to answer it from an index
+    on `messages` rather than reading every row's JSONB."""
+    said: list[tuple[str, object]] = []
+
+    def heard(_c: object, _k: object, statement: str, params: object, *_: object) -> None:
+        if "threads" in statement and "@>" in statement:
+            said.append((statement, params))
+
+    event.listen(engine.sync_engine, "before_cursor_execute", heard)
+    try:
+        async with SqlUnitOfWork(session_factory) as reading:
+            await reading.threads.naming(
+                CTX.tenant_id, opened_by=CTX.principal_id, run_id="run_vet"
+            )
+    finally:
+        event.remove(engine.sync_engine, "before_cursor_execute", heard)
+    ((statement, params),) = said
+
+    async with engine.connect() as connection:
+        # A busy operator: thousands of chats, each naming its own run.
+        await connection.exec_driver_sql(
+            "INSERT INTO threads (id, tenant_id, opened_by, opened_at, messages) "
+            "SELECT 'thr_' || n, $1, $2, now() - n * interval '1 minute', "
+            "jsonb_build_array(jsonb_build_object('decision', "
+            "jsonb_build_object('run_id', 'run_' || n))) FROM generate_series(1, 5000) n",
+            (CTX.tenant_id.value, CTX.principal_id.value),
+        )
+        await connection.exec_driver_sql("ANALYZE threads")
+        plan = (await connection.exec_driver_sql("EXPLAIN " + statement, params)).scalars().all()
+
+    assert any("ix_threads_messages" in line for line in plan), plan

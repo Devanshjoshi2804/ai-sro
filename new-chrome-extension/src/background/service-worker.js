@@ -314,6 +314,9 @@ async function rulesHere(url) {
       title: shape?.title || rule.workflowId,
       starts_on: pageOf(url),
       source: "rig",
+      // Made by the operator for this page, so it names the job even where
+      // two start here (`shouldFire`).
+      rule: true,
       workflow_id: rule.workflowId,
       k: 0,
       values,

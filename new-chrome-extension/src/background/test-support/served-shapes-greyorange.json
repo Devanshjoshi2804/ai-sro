@@ -1,0 +1,865 @@
+[
+  {
+    "id": "wfl_4869f40e1caa408c3154911984c3c0de",
+    "title": "Create a Warehouse Equipment Type",
+    "starts_on": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.warehouse.warehouse",
+    "hosts": [
+      "https://bf56-kms-wms-web-np2.jdadelivers.com"
+    ],
+    "shape": [
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.warehouse.warehouse",
+        "tabItem",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.warehouseequipmenttype",
+        "addButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.warehouseequipmenttype",
+        "vehicleTypeId",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.warehouseequipmenttype",
+        "vehicleTypeId",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.warehouseequipmenttype",
+        "longDescription",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.warehouseequipmenttype",
+        "longDescription",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.warehouseequipmenttype",
+        "voiceCode",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.warehouseequipmenttype",
+        "voiceCode",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.warehouseequipmenttype",
+        "vehicleLimit",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.warehouseequipmenttype",
+        "vehicleLimit",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.warehouseequipmenttype",
+        "saveButton",
+        "click"
+      ]
+    ],
+    "parameters": [
+      {
+        "name": "Warehouse Equipment Type",
+        "at": 3
+      },
+      {
+        "name": "Description",
+        "at": 5
+      },
+      {
+        "name": "Voice Code",
+        "at": 7
+      },
+      {
+        "name": "LPN Limit",
+        "at": 9
+      }
+    ],
+    "writes": [
+      {
+        "does": "create",
+        "record": "equipmentTypes",
+        "on": "https://bf56-kms-wms-web-np2.jdadelivers.com",
+        "step": "11"
+      }
+    ],
+    "held_runs": 2,
+    "offer_after": 2,
+    "quiet_until": null
+  },
+  {
+    "id": "wfl_0f474e8e7486f7f87ff3a7cc9431dda8",
+    "title": "Create a Transport Equipment Type",
+    "starts_on": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+    "hosts": [
+      "https://bf56-kms-wms-web-np2.jdadelivers.com"
+    ],
+    "shape": [
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "addButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "trailerType",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "trailerType",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "longDescription",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "longDescription",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "shortDescription",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "shortDescription",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "saveButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "addButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "trailerType",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "trailerType",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "longDescription",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "longDescription",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "shortDescription",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "shortDescription",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "saveButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "addButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "trailerType",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "trailerType",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "longDescription",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "longDescription",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "shortDescription",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "shortDescription",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "saveButton",
+        "click"
+      ]
+    ],
+    "parameters": [
+      {
+        "name": "longDescription",
+        "at": 4
+      },
+      {
+        "name": "shortDescription",
+        "at": 6
+      },
+      {
+        "name": "Equipment",
+        "at": 2
+      }
+    ],
+    "writes": [],
+    "held_runs": 6,
+    "offer_after": 2,
+    "quiet_until": null
+  },
+  {
+    "id": "wfl_23a8108a9cd71a482d7e2eeed7566d40",
+    "title": "Create a Customer Type",
+    "starts_on": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+    "hosts": [
+      "https://bf56-kms-wms-web-np2.jdadelivers.com"
+    ],
+    "shape": [
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+        "tabItem",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "addButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "customertype-customerType",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "customertype-customerType",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "customertype-longDescription",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "customertype-longDescription",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "customertype-departmentNumber",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "customertype-departmentNumber",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "customertype-manufacturerId",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "customertype-manufacturerId",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "customertype-createShipmentBy",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "rpComboBoundList",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "saveButton",
+        "click"
+      ]
+    ],
+    "parameters": [
+      {
+        "name": "Customer Type",
+        "at": 3
+      },
+      {
+        "name": "Customer Type Description",
+        "at": 5
+      },
+      {
+        "name": "Department",
+        "at": 7
+      },
+      {
+        "name": "Manufacturer",
+        "at": 9
+      }
+    ],
+    "writes": [
+      {
+        "does": "create",
+        "record": "customerTypes",
+        "on": "https://bf56-kms-wms-web-np2.jdadelivers.com",
+        "step": "9"
+      }
+    ],
+    "held_runs": 32,
+    "offer_after": 2,
+    "quiet_until": null
+  },
+  {
+    "id": "wfl_cdcf5a889271fbbbd609b4d42823816d",
+    "title": "Delete a Customer Type",
+    "starts_on": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+    "hosts": [
+      "https://bf56-kms-wms-web-np2.jdadelivers.com"
+    ],
+    "shape": [
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "rpBoundList",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "searchField",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "filterComboBox",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "filterComboBox",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "rpBoundList",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "rpFilterableGrid#masterdata-customer-existingcustomertypes-grid gridview",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "deleteButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "ok",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "removeCriterionButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "filterComboBox",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "filterComboBox",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "rpBoundList",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "rpFilterableGrid#masterdata-customer-existingcustomertypes-grid gridview",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "deleteButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "ok",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "removeCriterionButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "filterComboBox",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "filterComboBox",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "rpBoundList",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "removeCriterionButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "filterComboBox",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "filterComboBox",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "rpBoundList",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "removeCriterionButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "filterComboBox",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "filterComboBox",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "rpBoundList",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "rpFilterableGrid#masterdata-customer-existingcustomertypes-grid gridview",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "deleteButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "messagebox toolbar",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "ok",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "removeCriterionButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "addButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "customertype-customerType",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "customertype-customerType",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "container rpHyperLinkBreadCrumb",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "filterComboBox",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "filterComboBox",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "rpBoundList",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "rpFilterableGrid#masterdata-customer-existingcustomertypes-grid gridview",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "deleteButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "ok",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "removeCriterionButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "filterComboBox",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "filterComboBox",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "rpBoundList",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "rpFilterableGrid#masterdata-customer-existingcustomertypes-grid gridview",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "deleteButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "ok",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "filterComboBox",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "filterComboBox",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "rpBoundList",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "removeCriterionButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "rpFilterableGrid#masterdata-customer-existingcustomertypes-grid gridview",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "deleteButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+        "ok",
+        "click"
+      ]
+    ],
+    "parameters": [
+      {
+        "name": "Customer Type",
+        "at": 34
+      },
+      {
+        "name": "Customer Type",
+        "at": 34
+      }
+    ],
+    "writes": [
+      {
+        "does": "remove",
+        "record": "customerTypes",
+        "on": "https://bf56-kms-wms-web-np2.jdadelivers.com",
+        "step": "4"
+      }
+    ],
+    "held_runs": 4,
+    "offer_after": 2,
+    "quiet_until": null
+  },
+  {
+    "id": "wfl_131f3aa71b8ec4971ee8f56e82e6e475",
+    "title": "Create a Client",
+    "starts_on": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.warehouse.warehouse",
+    "hosts": [
+      "https://bf56-kms-wms-web-np2.jdadelivers.com"
+    ],
+    "shape": [
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.warehouse.warehouse",
+        "tabItem",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.clients",
+        "addButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.clients",
+        "clientId",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.clients",
+        "clientId",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.clients",
+        "adrnam",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.clients",
+        "adrnam",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.clients",
+        "saveButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.clients",
+        "addButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.clients",
+        "clientId",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.clients",
+        "clientId",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.clients",
+        "adrnam",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.clients",
+        "adrnam",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.clients",
+        "form wm-fieldcontainer",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.clients",
+        "saveButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.clients",
+        "addButton",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.clients",
+        "clientId",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.clients",
+        "clientId",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.clients",
+        "adrnam",
+        "click"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.clients",
+        "adrnam",
+        "type"
+      ],
+      [
+        "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.clients",
+        "saveButton",
+        "click"
+      ]
+    ],
+    "parameters": [
+      {
+        "name": "Name",
+        "at": 3
+      },
+      {
+        "name": "Address",
+        "at": 5
+      }
+    ],
+    "writes": [
+      {
+        "does": "create",
+        "record": "addresses",
+        "on": "https://bf56-kms-wms-web-np2.jdadelivers.com",
+        "step": "5"
+      },
+      {
+        "does": "create",
+        "record": "clients",
+        "on": "https://bf56-kms-wms-web-np2.jdadelivers.com",
+        "step": "5"
+      },
+      {
+        "does": "create",
+        "record": "clientWarehouse",
+        "on": "https://bf56-kms-wms-web-np2.jdadelivers.com",
+        "step": "5"
+      },
+      {
+        "does": "create",
+        "record": "packingConfigurations",
+        "on": "https://bf56-kms-wms-web-np2.jdadelivers.com",
+        "step": "5"
+      }
+    ],
+    "held_runs": 1,
+    "offer_after": 2,
+    "quiet_until": null
+  },
+  {
+    "id": "wfl_627ae93cdfa73312a011ec71698112ec",
+    "title": "Log in to Google Account",
+    "starts_on": "https://mail.google.com/mail/u/0",
+    "hosts": [
+      "https://accounts.google.com",
+      "https://mail.google.com",
+      "https://ogs.google.com"
+    ],
+    "shape": [
+      [
+        "https://mail.google.com/mail/u/0",
+        "anon|click",
+        "click"
+      ],
+      [
+        "https://mail.google.com/mail/u/0",
+        "name|Add another account",
+        "click"
+      ],
+      [
+        "https://accounts.google.com/v3/signin/identifier",
+        "name|Email or phone",
+        "type"
+      ],
+      [
+        "https://accounts.google.com/v3/signin/identifier",
+        "name|Next",
+        "click"
+      ],
+      [
+        "https://accounts.google.com/v3/signin/challenge/pwd",
+        "anon|press",
+        "press"
+      ],
+      [
+        "https://accounts.google.com/v3/signin/challenge/pwd",
+        "anon|type",
+        "type"
+      ],
+      [
+        "https://accounts.google.com/v3/signin/challenge/pwd",
+        "anon|type",
+        "type"
+      ]
+    ],
+    "parameters": [
+      {
+        "name": "Email or phone",
+        "at": 2
+      }
+    ],
+    "writes": [],
+    "held_runs": 1,
+    "offer_after": 2,
+    "quiet_until": null
+  }
+]

@@ -70,6 +70,27 @@ test("once per visit, and a later visit may ask again", () => {
   );
 });
 
+test("a page two jobs start on offers neither on arrival", () => {
+  // QA 2026-09-29: an address alone cannot say which of two jobs somebody is
+  // about to do, and naming one is the guess `match` refuses on a tie. The
+  // gestures decide instead.
+  const create = { ...TAUGHT, id: "wfl_create", title: "Create a supplier", source: "rig" };
+  const remove = { ...TAUGHT, id: "wfl_delete", title: "Delete a supplier", source: "rig" };
+  assert.equal(shouldFire(asking({ candidates: [create, remove] })), null, "the address picked one");
+  assert.equal(shouldFire(asking({ candidates: [remove] })), remove, "a page one job starts on still offers it");
+
+  // Only what is offerable competes: a pattern seen twice is not a job here.
+  const unproven = { ...TAUGHT, id: "cnd-2", times_seen: 2, skill_id: null };
+  assert.equal(shouldFire(asking({ candidates: [unproven, remove] })), remove);
+});
+
+test("a rule the operator made for this page is explicit and still offers", () => {
+  const create = { ...TAUGHT, id: "wfl_create", source: "rig" };
+  const remove = { ...TAUGHT, id: "wfl_delete", source: "rig" };
+  const rule = { ...remove, rule: true, values: { Code: "X" } };
+  assert.equal(shouldFire(asking({ candidates: [create, remove, rule] })), rule);
+});
+
 test("a nudge already open anywhere stops another being made", () => {
   // Two at once is a queue, and a queue of prompts is the thing this design
   // exists to not be.

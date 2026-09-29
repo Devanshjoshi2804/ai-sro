@@ -14,8 +14,6 @@
 // of them is a guess dressed as recognition. Nothing is offered until the tail
 // separates them, which the next gesture usually does.
 
-import { hostOfPage, page as screen } from "../panel/nudge.js";
-
 // Long enough to hold a whole job: the corpus's jobs run 13 to 35 gestures,
 // and a run started from a late step carries only the values the tail still
 // holds. Twelve held the end of every job and forgot every value typed at
@@ -199,54 +197,23 @@ export function resting(shape, now = Date.now()) {
  * filter tested `shape.shape[0][0]` instead, which is the same index only when
  * k is 1, and k is never 1: it stops at `offer_after`, whose floor is 2.
  */
-/** Whether this job's own screen is one the operator has left.
+/* Not judged by the job's `starts_on` screen.
  *
- * **Every screen of this application shares its controls.** ExtJS names them
- * by component: `tabItem` is every tab, `addButton` every Add, `ok` every
- * confirm -- so the opening of "add a supplier" is, to a shape, the opening of
- * "add a client", "add an area" or "add a customer type". Nothing in a triple
- * tells them apart.
- *
- * Measured on the deployment 2026-09-20. The operator created three clients on
- * `#wm.config/wm.config.partners.clients` -- Partners tab, Add, fill, Save --
- * and was offered `Initiate Add Supplier`, whose shape opens `tabItem`, `ok`,
- * `addButton` and whose every gesture was recorded on the suppliers screen.
- * The offer was right about the gestures and wrong about the job.
- *
- * So a job is not offered while the operator is somewhere else in the same
- * application. `starts_on` is the url of the first gesture the job's first
- * step cites -- the screen it begins on -- and `page()` names both the way this
- * application addresses a screen: host and path and the fragment's route,
- * without the query, because the WMS routes on the fragment and puts a site
- * code in the query.
- *
- * Only within one application. A job that reads a request in a mailbox and
- * does it in the warehouse begins on a different origin from the one it is
- * recognised on, and that is this system's whole purpose rather than a
- * mismatch -- so a `starts_on` elsewhere says nothing here and is left alone.
- *
- * ponytail: the screen, not the control. Two jobs that genuinely begin on one
- * screen -- add a client and delete a client -- are still told apart only by
- * their triples, and on this platform those may not tell them apart at all.
- * The upgrade is to require an offer to rest on at least one control that is
- * not common currency across the tenant's jobs, which needs the whole shape
- * list to judge one shape and is a bigger change than the failure warrants.
+ * A guard here once skipped a job whose `starts_on` was another screen of the
+ * same application, for the supplier offered on the clients screen (deployment
+ * 2026-09-20), when every triple was keyed by origin and `addButton` on one
+ * screen was `addButton` on all of them. Every triple now carries its screen
+ * (96d3a8c5), so `covered` already requires each gesture to be on the screen
+ * the shape recorded it on, and the guard was only still wrong: a recording
+ * that opens with the tab click on the screen before -- the case `K_MISSED`
+ * exists for -- has that screen as its `starts_on`, and `Create a Customer
+ * Type` was never offered on its own screen (QA 2026-09-29).
  */
-function elsewhereInTheSameApp(shape, url) {
-  // `page()` reads a served URL and a worker-held screen alike; either one
-  // missing is nothing to compare.
-  const here = screen(url || "");
-  const start = screen(shape.starts_on || "");
-  if (!here || !start) return false;
-  return hostOfPage(here) === hostOfPage(start) && here !== start;
-}
-
-export function match(tail, shapes, page = null) {
+export function match(tail, shapes) {
   let best = null;
   let shared = false;
   for (const shape of shapes) {
     if (!shape.shape?.length || resting(shape)) continue;
-    if (elsewhereInTheSameApp(shape, page)) continue;
     // The rig may say a job is offered later than the default: its earlier
     // offers kept diverging at the default.
     const after = shape.offer_after ?? K_OFFER_AFTER;

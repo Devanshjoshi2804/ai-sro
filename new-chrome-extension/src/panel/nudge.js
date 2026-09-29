@@ -84,15 +84,21 @@ export function shouldFire({ url, visit, candidates, nudges }) {
   if (nudges.some((nudge) => nudge.state === "open")) return null;
   if (nudges.some((nudge) => nudge.startsOn === here && nudge.visit === visit)) return null;
 
-  return (
-    candidates.find(
-      (candidate) =>
-        candidate.starts_on === here &&
-        // Proven enough to offer: taught by somebody, done often enough to be
-        // a habit, or -- for a job the rig serves -- already run and held.
-        (candidate.source === "rig" || candidate.skill_id || candidate.times_seen >= 3),
-    ) || null
+  const offerable = candidates.filter(
+    (candidate) =>
+      candidate.starts_on === here &&
+      // Proven enough to offer: taught by somebody, done often enough to be
+      // a habit, or -- for a job the rig serves -- already run and held.
+      (candidate.source === "rig" || candidate.skill_id || candidate.times_seen >= 3),
   );
+  // A rule is the operator saying which job this page is for.
+  const rule = offerable.find((candidate) => candidate.rule);
+  if (rule) return rule;
+  // Otherwise the address has to name one job. Two that start here are the
+  // tie `match` refuses: offering either is a guess, and on QA 2026-09-29 the
+  // guess was Delete for somebody pressing Add. The gestures decide instead.
+  const jobs = new Set(offerable.map((candidate) => candidate.workflow_id || candidate.id));
+  return jobs.size === 1 ? offerable[0] : null;
 }
 
 export function fire(candidate, now, { tabId = null, visit = "" } = {}) {

@@ -25,6 +25,7 @@ Shapes are specified in [`docs/14-extension-protocol.md`](../../docs/14-extensio
 | `request-uninspectable-body.json` | a response nothing read: an event stream stays open for the life of the page |
 | `page-navigated.json` | one `page` event |
 | `batch.json` | a complete `POST /v1/observations` body |
+| `batch-qa-customer-type-yheu.json` | the operator's real Customer Types gestures on QA, 2026-09-29 (Add, YHEU typed), from the stored upload -- read by `offer-right-job.test.mjs` |
 | `command-ui-perform-reply.json` | an extension → server reply to `ui.perform` |
 | `command-http-send-reply.json` | an extension → server reply to `http.send` |
 

@@ -2019,6 +2019,38 @@ test("a write nobody could confirm says that, not the url it read", () => {
   assert.match(said, /It was working on Customer Type SMKY/);
 });
 
+test("the day's offer count is the offers Home draws", async () => {
+  // QA 2026-09-29: "0 offers" over an offer on screen. The count read the
+  // server thread, and an offer the browser made is written to no thread.
+  const here = { id: 7, host: "wms.example", url: "https://wms.example/types" };
+  const status = {
+    deviceId: "dev-1",
+    nudges: [
+      {
+        id: "n_1",
+        source: "rig",
+        state: "open",
+        tabId: 7,
+        title: "Create a Customer Type",
+        workflowId: "wfl_1",
+        startsOn: "wms.example/types",
+        k: 3,
+        values: { "Customer Type": "YHEU" },
+        missing: [],
+        parameters: ["Customer Type"],
+        at: new Date().toISOString(),
+      },
+    ],
+  };
+  const { ids, refresh } = panel(status, here, { status, summary: { doing: { runs: 0 } } });
+
+  const cards = await refresh();
+  await settled();
+
+  assert.match(cards.map(words).join(" "), /Create a Customer Type/, "Home drew no offer");
+  assert.match(words(ids["today"]), /^0 done 1 offer$/);
+});
+
 test("a card rises once, not on every poll", async () => {
   // The stylesheet turns the entrance animation off for a card marked risen,
   // and nothing marked one -- so every card replayed its 800ms fade on every

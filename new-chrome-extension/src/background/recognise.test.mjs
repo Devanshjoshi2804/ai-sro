@@ -16,6 +16,7 @@ import {
   valuesFrom,
 } from "./recognise.js";
 import { page } from "../panel/nudge.js";
+import { screenOf } from "./shape.generated.js";
 
 const H = "https://wms.example";
 const workArea = {
@@ -384,30 +385,31 @@ const CLIENTS = `${WMS}/portal?siteId=SG#wm.config/wm.config.partners.clients///
 const SUPPLIERS = `${WMS}/portal?siteId=SG#wm.config/wm.config.partners.suppliers////`;
 
 // The deployment's own row, 2026-09-20. Every control in its opening is an
-// ExtJS component id that every screen of this application shares.
+// ExtJS component id that every screen of this application shares -- so only
+// the screen each triple carries (`screenOf`, as the backend keys it) tells
+// the supplier's Add from the client's.
+const on = (url, id) => [screenOf(url), id, "click"];
 const addSupplier = {
   id: "wfl_supplier",
   title: "Initiate Add Supplier",
   held_runs: 2,
-  starts_on: SUPPLIERS,
+  starts_on: page(SUPPLIERS),
   shape: [
-    [WMS, "tabItem", "click"],
-    [WMS, "ok", "click"],
-    [WMS, "addButton", "click"],
-    [WMS, "supplierform-selectitemsdrilldownbutton", "click"],
-    [WMS, "adrnam", "click"],
+    on(SUPPLIERS, "tabItem"),
+    on(SUPPLIERS, "ok"),
+    on(SUPPLIERS, "addButton"),
+    on(SUPPLIERS, "supplierform-selectitemsdrilldownbutton"),
+    on(SUPPLIERS, "adrnam"),
   ],
   parameters: [],
 };
 
-const addingSomething = [
-  { triple: [WMS, "tabItem", "click"], value: null },
-  { triple: [WMS, "ok", "click"], value: null },
-  { triple: [WMS, "addButton", "click"], value: null },
-];
+/** The worker's tail for tab, OK and Add pressed on `url`. */
+const addingSomethingOn = (url) =>
+  ["tabItem", "ok", "addButton"].map((id) => ({ triple: on(url, id), value: null }));
 
-test("a job is offered on the screen it begins on", () => {
-  const found = match(addingSomething, [addSupplier], SUPPLIERS);
+test("a job is offered on the screen it was recorded on", () => {
+  const found = match(addingSomethingOn(SUPPLIERS), [addSupplier]);
 
   assert.equal(found?.workflowId, "wfl_supplier");
 });
@@ -417,51 +419,32 @@ test("and not from another screen of the same application", () => {
   // -- Partners tab, Add, fill, Save -- and was offered `Initiate Add
   // Supplier`, because `tabItem`, `ok` and `addButton` are what every screen
   // of this application calls its tab, its confirm and its Add.
-  const found = match(addingSomething, [addSupplier], CLIENTS);
+  const found = match(addingSomethingOn(CLIENTS), [addSupplier]);
 
-  assert.equal(found, null, "the offer was right about the gestures, wrong about the job");
-});
-
-test("a job that begins in another system is not judged by this screen at all", () => {
-  // The cross-system job is this system's whole purpose: a request read in a
-  // mailbox and done in the warehouse begins on an origin it is never
-  // recognised on, and that is not a mismatch.
-  const fromMail = {
-    ...addSupplier,
-    id: "wfl_from_mail",
-    starts_on: "https://mail.google.com/mail/u/0/#inbox",
-  };
-
-  const found = match(addingSomething, [fromMail], CLIENTS);
-
-  assert.equal(found?.workflowId, "wfl_from_mail");
-});
-
-test("a shape with no screen recorded is offered as it always was", () => {
-  const { starts_on: _dropped, ...noScreen } = addSupplier;
-
-  const found = match(addingSomething, [{ ...noScreen, id: "wfl_no_screen" }], CLIENTS);
-
-  assert.equal(found?.workflowId, "wfl_no_screen");
+  assert.equal(found, null, "the offer was right about the controls, wrong about the screen");
 });
 
 test("the query is not what makes it a different screen", () => {
   // The WMS carries a site code in the query and routes on the fragment.
   const sameScreenOtherSite = `${WMS}/portal?siteId=NL&_dc=123#wm.config/wm.config.partners.suppliers////`;
 
-  const found = match(addingSomething, [addSupplier], sameScreenOtherSite);
+  const found = match(addingSomethingOn(sameScreenOtherSite), [addSupplier]);
 
   assert.equal(found?.workflowId, "wfl_supplier");
 });
 
-test("the screen is judged on the shape as the worker holds it, not as served", () => {
-  // `shapesFor` keeps every shape's `starts_on` as `page()` of it -- no
-  // scheme -- and this guard parsed it as a URL, so on every real shape it
-  // read "nothing to compare" and never held anything back.
-  const held = { ...addSupplier, starts_on: page(SUPPLIERS) };
+test("a recording that opens on the screen before is offered on the screen its work is on", () => {
+  // QA 2026-09-29: `Create a Customer Type` opens with the tab click made on
+  // the previous screen, so that screen is its `starts_on`; the operator was
+  // already on Customer Types and was never offered it.
+  const shape = {
+    ...addSupplier,
+    starts_on: page(CLIENTS),
+    shape: [on(CLIENTS, "tabItem"), ...addSupplier.shape.slice(1)],
+  };
+  const here = ["ok", "addButton"].map((id) => ({ triple: on(SUPPLIERS, id), value: null }));
 
-  assert.equal(match(addingSomething, [held], CLIENTS), null, "offered from another screen");
-  assert.equal(match(addingSomething, [held], SUPPLIERS)?.workflowId, "wfl_supplier");
+  assert.equal(match(here, [shape])?.workflowId, "wfl_supplier");
 });
 
 test("a match says when the gestures it used began and ended, so a takeover reads only this doing", () => {

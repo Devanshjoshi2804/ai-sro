@@ -9,7 +9,7 @@
 // should deal with it. Not connected outranks not observing.
 
 import { hostMatches } from "../background/scripts.js";
-import { alreadyAnswered, composer, ledger, nudging } from "./ledger.js";
+import { composer, ledger, nudging } from "./ledger.js";
 import { runCard } from "./run-card.js";
 import { history } from "./history.js";
 import { mailRunCard } from "./mail-run.js";
@@ -337,6 +337,7 @@ function render(status) {
     offers.push(one);
   }
   const loud = [...needs, ...now, ...offers.slice(0, 1)].slice(0, K_LOUD);
+  openOffers = loud.filter((one) => offers.includes(one)).length;
 
   const trouble = troubles(status);
   if (!status.deviceId) {
@@ -1850,8 +1851,10 @@ async function refresh() {
       // A run the panel cannot read is still a run the panel can stop.
     }
   }
+  // Drawn first: the day's line counts the offers Home drew.
+  const drawn = render(status);
   void sayTheDay(status);
-  return render(status);
+  return drawn;
 }
 
 /** What a SKILL run is, as the performing card draws it: the skill's name, the
@@ -1910,8 +1913,10 @@ let tabHere = { tabId: null, host: "", url: "" };
 let expanded = false;
 let lastStatus = null;
 
-/** Offers in the thread nobody has answered, counted where the thread is drawn
- * so the day's line does not fetch it a second time. */
+/** The offer cards Home drew, counted where they are drawn so the day's line
+ * says what the operator can see. It counted the thread's offers once, and an
+ * offer this browser makes is written to no thread: "0 offers" over an offer
+ * on screen (QA 2026-09-29). */
 let openOffers = 0;
 
 async function whereWeAre() {
@@ -2515,11 +2520,6 @@ function show(thread, { asked = false } = {}) {
     // and approved, so the conversation is where the waiting belongs.
     mail: lastStatus?.mail || null,
   };
-  openOffers = (thread.messages || []).filter(
-    (message) =>
-      ["offer", "mail_match"].includes(message.decision?.kind || "") &&
-      !alreadyAnswered(thread.messages).has(message.decision.candidate_id),
-  ).length;
   // The runs the conversation can draw under a message that names one.
   //
   // The ledger has had this branch since the skills path existed and it has
@@ -2996,8 +2996,8 @@ function listen() {
  */
 async function drawPushed(pushed) {
   if (pushed?.performing) return refresh();
-  void sayTheDay(pushed);
   render(pushed);
+  void sayTheDay(pushed);
 }
 
 // How the panel learns it is beside a different tab.

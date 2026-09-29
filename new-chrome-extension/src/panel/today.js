@@ -13,9 +13,8 @@
 /**
  * The line, or `null` when there is nothing yet to say.
  *
- * `summary` is the analytics answer for the last 24 hours; `openOffers` is how many offers in today's
- * thread nobody has answered, which the panel counts from the thread it already
- * holds rather than asking for a second time.
+ * `summary` is the analytics answer for the last 24 hours; `openOffers` is how
+ * many offer cards Home drew, which the panel counts where it draws them.
  */
 export function today(summary, openOffers = 0) {
   const done = summary?.doing?.runs || 0;

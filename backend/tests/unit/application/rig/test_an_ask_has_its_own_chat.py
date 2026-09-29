@@ -69,8 +69,8 @@ class _Ask:
         self.clock, self.ids = FakeClock(), world.wiring["ids"]
         drafter = DraftForTheAsker(world.uow, self.mailbox, self.clock, self.ids)
 
-        async def drafts(ctx: object, pending: Pending, thread: str) -> bool:
-            return await drafter.execute(CTX, pending, thread=thread)
+        async def drafts(ctx: object, pending: Pending, thread: str, question: str) -> bool:
+            return await drafter.execute(CTX, pending, question=question, thread=thread)
 
         self.door = AskAboutTheOffer(world.uow, self.clock, self.ids, drafts)
 
@@ -299,3 +299,30 @@ async def test_a_run_with_no_mail_asks_in_a_chat_of_its_own() -> None:
         f.TENANT, opened_by=PrincipalId(CTX.principal_id.value)
     )
     assert len(mine) == 2, "asking twice for one run opened a second chat"
+
+
+async def test_an_answered_draft_stays_answered_when_the_run_asks_again() -> None:
+    """The draft asks about its own question, not whichever stands in the chat.
+
+    The mail asked, a draft was written, the operator answered VETC (the draft
+    is refused), the run came up short and asked again in the same chat. The
+    old draft must not come back sendable under the new question.
+    """
+    world = await _World().ready()
+    ask = _Ask(world)
+    await ask.asks()
+    chat = await ask.chat()
+    old = _draft(chat)
+    await world.converse().execute(CTX, thread_id=chat.id, text="VETC")
+    (run_id,) = await world.runs()
+    run = await world.uow.workflow_runs.get(f.TENANT, run_id)
+    assert run is not None
+    run.needs = ["Customer Type"]
+    run.outcome = "stopped"
+    await world.uow.workflow_runs.save(run)
+    await world.start._ask_for_values(CTX, run, world.title)
+
+    sent_to = await ask.sender().execute(CTX, chat.id, old.id.value)
+
+    assert sent_to == ""
+    assert ask.mailbox.sent == [], "an answered draft was sent under a newer question"

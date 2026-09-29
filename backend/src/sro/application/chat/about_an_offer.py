@@ -24,7 +24,7 @@ from sro.domain.skill.learned import offerable
 
 logger = logging.getLogger(__name__)
 
-DraftsForTheAsker = Callable[[RequestContext, Pending, str], Awaitable[bool]]
+DraftsForTheAsker = Callable[[RequestContext, Pending, str, str], Awaitable[bool]]
 
 
 class AskAboutTheOffer:
@@ -172,7 +172,7 @@ class AskAboutTheOffer:
                 else ""
             )
         asked = opening(pending, about)
-        await SayWhatHappened(self._uow, self._clock, self._ids).execute(
+        question = await SayWhatHappened(self._uow, self._clock, self._ids).execute(
             ctx,
             for_operator=PrincipalId(ctx.principal_id.value),
             text=asked,
@@ -198,7 +198,7 @@ class AskAboutTheOffer:
         )
         if self._drafts is not None and mail_thread.strip():
             try:
-                await self._drafts(ctx, pending, mail_thread)
+                await self._drafts(ctx, pending, mail_thread, question)
             except Exception:
                 logger.exception("a mail to whoever asked could not be drafted")
         logger.info(

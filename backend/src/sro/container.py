@@ -904,11 +904,19 @@ class Container:
 
         return MailHand(write=write, send=send)
 
-    async def _drafting(self, ctx: RequestContext, run_id: str, pending: Pending) -> bool:
-        return await self.draft_for_the_asker().execute(ctx, pending, run_id=run_id)
+    async def _drafting(
+        self, ctx: RequestContext, run_id: str, pending: Pending, question: str
+    ) -> bool:
+        return await self.draft_for_the_asker().execute(
+            ctx, pending, question=question, run_id=run_id
+        )
 
-    async def _drafting_for(self, ctx: RequestContext, pending: Pending, thread: str) -> bool:
-        return await self.draft_for_the_asker().execute(ctx, pending, thread=thread)
+    async def _drafting_for(
+        self, ctx: RequestContext, pending: Pending, thread: str, question: str
+    ) -> bool:
+        return await self.draft_for_the_asker().execute(
+            ctx, pending, question=question, thread=thread
+        )
 
     def list_workflow_runs(self) -> ListWorkflowRuns:
         return ListWorkflowRuns(self.unit_of_work())

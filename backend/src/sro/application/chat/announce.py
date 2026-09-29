@@ -27,12 +27,13 @@ class SayWhatHappened:
         decision: dict[str, object],
         speaker: Speaker = Speaker.SYSTEM,
         about: str = "",
-    ) -> None:
+    ) -> str:
         owner = RequestContext(ctx.tenant_id, for_operator)
         found = await self._thread_for(owner, about=about, run_id=str(decision.get("run_id") or ""))
         async with self._uow as uow:
-            await self._say(uow, owner, found, text=text, decision=decision, speaker=speaker)
+            said = await self._say(uow, owner, found, text=text, decision=decision, speaker=speaker)
             await uow.commit()
+        return said
 
     async def answered_elsewhere(self, ctx: RequestContext, run: WorkflowRun) -> None:
         asked = Progress.of(run.progress).asking
@@ -95,15 +96,15 @@ class SayWhatHappened:
         text: str,
         decision: dict[str, object],
         speaker: Speaker,
-    ) -> None:
+    ) -> str:
         thread = await uow.threads.get(owner.tenant_id, thread_id)
-        thread.say(
-            Message(
-                id=self._ids.new_message_id(),
-                speaker=speaker,
-                text=text,
-                said_at=self._clock.now(),
-                decision=decision,
-            )
+        said = Message(
+            id=self._ids.new_message_id(),
+            speaker=speaker,
+            text=text,
+            said_at=self._clock.now(),
+            decision=decision,
         )
+        thread.say(said)
         await uow.threads.save(thread)
+        return said.id.value

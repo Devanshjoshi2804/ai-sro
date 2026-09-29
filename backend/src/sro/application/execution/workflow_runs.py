@@ -95,7 +95,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-DraftsForTheAsker = Callable[[RequestContext, str, Pending], Awaitable[bool]]
+DraftsForTheAsker = Callable[[RequestContext, str, Pending, str], Awaitable[bool]]
 
 
 K_EVERY_FORM = 400
@@ -528,7 +528,7 @@ class StartWorkflowRun:
                 about=mail_thread or run.id,
             )
             return
-        await SayWhatHappened(self._uow, self._clock, self._ids).execute(
+        asked = await SayWhatHappened(self._uow, self._clock, self._ids).execute(
             ctx,
             for_operator=operator,
             about=mail_thread or run.id,
@@ -555,7 +555,7 @@ class StartWorkflowRun:
         )
         if self._asker_drafts is not None:
             try:
-                await self._asker_drafts(ctx, run.id, pending)
+                await self._asker_drafts(ctx, run.id, pending, asked)
             except Exception:
                 logger.exception("%s could not be drafted a mail about", run.id)
 

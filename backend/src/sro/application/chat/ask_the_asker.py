@@ -28,7 +28,13 @@ class DraftForTheAsker:
         self._ids = ids
 
     async def execute(
-        self, ctx: RequestContext, pending: Pending, *, thread: str = "", run_id: str = ""
+        self,
+        ctx: RequestContext,
+        pending: Pending,
+        *,
+        question: str,
+        thread: str = "",
+        run_id: str = "",
     ) -> bool:
         if not worth_asking(pending):
             return False
@@ -71,6 +77,7 @@ class DraftForTheAsker:
                 "body": body,
                 "thread": conversation,
                 "in_reply_to": replying_to,
+                "question": question,
             },
         )
         logger.info(
@@ -136,7 +143,8 @@ class SendTheDraft:
             if draft is None:
                 logger.info("%s: no draft to send under %s", ctx.tenant_id.value, message_id)
                 return ""
-            if pending_job(thread.messages) is None:
+            question = str(draft.get("question") or "")
+            if not question or pending_job(thread.messages, question) is None:
                 logger.info(
                     "%s: the question the draft %s asks was answered",
                     ctx.tenant_id.value,
@@ -197,7 +205,7 @@ class SendTheDraft:
             ctx,
             thread_id,
             f"Asked {to}. I will carry on when they reply."
-            if pending_job(thread.messages) is not None
+            if pending_job(thread.messages, question) is not None
             else f"Asked {to}, but the question was answered here meanwhile, "
             "so their reply is not needed.",
             run_id,

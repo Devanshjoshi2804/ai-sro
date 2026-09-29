@@ -10,6 +10,8 @@ was a storage rule and renamed where the route half is plan 4's.
 
 from __future__ import annotations
 
+import asyncio
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 
@@ -137,13 +139,15 @@ class TestWorkflowRuns:
         assert listed == (run,)
         assert missing is None
 
-    async def test_saving_again_replaces_the_steps_rather_than_appending(
+    async def test_saving_again_upserts_the_steps_rather_than_appending(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
         """A run is saved after every step so the panel can poll it; the second
-        save must not double the first step -- and a step that leaves the
-        record has to leave the store with it, which a per-step upsert keyed on
-        (run_id, ord) would not do."""
+        save must not double the first step. Each step is upserted by
+        `(run_id, ord)` rather than deleted and reinserted, so a save that
+        carries fewer steps than the row already has never erases the rest --
+        `test_a_stale_save_does_not_erase_a_step_the_worker_added` is the
+        failure mode a delete-then-insert would still have."""
         run = _run(steps=[RunStep(order=0, says="a", verdict="held", verdict_by="status")])
 
         async with SqlUnitOfWork(session_factory) as uow:
@@ -158,16 +162,48 @@ class TestWorkflowRuns:
         assert grown is not None
         assert [step.order for step in grown.steps] == [0, 1]
 
-        run.steps = run.steps[:1]
+    async def test_a_stale_save_does_not_erase_a_step_the_worker_added(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A stale API save carries only the steps its own stale copy knew
+        about -- one -- saved after a worker has since appended a second one
+        to the same run. The worker's step must survive it, the same way
+        C1 keeps a stale save from rolling `progress` back."""
+        run = _run(steps=[RunStep(order=0, says="a", verdict="held", verdict_by="status")])
+
         async with SqlUnitOfWork(session_factory) as uow:
             await uow.workflow_runs.save(run)
             await uow.commit()
 
+        # A caller's stale copy: loaded before the worker's step below.
         async with SqlUnitOfWork(session_factory) as uow:
-            shrunk = await uow.workflow_runs.get(TENANT, run.id)
+            stale_copy = await uow.workflow_runs.get(TENANT, run.id)
+            assert stale_copy is not None
 
-        assert shrunk is not None
-        assert [step.order for step in shrunk.steps] == [0]
+        # The worker appends and saves its own, newer copy.
+        async with SqlUnitOfWork(session_factory) as uow:
+            worker_copy = await uow.workflow_runs.get(TENANT, run.id)
+            assert worker_copy is not None
+            worker_copy.steps.append(
+                RunStep(order=1, says="b", verdict="held", verdict_by="status")
+            )
+            await uow.workflow_runs.save(worker_copy)
+            await uow.commit()
+
+        # The stale copy -- still just step 0 -- is saved back.
+        async with SqlUnitOfWork(session_factory) as uow:
+            stale_copy.watched = True
+            await uow.workflow_runs.save(stale_copy)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            back = await uow.workflow_runs.get(TENANT, run.id)
+
+        assert back is not None
+        assert back.watched is True, "the stale save's own change still landed"
+        assert [step.order for step in back.steps] == [0, 1], (
+            "the worker's step must survive a stale save that never carried it"
+        )
 
     async def test_a_step_that_sent_nothing_reads_back_as_sql_null(
         self, session_factory: async_sessionmaker[AsyncSession]
@@ -294,15 +330,19 @@ class TestWorkflowRuns:
             # And nothing has taken back the undo itself.
             assert await uow.workflow_runs.taken_back_by(TENANT, undo.id) is None
 
-        undo.outcome = "failed"
+        # An ended outcome is never rewritten (D4), so an undo that failed is its
+        # own run from the start, not the held undo turned failed.
+        other = _run(device_id="dev_3")
+        failed = _run(device_id="dev_4", undoes_run=other.id, outcome="failed")
         async with SqlUnitOfWork(session_factory) as uow:
-            await uow.workflow_runs.save(undo)
+            await uow.workflow_runs.save(other)
+            await uow.workflow_runs.save(failed)
             await uow.commit()
 
         async with SqlUnitOfWork(session_factory) as uow:
             # An undo that did not work is not a record that is gone, and the
             # second press is the one that might still remove it.
-            assert await uow.workflow_runs.taken_back_by(TENANT, made.id) is None
+            assert await uow.workflow_runs.taken_back_by(TENANT, other.id) is None
 
     async def test_a_run_is_found_again_by_the_conversation_it_answers_to(
         self, session_factory: async_sessionmaker[AsyncSession]
@@ -360,6 +400,50 @@ class TestWorkflowRuns:
             assert await uow.workflow_runs.waiting_on(TENANT, server="slack", thread="t-9") is None
             assert await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="") is None
             assert await uow.workflow_runs.waiting_on(TENANT, server="", thread="t-9") is None
+
+    async def test_a_drafted_run_asking_who_its_mail_goes_to_waits_on_its_thread(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """The draft path's `recipient` question stands on a stopped run, and a
+        reply on its thread must find it; a stopped run asking anything else,
+        or nothing, is not waiting."""
+        wait = {"server": "gmail", "thread": "t-7", "until": "2099-01-01T00:00:00+00:00"}
+        who = _run(device_id="dev_h", outcome="stopped", awaiting=wait)
+        other = _run(device_id="dev_i", outcome="stopped", awaiting={**wait, "thread": "t-4"})
+        async with SqlUnitOfWork(session_factory) as uow:
+            for one in (who, other):
+                await uow.workflow_runs.save(one)
+            await uow.workflow_runs.record_progress(
+                TENANT, who.id, {"asking": {"id": "q-1", "kind": "recipient", "text": "who?"}}
+            )
+            await uow.workflow_runs.record_progress(
+                TENANT, other.id, {"asking": {"id": "q-2", "kind": "value", "text": "what?"}}
+            )
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            found = await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-7")
+            assert found is not None and found.id == who.id
+            assert await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-4") is None
+
+    async def test_a_drafted_run_asking_what_its_mail_says_waits_on_its_thread(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """S4 M7: the draft path's `mail_body` question stands on a stopped run
+        too. A reply on its thread finds the run -- which the mail door then
+        never answers -- rather than being read as a new request."""
+        wait = {"server": "gmail", "thread": "t-3", "until": "2099-01-01T00:00:00+00:00"}
+        body = _run(device_id="dev_j", outcome="stopped", awaiting=wait)
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(body)
+            await uow.workflow_runs.record_progress(
+                TENANT, body.id, {"asking": {"id": "q-3", "kind": "mail_body", "text": "what?"}}
+            )
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            found = await uow.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-3")
+            assert found is not None and found.id == body.id
 
     async def test_clearing_a_wait_without_committing_does_not_clear_it(
         self, session_factory: async_sessionmaker[AsyncSession]
@@ -439,8 +523,6 @@ class TestWorkflowRuns:
             SqlUnitOfWork(session_factory),
             channel=None,
             asker=None,
-            plan_model="m",
-            rescue_model="m",
             clock=_Clock(),
             cap_usd=1.0,
             stops=Stops(),
@@ -537,6 +619,133 @@ class TestWorkflowRuns:
         assert "workflow_run_steps" not in asked[0], "nothing is loaded, so no step is either"
 
 
+class TestProgressWrittenOnlyByRecordProgress:
+    """§7.3: "a write already recorded as done is never sent again, even when
+    Temporal retries." `save` upserts a whole in-memory copy of a run, and an
+    API path (a mail reply, a stop, a close) routinely loads a run, does
+    something unrelated to `progress`, and saves it back -- possibly after a
+    worker has since marked a later step `done` on the same row. If `save`
+    ever wrote `progress`, that stale copy would rewind it, and a retried
+    activity would resend a write already made."""
+
+    async def test_a_stale_whole_row_save_does_not_roll_progress_back(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        run = _run(executor="steel", device_id="")
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+
+        # The worker's view: loaded once, then it marks step 0 done.
+        async with SqlUnitOfWork(session_factory) as uow:
+            worker_copy = await uow.workflow_runs.get(TENANT, run.id)
+            assert worker_copy is not None
+            recorded = await uow.workflow_runs.record_progress(
+                TENANT, run.id, {"step": 1, "marks": {"0": {"wrote": "done"}}}
+            )
+            await uow.commit()
+
+        assert recorded is True
+
+        # A concurrent API path's view: loaded BEFORE the worker's write above,
+        # touches something that has nothing to do with progress, and saves
+        # its now-stale whole copy back.
+        async with SqlUnitOfWork(session_factory) as uow:
+            stale_copy = await uow.workflow_runs.get(TENANT, run.id)
+            assert stale_copy is not None
+            stale_copy.watched = True
+            await uow.workflow_runs.save(stale_copy)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            back = await uow.workflow_runs.get(TENANT, run.id)
+
+        assert back is not None
+        assert back.watched is True, "the stale save's own change still landed"
+        assert back.progress == {
+            "step": 1,
+            "marks": {"0": {"wrote": "done"}},
+        }, "the worker's done mark must survive a stale whole-row save"
+
+    async def test_the_first_save_still_writes_the_initial_progress(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """`record_progress` is the only path that CHANGES progress -- the
+        first `save` still has to write whatever progress the caller starts
+        the row with, since nothing else has inserted the row yet."""
+        run = _run(executor="steel", device_id="", progress={"step": 0, "lease": "lse_1"})
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            back = await uow.workflow_runs.get(TENANT, run.id)
+
+        assert back is not None and back.progress == {"step": 0, "lease": "lse_1"}
+
+    async def test_record_progress_writes_only_over_the_progress_it_was_given(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A compare-and-set: of two attempts that loaded the same progress,
+        the second to write finds it changed and writes nothing."""
+        loaded = {"step": 0, "marks": {"0": {"lane": "", "verdict": "", "wrote": ""}}}
+        run = _run(executor="steel", device_id="", progress=loaded)
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+
+        outcomes = []
+        for lane in ("ui", "sight"):
+            sending = {"step": 0, "marks": {"0": {"lane": lane, "wrote": "sending"}}}
+            async with SqlUnitOfWork(session_factory) as uow:
+                outcomes.append(
+                    await uow.workflow_runs.record_progress(TENANT, run.id, sending, was=loaded)
+                )
+                await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            back = await uow.workflow_runs.get(TENANT, run.id)
+        assert outcomes == [True, False]
+        assert back is not None and back.progress["marks"] == {
+            "0": {"lane": "ui", "wrote": "sending"}
+        }
+
+    async def test_record_progress_returns_false_for_an_unknown_run(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A worker that has lost its run must find that out, not believe a
+        no-op mark is durable."""
+        async with SqlUnitOfWork(session_factory) as uow:
+            recorded = await uow.workflow_runs.record_progress(
+                TENANT, "run_no_such_run", {"step": 1}
+            )
+            await uow.commit()
+
+        assert recorded is False
+
+    async def test_record_progress_returns_false_for_the_wrong_tenant(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        run = _run(executor="steel", device_id="")
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            recorded = await uow.workflow_runs.record_progress(OTHER_TENANT, run.id, {"step": 1})
+            await uow.commit()
+
+        assert recorded is False
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            untouched = await uow.workflow_runs.get(TENANT, run.id)
+
+        assert untouched is not None and untouched.progress == {}
+
+
 class TestOrphans:
     async def test_a_run_still_running_when_the_rig_starts_is_failed_and_says_why(
         self, session_factory: async_sessionmaker[AsyncSession]
@@ -621,6 +830,33 @@ class TestOrphans:
 
         assert failed is not None and len(failed.steps) == 1
         assert (failed.steps[0].verdict, failed.steps[0].verdict_by) == ("failed", "none")
+
+    async def test_a_steel_run_is_never_an_orphan(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A Steel run lives in the worker, not the API process it starts
+        beside -- an API restart is not its process dying, so the startup
+        sweep must never fail one."""
+        extension = _run(id="run_extension", steps=[RunStep(order=0, says="s", verdict="held")])
+        steel = _run(id="run_steel", device_id="", executor="steel")
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(extension)
+            await uow.workflow_runs.save(steel)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            swept = await uow.workflow_runs.fail_orphans("the rig restarted")
+            await uow.commit()
+
+        assert swept == 1
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            failed = await uow.workflow_runs.get(TENANT, extension.id)
+            untouched = await uow.workflow_runs.get(TENANT, steel.id)
+
+        assert failed is not None and failed.outcome == "failed"
+        assert untouched is not None and untouched.outcome == "running"
 
 
 class TestApprovals:
@@ -813,6 +1049,76 @@ class TestOneRunningRunPerBrowser:
         assert "CREATE UNIQUE INDEX" in said, said
         assert "tenant_id" in said and "device_id" in said, said
         assert "outcome" in said and "'running'" in said and "WHERE" in said, said
+        assert "executor" in said and "'extension'" in said, said
+
+    async def test_two_steel_runs_name_no_device_and_never_collide(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A Steel run has its own browser, not the operator's -- the index is
+        narrowed to `executor = 'extension'` for exactly this: two Steel runs
+        of one tenant, both `running`, both `device_id = ""`, save without a
+        conflict and read back with their own progress."""
+        first = _run(
+            id="run_steel_first",
+            device_id="",
+            executor="steel",
+            progress={"step": 1, "lease": "lse_1"},
+        )
+        second = _run(
+            id="run_steel_second",
+            device_id="",
+            executor="steel",
+            progress={"step": 2, "lease": "lse_2"},
+        )
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(first)
+            await uow.workflow_runs.save(second)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            back_first = await uow.workflow_runs.get(TENANT, first.id)
+            back_second = await uow.workflow_runs.get(TENANT, second.id)
+
+        assert back_first is not None and back_first.outcome == "running"
+        assert back_first.executor == "steel" and back_first.progress == {
+            "step": 1,
+            "lease": "lse_1",
+        }
+        assert back_second is not None and back_second.outcome == "running"
+        assert back_second.executor == "steel" and back_second.progress == {
+            "step": 2,
+            "lease": "lse_2",
+        }
+
+
+class TestExecutorIsConstrained:
+    """I1: the one-device rule is written three ways -- the index, the
+    startup sweep, and `in_flight` -- and all three read `executor` as a
+    bare string. A CHECK constraint is the one place a mistyped value
+    (`"Extension"`, `""`) cannot slip past all three at once."""
+
+    async def test_postgres_refuses_an_unknown_executor_value(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        bad = _run(id="run_bad_executor", executor="Extension")
+
+        with pytest.raises(IntegrityError):
+            async with SqlUnitOfWork(session_factory) as uow:
+                await uow.workflow_runs.save(bad)
+                await uow.commit()
+
+    async def test_in_flight_ignores_a_steel_run_even_if_it_names_a_device(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        odd = _run(id="run_steel_odd_device", device_id="dev_1", executor="steel")
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(odd)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert await uow.workflow_runs.in_flight(TENANT, DeviceId("dev_1")) is None
 
 
 class TestOneSkillRunPerBrowser:
@@ -863,3 +1169,164 @@ class TestOneSkillRunPerBrowser:
 
         async with SqlUnitOfWork(session_factory) as uow:
             assert await uow.runs.in_flight(TENANT, DeviceId("dev_1")) is None
+
+
+async def _until_it_waits(engine: AsyncEngine, running: asyncio.Future[Any]) -> None:
+    """Returns once some session waits on a row lock, or `running` has ended."""
+    async with engine.connect() as watching:
+        while not running.done():
+            waiting = await watching.scalar(
+                text(
+                    "SELECT count(*) FROM pg_stat_activity"
+                    " WHERE datname = current_database() AND wait_event_type = 'Lock'"
+                )
+            )
+            if waiting:
+                return
+            await asyncio.sleep(0.01)
+
+
+class TestStuckRuns:
+    """D10: `close_stuck` is a compare-and-set on `outcome = 'running'` and on
+    the progress the sweep read, so whichever of the real `finish` and the
+    sweep commits first owns the row, and the other changes nothing."""
+
+    STUCK = "the run stopped responding and was closed after its time ran out"
+
+    async def _stuck_run(self, session_factory: async_sessionmaker[AsyncSession]) -> WorkflowRun:
+        run = _run(
+            device_id="",
+            executor="steel",
+            progress={"step": 1},
+            steps=[RunStep(order=0, says="save", verdict="held", verdict_by="status")],
+        )
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+        return run
+
+    async def _sweep(
+        self, session_factory: async_sessionmaker[AsyncSession], run: WorkflowRun
+    ) -> bool:
+        async with SqlUnitOfWork(session_factory) as uow:
+            won = await uow.workflow_runs.close_stuck(
+                TENANT,
+                run.id,
+                reason=self.STUCK,
+                at="2026-09-05T11:00:00+00:00",
+                was={"step": 1},
+            )
+            await uow.commit()
+        return won
+
+    async def test_a_step_that_finished_keeps_its_verdict_and_the_reason_goes_after_it(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Resuming starts at the last step's order: a finished save marked
+        failed would be saved a second time."""
+        run = _run(
+            device_id="",
+            executor="steel",
+            progress={"step": 1},
+            steps=[RunStep(order=0, says="save", verdict="done", verdict_by="status")],
+        )
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+
+        assert await self._sweep(session_factory, run) is True
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            kept = await uow.workflow_runs.get(TENANT, run.id)
+        assert kept is not None and kept.outcome == "failed"
+        assert [(one.order, one.verdict, one.reason) for one in kept.steps] == [
+            (0, "done", ""),
+            (1, "failed", self.STUCK),
+        ]
+
+    async def test_a_finish_that_holds_the_row_wins_and_the_sweep_does_nothing(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        run = await self._stuck_run(session_factory)
+
+        async with SqlUnitOfWork(session_factory) as finishing:
+            finished = await finishing.workflow_runs.get(TENANT, run.id)
+            assert finished is not None
+            finished.outcome, finished.finished_at = "held", "2026-09-05T10:59:00+00:00"
+            await finishing.workflow_runs.save(finished)
+            racing = asyncio.ensure_future(self._sweep(session_factory, run))
+            await _until_it_waits(engine, racing)
+            assert not racing.done(), "the sweep waited on the finish's row lock"
+            await finishing.commit()
+
+        assert await racing is False
+        async with SqlUnitOfWork(session_factory) as uow:
+            kept = await uow.workflow_runs.get(TENANT, run.id)
+        assert kept is not None and kept.outcome == "held"
+        assert [(one.verdict, one.reason) for one in kept.steps] == [("held", "")]
+
+    async def test_a_sweep_that_holds_the_row_wins_and_the_late_finish_cannot_rewrite_it(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        run = await self._stuck_run(session_factory)
+        late = replace(run, outcome="held")
+
+        async def finish() -> None:
+            async with SqlUnitOfWork(session_factory) as uow:
+                await uow.workflow_runs.save(late)
+                await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as sweeping:
+            assert await sweeping.workflow_runs.close_stuck(
+                TENANT,
+                run.id,
+                reason=self.STUCK,
+                at="2026-09-05T11:00:00+00:00",
+                was={"step": 1},
+            )
+            racing = asyncio.ensure_future(finish())
+            await _until_it_waits(engine, racing)
+            await sweeping.commit()
+        await racing
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            closed = await uow.workflow_runs.get(TENANT, run.id)
+        assert closed is not None and closed.outcome == "failed"
+
+    async def test_two_sweeps_at_once_close_the_row_once(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        run = await self._stuck_run(session_factory)
+
+        async with SqlUnitOfWork(session_factory) as first:
+            assert await first.workflow_runs.close_stuck(
+                TENANT,
+                run.id,
+                reason=self.STUCK,
+                at="2026-09-05T11:00:00+00:00",
+                was={"step": 1},
+            )
+            second = asyncio.ensure_future(self._sweep(session_factory, run))
+            await _until_it_waits(engine, second)
+            assert not second.done(), "the second sweep waited on the first's row lock"
+            await first.commit()
+
+        assert await second is False
+        async with SqlUnitOfWork(session_factory) as uow:
+            closed = await uow.workflow_runs.get(TENANT, run.id)
+        assert closed is not None and closed.outcome == "failed"
+        assert [(one.verdict, one.reason) for one in closed.steps] == [("failed", self.STUCK)]
+        assert closed.finished_at == "2026-09-05T11:00:00+00:00"
+
+    async def test_a_run_that_moved_since_the_sweep_read_it_is_not_closed(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        run = await self._stuck_run(session_factory)
+        async with SqlUnitOfWork(session_factory) as uow:
+            assert await uow.workflow_runs.record_progress(TENANT, run.id, {"step": 2})
+            await uow.commit()
+
+        assert await self._sweep(session_factory, run) is False
+        async with SqlUnitOfWork(session_factory) as uow:
+            kept = await uow.workflow_runs.get(TENANT, run.id)
+        assert kept is not None and kept.outcome == "running"

@@ -18,34 +18,6 @@ Comments and docstrings moved out of [`backend/src/sro/domain/skill/umbrella.py`
 > use case that calls it. `propose` itself asks a model and belongs to the mining
 > use case.
 
-## module, [line 8](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L8): Note on the line above
-
-Code: `K_EFFORT: Effort = "medium"`
-
-> How hard the model is told to think before it answers.
->
-> `"high"` is what the rig shipped, and it is not the harmless default it looks
-> like. On Gemini, thinking is billed INSIDE `max_output_tokens`: over one day of
-> evidence at `high`, Gemini 3.8 Flash spent 62,913 of 65,536 tokens thinking and
-> was truncated with 2,609 left to answer in -- three runs out of three, $0.38
-> each, nothing kept. At `medium` the same model mined the same day successfully
-> and kept 7 of 17 proposed jobs.
->
-> `"medium"`, then, and measured on this backend rather than inherited: the first
-> real pass over a real store -- 507 gestures from a day of Blue Yonder capture,
-> `gemini-3.1-pro-preview` -- did the same thing at `high`. 204,747 in, 65,522
-> out, truncated after 2,610 tokens of answer, $2.00 for nothing kept. The same
-> evidence at `medium` answered in 6,041 output tokens with 3,362 of thinking,
-> cost $0.93, and kept 2 of 3 proposed jobs, which then replayed 2 of 2 as
-> themselves. Twice the result at half the price, and the difference is this
-> word.
->
-> So this constant is a budget decision as much as a quality one, and it belongs
-> to whoever configures a model: a model with a small output ceiling wants
-> `"medium"`. Both numbers are written down here because the choice cannot be
-> made without them -- and because the first was recorded for one model and not
-> applied to the one actually configured, which is how the $2.00 was spent.
-
 ## module, [line 10](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L10): Note on the line above
 
 Code: `K_MAX_CROSSING_TOKENS = 2_000`
@@ -65,7 +37,7 @@ Code: `K_MAX_CROSSING_TOKENS = 2_000`
 > caught. It is subtracted from the budget whether or not any crossing fires, so
 > the prompt fits in the case that matters -- the full one.
 
-## `bounded_crossings`, [line 111](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L111): Docstring
+## `bounded_crossings`, [line 13](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L13): Docstring
 
 > The crossings that fit K_MAX_CROSSING_TOKENS, best-evidenced first.
 >
@@ -75,15 +47,18 @@ Code: `K_MAX_CROSSING_TOKENS = 2_000`
 > than one seen on two. Ties break on the value so the same store always
 > produces the same prompt.
 
-## `build_prompt`, [line 123](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L123): Docstring
+## `_has_control`, [line 56](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L56): Comment
 
-> The task first, the evidence, then the task again.
->
-> Question-first ordering was strongest at long context, and restating the
-> constraints after the evidence costs almost nothing. Nothing here marks
-> which evidence matters most -- doing that was measured to reduce accuracy.
+Code: `def _has_control(value: object) -> bool:`
 
-## `workflow_from`, [line 161](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L161): Docstring
+> Control characters other than tab, newline and carriage return. A NUL
+> reached the store from a model answer and Postgres refused the insert,
+> killing the pass's save. None of them is text anybody reads, so a job
+> carrying one anywhere -- title, a step, a parameter's values -- is
+> refused whole (M1 round 3); `propose` drops only that job and keeps the
+> rest of the answer.
+
+## `workflow_from`, [line 66](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L66): Docstring
 
 > One workflow out of one model answer, or None if it is not one.
 >
@@ -91,42 +66,7 @@ Code: `K_MAX_CROSSING_TOKENS = 2_000`
 > application layer calls it, and a leading underscore on something that
 > crosses a layer boundary is a lie about who may use it.
 
-## module, [line 63](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L63): Comment
-
-Code: `"properties": {`
-
-> cites before says: identifying the evidence before
-> composing the answer measurably beats the reverse.
-
-## module, [line 86](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L86): Comment
-
-Code: `"parameters": {`
-
-> The shape is declared, which it was not. `object` with
-> no properties told the model nothing, while
-> `chat.understand` and `skill.shape` both read
-> `seen_values` off whatever came back -- so a
-> model-supplied parameter arrived in whatever shape the
-> model guessed and was dropped by `workflow_from`'s name
-> check or carried no values anybody reads. Measured across
-> three clean mines of a real day: `parameters` came back
-> empty every time, on jobs whose evidence plainly showed
-> four different customer types being typed.
-
-## module, [line 105](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L105): Comment
-
-Code: `"unplaced": {"type": "array", "items": {"type": "string"}},`
-
-> Beside `workflows`, not inside one. It is a fact about the WINDOW --
-> what was left over when every job in it had been described -- and it
-> was asked for per workflow, so the model attached the window's
-> leftovers to whichever job it happened to emit. Four readers then
-> took it for a property of that job and refused to serve, schedule or
-> fire it: on the first real cross-tab evidence this system ever mined,
-> a correct six-step job carried thirty-six unplaced ids, a third of
-> which were gestures supporting its own steps, and was never offered.
-
-## `bounded_crossings`, [line 115](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L115): Comment
+## `bounded_crossings`, [line 17](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L17): Comment
 
 Code: `cost = tokens(json.dumps({value: ids}, indent=1, ensure_ascii=False))`
 
@@ -134,7 +74,7 @@ Code: `cost = tokens(json.dumps({value: ids}, indent=1, ensure_ascii=False))`
 > came before it. Slightly over -- it pays for a pair of braces per entry
 > -- which is the direction a budget should err in.
 
-## `bounded_crossings`, [line 116](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L116): Comment
+## `bounded_crossings`, [line 18](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L18): Comment
 
 Code: `if spent + cost > K_MAX_CROSSING_TOKENS:`
 
@@ -147,21 +87,59 @@ Code: `if spent + cost > K_MAX_CROSSING_TOKENS:`
 > too well evidenced to print. Nothing says so downstream, and the
 > architecture's central claim quietly loses its input.
 
-## `build_prompt`, [line 129](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L129): Comment
+## `workflow_from`, [line 80](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L80): Comment
 
-Code: `parts = [INSTRUCTIONS, "", "## The day", ""]`
+Code: `order=step["order"]`
 
-> arrange() and not window.items directly. `pack` sorts the window into time
-> order and every reader downstream depends on that -- checks.coverage
-> slices it into TIME deciles, and its skew figure is only comparable across
-> passes while those deciles mean the same thing. So the reordering happens
-> here, at the one place the evidence becomes a prompt, exactly as
-> algorithms.md's pseudocode has it: `chosen.sort(key=at)` upstream,
-> `arrange(chosen)` at assembly.
+> True is an int in Python, and would sort as step 1.
 
-## `build_prompt`, [line 133](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L133): Comment
+## `workflow_from`, [line 86](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L86): Comment
 
-Code: `in_window = {item.gesture_id for item in window.items}`
+Code: `parameters=[`
+
+> Same rule as the workflow-level parameters below, which is
+> the point: these two arrive from one model answer and were
+> checked differently -- an empty string survived here while an
+> empty `name` was dropped there. The SHAPES stay different
+> because the schema declares them different (a step names a
+> parameter, a workflow declares one), but "a parameter with no
+> usable name is not a parameter" is one rule now, applied at
+> both. A blank name is no name.
+
+## `workflow_from`, [line 94](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L94): Comment
+
+Code: `steps.sort(key=lambda step: step.order)`
+
+> The model's order is only a sort key: every step is renumbered to its
+> position, 0..n-1 (M1 round 2). The workflow-step table declares PRIMARY
+> KEY (workflow_id, ord) on an integer, and "order": 1 twice or an order
+> past int32 are both schema-valid answers. The second failed in the
+> driver, before the server, so the transaction lived on and the pass
+> committed a job row with no steps. The rule was once to renumber only
+> on a repeat; nothing reads a model's own numbering.
+
+## `workflow_from`, [line 107](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L107): Comment
+
+Code: `parameters=[`
+
+> A parameter with no usable name is not a parameter, the way a step
+> with no `says` is not a step. The step-level check above is the same
+> rule against the same-named field one level down; `.strip()` is here
+> too so that `{"name": "  "}` and `"  "` are refused alike.
+
+## `workflow_from`, [line 114](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L114): Comment
+
+Code: `)`
+
+> No cost here. The call that proposed this workflow proposed all of
+> them, so its price belongs to the pass -- the mining pass stamps
+> `pass_id` on what it keeps. Copying `answer.cost_usd` onto each
+> workflow made SUM(cost_usd) overstate the bill by the number of
+> workflows found.
+
+## `mining_blocks`, [line 31](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L31): Comment
+
+Code: `in_day = {str(one.get("id")) for one in day}`
 
 > Only the crossings the model is allowed to cite. checks.validate refuses
 > any workflow naming an id outside the window, so a crossing whose partner
@@ -182,9 +160,9 @@ Code: `in_window = {item.gesture_id for item in window.items}`
 > id is not a crossing, and "this value appears in more than one system"
 > over a single gesture is a claim the prompt cannot support.
 
-## module, [line 153](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L153): Comment
+## module, [line 47](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L47): Comment
 
-Code: `_PROBE = [Packed(gesture_id=name, at=0.0, evidence={}, strength=0.0, tokens=0) for name in "yz"]`
+Code: `_PROBE_DAY: list[dict[str, object]] = [{"id": "y"}, {"id": "z"}]`
 
 > What window.pack has to subtract from K_WINDOW_TOKENS before it fills anything,
 > because none of it is evidence and all of it is billed as input: the task
@@ -196,55 +174,7 @@ Code: `_PROBE = [Packed(gesture_id=name, at=0.0, evidence={}, strength=0.0, toke
 > content are left in as slack. The one thing it cannot see is the evidence, and
 > that is exactly what the budget is for.
 >
-> The probe's window holds the two ids its crossing names, because build_prompt
-> renders only crossings whose gestures are IN the window: probed with an empty
+> The probe's day holds the two ids its crossing names, because mining_blocks
+> renders only crossings whose gestures are IN the day: probed with an empty
 > one the block disappears, and the probe would stop counting a heading the real
 > prompt still pays for.
-
-## `workflow_from`, [line 175](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L175): Comment
-
-Code: `order=step["order"]`
-
-> True is an int in Python, and would sort as step 1.
-
-## `workflow_from`, [line 181](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L181): Comment
-
-Code: `parameters=[`
-
-> Same rule as the workflow-level parameters below, which is
-> the point: these two arrive from one model answer and were
-> checked differently -- an empty string survived here while an
-> empty `name` was dropped there. The SHAPES stay different
-> because the schema declares them different (a step names a
-> parameter, a workflow declares one), but "a parameter with no
-> usable name is not a parameter" is one rule now, applied at
-> both. A blank name is no name.
-
-## `workflow_from`, [line 189](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L189): Comment
-
-Code: `steps.sort(key=lambda step: step.order)`
-
-> Renumbered only when the model repeated itself. The workflow-step table
-> declares PRIMARY KEY (workflow_id, ord), so two steps at order 1 is a
-> workflow that cannot be saved -- and "order": 1 twice is schema-valid, so
-> it is an ordinary model slip rather than a broken answer. An answer that
-> numbered its steps correctly keeps its own numbering.
-
-## `workflow_from`, [line 203](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L203): Comment
-
-Code: `parameters=[`
-
-> A parameter with no usable name is not a parameter, the way a step
-> with no `says` is not a step. The step-level check above is the same
-> rule against the same-named field one level down; `.strip()` is here
-> too so that `{"name": "  "}` and `"  "` are refused alike.
-
-## `workflow_from`, [line 186](../../../../../../../backend/src/sro/domain/skill/umbrella.py#L186): Comment
-
-Code: `)`
-
-> No cost here. The call that proposed this workflow proposed all of
-> them, so its price belongs to the pass -- the mining pass stamps
-> `pass_id` on what it keeps. Copying `answer.cost_usd` onto each
-> workflow made SUM(cost_usd) overstate the bill by the number of
-> workflows found.

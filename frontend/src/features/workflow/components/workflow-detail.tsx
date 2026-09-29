@@ -27,7 +27,7 @@ import {
   type WorkflowModel,
   type WorkflowStepModel,
 } from "@/features/workflow/api";
-import { became, outcomeLabel, when } from "@/features/workflow/format";
+import { became, outcomeLabel, when, whyNotRunnable } from "@/features/workflow/format";
 import { RunForm } from "@/features/workflow/components/run-form";
 import { Button } from "@/components/ui/button";
 
@@ -160,6 +160,40 @@ export function WorkflowDetail({ workflowId }: { workflowId: string }) {
             <pre className="text-muted-foreground mt-2 font-mono text-xs whitespace-pre-wrap">
               {missing.join("\n")}
             </pre>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* The compile check. A job that cannot run is never offered to a request,
+          and this is where the operator sees why. */}
+      {!job.runnable && (
+        <Card className="border-destructive">
+          <CardHeader>
+            <CardTitle className="text-destructive text-base">This job cannot run yet</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc space-y-1 pl-5 text-sm">
+              {whyNotRunnable(job.reasons).map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Runs, but a reader should know: values fixed at recording, or every
+          lane failing lately (tried again after a cool-down). */}
+      {job.warnings.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Runs, with a warning</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc space-y-1 pl-5 text-sm">
+              {whyNotRunnable(job.warnings).map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
           </CardContent>
         </Card>
       )}

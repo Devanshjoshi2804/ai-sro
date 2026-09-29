@@ -1,8 +1,8 @@
 // One change to storage at a time.
 //
-// Lifted out of `service-worker.js` unchanged, because `commands.js` needs it
-// too and cannot import from the module that imports it. Its own argument,
-// kept whole:
+// Lifted out of `service-worker.js` unchanged, so a module the worker imports
+// can take the same lock without importing the worker. Its own argument, kept
+// whole:
 //
 // Read-modify-write over `chrome.storage` has no transaction: a tab closing
 // while another is being watched read the old list and wrote it back, and the

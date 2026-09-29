@@ -1,19 +1,30 @@
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from itertools import groupby
 
 from sro.application.context import RequestContext
+from sro.application.observation.chores import decide_sign_ins
 from sro.application.observation.mine_pass import MinePass
-from sro.application.observation.mining_pass import MineResult
+from sro.application.observation.mining_pass import (
+    K_BRING_IN_TRIES,
+    MineResult,
+    bring_in_parameters,
+    decide_tabs,
+    mining_lock,
+)
 from sro.application.observation.read_gesture import ReadGestures
+from sro.application.ports.locks import AccountLocks
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.shared.refusals import OverCap
 from sro.domain.shared.identifiers import PrincipalId, TenantId
+from sro.domain.skill.learned import K_PARAMETERS_RULE
 from sro.whose import about
 
-__all__ = ["MAX_READS", "MineLately"]
+__all__ = ["K_ERRORED_PASSES", "MAX_READS", "MineLately"]
 
 MAX_READS = 25
 
@@ -30,6 +41,8 @@ def _when(stamp: str) -> datetime:
 
 K_SETTLE_S = 120.0
 
+K_ERRORED_PASSES = 3
+
 
 class MineLately:
     def __init__(
@@ -37,14 +50,17 @@ class MineLately:
         uow: UnitOfWork,
         pass_: MinePass,
         reader: ReadGestures,
+        locks: AccountLocks,
         *,
         window_hours: int,
         max_reads: int = MAX_READS,
         settle_seconds: float = K_SETTLE_S,
     ) -> None:
         self._uow = uow
+        self._failed: Counter[str] = Counter()
         self._pass = pass_
         self._reader = reader
+        self._locks = locks
         self._window_hours = window_hours
         self._max_reads = max_reads
         self._settle = settle_seconds
@@ -66,16 +82,70 @@ class MineLately:
         newest = await uow.gestures.newest_arrival(tenant_id)
         if newest is not None and newest >= _when(last.started_at):
             return True
-        if not last.left_out:
+        if last.left_out <= 0:
             return False
-        if newest is None:
-            return False
-        held = max(1, last.window_size)
-        windows = -(-(held + last.left_out) // held)
-        since_anybody_worked = sum(1 for one in passes if _when(one.started_at) > newest)
-        return since_anybody_worked < windows
+        errored = 0
+        for one in reversed(passes):
+            if one.in_tokens > 0 or one.left_out <= 0:
+                break
+            if newest is not None and _when(one.started_at) <= newest:
+                break
+            errored += 1
+        return errored < K_ERRORED_PASSES
+
+    async def _decide(self) -> None:
+        async with self._uow as uow:
+            undecided = await uow.workflows.undecided()
+            untabbed = await uow.workflows.tabs_undecided()
+        for tenant in sorted({job.tenant for job in (*undecided, *untabbed)}):
+            tenant_id = TenantId(tenant)
+            try:
+                async with self._locks.try_hold_named(mining_lock(tenant_id)) as held:
+                    if not held:
+                        logger.info("%s: being mined elsewhere; deciding it next sweep", tenant)
+                        continue
+                    async with self._uow as uow:
+                        decided = await decide_sign_ins(
+                            uow, tenant_id, [job for job in undecided if job.tenant == tenant]
+                        )
+                        tabbed = await decide_tabs(
+                            uow, tenant_id, [job for job in untabbed if job.tenant == tenant]
+                        )
+                        await uow.commit()
+            except Exception:
+                logger.exception("%s: could not decide which jobs sign in or out", tenant)
+                continue
+            if decided:
+                logger.info("%s: decided whether %d job(s) sign in or out", tenant, decided)
+            if tabbed:
+                logger.info("%s: decided the tab of %d step(s)", tenant, tabbed)
+
+    async def _bring_in(self) -> None:
+        async with self._uow as uow:
+            behind = await uow.workflows.behind_the_rule(K_PARAMETERS_RULE)
+        trying = [job for job in behind if self._failed[job.id] < K_BRING_IN_TRIES]
+        for tenant, jobs in groupby(trying, key=lambda job: job.tenant):
+            tenant_id = TenantId(tenant)
+            try:
+                async with self._locks.try_hold_named(mining_lock(tenant_id)) as held:
+                    if not held:
+                        logger.info("%s: being mined elsewhere; bringing it in next sweep", tenant)
+                        continue
+                    async with self._uow as uow:
+                        brought = await bring_in_parameters(
+                            uow, tenant_id, list(jobs), self._failed
+                        )
+            except Exception:
+                logger.exception("%s: could not bring in its jobs' parameters", tenant)
+                continue
+            if brought:
+                logger.info(
+                    "%s: %d parameter(s) brought in by the typed-values rule", tenant, brought
+                )
 
     async def execute(self, *, now: datetime) -> dict[str, MineResult]:
+        await self._decide()
+        await self._bring_in()
         since = now - timedelta(hours=self._window_hours)
         async with self._uow as uow:
             tenants = await uow.gestures.tenants_since(since)

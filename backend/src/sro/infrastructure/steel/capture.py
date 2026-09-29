@@ -17,7 +17,6 @@ from playwright.async_api import Playwright as PlaywrightDriver
 from sro.application.capture.decode import (
     CdpPayload,
     epoch_to_datetime,
-    to_ax_graph,
     to_console_message,
     to_cookies,
     to_headers,
@@ -26,12 +25,12 @@ from sro.application.capture.decode import (
     to_page_event,
     to_timing,
 )
-from sro.application.capture.events import CaptureEvent, InputEvent, RequestEvent, SnapshotEvent
+from sro.application.capture.events import CaptureEvent, InputEvent, RequestEvent
 from sro.application.ports.blob import BlobStore
+from sro.config import get_settings
 from sro.domain.recording.artifact import ArtifactKind
 from sro.domain.recording.network import Body, CapturedRequest, Cookie, RedirectHop
 from sro.domain.recording.redaction import REDACTED, redact_body
-from sro.domain.recording.sensitivity import SECRET_TOKENS
 from sro.domain.recording.state import ConsoleMessage, PageEvent
 from sro.infrastructure.steel.video import Recorded, ScreencastRecorder
 
@@ -40,11 +39,24 @@ logger = logging.getLogger(__name__)
 _RECORDER_JS = Path(__file__).with_name("recorder.js")
 
 
+_READERS_START = "  const readers = "
+_READERS_END = "\n  })();\n"
+
+
+def _page_readers() -> str:
+    source = Path(get_settings().page_code_path).read_text(encoding="utf-8")
+    start = source.find(_READERS_START + "(() => {")
+    end = source.find(_READERS_END, start)
+    if start == -1 or end == -1:
+        raise RuntimeError("page-code.js has no readers block to share with the recorder")
+    return source[start + len(_READERS_START) : end + len(_READERS_END) - 2]
+
+
 def _recorder_script() -> str:
     source = _RECORDER_JS.read_text(encoding="utf-8")
-    if "__SECRET_WORDS__" not in source:
-        raise RuntimeError("recorder.js has no place to put the credential word list")
-    return source.replace("__SECRET_WORDS__", json.dumps(sorted(SECRET_TOKENS)))
+    if "__PAGE_READERS__" not in source:
+        raise RuntimeError("recorder.js has no place to put page-code.js's readers")
+    return source.replace("__PAGE_READERS__", _page_readers())
 
 
 @dataclass(frozen=True, slots=True)
@@ -201,7 +213,7 @@ class CaptureSession:
         if cdp is None or not cookies:
             return False
         try:
-            await cdp.send("Network.setCookies", {"cookies": [_addressed(c) for c in cookies]})
+            await cdp.send("Network.setCookies", {"cookies": [addressed(c) for c in cookies]})
             stored = {
                 (c["domain"], c["name"])
                 for c in (await cdp.send("Network.getAllCookies"))["cookies"]
@@ -286,27 +298,13 @@ class CaptureSession:
     async def _on_gesture(self, _source: object, raw: str) -> None:
         payload: CdpPayload = json.loads(raw)
         at = epoch_to_datetime(float(payload.get("at", 0)))
-        url = str(payload.get("url", ""))
         index = self._gesture_count
         self._gesture_count += 1
 
         self._events.append(InputEvent(at=at, action=to_input_action(payload)))
 
-        ax = await self._ax_graph(url=url, at=at)
-        if ax is not None:
-            self._events.append(SnapshotEvent(snapshot=ax))
         if self._screenshot:
             await self._capture_screenshot(index=index, at=at)
-
-    async def _ax_graph(self, *, url: str, at: datetime) -> Any:
-        cdp = self._cdp
-        if cdp is None:
-            return None
-        try:
-            payload = await cdp.send("Accessibility.getFullAXTree")
-        except Exception:
-            return None
-        return to_ax_graph(payload, url=url, taken_at=at)
 
     async def _capture_screenshot(self, *, index: int, at: datetime) -> None:
         page = self._page
@@ -565,7 +563,7 @@ class CaptureSession:
         return self._page
 
 
-def _addressed(cookie: dict[str, Any]) -> dict[str, Any]:
+def addressed(cookie: dict[str, Any]) -> dict[str, Any]:
     if cookie.get("url"):
         return cookie
     domain = str(cookie.get("domain", "")).lstrip(".")

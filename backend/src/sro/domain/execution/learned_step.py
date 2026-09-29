@@ -21,6 +21,7 @@ class LearnedStep:
     found_by: str
 
     holds: int | None = None
+    frame_path: str | None = None
 
     @property
     def usable(self) -> bool:
@@ -72,7 +73,8 @@ def changed_by(
 def _as_locator(step: LearnedStep | None) -> str:
     if step is None or not step.usable:
         return ""
-    return f"{step.strategy}={step.query}"
+    where = f" in {step.frame_path}" if step.frame_path is not None else ""
+    return f"{step.strategy}={step.query}{where}"
 
 
 def learned_from(ord_: int, matched_by: str | None, result: object) -> LearnedStep | None:

@@ -51,9 +51,9 @@
   const alive = () => Boolean(chrome.runtime?.id);
 
   const tell = (message) => {
-    if (!alive()) return;
+    if (!alive()) return undefined;
     try {
-      chrome.runtime.sendMessage(message).catch(() => {});
+      return chrome.runtime.sendMessage(message).catch(() => undefined);
     } catch {
       // The context died between the check and the call. Nothing to do and
       // nobody to tell.
@@ -65,7 +65,11 @@
     // Any script in the page can dispatch this event, so nothing here trusts
     // the payload: it is size-capped and shape-checked before it is forwarded,
     // and the worker re-checks the policy against the frame it came from.
-    if (typeof json !== "string" || json.length > MAX_GESTURE_CHARS) return;
+    if (typeof json !== "string") return;
+    if (json.length > MAX_GESTURE_CHARS) {
+      window.dispatchEvent(new CustomEvent("sro:dropped", { detail: null }));
+      return;
+    }
 
     let gesture;
     try {
@@ -80,7 +84,13 @@
     )
       return;
 
-    tell({ kind: "gesture", gesture, frameUrl: location.href });
+    // A gesture the worker does not keep -- paused, an unwatched tab, a tab
+    // running a job -- must not lend its target's state to the next one the
+    // recorder records. Only an explicit `ok: true` counts as kept.
+    tell({ kind: "gesture", gesture, frameUrl: location.href })?.then((reply) => {
+      if (reply?.ok !== true)
+        window.dispatchEvent(new CustomEvent("sro:dropped", { detail: gesture.ref }));
+    });
   });
 
   tell({ kind: "content-ready", url: location.href });

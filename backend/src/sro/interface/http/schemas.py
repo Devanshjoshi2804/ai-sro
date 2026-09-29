@@ -11,6 +11,7 @@ from collections.abc import Mapping
 from dataclasses import asdict
 from datetime import datetime
 from typing import Annotated, Any, Literal
+from urllib.parse import quote
 
 from pydantic import BaseModel, Field, StrictInt, StringConstraints
 
@@ -18,8 +19,10 @@ from sro.application.analytics.audit import Audit, AuditedRun
 from sro.application.analytics.summary import Summary
 from sro.application.capture.devices import DeviceLine
 from sro.application.chat.from_the_mail import LookedInTheMail
+from sro.application.chat.mailbox import mail_key
 from sro.application.chat.understand import Understood
 from sro.application.execution.effects import can_try_again
+from sro.application.execution.mail_job import K_BODY
 from sro.application.execution.pursuits import PursuitProgress
 from sro.application.execution.reversal import Reversal
 from sro.application.intent.match import Candidate
@@ -27,9 +30,11 @@ from sro.application.lookup.answer import as_seen
 from sro.application.lookup.plan_lookups import Planned
 from sro.application.lookup.run_lookups import Answers, Looked
 from sro.application.observation.read_shots import PlayableShot
+from sro.application.runtime.answer_run import WriteVerdict
 from sro.application.skill.read_workflows import CitedEvidence, KnownWorkflow
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread
+from sro.domain.execution.account import K_USERNAME_MAX_LEN
 from sro.domain.execution.belts import K_EARNED_RUNS
 from sro.domain.execution.run import Medium, Run, StepOutcome
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
@@ -1001,6 +1006,11 @@ class SayRequest(BaseModel):
     nothing: putting "use the north yard address" through intent matching finds
     some other skill and offers to run it."""
 
+    answering: str | None = None
+    """The id of the question this answers, when it was pressed under one. The
+    answer acts on that question's offer and no other; a question that is no
+    longer open is answered with a refusal, never with another offer."""
+
 
 class MessageModel(BaseModel):
     id: str
@@ -1150,8 +1160,6 @@ class ObservationPolicyModel(BaseModel):
     include_hosts: list[str]
     capture_screenshots: bool
     screenshot_max_per_minute: int
-    capture_snapshots: bool = False
-    snapshot_max_per_minute: int = 20
     capture_response_bodies: bool
     max_body_bytes: int
     daily_budget_bytes: int
@@ -1166,8 +1174,6 @@ class ObservationPolicyModel(BaseModel):
             include_hosts=list(policy.include_hosts),
             capture_screenshots=policy.capture_screenshots,
             screenshot_max_per_minute=policy.screenshot_max_per_minute,
-            capture_snapshots=policy.capture_snapshots,
-            snapshot_max_per_minute=policy.snapshot_max_per_minute,
             capture_response_bodies=policy.capture_response_bodies,
             max_body_bytes=policy.max_body_bytes,
             daily_budget_bytes=policy.daily_budget_bytes,
@@ -1359,6 +1365,16 @@ class ShapesResponse(BaseModel):
     PREFIX MATCH is built in the browser out of shapes, and without this it
     demanded every missing value and left its own button disabled: the same
     job, offered two ways, disagreeing about whether it needs you to type."""
+
+    takes_over: bool = False
+    """Whether a press of one of these starts a server (Steel) run, which takes
+    the job over from where the operator got to and reads what they already
+    did from this browser's uploads.
+
+    A fact about the tenant's rollout, not about a job. The browser needs it to
+    know whether a press is worth waiting on its own uploads for: a run the
+    browser drives itself reads no evidence, and a Steel run that cannot see a
+    save still in the queue has to ask about it rather than know."""
 
 
 class RecordOfferRequest(BaseModel):
@@ -1699,6 +1715,17 @@ class WorkflowStepModel(BaseModel):
     system: str | None
     cites: list[str]
     parameters: list[str]
+    tab: str
+    """The tab of the run it acts in: `main`, `opened_from:<role>` for a tab
+    a click opened, or `tab_2`, ... for another tab the operator opened."""
+
+
+class ReasonModel(BaseModel):
+    """One reason a job cannot run: what is missing, and at which step (None for the job)."""
+
+    code: str
+    step: int | None
+    detail: str
 
 
 class WorkflowModel(BaseModel):
@@ -1718,6 +1745,20 @@ class WorkflowModel(BaseModel):
 
     steps: list[WorkflowStepModel]
     runs: WorkflowHistoryModel
+    runnable: bool
+    """Whether the compile check passes. Only a runnable job is offered to a request."""
+
+    reasons: list[ReasonModel]
+    """Why it cannot run, empty when it can."""
+
+    offered: bool
+    """Whether the chat would offer it: a real job, not a chore, a mail-only
+    doing or a fragment, and the one copy of its title (`real_jobs`). The
+    panel lists only these; the console reads every job."""
+
+    warnings: list[ReasonModel]
+    """What a reader should know although the job runs: values fixed at
+    recording (`fixed_values`), every lane failing lately (`every_lane_broken`)."""
 
     @classmethod
     def of(cls, known: KnownWorkflow) -> WorkflowModel:
@@ -1736,6 +1777,7 @@ class WorkflowModel(BaseModel):
                     system=step.system,
                     cites=list(step.cites),
                     parameters=list(step.parameters),
+                    tab=step.role,
                 )
                 for step in sorted(workflow.steps, key=lambda step: step.order)
             ],
@@ -1747,6 +1789,16 @@ class WorkflowModel(BaseModel):
                 proven=known.proven,
                 needed=K_EARNED_RUNS,
             ),
+            runnable=known.compiled.runnable,
+            reasons=[
+                ReasonModel(code=one.code, step=one.step, detail=one.detail)
+                for one in known.compiled.reasons
+            ],
+            offered=known.offered,
+            warnings=[
+                ReasonModel(code=one.code, step=one.step, detail=one.detail)
+                for one in known.compiled.warnings
+            ],
         )
 
 
@@ -2021,6 +2073,18 @@ class NewSecretRequest(BaseModel):
     value: Annotated[str, StringConstraints(min_length=1, max_length=512)]
     """Written to the vault and nowhere else: never answered with, never
     logged, never in the evidence plane. See `v1/routers/secrets`."""
+
+    username: (
+        Annotated[
+            str,
+            StringConstraints(strip_whitespace=True, min_length=1, max_length=K_USERNAME_MAX_LEN),
+        ]
+        | None
+    ) = None
+    """The account this value signs in as. Given, it is kept for that account
+    alone, so two operators, or two systems behind one identity provider,
+    never share one. Blank or whitespace-only is refused rather than silently
+    dropped."""
 
 
 class NewSecretOnceRequest(NewSecretRequest):
@@ -2305,12 +2369,6 @@ class LookupRequest(BaseModel):
     building, and keeping that separable is what lets a person look at where a
     question is about to be asked."""
 
-    allow_focus: bool = False
-    """Whether a screen lookup may bring a page in front of the operator. A
-    call never needs this; a screenshot of a background tab is impossible, so
-    a screen lookup without it is refused by the browser rather than taking
-    somebody's window."""
-
 
 class LookupModel(BaseModel):
     """One place the answer might be, and why this deployment thinks so."""
@@ -2511,6 +2569,11 @@ class ChatResponse(BaseModel):
 
     unpriced: bool
 
+    cannot_run: list[str]
+    """Why the job named cannot run yet, one line per reason; empty when it can.
+    A job that cannot run is still named, so the answer is "it cannot, because",
+    never "no such job"."""
+
     @classmethod
     def of(cls, got: Understood) -> ChatResponse:
         return cls(
@@ -2524,6 +2587,7 @@ class ChatResponse(BaseModel):
             thought_tokens=got.answer.thought_tokens,
             cost_usd=got.answer.cost_usd,
             unpriced=got.answer.unpriced,
+            cannot_run=list(got.cannot_run),
         )
 
 
@@ -2536,8 +2600,6 @@ class AskRequest(BaseModel):
     """Carried through to the lookup half. A job never starts from here
     whatever this says -- what comes back is an offer, and the press is a
     different door."""
-
-    allow_focus: bool = False
 
 
 class AskResponse(BaseModel):
@@ -2555,6 +2617,84 @@ class AskResponse(BaseModel):
     lookup: LookupResponse | None = None
 
 
+class AnswerRunRequest(BaseModel):
+    """The operator's answer to the question a Steel run is waiting on.
+
+    `question_id` is the one the run is asking now (`decision.question_id` on
+    the `run_asks` message in the operator's thread); any other id, or an
+    answer when nothing is asked, is a 409. The first answer to a question is
+    the one kept: a different second answer is a 409, the same one again is
+    accepted.
+
+    `value` is given only for a question that asks for a value; for any other
+    it must be empty, or the answer is a 409. A password is stored with
+    `PUT /v1/secrets`, a one-time code is typed on the page, and a step is
+    answered by its `verdict`, so no secret or free text ever rides along.
+
+    A field question (`asks: "field"`, about a value the job has no field
+    for) carries the value's `name` and its `choices` on the `run_asks`
+    message: the form's fields (each choice names exactly one), a dropdown's
+    options, or -- after a fill that failed -- the field itself, to try it
+    again. It is answered with one of `choices`, or an empty `value` to leave
+    the value out; anything else is a 409.
+
+    A recipient question (`asks: "recipient"`) is a mail job whose draft named
+    somebody neither in the conversation nor an address the job was shown
+    sending to; its text quotes the draft's address, which came from a model
+    reading untrusted mail. It is answered with the address(es) to send to --
+    only by the operator who started the run, and only with addresses that
+    read cleanly (anything else is a 409). The answer is kept on the job, so
+    its next run writes to that address without asking. On a mail job drafted
+    for a press (not on Steel) the run waits `stopped`, holding no browser, and
+    this answer redrafts it.
+
+    A mail-body question (`asks: "mail_body"`, "What should the mail say?") is
+    a mail job whose mail could not be written: the model wrote no body,
+    failed, or put in a value nobody gave. It is answered with the words the
+    mail should say (up to 2000 characters; every other answer takes 500), only
+    by the operator who started the run; an empty answer is a 409. The words
+    are the operator's own, trusted: the mail is written again with them. On a
+    mail job drafted for a press the refused draft is shown in the question,
+    and `yes` uses exactly that draft, checked again, its recipients still
+    ones the mail may go to; either way it is shown again as a draft and
+    nothing is sent until its Send is pressed. On Steel the mail is written
+    again and sent as the step's write.
+    """
+
+    question_id: str
+    value: str = Field(default="", max_length=K_BODY)
+    verdict: WriteVerdict = ""
+    """The operator's word on a step the run asked about. `done`: it was done,
+    so the step is settled and never tried again. `not_done`: it was not, so
+    the run tries it again. Required when the step is a write the run sent
+    and nothing confirmed (a 409 without it, and the question stands); never
+    given for any question but a step's."""
+
+
+class TookOverModel(BaseModel):
+    """The operator's own doing a Steel run takes over: the browser tab it
+    happened in and the recorder times of the first and last gesture the
+    match used.
+
+    The server reads the operator's uploaded gestures from that tab in that
+    span, and a write counts as theirs only when its own call is among them
+    and confirmed it. Anything the uploads cannot prove is left in doubt and
+    settled by a read-back or a question, never sent again.
+
+    Whose uploads is proven, not claimed: the press carries the browser's own
+    `X-Device-Secret` for the `device_id` it names, and that browser must be
+    the pressing operator's. Otherwise it is the 404 an unknown browser gets."""
+
+    tab_id: StrictInt = Field(ge=0)
+    since: float = Field(ge=0)
+    through: float = Field(ge=0)
+    newest: float = Field(ge=0)
+    """The recorder time of the newest gesture this browser recorded before the
+    press, on any tab. The press is refused until the server has received it:
+    work still uploading -- a save in a popup, say -- is otherwise invisible,
+    and a Steel run would make that save a second time."""
+
+
 class StartWorkflowRunRequest(BaseModel):
     """The press: which job, in which browser, with what, live or dry.
 
@@ -2569,10 +2709,9 @@ class StartWorkflowRunRequest(BaseModel):
     * **`device_id` stays in the body**, unlike `/v1/offers`, which dropped it
       because a browser proves itself with `X-Device-Secret`. An offer is
       evidence *about* the browser that showed it, so a browser it merely named
-      would be a shift nobody worked. A press *names the browser to drive*, and
-      the screen somebody presses on is not always the browser the job runs in
-      -- a supervisor's console holds the tenant's credential and no extension
-      of its own. The tenant's browsers are the tenant's to drive.
+      would be a shift nobody worked. A press *names the browser that pressed*
+      -- which a Steel tenant's run never drives: `StartWorkflowRun` picks the
+      executor by tenant, and the device only records who pressed.
 
     `live` defaults to false and `allow_focus` to true, both the rig's: a
     missing `live` is not a caller who forgot, it is the default this system
@@ -2600,7 +2739,11 @@ class StartWorkflowRunRequest(BaseModel):
     """
 
     workflow_id: str
-    device_id: str
+    device_id: str | None = None
+    """The browser to drive. Absent for a tenant whose runs start on Steel,
+    where no browser of anybody's is driven; for every other tenant a press
+    without one is refused as not connected, by the same check that refuses
+    a browser that went away."""
     values: dict[str, str] = Field(default_factory=dict)
     items: list[dict[str, str]] = Field(default_factory=list)
     """The things this job is to be done for, where the operator named several
@@ -2625,6 +2768,15 @@ class StartWorkflowRunRequest(BaseModel):
     person who knows the missing value is usually whoever sent the request and
     they are not the one with this panel open. Empty for every press that was
     not a mail offer, which is most of them."""
+
+    offer: str = Field(default="", max_length=128)
+    """The offer this press answers: a conversation message, a mail's key, or
+    the panel's own card.
+
+    A run records it under a unique index, so a second start of the same offer
+    -- a second panel, a typed yes beside a press -- is answered 200 with the
+    run the first one started, never a second live write. Empty for a press
+    that answers no offer."""
 
     live: bool = False
     allow_focus: bool = True
@@ -2654,6 +2806,10 @@ class StartWorkflowRunRequest(BaseModel):
     `from_step` really is a step: somebody reading a run and resuming it names
     one. Two callers, two honest numbers. Given both, this one wins, because
     only a browser sends it and only a browser knows what it matched."""
+    took_over: TookOverModel | None = None
+    """The span of the operator's own gestures `matched` counted, when a
+    browser pressed to hand a job it had started to a Steel run. Absent, a
+    Steel run is never started part way through."""
 
 
 class WorkflowRunStepModel(BaseModel):
@@ -2714,6 +2870,35 @@ class WorkflowRunStepModel(BaseModel):
     @classmethod
     def of(cls, step: RunStep) -> WorkflowRunStepModel:
         return cls(**asdict(step))
+
+
+class RunMailModel(BaseModel):
+    """The mail a run came from: who sent it, what it was called, when it
+    arrived and where to open it. Never its body -- the subject is as much of
+    the mail as leaves the mailbox.
+
+    A run a person started in answer to a mail's question knows only the
+    conversation, so everything but `thread` and `link` may be empty."""
+
+    subject: str = ""
+    sender: str = ""
+    arrived: str = ""
+    """ISO 8601, from the mail's own Date header; empty where it had none."""
+
+    thread: str = ""
+    link: str = ""
+    """The conversation in Gmail, for the card's "open the mail"."""
+
+    @classmethod
+    def of(cls, mail: Mapping[str, str]) -> RunMailModel:
+        thread = mail.get("thread", "")
+        return cls(
+            subject=mail.get("subject", ""),
+            sender=mail.get("sender", ""),
+            arrived=mail.get("arrived", ""),
+            thread=thread,
+            link=f"https://mail.google.com/mail/#all/{quote(thread)}" if thread else "",
+        )
 
 
 class WorkflowRunModel(BaseModel):
@@ -2852,8 +3037,28 @@ class WorkflowRunModel(BaseModel):
     failed undo has to be readable as *run_abc is still out there* rather than
     as a job that failed on its own. Null on every run that is not an undo."""
 
+    live_view_url: str | None = None
+    """Where to watch a Steel run's own tab, view-only, while it holds a live
+    browser. Null otherwise, and on every list row: only the one-run read asks
+    Steel. The viewer's address and the tab, never a CDP url."""
+
+    offer: str | None = None
+    """The offer this run is the one run of -- `mail:<message id>` for a
+    mail's. The panel ends any card still offering it, so a mail that already
+    ran is shown as its run and never offered again."""
+
+    mail: RunMailModel | None = None
+    """The mail this run came from, on the list rows as well as the one-run
+    read: the panel's Home draws a card per mail-started run from the list it
+    polls. Null for every run no mail started."""
+
     @classmethod
-    def of(cls, run: WorkflowRun, undo: tuple[str, str, str] | None = None) -> WorkflowRunModel:
+    def of(
+        cls,
+        run: WorkflowRun,
+        undo: tuple[str, str, str] | None = None,
+        live_view_url: str | None = None,
+    ) -> WorkflowRunModel:
         return cls(
             id=run.id,
             tenant=run.tenant,
@@ -2885,6 +3090,9 @@ class WorkflowRunModel(BaseModel):
             undoes_by={undo[1]: undo[2]} if undo else None,
             undoes_run=run.undoes_run,
             try_again=can_try_again(run),
+            live_view_url=live_view_url or None,
+            offer=run.offer,
+            mail=RunMailModel.of(run.mail) if run.mail else None,
         )
 
 
@@ -2943,6 +3151,11 @@ class MailOfferModel(BaseModel):
     title: str
     values: dict[str, str]
     missing: list[str]
+    offer: str = ""
+    """The offer's own name, which a start of it sends back: the mail door's
+    start and the question it asks carry the same one, so a card pressed in the
+    panel and a yes in the thread answer to one run."""
+
     subject: str = ""
     """What the request was called, so a conversation about it can say which.
 
@@ -3003,6 +3216,20 @@ class MailOfferModel(BaseModel):
     with nothing missing and every one of them is a card. What makes this one
     different is that somebody already said yes to it."""
 
+    sent_to: list[str] = []
+    """Who the operator sent this request to, when the operator sent it to
+    somebody else.
+
+    Such a mail is a job the operator asked another person to do, so it never
+    starts by itself: the card names who it went to and asks whether this
+    system should do it instead. Empty for every mail somebody else sent, and
+    for one the operator addressed to themselves."""
+
+    asked: bool = False
+    """Already asked in the operator's conversation, as a question the panel
+    draws with its own answers. A browser draws no card for it: one mail, one
+    question, whichever look read it."""
+
 
 class AskAboutOfferRequest(BaseModel):
     """An offer the operator pressed that cannot simply be started.
@@ -3040,6 +3267,11 @@ class AskAboutOfferRequest(BaseModel):
 
     watched: bool = True
 
+    offer: str = ""
+    """The offer's own name, where it has one -- a mail's, or the question a
+    reply already asked. The question this asks carries it, so its answer and
+    any other start of the same offer land on one run."""
+
 
 class AskAboutOfferResponse(BaseModel):
     """What was asked, so the panel can say something happened.
@@ -3074,18 +3306,6 @@ class SentTheDraftResponse(BaseModel):
     sent_to: str
 
 
-class RunStartedRequest(BaseModel):
-    """A run this browser has just started, said into the conversation.
-
-    Reported by the browser because the browser is what started it -- the
-    credential to drive a run lives in the worker, so the id exists there
-    first. What it buys is a thread that holds the whole piece of work rather
-    than everything up to the moment it began."""
-
-    run_id: str
-    title: str = ""
-
-
 class FromTheMailResponse(BaseModel):
     """What one look through the mailbox came to.
 
@@ -3104,6 +3324,7 @@ class FromTheMailResponse(BaseModel):
             offered=[
                 MailOfferModel(
                     message=one.message,
+                    offer=mail_key(one.message),
                     workflow_id=one.workflow_id,
                     title=one.title,
                     values=dict(one.values),
@@ -3114,6 +3335,8 @@ class FromTheMailResponse(BaseModel):
                     offers=[[name, was] for name, was in one.offers],
                     unasked=list(one.unasked),
                     started=one.started,
+                    sent_to=list(one.sent_to),
+                    asked=one.asked,
                 )
                 for one in looked.offered
             ],

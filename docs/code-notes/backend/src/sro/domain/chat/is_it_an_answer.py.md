@@ -26,8 +26,10 @@ Comments and docstrings moved out of [`backend/src/sro/domain/chat/is_it_an_answ
 > value goes to the model, which is asked one question and given the words that
 > were actually said.
 >
-> Pure. The model call lives in `application.chat.reading_an_answer`; what is
-> here is the shape of the question and the half that needs nobody to answer it.
+> Pure. The model call lives in `application.chat.reading_an_answer`, and the
+> question it asks is the `IS_IT_AN_ANSWER` record in
+> `sro.domain.prompts.is_it_an_answer`; what is here is the half that needs
+> nobody to answer it.
 
 ## module, [line 5](../../../../../../../backend/src/sro/domain/chat/is_it_an_answer.py#L5): Note on the line above
 
@@ -70,12 +72,6 @@ Code: `K_PROSE = 200`
 > has. Nothing is read INTO the number: what it separates is "a box a sentence
 > fits in" from "a box a sentence does not fit in", and those are far apart.
 
-## module, [line 26](../../../../../../../backend/src/sro/domain/chat/is_it_an_answer.py#L26): Note on the line above
-
-Code: `K_SAID_AS = (":", "=")`
-
-> How somebody names the field themselves. `Address: SRO Depot One`.
-
 ## `plainly_a_value`, [line 12](../../../../../../../backend/src/sro/domain/chat/is_it_an_answer.py#L12): Docstring
 
 > Whether this is a value with no doubt about it -- no reading needed.
@@ -84,27 +80,6 @@ Code: `K_SAID_AS = (":", "=")`
 > is "worth asking about", and the caller asks. The cost of being narrow is a
 > model call on a sentence that turned out to be a value; the cost of being
 > wide is what happened on 2026-09-18.
-
-## `said_as_the_value`, [line 29](../../../../../../../backend/src/sro/domain/chat/is_it_an_answer.py#L29): Docstring
-
-> The value where the person named the field themselves, or None.
->
-> The way out. A reading that refuses is told to refuse when it is unsure,
-> and that is the right default -- but it leaves an operator who typed a
-> real value with no move except typing it again and being refused again,
-> which is the loop `question` exists to not be. `Address: testing for new
-> purpose` is somebody saying what the sentence is FOR, and nothing needs to
-> be read to know it.
->
-> Only the field standing in front of them. `url: http://…` typed under a
-> question about Address is not a value named for Address, and taking it
-> would be the substring matching this whole module replaced.
-
-## `_plainly`, [line 39](../../../../../../../backend/src/sro/domain/chat/is_it_an_answer.py#L39): Docstring
-
-> A field name as a person would type it. `long_description` and
-> `Long Description` are the same name, and the one on the form is not
-> always the one the job declares.
 
 ## `plainly_a_value`, [line 17](../../../../../../../backend/src/sro/domain/chat/is_it_an_answer.py#L17): Comment
 
@@ -125,11 +100,3 @@ Code: `return holds is None or len(value) <= holds`
 > And it has to fit the box it is for. A lone word too long for the field
 > is already refused further down, but it is not OBVIOUSLY a value either,
 > and the question this asks is about obviousness.
-
-## module, [line 78](../../../../../../../backend/src/sro/domain/chat/is_it_an_answer.py#L78): Comment
-
-Code: `"required": ["answers", "value", "why", "about"],`
-
-> No `additionalProperties`: the developer API refuses a schema carrying
-> it, and `test_no_schema_in_the_package_uses_what_the_developer_api_refuses`
-> walks every `*_SCHEMA` in the package to keep it that way.

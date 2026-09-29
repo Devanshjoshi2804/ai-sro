@@ -36,15 +36,55 @@
           "panel#clients",
           "textfield#clientCode"
         ]
-      }
+      },
+      "landmarks": []
     },
     "value": "ACME-4471",
     "secret": false,
     "modifiers": [],
-    "at": 1790229535.837,
-    "url": "http://127.0.0.1:50290/"
+    "ref": "ys9tlo663ur.1",
+    "prior": null,
+    "prior_of": null,
+    "outlines": [
+      {
+        "headings": [
+          "Depot"
+        ],
+        "landmarks": [],
+        "fields": [
+          {
+            "role": "textbox",
+            "label": "Client Code",
+            "required": null,
+            "options": null
+          },
+          {
+            "role": "textbox",
+            "label": "Password",
+            "required": null,
+            "options": null
+          },
+          {
+            "role": "combobox",
+            "label": "Dock",
+            "required": null,
+            "options": [
+              "choose",
+              "Dock 3"
+            ]
+          }
+        ],
+        "buttons": [
+          "Save"
+        ],
+        "messages": []
+      }
+    ],
+    "frame_path": [],
+    "at": 1790332024.222,
+    "url": "http://127.0.0.1:60989/"
   },
-  "tab_id": 1667170966,
-  "frame_url": "http://127.0.0.1:50290/",
-  "page_url": "http://127.0.0.1:50290/"
+  "tab_id": 681558773,
+  "frame_url": "http://127.0.0.1:60989/",
+  "page_url": "http://127.0.0.1:60989/"
 }

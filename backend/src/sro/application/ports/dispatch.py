@@ -27,7 +27,7 @@ class RunDispatcher(Protocol):
         ctx: RequestContext,
         *,
         workflow_id: str,
-        device_id: DeviceId,
+        device_id: DeviceId | None,
         values: Mapping[str, str],
         allow_focus: bool = False,
     ) -> RunId: ...

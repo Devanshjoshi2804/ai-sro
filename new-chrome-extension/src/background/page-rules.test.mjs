@@ -1,8 +1,7 @@
 // "Do this here": the rule an operator makes by standing somewhere, and this
-// browser firing it when it lands there again.
-//
-// The wire that was missing. This extension could offer a job it recognised
-// and could carry out a run somebody else started, and nothing joined them.
+// browser OFFERING it when they land there again -- with the values the rule
+// holds. Never firing it: a job that started because somebody opened a page is
+// what QA saw on 2026-09-28. The operator's press is the start.
 //
 // Run with `node --test src/background/page-rules.test.mjs`.
 
@@ -12,7 +11,6 @@ import { test } from "node:test";
 const held = new Map();
 const calls = [];
 let fires = 0;
-let refuse = null;
 
 globalThis.chrome = {
   storage: {
@@ -30,6 +28,7 @@ globalThis.chrome = {
     sendMessage: async () => {}, get: async () => ({ id: 7, url: PAGE_URL }) },
   webNavigation: {
     onCommitted: { addListener: (fn) => (globalThis.__navigated = fn) },
+    onReferenceFragmentUpdated: { addListener: () => {} },
     onCompleted: { addListener: () => {} },
     onCreatedNavigationTarget: { addListener: () => {} },
   },
@@ -65,85 +64,80 @@ globalThis.fetch = async (url, options = {}) => {
   if (path.endsWith("/arrivals")) {
     return { ok: true, status: 200, json: async () => served };
   }
-  if (path.endsWith("/fire")) {
-    fires += 1;
-    if (refuse) return { ok: false, status: refuse, statusText: "", json: async () => ({ detail: "no" }) };
-    return { ok: true, status: 202, json: async () => ({ trigger_id: "trg-1", run_id: "run-1" }) };
-  }
+  if (path.endsWith("/fire") || path === "/v1/workflow-runs") fires += 1;
   return { ok: true, status: 200, json: async () => ({}) };
 };
 
 const worker = await import("./service-worker.js");
 const navigated = globalThis.__navigated;
 
-function ready({ rules = [{ id: "trg-1", page: THE_PAGE }], paused = false } = {}) {
+const RULE = { id: "trg-1", page: THE_PAGE, workflowId: "wfl_ct", values: { "Customer Type": "GT2" } };
+
+function ready({ rules = [RULE] } = {}) {
   held.clear();
   calls.length = 0;
   fires = 0;
-  refuse = null;
   held.set("sro.apiUrl", BACKEND);
   held.set("sro.token", "tok");
   held.set("sro.deviceId", "dev-1");
   held.set("sro.deviceSecret", "sec");
   held.set("sro.arrivals", rules);
+  // Offers are made on a tab the operator watches, and on no other.
+  held.set("sro.watched", [{ tabId: 7, host: WMS, since: 0 }]);
   served = [];
-  held.set("sro.paused", paused);
 }
 
-/** Re-read the rules, which is what the heartbeat does.
- *
- * The function rather than the alarm: the alarm also flushes an IndexedDB
- * queue this fake browser does not have, and what is under test is the list
- * being re-read at all -- `beat()` calls this, beside the `refreshWatches` it
- * already called.
- */
-async function refreshed() {
-  await worker.refreshArrivals();
-}
+const open = () => (held.get("sro.nudges") || []).filter((one) => one.state === "open");
 
 /** One navigation, as `webNavigation.onCommitted` reports it. */
 async function land(url = PAGE_URL, at = 1000) {
   await navigated({ frameId: 0, tabId: 7, url, timeStamp: at });
-  // The listener fires and forgets; give the fire its turn.
-  for (let n = 0; n < 40 && fires === 0; n++) await new Promise((r) => setTimeout(r, 5));
+  // The listener fires and forgets; give the offer its turn.
+  for (let n = 0; n < 40 && open().length === 0; n++) await new Promise((r) => setTimeout(r, 5));
 }
 
-test("a rule made anywhere else reaches this browser, rather than only its own", async () => {
-  // The gap that made a real rule look broken on a real browser: the list was
-  // fetched when the browser registered and at no other time, so a rule made
-  // in the console -- or by anything but this browser's own "Always, here" --
-  // never reached the one process that evaluates it. The heartbeat asks for
-  // them now, beside the mail watches it already asked for.
+test("a rule made anywhere else reaches this browser, with the job and values to offer", async () => {
+  // The list was fetched when the browser registered and at no other time, so
+  // a rule made in the console never reached the one process that evaluates
+  // it. The heartbeat asks for them now, beside the mail watches.
   ready({ rules: [] });
-  served = [{ id: "trg-9", arrival: { page: THE_PAGE } }];
+  served = [
+    {
+      id: "trg-9",
+      workflow_id: "wfl_ct",
+      parameters: { "Customer Type": "GT2" },
+      arrival: { page: THE_PAGE },
+    },
+  ];
 
-  await refreshed();
+  await worker.refreshArrivals();
 
-  assert.deepEqual(held.get("sro.arrivals"), [{ id: "trg-9", page: THE_PAGE }]);
+  assert.deepEqual(held.get("sro.arrivals"), [
+    { id: "trg-9", page: THE_PAGE, workflowId: "wfl_ct", values: { "Customer Type": "GT2" } },
+  ]);
 });
 
-test("landing on the page an operator made a rule about starts the job", async () => {
+test("landing on the page a rule is about offers the job, and starts nothing", async () => {
   ready();
 
   await land();
+  await new Promise((r) => setTimeout(r, 30));
 
-  assert.equal(fires, 1, "the rule did not fire");
-  assert.ok(
-    calls.some((c) => c.path === "/v1/agents/dev-1/arrivals/trg-1/fire" && c.method === "POST"),
-    `nothing was fired: ${JSON.stringify(calls)}`,
-  );
-  // Drawn where the operator can see why their browser is doing something.
-  assert.equal(held.get("sro.activeRun")?.runId, "run-1");
+  const [offer] = open();
+  assert.ok(offer, "landing on the rule's page offered nothing");
+  assert.equal(offer.workflowId, "wfl_ct");
+  assert.deepEqual(offer.values, { "Customer Type": "GT2" });
+  assert.equal(fires, 0, "landing on a page started a run without a press");
 });
 
-test("the same navigation does not fire it twice", async () => {
+test("the same navigation offers once", async () => {
   ready();
 
   await land(PAGE_URL, 2000);
   await navigated({ frameId: 0, tabId: 7, url: PAGE_URL, timeStamp: 2000 });
   await new Promise((r) => setTimeout(r, 30));
 
-  assert.equal(fires, 1, "one commit started two runs");
+  assert.equal((held.get("sro.nudges") || []).length, 1, "one commit made two offers");
 });
 
 test("a different page is not this rule", async () => {
@@ -157,35 +151,14 @@ test("a different page is not this rule", async () => {
   });
   await new Promise((r) => setTimeout(r, 30));
 
-  assert.equal(fires, 0, "a rule about one page fired on another");
+  assert.equal(open().length, 0, "a rule about one page was offered on another");
 });
 
-test("a paused browser does what the badge says it does: nothing", async () => {
-  // A standing rule is not an exception to the operator having said stop.
-  ready({ paused: true });
-
-  await navigated({ frameId: 0, tabId: 7, url: PAGE_URL, timeStamp: 4000 });
-  await new Promise((r) => setTimeout(r, 30));
-
-  assert.equal(fires, 0);
-});
-
-test("the browser's own pages are not a system to drive", async () => {
-  ready({ rules: [{ id: "trg-1", page: "settings" }] });
+test("the browser's own pages are not a system to offer work on", async () => {
+  ready({ rules: [{ ...RULE, page: "settings" }] });
 
   await navigated({ frameId: 0, tabId: 7, url: "chrome://settings", timeStamp: 5000 });
   await new Promise((r) => setTimeout(r, 30));
 
-  assert.equal(fires, 0);
-});
-
-test("a rule the backend refuses is said out loud, not swallowed", async () => {
-  // A rule that silently stopped firing is the worst of the failures here:
-  // the operator believes their browser is doing something and it is not.
-  ready();
-  refuse = 404;
-
-  await land(PAGE_URL, 6000);
-
-  assert.match(held.get("sro.lastError") || "", /page rule did not fire/);
+  assert.equal(open().length, 0);
 });

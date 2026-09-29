@@ -40,20 +40,14 @@ const MENU = [
 /**
  * Why this line must open itself, or `null` when it is only a line.
  *
- * Four states, and the rule for all four is the same: there is something here
- * only the operator can fix. Everything else -- watched, not watched, paused,
- * recording -- is a fact about their browser that a line states and a card
- * would nag about.
- *
- * A closed channel on its own is not one of them. The channel closes whenever
- * the worker sleeps, which is most of the day; it matters when something is
- * trying to drive this browser and cannot. Opening on it alone would have the
- * panel crying wolf hourly, which is how a warning stops being read.
+ * Three states, and the rule for all three is the same: there is something
+ * here only the operator can fix. Everything else -- watched, not watched,
+ * paused, recording -- is a fact about their browser that a line states and a
+ * card would nag about.
  */
 export function needsAPress(status, here) {
   if (!status.deviceId) return "not-connected";
   if (status.grantExpired) return "grant";
-  if (status.channel !== "open" && status.performing) return "channel";
   if (status.excludedHere) return "excluded";
   void here;
   return null;

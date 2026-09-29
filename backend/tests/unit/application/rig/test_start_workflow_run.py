@@ -24,6 +24,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from sro.application.chat.about_an_offer import AskAboutTheOffer
+from sro.application.chat.converse import Converse, StartThread
 from sro.application.context import RequestContext
 from sro.application.execution import workflow_runs as door
 from sro.application.execution.approvals import Approvals
@@ -31,23 +33,45 @@ from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.execution.run_workflow import run_workflow
 from sro.application.execution.stops import Stops
 from sro.application.execution.workflow_runs import RunRefused, StartWorkflowRun
+from sro.application.intent.plan_task import PlanTask
+from sro.application.intent.resolve import ResolveIntent
+from sro.application.knowledge.retrieve import Retrieve
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
+from sro.domain.chat.asking import NEEDS, Pending
+from sro.domain.chat.thread import Message
+from sro.domain.execution.compose import Composed, with_field
+from sro.domain.execution.progress import Progress, run_budget
+from sro.domain.execution.takeover import Took
 from sro.domain.execution.waiting import K_PATIENCE, read_wait, still_waiting
-from sro.domain.execution.workflow_run import RunStep, WorkflowRun
-from sro.domain.observation.gesture import Action, Gesture
+from sro.domain.execution.workflow_run import RunStep, WorkflowRun, pin
+from sro.domain.observation.device import AgentDevice
+from sro.domain.observation.gesture import Action, Gesture, Outline, OutlineField, Target
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.shared.prices import ModelSpend
+from sro.domain.skill.repeats import Repeat
 from sro.domain.skill.workflow import Step, Workflow
 from tests.unit.fakes import (
     FakeAsker,
     FakeChannel,
     FakeClock,
+    FakeDurableExecution,
+    FakeEmbedder,
     FakeGestureRepository,
     FakeIdFactory,
     FakeUnitOfWork,
 )
+from tests.unit.runtime_support import (
+    CTX,
+    operator_did,
+    posted,
+    running_steel_run,
+    save_job,
+    save_step,
+    two_writes_job,
+)
+from tests.unit.runtime_support import CTX as STEEL_CTX
 
 TENANT = TenantId("acme")
 RIVAL = TenantId("rival")
@@ -59,8 +83,6 @@ WHO = PrincipalId("supervisor-9")
 """Not "form", which is what the rig defaulted `started_by` to out of the body.
 The name on a warehouse write is one this system checked."""
 
-PLAN = "gemini-3.8-flash-preview"
-RESCUE = "gemini-3.1-pro-preview-rig"
 """Deliberately neither shipped default, so a use case wired to a literal --
 or to the wrong one of the two model settings -- fails here."""
 
@@ -136,7 +158,12 @@ def _gesture(gesture_id: str, *, tenant: TenantId = TENANT, kind: str = "click")
         system=WMS,
         tab_id=7,
         frame_url=None,
-        action=Action(kind=kind, at=1_739_314_800.0, url=f"{WMS}/work-areas"),
+        action=Action(
+            kind=kind,
+            at=1_739_314_800.0,
+            url=f"{WMS}/work-areas",
+            target=Target(role="button", name="Save"),
+        ),
     )
 
 
@@ -172,19 +199,308 @@ def _starter(
     cap_usd: float = CAP,
     stops: Stops | None = None,
     approvals: Approvals | None = None,
+    durable: FakeDurableExecution | None = None,
+    steel_tenants: frozenset[str] = frozenset(),
+    clock: FakeClock | None = None,
 ) -> StartWorkflowRun:
     return StartWorkflowRun(
         uow,
         channel=channel or _Browsers(),
         asker=asker,
-        plan_model=PLAN,
-        rescue_model=RESCUE,
-        clock=FakeClock(NOW),
+        clock=clock or FakeClock(NOW),
         cap_usd=cap_usd,
         stops=stops or Stops(),
         approvals=approvals or Approvals(),
         one_time_secrets=OneTimeSecrets(),
+        durable=durable,
+        steel_tenants=steel_tenants,
     )
+
+
+async def test_a_steel_tenant_s_press_starts_a_durable_run_and_drives_no_browser() -> None:
+    uow, durable, channel = FakeUnitOfWork(), FakeDurableExecution(), FakeChannel()
+    await save_job(uow, "wfl_ct")
+    starter = _starter(
+        uow, channel=channel, durable=durable, steel_tenants=frozenset({TENANT.value})
+    )
+
+    run = await starter.execute(
+        CTX,
+        workflow_id="wfl_ct",
+        device_id=DeviceId("offline"),
+        values={"Customer Type": "GT2"},
+        live=True,
+        allow_focus=False,
+    )
+    await starter.perform(CTX, run)
+
+    assert (run.executor, run.device_id) == ("steel", "")
+    assert [one for one, _ in durable.runs_started] == [run.id]
+    assert channel.sent == []
+    saved = await uow.workflow_runs.get(TENANT, run.id)
+    assert saved is not None and saved.executor == "steel"
+
+
+async def test_every_start_goes_through_the_compile_check() -> None:
+    """M6: the gate is inside the start, so the panel press, the console's Run
+    button and a mail's answer are all refused alike for a job that cannot run."""
+    uow = FakeUnitOfWork()
+    job = await save_job(uow, "wfl_unproven")
+    step, by_id = save_step(status=400)
+    await uow.gestures.add_gestures(tuple(by_id.values()))
+    await uow.workflows.save(replace(job, steps=[*job.steps, replace(step, order=1)]))
+
+    with pytest.raises(RunRefused, match="cannot run yet: Step 1: no recorded status proves"):
+        await _on_steel(uow).execute(
+            CTX,
+            workflow_id="wfl_unproven",
+            device_id=None,
+            values={"Customer Type": "GT2"},
+            live=True,
+            allow_focus=False,
+        )
+    assert await uow.workflow_runs.for_workflow(TENANT, "wfl_unproven") == ()
+
+
+async def test_a_learned_field_its_form_lost_stops_the_start_only_when_given_a_value() -> None:
+    """X10b's value-aware rule, now inside the start's compile gate."""
+    uow = FakeUnitOfWork()
+    step, by_id = save_step(status=201)
+    save = by_id["ges_save"]
+    by_id["ges_save"] = replace(
+        save,
+        action=replace(
+            save.action, outlines=(Outline(fields=(OutlineField("combobox", "Dept"),)),)
+        ),
+    )
+    job = Workflow(id="wfl_field", tenant=TENANT.value, title="t", narrative="", steps=[step])
+    grown, _ = with_field(
+        job,
+        Composed("department", "Department", "combobox", step.order),
+        key="department",
+        value="F",
+    )
+    await uow.workflows.save(grown)
+    await uow.gestures.add_gestures(tuple(by_id.values()))
+    starter = _on_steel(uow)
+
+    with pytest.raises(RunRefused, match="has no department field any more"):
+        await starter.execute(
+            CTX,
+            workflow_id="wfl_field",
+            device_id=None,
+            values={"department": "F"},
+            live=True,
+            allow_focus=False,
+        )
+    run = await starter.execute(
+        CTX, workflow_id="wfl_field", device_id=None, values={}, live=True, allow_focus=False
+    )
+    assert run.workflow_id == "wfl_field"
+
+
+def _on_steel(uow: FakeUnitOfWork) -> StartWorkflowRun:
+    return _starter(uow, durable=FakeDurableExecution(), steel_tenants=frozenset({TENANT.value}))
+
+
+async def test_a_steel_run_is_never_started_part_way_through_a_job() -> None:
+    uow = await _held()
+
+    with pytest.raises(RunRefused, match="cannot tell what was already done"):
+        await _press(_on_steel(uow), values={"clientCode": "NEWTESTS"}, from_step=2)
+
+    assert uow.workflow_runs.rows == {}
+
+
+TOOK = Took(tab_id=7, since=90.0, through=100.0, newest=100.0)
+OPERATOR_S = "s-operator"
+COLLEAGUE_S = "s-colleague"
+
+
+async def _devices(uow: FakeUnitOfWork) -> None:
+    for device, owner, secret in (
+        ("dev-1", CTX.principal_id, OPERATOR_S),
+        ("dev-2", PrincipalId("colleague"), COLLEAGUE_S),
+    ):
+        await uow.devices.add(
+            AgentDevice(
+                id=DeviceId(device),
+                tenant_id=CTX.tenant_id,
+                principal_id=owner,
+                label=device,
+                extension_version="1",
+                registered_at=NOW,
+                last_seen_at=NOW,
+                secret=secret,
+            )
+        )
+
+
+async def _taken_over(
+    uow: FakeUnitOfWork,
+    *,
+    matched: int = 3,
+    device: str = "dev-1",
+    secret: str = OPERATOR_S,
+    took: Took | None = TOOK,
+    seeded: bool = False,
+) -> WorkflowRun:
+    if not seeded:
+        await two_writes_job(uow, "wfl_two")
+        await _devices(uow)
+    return await _on_steel(uow).execute(
+        CTX,
+        workflow_id="wfl_two",
+        device_id=DeviceId(device),
+        device_secret=secret,
+        values={"First": "GT1", "Second": "GT2"},
+        live=True,
+        allow_focus=False,
+        matched=matched,
+        took_over=took,
+    )
+
+
+async def test_a_takeover_starts_after_the_operator_s_own_save() -> None:
+    uow = FakeUnitOfWork()
+    await operator_did(uow, device="dev-1", tab=7, at=100.0, calls=[posted("GT1", 100.0)])
+
+    run = await _taken_over(uow)
+
+    progress = Progress.of(run.progress)
+    assert progress.step == 2 and progress.written(1)
+    saved = await uow.workflow_runs.get(TENANT, run.id)
+    assert saved is not None and saved.progress == run.progress
+
+
+async def test_another_browser_s_save_is_not_the_operator_s() -> None:
+    uow = FakeUnitOfWork()
+    await operator_did(uow, device="dev-2", tab=7, at=100.0, calls=[posted("GT1", 100.0)])
+    await operator_did(uow, device="dev-1", tab=7, at=100.0, calls=[])
+
+    run = await _taken_over(uow)
+
+    assert Progress.of(run.progress).in_doubt(1)
+
+
+async def test_a_save_after_the_span_confirms_nothing() -> None:
+    uow = FakeUnitOfWork()
+    await operator_did(uow, device="dev-1", tab=7, at=100.0, calls=[])
+    await operator_did(uow, device="dev-1", tab=7, at=101.0, calls=[posted("GT1", 101.0)])
+
+    run = await _taken_over(uow)
+
+    assert Progress.of(run.progress).in_doubt(1)
+
+
+async def test_a_press_before_the_operator_s_recent_work_has_uploaded_is_refused() -> None:
+    """The probe: an offer on tab 7 made at k=1 through t=95; the operator saves
+    GT1 in a popup (tab 8) at t=100; the upload is slow; they press. The press
+    says its newest gesture was at t=100, which the server has not received."""
+    uow = FakeUnitOfWork()
+    typed = Took(tab_id=7, since=90.0, through=95.0, newest=100.0)
+    await operator_did(uow, device="dev-1", tab=7, at=95.0, calls=[])
+
+    with pytest.raises(RunRefused, match="still uploading"):
+        await _taken_over(uow, matched=1, took=typed)
+    assert uow.workflow_runs.rows == {}
+
+    await operator_did(uow, device="dev-1", tab=8, at=100.0, calls=[posted("GT1", 100.0)])
+    run = await _taken_over(uow, matched=1, took=typed, seeded=True)
+
+    assert Progress.of(run.progress).in_doubt(1)
+
+
+async def test_a_takeover_that_names_a_colleague_s_browser_is_refused() -> None:
+    for device, secret in (("dev-2", COLLEAGUE_S), ("dev-1", COLLEAGUE_S), ("dev-1", "")):
+        uow = FakeUnitOfWork()
+        with pytest.raises(NotFound):
+            await _taken_over(uow, device=device, secret=secret)
+        assert uow.workflow_runs.rows == {}, (device, secret)
+
+
+async def test_a_steel_run_that_matched_without_its_evidence_is_refused_by_name() -> None:
+    uow = FakeUnitOfWork()
+
+    with pytest.raises(RunRefused, match="which of your gestures"):
+        await _taken_over(uow, took=None)
+    assert uow.workflow_runs.rows == {}
+
+
+async def test_a_steel_run_of_several_things_is_refused_rather_than_done_once() -> None:
+    job = _workflow()
+    job.repeat = Repeat(first_step=0, last_step=1)
+    uow = await _held(job)
+
+    with pytest.raises(RunRefused, match="one thing"):
+        await _on_steel(uow).execute(
+            _ctx(),
+            workflow_id="wfl_1",
+            device_id=None,
+            values={},
+            items=[{"clientCode": "A"}, {"clientCode": "B"}],
+            live=True,
+            allow_focus=False,
+        )
+
+    assert uow.workflow_runs.rows == {}
+
+
+async def test_a_steel_run_starts_without_an_optional_value_it_will_skip() -> None:
+    uow = await _held(_workflow(parameters=[{"name": "clientCode", "required": False}]))
+
+    run = await _press(_on_steel(uow), values={})
+
+    assert run.executor == "steel"
+
+
+async def test_a_browser_run_starts_without_an_optional_value_it_will_skip() -> None:
+    """F1 round 3, item 11: the browser twin. An absent optional value never
+    blocks a start; `RunSteps` and `_skippable` skip its step."""
+    uow = await _held(_workflow(parameters=[{"name": "clientCode", "required": False}]))
+
+    run = await _press(_starter(uow), values={})
+
+    assert run.executor != "steel"
+    assert run.values == {}
+
+
+async def test_each_steel_run_keeps_the_steps_its_job_had_when_it_started() -> None:
+    uow = await _held(_workflow(parameters=[{"name": "clientCode", "required": False}]))
+    first = await _press(_on_steel(uow), values={})
+    job = await uow.workflows.get(TENANT, "wfl_1")
+    grown = replace(
+        job,
+        steps=[
+            Step(order=0, says="open the menu", system=None, cites=["ges-0"]),
+            *(replace(one, order=one.order + 1) for one in job.steps),
+        ],
+    )
+    await uow.workflows.grew(grown, moved={one.order: one.order + 1 for one in job.steps})
+
+    second = await _press(_on_steel(uow), values={})
+
+    assert first.pinned == pin(job)
+    assert second.pinned == pin(grown)
+    saved = await uow.workflow_runs.get(TENANT, first.id)
+    assert saved is not None and saved.pinned == pin(job)
+
+
+async def test_a_steel_run_is_budgeted_for_the_steps_it_pinned() -> None:
+    uow = await _held(_workflow(parameters=[{"name": "clientCode", "required": False}]))
+    durable = FakeDurableExecution()
+    starter = _starter(uow, durable=durable, steel_tenants=frozenset({TENANT.value}))
+    run = await _press(starter, values={})
+    job = await uow.workflows.get(TENANT, "wfl_1")
+    more = [Step(order=n, says=f"step {n}", system=None, cites=["ges-0"]) for n in range(5, 40)]
+    await uow.workflows.save(replace(job, steps=[*job.steps, *more]))
+
+    await starter.perform(_ctx(), run)
+
+    by_id = {one.id: one for one in await uow.gestures.gestures_for(TENANT)}
+    grown = await uow.workflows.get(TENANT, "wfl_1")
+    assert run_budget(job, by_id) != run_budget(grown, by_id)
+    assert durable.runs_started == [(run.id, run_budget(job, by_id))]
 
 
 async def _press(
@@ -461,8 +777,10 @@ async def test_a_value_that_arrived_padded_is_stored_trimmed() -> None:
 async def test_a_declared_parameter_with_no_value_at_all_is_refused() -> None:
     """The planner falls back to whatever the recording contained when a step
     has no value, which for a declared parameter is somebody else's client
-    code."""
-    uow = await _held()
+    code. Required, since F1 round 3 (item 11): an absent OPTIONAL value never
+    blocks a start -- its step is skipped, and `value_for` never types the
+    recording for a parameter."""
+    uow = await _held(_workflow(parameters=[{"name": "clientCode", "required": True}]))
 
     with pytest.raises(RunRefused) as refused:
         await _press(_starter(uow), values={})
@@ -750,8 +1068,6 @@ async def test_a_run_claimed_at_step_four_is_driven_from_step_four() -> None:
         channel=FakeChannel(),
         device_id=LAPTOP,
         asker=FakeAsker(),
-        plan_model=PLAN,
-        rescue_model=RESCUE,
         live=claimed.live,
         allow_focus=claimed.allow_focus,
         started_by=claimed.started_by,
@@ -783,8 +1099,6 @@ async def test_a_re_press_that_moves_the_step_is_refused_by_the_loop() -> None:
             channel=FakeChannel(),
             device_id=LAPTOP,
             asker=FakeAsker(),
-            plan_model=PLAN,
-            rescue_model=RESCUE,
             live=claimed.live,
             allow_focus=claimed.allow_focus,
             started_by=claimed.started_by,
@@ -816,23 +1130,18 @@ async def test_perform_drives_the_run_the_row_describes() -> None:
     assert stored.live is True and stored.allow_focus is False
 
 
-async def test_perform_plans_on_the_plan_model_and_rescues_on_the_other(
+async def test_perform_hands_the_run_the_row_it_claimed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Which model goes in which slot, read at the call rather than off the
-    built object.
+    """What `perform` hands `run_workflow`, read at the call rather than off the
+    built object. Which model plans and which rescues is no longer handed over:
+    each rung carries its own prompt record, and `test_runner.py` pins the
+    climb from `PLAN_STEP` to `PLAN_STEP_ESCALATED`.
 
-    Swapping the two survived 63 tests: every step would then plan on the
-    rescue model -- the expensive one, the one measured at $2.00 for a
-    truncated answer -- forever, on a door that runs against a live warehouse,
-    while `gemini_plan_model`'s own docstring exists because a slow plan is
-    felt by an operator standing at a screen. Nothing about the run's outcome
-    changes, so no assertion on a finished run can see it.
-
-    The whole keyword set is captured, not just the two, because four of these
-    arguments are overwritten from the row inside `run_workflow` and so decide
-    nothing -- this is the only place that says what was actually handed over,
-    which is what a reader of `perform` needs to be able to check.
+    The whole keyword set is captured because four of these arguments are
+    overwritten from the row inside `run_workflow` and so decide nothing --
+    this is the only place that says what was actually handed over, which is
+    what a reader of `perform` needs to be able to check.
     """
     uow = await _held()
     starter = _starter(uow)
@@ -847,8 +1156,7 @@ async def test_perform_plans_on_the_plan_model_and_rescues_on_the_other(
 
     await starter.perform(_ctx(), claimed)
 
-    assert seen["plan_model"] == PLAN, "every step would plan on the rescue model"
-    assert seen["rescue_model"] == RESCUE
+    assert "plan_model" not in seen and "rescue_model" not in seen
     assert seen["workflow_id"] == "wfl_1"
     assert seen["tenant_id"] == TENANT
     assert seen["run_id"] == claimed.id
@@ -1022,8 +1330,6 @@ async def test_the_question_says_which_step_the_run_had_reached() -> None:
         uow,
         channel=_Browsers(),
         asker=_A_MODEL,
-        plan_model=PLAN,
-        rescue_model=RESCUE,
         clock=FakeClock(NOW),
         cap_usd=CAP,
         stops=Stops(),
@@ -1078,8 +1384,6 @@ async def test_the_question_offers_the_fields_the_page_does_not_ask_for() -> Non
         uow,
         channel=_Browsers(),
         asker=_A_MODEL,
-        plan_model=PLAN,
-        rescue_model=RESCUE,
         clock=FakeClock(NOW),
         cap_usd=CAP,
         stops=Stops(),
@@ -1103,6 +1407,157 @@ async def test_the_question_offers_the_fields_the_page_does_not_ask_for() -> Non
     assert "I can also set Department and Manufacturer" in asked.text
     assert "Customer Type" not in asked.text.split("I can also set")[1].split(" — ")[0], (
         "the field the page DOES ask for was offered as optional"
+    )
+
+
+K_FIELDS: list[dict[str, object]] = [
+    {"name": "Customer Type", "names": ["Customer Type*"], "seen_values": ["GGD"]},
+    {"name": "Description", "names": ["Description*"], "seen_values": ["first"]},
+    {"name": "Department", "names": ["Department"], "seen_values": ["IN", "new"]},
+    {"name": "Manufacturer", "names": ["Manufacturer"], "seen_values": ["OUTSIDE"]},
+]
+
+
+async def _short_of(
+    uow: FakeUnitOfWork,
+    needs: list[str],
+    answered_with: str = "",
+    values: Mapping[str, str] | None = None,
+) -> tuple[WorkflowRun, StartWorkflowRun]:
+    """A run that stopped short. With `answered_with`, it is the run an answer
+    in chat started, end to end (invariant 16): the card's door asks
+    (`AskAboutTheOffer`), `Converse` takes the answer and starts the run
+    itself (S2). Without it -- or with `values` -- the run is pressed some
+    other way."""
+    workflow = await uow.workflows.get(TENANT, "wfl_1")
+    workflow.parameters = [dict(one) for one in K_FIELDS]
+    # A job that could be stored: each field is filled by a step of its own.
+    for step, one in zip(workflow.steps, K_FIELDS, strict=False):
+        step.parameters = [str(one["name"])]
+    await uow.workflows.save(workflow)
+    run: WorkflowRun | None = None
+    if answered_with:
+        ids, clock = FakeIdFactory(), FakeClock(NOW)
+        thread = await StartThread(uow, clock, ids).execute(_ctx())
+        await AskAboutTheOffer(uow, clock, ids).execute(
+            _ctx(),
+            Pending(
+                workflow_id=workflow.id,
+                title=workflow.title,
+                values={},
+                missing=("Customer Type", "Description"),
+            ),
+        )
+        converse = Converse(
+            uow,
+            ResolveIntent(uow, PlanTask(Retrieve(uow, FakeEmbedder()))),
+            clock,
+            ids,
+            start=_starter(
+                uow, durable=FakeDurableExecution(), steel_tenants=frozenset({TENANT.value})
+            ),
+        )
+        said = await converse.execute(_ctx(), thread_id=thread.id, text=answered_with)
+        started = said.messages[-1].decision
+        assert started is not None and started.get("run_id"), said.messages[-1].text
+        if values is None:
+            run = await uow.workflow_runs.get(TENANT, str(started["run_id"]))
+    run = run or await _press(_starter(uow), values=values or {})
+    run.steps = [RunStep(order=0, says="type the code", verdict="failed", verdict_by="read")]
+    run.needs = needs
+    await uow.workflow_runs.save(run)
+    starter = StartWorkflowRun(
+        uow,
+        channel=_Browsers(),
+        asker=_A_MODEL,
+        clock=FakeClock(NOW),
+        cap_usd=CAP,
+        stops=Stops(),
+        approvals=Approvals(),
+        one_time_secrets=OneTimeSecrets(),
+        ids=FakeIdFactory(),
+    )
+    return run, starter
+
+
+async def _asked_last(uow: FakeUnitOfWork, run: WorkflowRun) -> Message:
+    threads = await uow.threads.list_for_tenant(
+        TENANT, opened_by=PrincipalId(run.started_by), limit=1
+    )
+    return threads[0].messages[-1]
+
+
+async def test_a_run_short_of_several_values_asks_for_all_of_them_in_one_question() -> None:
+    """F1: greyorange asked for one value a turn, 44% of its turns."""
+    uow = await _held()
+    # Pressed with both, and the run found neither would do (a box too short).
+    run, starter = await _short_of(
+        uow,
+        ["Customer Type", "Description"],
+        values={"Customer Type": "NEWSROTEST", "Description": "north dock"},
+    )
+
+    await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
+
+    asked = await _asked_last(uow, run)
+    assert asked.text.count("?") == 1, asked.text
+    assert "What should Customer Type and Description be?" in asked.text
+    assert asked.decision is not None
+    assert [one["name"] for one in asked.decision["asks"]] == ["Customer Type", "Description"]
+
+
+async def test_the_run_an_answer_started_does_not_offer_again_what_that_ask_offered() -> None:
+    uow = await _held()
+    run, starter = await _short_of(uow, ["Customer Type"], "Customer Type: GGD, Description: first")
+
+    await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
+
+    asked = await _asked_last(uow, run)
+    assert asked.decision is not None and asked.decision["kind"] == NEEDS
+    assert "I can also set" not in asked.text, "an optional field was offered twice in one ask"
+
+
+async def test_a_run_started_some_other_way_is_a_fresh_ask() -> None:
+    """I3: the earlier ask's drop and offer belong to that ask."""
+    uow = await _held()
+    run, starter = await _short_of(
+        uow,
+        ["Customer Type"],
+        "Customer Type: GGD, Description: first, skip Manufacturer",
+        values={"Customer Type": "NEWSROTEST", "Description": "first"},
+    )
+
+    await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
+
+    asked = await _asked_last(uow, run)
+    assert "I can also set Department and Manufacturer" in asked.text, asked.text
+
+
+async def test_a_run_that_needs_a_field_its_ask_dropped_stops_and_stops_waiting() -> None:
+    """I4. The answer dropped Manufacturer while it was optional; the job has
+    since learnt it as required, and the run that answer started needs it."""
+    uow = await _held()
+    run, starter = await _short_of(
+        uow, ["Manufacturer"], "Customer Type: GGD, Description: first, skip Manufacturer"
+    )
+    workflow = await uow.workflows.get(TENANT, run.workflow_id)
+    workflow.parameters = [
+        *K_FIELDS[:3],
+        {"name": "Manufacturer", "names": ["Manufacturer*"], "seen_values": ["OUTSIDE"]},
+    ]
+    await uow.workflows.save(workflow)
+    run.awaiting = {"kind": "values"}
+    await uow.workflow_runs.save(run)
+
+    await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
+
+    asked = await _asked_last(uow, run)
+    assert "stopped — it needs Manufacturer to run" in asked.text, asked.text
+    assert "Nothing was started" not in asked.text and "nothing was started" not in asked.text
+    assert asked.decision is not None and asked.decision["kind"] != NEEDS
+    saved = await uow.workflow_runs.get(TENANT, run.id)
+    assert saved is not None and saved.needs == [] and saved.awaiting is None, (
+        "the run is still counted as waiting on a person"
     )
 
 
@@ -1188,3 +1643,16 @@ async def test_another_tenants_undo_does_not_block_this_one() -> None:
     await _finished(uow, theirs, "held")
 
     assert (await _press(_starter(uow), undoes_run=made.id)).undoes_run == made.id
+
+
+async def test_stopping_a_steel_run_cancels_its_workflow_and_touches_no_browser() -> None:
+    uow, durable, stops = FakeUnitOfWork(), FakeDurableExecution(), Stops()
+    run = await running_steel_run(uow)
+
+    stopping = await door.AbortWorkflowRun(uow, stops, Approvals(), durable=durable).execute(
+        STEEL_CTX, run_id=run.id
+    )
+
+    assert durable.cancelled == [run.id]
+    assert stopping.outcome == "running"
+    assert not stops.asked(run.id)

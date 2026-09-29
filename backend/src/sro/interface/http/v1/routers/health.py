@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import functools
+import hashlib
+from pathlib import Path
+
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -9,6 +13,18 @@ from sro.config import get_settings
 from sro.interface.http.deps import ContainerDep
 
 router = APIRouter(tags=["health"])
+
+
+@functools.cache
+def _page_code() -> str:
+    """The sha256 of the page code this process would inject into Steel.
+
+    `make smoke` and CI's image build both compare this against the sha256 of
+    `new-chrome-extension/src/page/page-code.js` in the repository -- the
+    deployed image and the source it was supposedly built from are two
+    different files until something says they agree (spec §6.4). Cached: it is
+    the same local file for the life of the process, not a live dependency."""
+    return hashlib.sha256(Path(get_settings().page_code_path).read_bytes()).hexdigest()
 
 
 class Health(BaseModel):
@@ -19,6 +35,9 @@ class Health(BaseModel):
     Here because the expensive failure is not a process that is down, it is a
     process that is up and old: the answer it gives is a rule that was fixed
     hours ago, and nothing about the answer says so. `make status` reads this."""
+    page_code: str
+    """The sha256 of the page code this process injects into Steel. CI and
+    `make smoke` compare it with the repository's file."""
     checks: dict[str, bool]
 
 
@@ -26,8 +45,9 @@ class Health(BaseModel):
 async def health() -> Health:
     """Liveness: the process answers, and says which code it is answering with.
 
-    Still touches no dependency: the revision was resolved once at startup."""
-    return Health(status="ok", revision=get_settings().revision, checks={})
+    Still touches no live dependency: the revision was resolved once at
+    startup and the page code's hash is cached on first read."""
+    return Health(status="ok", revision=get_settings().revision, page_code=_page_code(), checks={})
 
 
 @router.get("/ready")
@@ -36,5 +56,6 @@ async def ready(container: ContainerDep) -> Health:
     return Health(
         status="ok" if all(checks.values()) else "degraded",
         revision=container.settings.revision,
+        page_code=_page_code(),
         checks=checks,
     )

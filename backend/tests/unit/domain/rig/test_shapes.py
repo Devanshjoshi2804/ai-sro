@@ -183,8 +183,29 @@ def test_the_page_a_job_begins_on_is_a_screen_and_not_one_visit_to_it() -> None:
     shape = shape_of(workflow, cited_pairs(workflow, by_id), held=0, advice=QUIET)
 
     assert shape is not None
-    assert shape.starts_on == f"{HOST}/mail/u/0/"
+    assert shape.starts_on == f"{HOST}/mail/u/0"
     assert "FMfcg" not in (shape.starts_on or ""), "a message id is not a screen"
+
+
+def test_the_page_a_job_begins_on_keeps_the_screen_its_fragment_names() -> None:
+    """QA 2026-09-29: `Create a Warehouse Equipment Type` was offered on the
+    Transport Equipment page. Blue Yonder routes on the fragment, so both
+    screens were served as `.../portal` and every arrival on the portal was
+    "this job's page". The screen is the one `shape_key` already keys a step
+    by: the fragment's route, without the site in the query or the empty
+    positional tail."""
+    by_id = _evidence()
+    workflow = _workflow(by_id)
+    by = "https://bf56-kms-wms-web-np2.jdadelivers.com"
+    screen = "wm.config/wm.config.equipment.equipment.warehouseequipmenttype"
+    _typed(by_id).page_url = f"{by}/portal?siteId=SG#{screen}////"
+    for one in by_id.values():
+        one.system = by
+
+    shape = shape_of(workflow, cited_pairs(workflow, by_id), held=0, advice=QUIET)
+
+    assert shape is not None
+    assert shape.starts_on == f"{by}/portal#{screen}"
 
 
 def test_the_hosts_a_job_names_are_where_somebody_stood() -> None:

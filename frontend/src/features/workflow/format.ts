@@ -24,7 +24,7 @@ export function became(runs: {
 }): string {
   if (!runs.total) return "never run";
   const parts = [`${runs.total} run${runs.total === 1 ? "" : "s"}`, `${runs.held} held`];
-  if (runs.earned) parts.push("writes unasked");
+  if (runs.earned) parts.push("proven");
   if (runs.stale) parts.push(`${runs.stale} step${runs.stale === 1 ? "" : "s"} matched weakly`);
   return parts.join(" · ");
 }
@@ -48,4 +48,15 @@ export function startOfToday(now: Date = new Date()): string {
 /** A run's outcome as a card says it: dry runs are marked, live ones are not. */
 export function outcomeLabel(run: { outcome: string; live: boolean }): string {
   return run.live ? run.outcome : `${run.outcome} (dry)`;
+}
+
+/** Why a job cannot run, one line per reason, each said once; empty when it can. */
+export function whyNotRunnable(
+  reasons: { code: string; step: number | null; detail: string }[],
+): string[] {
+  return [
+    ...new Set(
+      reasons.map((one) => (one.step === null ? one.detail : `Step ${one.step}: ${one.detail}`)),
+    ),
+  ];
 }

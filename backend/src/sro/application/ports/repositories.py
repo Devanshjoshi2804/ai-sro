@@ -1,14 +1,17 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from datetime import datetime, timedelta
 from typing import Protocol
 
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId
+from sro.domain.execution.account import Account, Lease, LeaseState
 from sro.domain.execution.belts import RunProof
+from sro.domain.execution.lanes import Broken, Lane
 from sro.domain.execution.learned_step import LearnedStep, Taught
+from sro.domain.execution.mail_job import JobRecipient
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.verified_writes import VerifiedWrite
@@ -39,6 +42,7 @@ from sro.domain.shared.identifiers import (
 )
 from sro.domain.shared.objective import ObjectiveKey
 from sro.domain.shared.prices import DaySpend, ModelSpend
+from sro.domain.skill.aliases import JobAlias
 from sro.domain.skill.offers import Offer, OfferRow
 from sro.domain.skill.skill import Skill
 from sro.domain.skill.workflow import Noticed, Workflow
@@ -157,6 +161,8 @@ class ThreadRepository(Protocol):
 
     async def get(self, tenant_id: TenantId, thread_id: ThreadId) -> Thread: ...
 
+    async def get_for_answer(self, tenant_id: TenantId, thread_id: ThreadId) -> Thread: ...
+
     async def save(self, thread: Thread) -> None: ...
 
     async def list_for_tenant(
@@ -167,6 +173,10 @@ class ThreadRepository(Protocol):
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[Thread, ...]: ...
+
+    async def holding(
+        self, tenant_id: TenantId, *, opened_by: PrincipalId, message_id: str
+    ) -> Thread | None: ...
 
 
 class ModelCallRepository(Protocol):
@@ -189,6 +199,47 @@ class BrowserSessionRepository(Protocol):
     async def all_held(self) -> tuple[tuple[BrowserSessionId, datetime], ...]: ...
 
     async def release(self, session_id: BrowserSessionId) -> None: ...
+
+    async def lease(self, tenant_id: TenantId, lease: Lease) -> Lease: ...
+
+    async def current_lease(self, tenant_id: TenantId, account: Account) -> Lease | None: ...
+
+    async def get_lease(self, tenant_id: TenantId, lease_id: str) -> Lease | None: ...
+
+    async def settle(
+        self,
+        tenant_id: TenantId,
+        lease_id: str,
+        *,
+        state: LeaseState,
+        until: datetime | None = None,
+        now: datetime | None = None,
+        waits_for: str = "",
+        holder: str | None = None,
+    ) -> bool: ...
+
+    async def expire(self, tenant_id: TenantId, lease_id: str, *, now: datetime) -> bool: ...
+
+    async def beat(
+        self,
+        tenant_id: TenantId,
+        lease_id: str,
+        *,
+        now: datetime,
+        holder: str | None = None,
+    ) -> bool: ...
+
+    async def expired(self, *, now: datetime) -> tuple[Lease, ...]: ...
+
+    async def pinned_container(self, tenant_id: TenantId, account: Account) -> str | None: ...
+
+    async def busy_containers(self, *, now: datetime) -> tuple[str, ...]: ...
+
+    async def retired_contexts(
+        self, container_url: str, context_ids: Collection[str]
+    ) -> frozenset[str]: ...
+
+    async def leased_sessions(self) -> frozenset[str]: ...
 
 
 class DeviceRepository(Protocol):
@@ -297,7 +348,11 @@ class ToolCallRepository(Protocol):
         stale_after: timedelta | None = None,
     ) -> bool: ...
 
-    async def forget(self, tenant_id: TenantId, key: str) -> None: ...
+    async def forget(self, tenant_id: TenantId, key: str, *, tool: str | None = None) -> bool: ...
+
+    async def held(
+        self, tenant_id: TenantId, key: str, *, since: datetime, tool: str | None = None
+    ) -> bool: ...
 
 
 class GestureRepository(Protocol):
@@ -312,6 +367,7 @@ class GestureRepository(Protocol):
         ids: tuple[str, ...] | None = None,
         after: float | None = None,
         before: float | None = None,
+        stream_id: str | None = None,
     ) -> tuple[Gesture, ...]: ...
 
     async def uploads_for(
@@ -326,7 +382,9 @@ class GestureRepository(Protocol):
 
     async def save_intent(self, intent: Intent) -> None: ...
 
-    async def intents_for(self, tenant_id: TenantId) -> tuple[Intent, ...]: ...
+    async def intents_for(
+        self, tenant_id: TenantId, *, ids: tuple[str, ...] | None = None
+    ) -> tuple[Intent, ...]: ...
 
     async def intents_since(self, tenant_id: TenantId, *, since: str) -> tuple[Intent, ...]: ...
 
@@ -355,7 +413,9 @@ class PoolRepository(Protocol):
         self, tenant_id: TenantId, *, window_ids: tuple[str, ...], claimed: frozenset[str]
     ) -> int: ...
 
-    async def age(self, tenant_id: TenantId, *, shown: tuple[str, ...] | None = None) -> int: ...
+    async def age(
+        self, tenant_id: TenantId, *, shown: tuple[str, ...] | None = None, failed: bool = False
+    ) -> int: ...
 
     async def waiting(self, tenant_id: TenantId) -> tuple[PoolEntry, ...]: ...
 
@@ -363,9 +423,22 @@ class PoolRepository(Protocol):
 
     async def retired(self, tenant_id: TenantId) -> tuple[PoolEntry, ...]: ...
 
+    async def retire(
+        self, tenant_id: TenantId, gesture_ids: tuple[str, ...], *, reason: str
+    ) -> int: ...
+
 
 class WorkflowRunRepository(Protocol):
     async def save(self, run: WorkflowRun) -> None: ...
+
+    async def record_progress(
+        self,
+        tenant_id: TenantId,
+        run_id: str,
+        progress: dict[str, object],
+        *,
+        was: Mapping[str, object] | None = None,
+    ) -> bool: ...
 
     async def get(self, tenant_id: TenantId, run_id: str) -> WorkflowRun | None: ...
 
@@ -404,11 +477,25 @@ class WorkflowRunRepository(Protocol):
         self, tenant_id: TenantId, *, server: str, thread: str
     ) -> WorkflowRun | None: ...
 
+    async def started_on(self, tenant_id: TenantId, *, server: str, thread: str) -> bool: ...
+
     async def approve(self, run_id: str, ord_: int, *, at: str, device_id: str | None) -> bool: ...
 
     async def approvals(self, run_id: str) -> tuple[tuple[int, str, str | None], ...]: ...
 
     async def fail_orphans(self, reason: str) -> int: ...
+
+    async def running(self) -> tuple[WorkflowRun, ...]: ...
+
+    async def close_stuck(
+        self,
+        tenant_id: TenantId,
+        run_id: str,
+        *,
+        reason: str,
+        at: str,
+        was: Mapping[str, object],
+    ) -> bool: ...
 
 
 class WorkflowRepository(Protocol):
@@ -420,7 +507,9 @@ class WorkflowRepository(Protocol):
         self, tenant_id: TenantId, *, since: datetime
     ) -> tuple[Noticed, ...]: ...
 
-    async def get(self, tenant_id: TenantId, workflow_id: str) -> Workflow: ...
+    async def get(
+        self, tenant_id: TenantId, workflow_id: str, *, lock: bool = False
+    ) -> Workflow: ...
 
     async def retire(self, tenant_id: TenantId, workflow_id: str, *, at: datetime) -> None: ...
 
@@ -431,6 +520,24 @@ class WorkflowRepository(Protocol):
     async def placed(self, tenant_id: TenantId) -> frozenset[str]: ...
 
     async def rekey(self, tenant_id: TenantId, workflow_id: str, key: ShapeKey) -> None: ...
+
+    async def undecided(self) -> tuple[Workflow, ...]: ...
+
+    async def decide(
+        self, tenant_id: TenantId, workflow: Workflow, *, signs_in: bool, signs_out: bool
+    ) -> bool: ...
+
+    async def placed_on(self, tenant_id: TenantId, workflow_id: str) -> tuple[str, ...]: ...
+
+    async def behind_the_rule(self, rule: int) -> tuple[Workflow, ...]: ...
+
+    async def ruled(self, tenant_id: TenantId, workflow_id: str, rule: int) -> bool: ...
+
+    async def tabs_undecided(self) -> tuple[Workflow, ...]: ...
+
+    async def decide_tab(
+        self, tenant_id: TenantId, workflow_id: str, order: int, tab: str
+    ) -> bool: ...
 
     async def add_pass(self, mining_pass: MiningPass) -> None: ...
 
@@ -445,6 +552,32 @@ class WorkflowRepository(Protocol):
     ) -> None: ...
 
     async def learned_for(self, workflow_id: str) -> tuple[LearnedStep, ...]: ...
+
+    async def break_lane(
+        self, tenant_id: TenantId, workflow_id: str, broken: Broken, *, cites: str, at: datetime
+    ) -> None: ...
+
+    async def broken_for(
+        self, tenant_id: TenantId, workflow_id: str, cites: Mapping[int, str], *, now: datetime
+    ) -> tuple[Broken, ...]: ...
+
+    async def mend_lane(
+        self, tenant_id: TenantId, workflow_id: str, step: int, lane: Lane
+    ) -> None: ...
+
+    async def recipients_for(
+        self, tenant_id: TenantId, workflow_id: str
+    ) -> tuple[JobRecipient, ...]: ...
+
+    async def confirm_recipient(
+        self, tenant_id: TenantId, workflow_id: str, recipient: JobRecipient
+    ) -> None: ...
+
+    async def aliases_for(self, tenant_id: TenantId, workflow_id: str) -> tuple[JobAlias, ...]: ...
+
+    async def confirm_alias(
+        self, tenant_id: TenantId, workflow_id: str, alias: JobAlias
+    ) -> None: ...
 
     async def taught_itself(self, workflow_id: str, limit: int = 50) -> tuple[Taught, ...]: ...
 

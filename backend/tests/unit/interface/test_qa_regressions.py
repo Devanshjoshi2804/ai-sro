@@ -16,10 +16,13 @@ import httpx
 import pytest
 from httpx import ASGITransport
 
+from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.context import RequestContext
 from sro.application.execution.answer import read_answer
 from sro.application.intent.narrow import _mentions
+from sro.domain.chat.asking import Pending
 from sro.domain.execution.run import Run, RunId
+from sro.domain.observation.attempts import REFUSED
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import DeviceId, SkillId
 from sro.domain.skill.promotion import PromotionStage
@@ -29,8 +32,11 @@ from sro.interface.http.deps import get_container
 from sro.interface.http.errors import _status_for
 from sro.interface.http.v1.routers.stream import _events
 from tests import factories as f
-from tests.unit.fakes import FakeUnitOfWork
+from tests.unit.fakes import FakeClock, FakeIdFactory, FakeUnitOfWork
 from tests.unit.interface.test_http import _FakeContainer, token_for
+from tests.unit.runtime_support import save_job
+
+CTX = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
 
 
 @pytest.fixture
@@ -134,6 +140,63 @@ class TestARunStartedFromAThread:
 
         assert response.status_code == 422
         assert "skill_id" in response.json()["detail"]
+
+    async def test_only_the_thread_s_opener_starts_a_run_into_it(
+        self, client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+    ) -> None:
+        """Invariant 5. B's run was started, then written into A's thread,
+        where it stood over A's offer."""
+        version = f.skill_version()
+        skill = f.skill(versions=0)
+        skill.add_version(version)
+        version.promote(PromotionStage.SHADOW, f.at(700), f.OPERATOR)
+        await uow.skills.add(skill)
+        thread_id = (await client.post("/v1/threads")).json()["id"]
+        before = (await client.get(f"/v1/threads/{thread_id}")).json()["messages"]
+        body = {"skill_id": skill.id.value, "parameters": {"shipment_id": "1"}}
+
+        theirs = await client.post(
+            f"/v1/threads/{thread_id}/runs",
+            json={**body, "medium": "network"},
+            headers={"Authorization": f"Bearer {token_for(principal='b@acme.test')}"},
+        )
+
+        assert theirs.status_code == 409
+        assert container.durable.started == []
+        assert (await client.get(f"/v1/threads/{thread_id}")).json()["messages"] == before
+
+        mine = await client.post(
+            f"/v1/threads/{thread_id}/runs", json={**body, "medium": "network"}
+        )
+
+        assert mine.status_code == 201
+        assert len(container.durable.started) == 1
+
+    async def test_only_the_thread_s_opener_pursues_into_it(
+        self, client: httpx.AsyncClient, container: _FakeContainer
+    ) -> None:
+        """Invariant 5. B's pursuit drove the browser, then wrote its note into
+        A's thread. The opener is checked before anything is driven."""
+        thread_id = (await client.post("/v1/threads")).json()["id"]
+        before = (await client.get(f"/v1/threads/{thread_id}")).json()["messages"]
+        body = {"intent": "look up LPN 42", "target_system": "wms", "authorized_by": "yes"}
+
+        theirs = await client.post(
+            f"/v1/threads/{thread_id}/pursue",
+            json=body,
+            headers={"Authorization": f"Bearer {token_for(principal='b@acme.test')}"},
+        )
+
+        assert theirs.status_code == 409
+        assert container.pursuits.working() is None
+        assert (await client.get(f"/v1/threads/{thread_id}")).json()["messages"] == before
+
+        mine = await client.post(f"/v1/threads/{thread_id}/pursue", json=body)
+        await asyncio.gather(*container.pursuits._tasks)
+
+        assert mine.status_code == 202
+        said = (await client.get(f"/v1/threads/{thread_id}")).json()["messages"]
+        assert said[-1]["text"].startswith("Worked on the screen: ")
 
 
 class TestABatchOfNothing:
@@ -424,3 +487,32 @@ async def _first_events(
                     seen[name] = json.loads(data)
     await events.aclose()
     return seen
+
+
+class TestAYesThatStartedNothing:
+    async def test_is_recorded_as_refused_not_done(
+        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
+    ) -> None:
+        """A chat yes the start refused was counted `done`: the conversation
+        said something, so the door called it done, and QA's count of refusals
+        on greyorange read none."""
+        await save_job(uow, "wfl_1")
+        thread_id = (await client.post("/v1/threads")).json()["id"]
+        await AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()).execute(
+            CTX,
+            Pending(
+                workflow_id="wfl_1", title="Save it", values={"Customer Type": "GT2"}, missing=()
+            ),
+            ask_to_run=True,
+        )
+
+        said = await client.post(f"/v1/threads/{thread_id}/messages", json={"text": "yes"})
+
+        assert said.json()["messages"][-1]["text"].startswith("Nothing was started: ")
+        ((came_of, why, run),) = [
+            (one.came_of, one.why, one.about.get("run", ""))
+            for one in uow.attempts.rows
+            if one.asked_for == "say something in a conversation"
+        ]
+        assert (came_of, run) == (REFUSED, "")
+        assert why.startswith("Nothing was started: ")

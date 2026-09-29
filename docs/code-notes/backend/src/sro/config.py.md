@@ -6,14 +6,14 @@ Comments and docstrings moved out of [`backend/src/sro/config.py`](../../../../.
 
 > Runtime configuration. One Settings object, read from the environment.
 
-## module, [line 28](../../../../../backend/src/sro/config.py#L28): Note on the line above
+## module, [line 48](../../../../../backend/src/sro/config.py#L48): Note on the line above
 
 Code: `_LOOPBACK = ("127.0.0.1", "localhost", "[::1]")`
 
 > The same machine under three names. `Settings.attach_hosts` says so too, and
 > `our_own_origins` reads the same set rather than a second copy of it.
 
-## `_git_head`, [line 12](../../../../../backend/src/sro/config.py#L12): Docstring
+## `_git_head`, [line 32](../../../../../backend/src/sro/config.py#L32): Docstring
 
 > The commit the working tree is on, asked once at import of the settings.
 >
@@ -23,11 +23,11 @@ Code: `_LOOPBACK = ("127.0.0.1", "localhost", "[::1]")`
 > answered with "unknown". A process that refuses to start because it could
 > not name itself would be a worse failure than the one this exists to catch.
 
-## `_origins_of`, [line 31](../../../../../backend/src/sro/config.py#L31): Docstring
+## `_origins_of`, [line 51](../../../../../backend/src/sro/config.py#L51): Docstring
 
 > One configured url as the (host:port, path prefix) pairs it stands for.
 
-## `Settings`, [line 58](../../../../../backend/src/sro/config.py#L58): Note on the line above
+## `Settings`, [line 98](../../../../../backend/src/sro/config.py#L98): Note on the line above
 
 Code: `louder_for: str = ""`
 
@@ -38,7 +38,7 @@ Code: `louder_for: str = ""`
 > process to DEBUG -- every tenant, every sweep, every query, for as long as
 > it takes to reproduce -- or see nothing. See `whose.Louder`.
 
-## `Settings`, [line 60](../../../../../backend/src/sro/config.py#L60): Note on the line above
+## `Settings`, [line 100](../../../../../backend/src/sro/config.py#L100): Note on the line above
 
 Code: `revision: str = Field(default_factory=_git_head)`
 
@@ -51,7 +51,7 @@ Code: `revision: str = Field(default_factory=_git_head)`
 > the diagnosis looked like a code bug. Nothing enforces a match: a rolling
 > deploy is two revisions on purpose.
 
-## `Settings`, [line 64](../../../../../backend/src/sro/config.py#L64): Note on the line above
+## `Settings`, [line 104](../../../../../backend/src/sro/config.py#L104): Note on the line above
 
 Code: `ui_debugger_url: str = ""`
 
@@ -61,7 +61,7 @@ Code: `ui_debugger_url: str = ""`
 > would have escalated records that there was no browser rather than
 > pretending the step was impossible.
 
-## `Settings`, [line 71](../../../../../backend/src/sro/config.py#L71): Note on the line above
+## `Settings`, [line 111](../../../../../backend/src/sro/config.py#L111): Note on the line above
 
 Code: `s3_public_endpoint_url: str | None = None`
 
@@ -75,7 +75,7 @@ Code: `s3_public_endpoint_url: str | None = None`
 > error anybody saw. Unset means the two are the same address, which is true
 > on a laptop and was the only case ever exercised.
 
-## `Settings`, [line 74](../../../../../backend/src/sro/config.py#L74): Note on the line above
+## `Settings`, [line 114](../../../../../backend/src/sro/config.py#L114): Note on the line above
 
 Code: `cors_origins: tuple[str, ...] = ()`
 
@@ -86,7 +86,7 @@ Code: `cors_origins: tuple[str, ...] = ()`
 > only same-origin callers, which is the right default for an API whose other
 > client is a server-rendered console.
 
-## `Settings`, [line 76](../../../../../backend/src/sro/config.py#L76): Note on the line above
+## `Settings`, [line 116](../../../../../backend/src/sro/config.py#L116): Note on the line above
 
 Code: `mcp_servers: str = ""`
 
@@ -98,7 +98,7 @@ Code: `mcp_servers: str = ""`
 > assisted, and `why_not_autonomous` says so rather than leaving somebody
 > waiting on a streak that cannot move.
 
-## `Settings`, [line 79](../../../../../backend/src/sro/config.py#L79): Note on the line above
+## `Settings`, [line 119](../../../../../backend/src/sro/config.py#L119): Note on the line above
 
 Code: `steel_public_base_url: str | None = None`
 
@@ -115,13 +115,23 @@ Code: `steel_public_base_url: str | None = None`
 >
 > Unset means the two are the same address, which is true on a laptop.
 
-## `Settings`, [line 81](../../../../../backend/src/sro/config.py#L81): Note on the line above
+## `Settings`, [line 129](../../../../../backend/src/sro/config.py#L129): Note on the line above
+
+Code: `steel_tenants: tuple[str, ...] = ()`
+
+> The spec's per-tenant `executor: extension | steel` (§9), as the list of
+> tenants on Steel: `SRO_STEEL_TENANTS='["greyorange"]'`. Empty means every
+> tenant stays on the extension, which is the rollout's step 1. The api and
+> the worker share one environment block in the deploy file, so both read
+> the same list.
+
+## `Settings`, [line 121](../../../../../backend/src/sro/config.py#L121): Note on the line above
 
 Code: `steel_cdp_url: str = "http://localhost:9223"`
 
 > Chrome DevTools endpoint Steel publishes. Playwright connects over it.
 
-## `Settings`, [line 83](../../../../../backend/src/sro/config.py#L83): Note on the line above
+## `Settings`, [line 123](../../../../../backend/src/sro/config.py#L123): Note on the line above
 
 Code: `browser_height: int = 1000`
 
@@ -131,7 +141,7 @@ Code: `browser_height: int = 1000`
 > the default the operator is reading a postage stamp, and the accessibility
 > tree that gets captured is one of a layout nobody uses.
 
-## `Settings`, [line 87](../../../../../backend/src/sro/config.py#L87): Note on the line above
+## `Settings`, [line 142](../../../../../backend/src/sro/config.py#L142): Note on the line above
 
 Code: `attach_hosts: tuple[str, ...] = ("127.0.0.1", "localhost", "[::1]")`
 
@@ -144,7 +154,7 @@ Code: `attach_hosts: tuple[str, ...] = ("127.0.0.1", "localhost", "[::1]")`
 > loopback is the whole legitimate set; widen it only for a remote debugger
 > somebody actually runs.
 
-## `Settings`, [line 89](../../../../../backend/src/sro/config.py#L89): Note on the line above
+## `Settings`, [line 144](../../../../../backend/src/sro/config.py#L144): Note on the line above
 
 Code: `api_url: str = "http://localhost:8000"`
 
@@ -158,7 +168,7 @@ Code: `api_url: str = "http://localhost:8000"`
 > Also `our_own_hosts` below, which is a different kind of wrong: too NARROW
 > there and the evidence plane records this system recording.
 
-## `Settings`, [line 91](../../../../../backend/src/sro/config.py#L91): Note on the line above
+## `Settings`, [line 146](../../../../../backend/src/sro/config.py#L146): Note on the line above
 
 Code: `console_url: str = "http://localhost:3000"`
 
@@ -171,14 +181,14 @@ Code: `console_url: str = "http://localhost:3000"`
 > is exactly that shape: `cors_origins` holds only the extension, and the
 > console at :3000 was being captured with nothing to name it.
 
-## `Settings`, [line 111](../../../../../backend/src/sro/config.py#L111): Note on the line above
+## `Settings`, [line 199](../../../../../backend/src/sro/config.py#L199): Note on the line above
 
 Code: `inline_body_limit_bytes: int = Field(default=256 * 1024)`
 
 > Payloads above this go to object storage and the row keeps the URI.
 > Nothing is discarded either way -- see docs/11-capture-completeness.md.
 
-## `Settings`, [line 113](../../../../../backend/src/sro/config.py#L113): Note on the line above
+## `Settings`, [line 201](../../../../../backend/src/sro/config.py#L201): Note on the line above
 
 Code: `observation_artifact_bytes: int = 8_000_000`
 
@@ -191,7 +201,7 @@ Code: `observation_artifact_bytes: int = 8_000_000`
 > The measurement travels with the number on purpose. A constant whose reason
 > is missing is one the next person re-tunes by guess.
 
-## `Settings`, [line 115](../../../../../backend/src/sro/config.py#L115): Note on the line above
+## `Settings`, [line 203](../../../../../backend/src/sro/config.py#L203): Note on the line above
 
 Code: `observation_batch_events: int = 5000`
 
@@ -204,14 +214,14 @@ Code: `observation_batch_events: int = 5000`
 > A bound on one request and not on a day: a browser with more than this to
 > say splits it, and the refusal names the count so that it can.
 
-## `Settings`, [line 120](../../../../../backend/src/sro/config.py#L120): Note on the line above
+## `Settings`, [line 208](../../../../../backend/src/sro/config.py#L208): Note on the line above
 
 Code: `capture_video: bool = True`
 
 > Screencast the demonstration. Encoded as it arrives, so a long session
 > costs disk rather than memory.
 
-## `Settings`, [line 122](../../../../../backend/src/sro/config.py#L122): Note on the line above
+## `Settings`, [line 210](../../../../../backend/src/sro/config.py#L210): Note on the line above
 
 Code: `capture_video_fps: int = 2`
 
@@ -220,7 +230,7 @@ Code: `capture_video_fps: int = 2`
 > Sampled with screenshots rather than a screencast: a screencast would take
 > the live view away from the operator (Chrome allows one consumer per page).
 
-## `Settings`, [line 124](../../../../../backend/src/sro/config.py#L124): Note on the line above
+## `Settings`, [line 212](../../../../../backend/src/sro/config.py#L212): Note on the line above
 
 Code: `capture_redact_secret_values: bool = True`
 
@@ -231,7 +241,7 @@ Code: `capture_redact_secret_values: bool = True`
 > the evidence store a credential store -- do not, without a decision that says
 > who is accountable for it.
 
-## `Settings`, [line 126](../../../../../backend/src/sro/config.py#L126): Note on the line above
+## `Settings`, [line 214](../../../../../backend/src/sro/config.py#L214): Note on the line above
 
 Code: `vault_project: str | None = None`
 
@@ -247,20 +257,20 @@ Code: `vault_project: str | None = None`
 > refuses at first use with a sentence naming the extra, rather than
 > `no module named google.cloud`.
 
-## `Settings`, [line 129](../../../../../backend/src/sro/config.py#L129): Note on the line above
+## `Settings`, [line 217](../../../../../backend/src/sro/config.py#L217): Note on the line above
 
 Code: `vault_key: str | None = None`
 
 > Fernet key for the file vault. Without it the vault refuses to start
 > rather than writing plaintext. Generate one with `make vault-key`.
 
-## `Settings`, [line 131](../../../../../backend/src/sro/config.py#L131): Note on the line above
+## `Settings`, [line 219](../../../../../backend/src/sro/config.py#L219): Note on the line above
 
 Code: `transcription_enabled: bool = False`
 
 > Narration transcription is optional. Default binding is NullTranscriber.
 
-## `Settings`, [line 133](../../../../../backend/src/sro/config.py#L133): Note on the line above
+## `Settings`, [line 221](../../../../../backend/src/sro/config.py#L221): Note on the line above
 
 Code: `rig_sweep_seconds: float = 60.0`
 
@@ -317,7 +327,7 @@ Code: `rig_sweep_seconds: float = 60.0`
 > it holds no state worth replaying, and a missed sweep is corrected by the
 > next one reading the same window.
 
-## `Settings`, [line 135](../../../../../backend/src/sro/config.py#L135): Note on the line above
+## `Settings`, [line 225](../../../../../backend/src/sro/config.py#L225): Note on the line above
 
 Code: `mining_window_hours: int = 24`
 
@@ -329,7 +339,7 @@ Code: `mining_window_hours: int = 24`
 > whose browsers uploaded in the window. The pass itself then reads that
 > tenant's whole history, which is `_one_pass`'s own recorded ceiling.
 
-## `Settings`, [line 137](../../../../../backend/src/sro/config.py#L137): Note on the line above
+## `Settings`, [line 227](../../../../../backend/src/sro/config.py#L227): Note on the line above
 
 Code: `session_sweep_seconds: float = 600.0`
 
@@ -339,7 +349,7 @@ Code: `session_sweep_seconds: float = 600.0`
 > sessions have been observed to last. This is only how often the question is
 > asked, and asking is a cached read.
 
-## `Settings`, [line 139](../../../../../backend/src/sro/config.py#L139): Note on the line above
+## `Settings`, [line 229](../../../../../backend/src/sro/config.py#L229): Note on the line above
 
 Code: `retention_sweep_seconds: float = 86400.0`
 
@@ -347,7 +357,7 @@ Code: `retention_sweep_seconds: float = 86400.0`
 > retention window is measured in days, so checking more often than that
 > buys nothing but repeated table scans.
 
-## `Settings`, [line 141](../../../../../backend/src/sro/config.py#L141): Note on the line above
+## `Settings`, [line 231](../../../../../backend/src/sro/config.py#L231): Note on the line above
 
 Code: `auth_secret: str = ""`
 
@@ -358,7 +368,7 @@ Code: `auth_secret: str = ""`
 > a default here would be a key every deployment shares. Generate one with
 > `make auth-secret`.
 
-## `Settings`, [line 143](../../../../../backend/src/sro/config.py#L143): Note on the line above
+## `Settings`, [line 233](../../../../../backend/src/sro/config.py#L233): Note on the line above
 
 Code: `gemini_api_key: str = ""`
 
@@ -366,7 +376,7 @@ Code: `gemini_api_key: str = ""`
 > exactly as it does today -- deliberately, for deployments that may not send
 > a customer's screen or a customer's words to a hosted model.
 
-## `Settings`, [line 145](../../../../../backend/src/sro/config.py#L145): Note on the line above
+## `Settings`, [line 235](../../../../../backend/src/sro/config.py#L235): Note on the line above
 
 Code: `gemini_mine_timeout_ms: int = 600_000`
 
@@ -390,7 +400,7 @@ Code: `gemini_mine_timeout_ms: int = 600_000`
 > that a dead socket costs one sweep rather than a night -- which is what
 > the paragraph below is about and why a timeout exists at all.
 
-## `Settings`, [line 147](../../../../../backend/src/sro/config.py#L147): Note on the line above
+## `Settings`, [line 237](../../../../../backend/src/sro/config.py#L237): Note on the line above
 
 Code: `gemini_timeout_ms: int = 120_000`
 
@@ -412,7 +422,7 @@ Code: `gemini_timeout_ms: int = 120_000`
 > recorded either way -- which is what the rest of the rig already knows how
 > to carry.
 
-## `Settings`, [line 149](../../../../../backend/src/sro/config.py#L149): Note on the line above
+## `Settings`, [line 239](../../../../../backend/src/sro/config.py#L239): Note on the line above
 
 Code: `gemini_read_tail: int = 0`
 
@@ -458,7 +468,7 @@ Code: `gemini_read_tail: int = 0`
 > A deployment that later finds something to do with `continues` should --
 > that is the one field this pays for.
 
-## `Settings`, [line 151](../../../../../backend/src/sro/config.py#L151): Note on the line above
+## `Settings`, [line 241](../../../../../backend/src/sro/config.py#L241): Note on the line above
 
 Code: `gemini_read_at_once: int = 8`
 
@@ -493,7 +503,7 @@ Code: `gemini_read_at_once: int = 8`
 > the kind of failure that passes every test and corrupts a connection in
 > production.
 
-## `Settings`, [line 153](../../../../../backend/src/sro/config.py#L153): Note on the line above
+## `Settings`, [line 243](../../../../../backend/src/sro/config.py#L243): Note on the line above
 
 Code: `daily_usd_cap: float = -1.0`
 
@@ -528,12 +538,13 @@ Code: `daily_usd_cap: float = -1.0`
 > and works: a deployment that wants a ceiling sets one, and `over_cap` still
 > says how much of what. What is gone is a ceiling nobody chose.
 
-## `Settings`, [line 156](../../../../../backend/src/sro/config.py#L156): Note on the line above
+## `Settings`, [line 245](../../../../../backend/src/sro/config.py#L245): Note on the line above
 
 Code: `gemini_embedding_model: str = "gemini-embedding-2"`
 
 > The one model here that is not a chat model and cannot be one. Priced
-> separately in `prices.py`; everything else on this list is `3.8-flash`.
+> separately in `prices.py`. Every chat model is on its prompt record in
+> `sro.domain.prompts`, not here: an embedding is not a prompt.
 >
 > **Changing this makes every stored vector meaningless.** A distance between
 > a vector from one model and a vector from another is noise, not a near
@@ -548,135 +559,7 @@ Code: `gemini_embedding_model: str = "gemini-embedding-2"`
 > arrives with no migration on `knowledge_entries.embedding`, no rebuild of
 > the HNSW index that only landed in 0050, and one re-embed.
 
-## `Settings`, [line 158](../../../../../backend/src/sro/config.py#L158): Note on the line above
-
-Code: `gemini_vision_model: str = "gemini-3.8-flash"`
-
-> Computer use is native here rather than a separate specialised model.
-> Checked against the account rather than assumed: the standalone
-> `gemini-2.5-computer-use-preview` still answers, and this one accepts the
-> same tool while being the model everything else already uses.
-
-## `Settings`, [line 160](../../../../../backend/src/sro/config.py#L160): Note on the line above
-
-Code: `gemini_intent_model: str = "gemini-3.8-flash"`
-
-> Chat: reading one sentence, extracting values. An operator is waiting, so
-> this is the fast one -- measured at ~2.3s against ~4.8s for the pro model,
-> for a job where the answer is checked against the skills that exist anyway.
-
-## `Settings`, [line 162](../../../../../backend/src/sro/config.py#L162): Note on the line above
-
-Code: `gemini_interpreter_model: str = "gemini-3.1-pro-preview"`
-
-> Reading a demonstration into a workflow, once per induction. Nobody is
-> watching the clock, being wrong is expensive and lasting, and the reading is
-> what an operator will see for the life of the skill -- so this is the
-> reasoning model. It cannot enable computer use, and does not need to.
-
-## `Settings`, [line 164](../../../../../backend/src/sro/config.py#L164): Note on the line above
-
-Code: `gemini_mine_model: str = "gemini-3.8-flash"`
-
-> The model one mining pass asks. The rig's `mine_model`
-> (`new_agent_arch/src/rig/config.py:20`) was `gemini-3.1-pro-preview`, and
-> this is the one of the three model names that is deliberately no longer
-> the rig's.
->
-> **Measured, 2026-09-21, against pro on identical copies of the deployed
-> store** -- 904 gestures, the same 22 known workflows, the same
-> `K_EFFORT="medium"`, the same window budget:
->
->     pro    8 passes, 2 of 5 finished inside the shipped timeout,
->            107s / 135s / 217s, mean $0.493, 3-10 proposals
->     flash  5 passes, 5 of 5 finished, ~115s, mean $0.235, 9-12 proposals
->
-> and, on the number that decides it, **0 new jobs each**. Every proposal
-> from both resolved as a job already stored or the same evidence read
-> twice, because the store had converged.
->
-> So this is not "flash mines better"; nothing here shows that, and a
-> converged store cannot show it. It is the rule `gemini_rescue_model` below
-> already states -- the expensive model earns its price where depth per call
-> is the product -- applied to the call that is its opposite. A mining pass
-> is 162,000 input tokens, one shallow judgement, and then the nine rules in
-> `validate` that do the actual discrimination. The miner's job is recall;
-> recall is the cheaper thing to buy, and `validate` is what refuses. Pro
-> earns its price at the rescue rung, once per failure, and stays there.
->
-> **And then it was re-run, on exactly that.** An operator demonstrated
-> `Create a Transport Equipment Type` three times -- a screen this store had
-> never held a job for -- and both models were given the same 159,929-token
-> prompt over identical copies with that job rolled back:
->
->     flash  learned it,  10 proposed (1 new, 3 same_job, 6 same_occurrence),
->            nothing wrongly refused,   91s,  $0.2396
->     pro    learned it,   8 proposed (1 new, 2 same_job, 4 same_occurrence),
->            nothing wrongly refused,  338s,  $0.5032
->
-> The same answer, 2.1x the price and 3.7x the wall clock. Flash gets there
-> by thinking four times as hard -- 21,278 thought tokens against 4,821 --
-> and still costs less, because thinking is billed at its own output rate.
-> Note pro's 338 seconds: under the 120s that shipped before
-> `gemini_mine_timeout_ms`, that pass would have died.
->
-> So the choice is measured on novel evidence now and not only on a
-> converged store. It is still n=1 on a job of this shape, on this
-> application: a subtler one -- more steps, more interleaving, two systems --
-> is the moment to run it again rather than assume, which costs $0.75 and
-> ten minutes and has these numbers to beat.
->
-> Both models at `K_EFFORT="high"` spend their whole output budget thinking
-> and are truncated with nothing kept. The run and all of its numbers are at
-> `domain/skill/umbrella.py:23` -- cited and not copied, because a
-> measurement kept in two places is one that drifts.
-
-## `Settings`, [line 166](../../../../../backend/src/sro/config.py#L166): Note on the line above
-
-Code: `gemini_plan_model: str = "gemini-3.8-flash"`
-
-> What plans each step of a workflow run.
->
-> Three settings above were `gemini-3.7-flash` until 2026-09-15 -- the
-> transcription, the vision rung and the chat door -- and `3.7-flash` is not
-> in `prices.py`. So every call on those three recorded `cost_usd = 0.0` and
-> the day's spend read lower than it was, which is the exact failure
-> `prices.py` opens by describing. They are on the model the rest of the
-> system already uses and the bakeoff already measured. The rig's `plan_model`
-> (`config.py:41`). Deliberately the fast model: a run plans once per step and
-> a slow plan is felt by an operator standing at a screen.
-
-## `Settings`, [line 168](../../../../../backend/src/sro/config.py#L168): Note on the line above
-
-Code: `gemini_rescue_model: str = "gemini-3.1-pro-preview"`
-
-> What re-plans a step the plan model got wrong. The rig's `rescue_model`
-> (`config.py:45`). The expensive model earns its price here and not above:
-> it is asked once per failure, not once per step.
-
-## `Settings`, [line 170](../../../../../backend/src/sro/config.py#L170): Note on the line above
-
-Code: `gemini_read_model: str = "gemini-3.8-flash"`
-
-> What reads one gesture into an intent -- `sro.domain.observation.
-> reading`, called once per gesture, hundreds a day. The rig's own
-> `intent_model` (`new_agent_arch/src/rig/config.py:19`), renamed here
-> because this deployment's `gemini_intent_model` above already names an
-> unrelated door -- reading one sentence out of a chat message, not one
-> gesture out of a browser.
->
-> A real bake-off against gemini-3.1-flash-lite and gemini-3.1-pro-preview,
-> on real captured gestures, measured this one paying $0.0024/gesture at
-> ~4.1s against flash-lite's $0.0003/gesture at ~1.2s and pro-preview's
-> $0.0140/gesture at ~11.5s -- and, checked against ground truth rather than
-> against each other, this one and pro-preview read the real DOM identifiers
-> correctly while flash-lite drifted onto the wrong screen entirely once its
-> own wrong reading entered its tail. Pro-preview bought nothing over this
-> one on the same evidence. Worth re-running once `with_recent_values` and
-> the thin-gesture picture are live in production: both were missing when
-> that bake-off ran.
-
-## `Settings`, [line 172](../../../../../backend/src/sro/config.py#L172): Note on the line above
+## `Settings`, [line 247](../../../../../backend/src/sro/config.py#L247): Note on the line above
 
 Code: `interpretation_enabled: bool = False`
 
@@ -686,7 +569,7 @@ Code: `interpretation_enabled: bool = False`
 > becomes a skill -- with mechanical step descriptions and no proposed
 > parameters.
 
-## `Settings`, [line 174](../../../../../backend/src/sro/config.py#L174): Note on the line above
+## `Settings`, [line 249](../../../../../backend/src/sro/config.py#L249): Note on the line above
 
 Code: `vision_enabled: bool = False`
 
@@ -704,7 +587,7 @@ Code: `vision_enabled: bool = False`
 > `keycloak_client_secret`, documenting nothing -- a second orphan of the same
 > move this docstring already records.)
 
-## `Settings`, [line 176](../../../../../backend/src/sro/config.py#L176): Note on the line above
+## `Settings`, [line 251](../../../../../backend/src/sro/config.py#L251): Note on the line above
 
 Code: `keycloak_realm_url: str = ""`
 
@@ -713,7 +596,7 @@ Code: `keycloak_realm_url: str = ""`
 > Empty means no token source: runs authenticate with the session cookies,
 > which work and expire on the identity provider's schedule.
 
-## `Settings`, [line 180](../../../../../backend/src/sro/config.py#L180): Note on the line above
+## `Settings`, [line 255](../../../../../backend/src/sro/config.py#L255): Note on the line above
 
 Code: `keycloak_client_secret: str = ""`
 
@@ -722,7 +605,7 @@ Code: `keycloak_client_secret: str = ""`
 > -- so this is set when the realm says the client is confidential rather
 > than guessed at.
 
-## `Settings`, [line 181](../../../../../backend/src/sro/config.py#L181): Note on the line above
+## `Settings`, [line 256](../../../../../backend/src/sro/config.py#L256): Note on the line above
 
 Code: `knowledge_embeddings_enabled: bool = False`
 
@@ -730,7 +613,7 @@ Code: `knowledge_embeddings_enabled: bool = False`
 > retrieval works without them, and turning them on sends the knowledge base's
 > titles to a hosted model.
 
-## `Settings.our_own_origins`, [line 93](../../../../../backend/src/sro/config.py#L93): Docstring
+## `Settings.our_own_origins`, [line 148](../../../../../backend/src/sro/config.py#L148): Docstring
 
 > This deployment itself, as (host:port, path prefix) pairs.
 >
@@ -775,7 +658,7 @@ Code: `knowledge_embeddings_enabled: bool = False`
 > `console_url` -- a console served same-origin or proxied through its
 > own server never appears in it, which is exactly this deployment.
 
-## `_origins_of`, [line 36](../../../../../backend/src/sro/config.py#L36): Comment
+## `_origins_of`, [line 56](../../../../../backend/src/sro/config.py#L56): Comment
 
 Code: `if ":" in host:`
 
@@ -783,7 +666,7 @@ Code: `if ":" in host:`
 > IPv6 literal needs, so they go back on before it is compared to a netloc
 > anybody wrote by hand.
 
-## `_origins_of`, [line 35](../../../../../backend/src/sro/config.py#L35): Comment
+## `_origins_of`, [line 62](../../../../../backend/src/sro/config.py#L62): Comment
 
 Code: `return set()`
 
@@ -791,3 +674,31 @@ Code: `return set()`
 > the port would widen the rule instead of narrowing it: a mistyped
 > `localhost:8000.` would become bare `localhost` and refuse every
 > page on it, including the warehouse test server.
+
+## `Settings`, [line 223](../../../../../backend/src/sro/config.py#L223): Note
+
+Code: `mail_sweep_seconds: float = 60.0`
+
+> How often the worker reads each Steel tenant's operators' mailboxes, or 0 to
+> turn the poll off. A minute because the extension's heartbeat looks once a
+> minute: the operator sees no change in how soon a mail is acted on.
+
+## module, [line 18](../../../../../backend/src/sro/config.py#L18): Note on the line above
+
+Code: `RETIRED_MODEL_SETTINGS = frozenset(`
+
+> The six model settings P2 moved onto prompt records. A deployment that
+> still sets one would otherwise have it ignored (`extra="ignore"`) and run on
+> the record's model without a word, which is a silent model change. So a key
+> here stops the load with an error naming it and saying the model now lives
+> on the prompt record. `SRO_GEMINI_EMBEDDING_MODEL` is not here: an
+> embedding is not a prompt.
+
+## `_RetiredModelSettings`, [line 70](../../../../../backend/src/sro/config.py#L70): Docstring
+
+> A settings source that reads nothing into a field. It looks at what the
+> environment and the `.env` file hold, because neither hands an unknown key
+> to the model: the environment source reads only declared fields, so a
+> validator alone never sees a retired key set there. It passes the retired
+> keys it finds under one name, and `_a_retired_model_setting_is_refused`
+> turns them into the error.

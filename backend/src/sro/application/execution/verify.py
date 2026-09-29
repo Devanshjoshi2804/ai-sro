@@ -10,10 +10,8 @@ from sro.application.induction.jsonutil import JsonValue
 from sro.application.ports.channel import Channel, Reply
 from sro.application.ports.http import HttpResponse
 from sro.application.ports.model import Asker
+from sro.application.shared.asking import ask
 from sro.domain.execution.belts import (
-    SCREEN_INSTRUCTIONS,
-    SCREEN_SCHEMA,
-    WAY_THROUGH_INSTRUCTIONS,
     StepVerdict,
     carries_every,
     confirming_read,
@@ -29,6 +27,7 @@ from sro.domain.execution.records import made_by
 from sro.domain.execution.secrets import needs_a_secret
 from sro.domain.observation.gesture import Call, Gesture
 from sro.domain.observation.trim import path_shape
+from sro.domain.prompts.check_step import CHECK_SCREEN, CHECK_WAY_THROUGH
 from sro.domain.shared.hosts import REDACTED
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.skill.assertion import Assertion, AssertionKind
@@ -283,7 +282,6 @@ async def verify(
     run_id: str,
     origin: str | None,
     asker: Asker,
-    model: str,
     rewrote: bool = False,
     confirm: Mapping[str, str] = MappingProxyType({}),
     next_says: str | None = None,
@@ -371,11 +369,11 @@ async def verify(
         indent=2,
         ensure_ascii=False,
     )
-    judged = await asker.ask(
-        model=model,
-        instructions=WAY_THROUGH_INSTRUCTIONS if changes_nothing else SCREEN_INSTRUCTIONS,
-        evidence=evidence,
-        schema=SCREEN_SCHEMA,
+    judged = await ask(
+        asker,
+        CHECK_WAY_THROUGH if changes_nothing else CHECK_SCREEN,
+        trusted={},
+        untrusted={"evidence": evidence},
         image=look_after.screenshot,
     )
     if judged.data is None:

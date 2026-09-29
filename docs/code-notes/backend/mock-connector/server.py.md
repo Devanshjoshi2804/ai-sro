@@ -27,7 +27,7 @@ Comments and docstrings moved out of [`backend/mock-connector/server.py`](../../
 > The mailbox is seeded with the mail this was built against, so the demo is the
 > task somebody actually does rather than a lorem ipsum.
 
-## `Connector.do_POST`, [line 119](../../../../backend/mock-connector/server.py#L119): Comment
+## `Connector.do_POST`, [line 121](../../../../backend/mock-connector/server.py#L121): Comment
 
 Code: `if self.headers.get("Mcp-Session-Id") != SESSION:`
 
@@ -35,7 +35,7 @@ Code: `if self.headers.get("Mcp-Session-Id") != SESSION:`
 > real streamable-HTTP server insists. This is the rule that caught the
 > client going straight to `tools/list`.
 
-## module, [line 173](../../../../backend/mock-connector/server.py#L173): Comment
+## module, [line 175](../../../../backend/mock-connector/server.py#L175): Comment
 
 Code: `print(f"port {port} is already in use ({taken.strerror}).")`
 

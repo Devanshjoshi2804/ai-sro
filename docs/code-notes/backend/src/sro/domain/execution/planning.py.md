@@ -28,17 +28,18 @@ Comments and docstrings moved out of [`backend/src/sro/domain/execution/planning
 > header and its guard that are cited instead.
 >
 > The two functions that call the model (`plan_step`, `plan_by_sight`) are not
-> here: this module is the pure half -- the schemas, the instructions, the value
-> rule and the replayability rule -- which is everything a test can pin without
-> a model behind it.
+> here: this module is the pure half -- the value rule and the replayability
+> rule -- which is everything a test can pin without a model behind it. What the
+> model is told and the shape it answers in are the `PLAN_STEP` and `SEE_STEP`
+> records in `sro.domain.prompts`.
 
-## module, [line 13](../../../../../../../backend/src/sro/domain/execution/planning.py#L13): Note on the line above
+## module, [line 15](../../../../../../../backend/src/sro/domain/execution/planning.py#L15): Note on the line above
 
 Code: `KINDS = frozenset({"ui.perform", "http.send", "navigate"})`
 
 > What a PLAN may name. The model chooses one of these three.
 
-## module, [line 15](../../../../../../../backend/src/sro/domain/execution/planning.py#L15): Note on the line above
+## module, [line 17](../../../../../../../backend/src/sro/domain/execution/planning.py#L17): Note on the line above
 
 Code: `COMMAND_KINDS = KINDS | frozenset(`
 
@@ -68,7 +69,7 @@ Code: `COMMAND_KINDS = KINDS | frozenset(`
 > `test_the_extension_answers_every_command_this_backend_can_send` holds the two
 > lists together.
 
-## module, [line 19](../../../../../../../backend/src/sro/domain/execution/planning.py#L19): Note on the line above
+## module, [line 21](../../../../../../../backend/src/sro/domain/execution/planning.py#L21): Note on the line above
 
 Code: `LIVE_FETCHABLE_HEADERS = frozenset({"csrf-encrypt-token", "x-requested-with"})`
 
@@ -91,7 +92,7 @@ Code: `LIVE_FETCHABLE_HEADERS = frozenset({"csrf-encrypt-token", "x-requested-wi
 > stop redacting it, which would have put a value this deployment has no use for
 > into every stored request; asking the page is the narrower change.
 
-## `Look`, [line 64](../../../../../../../backend/src/sro/domain/execution/planning.py#L64): Note on the line above
+## `Look`, [line 31](../../../../../../../backend/src/sro/domain/execution/planning.py#L31): Note on the line above
 
 Code: `refused: str = ""`
 
@@ -106,7 +107,7 @@ Code: `refused: str = ""`
 >
 > Empty where a picture arrived, and where there was never one asked for.
 
-## `Look`, [line 66](../../../../../../../backend/src/sro/domain/execution/planning.py#L66): Note on the line above
+## `Look`, [line 33](../../../../../../../backend/src/sro/domain/execution/planning.py#L33): Note on the line above
 
 Code: `elsewhere: str = ""`
 
@@ -128,7 +129,7 @@ Code: `elsewhere: str = ""`
 > Empty when the browser is where the step expected it, and when there was
 > no tab at all to ask about.
 
-## `Look`, [line 68](../../../../../../../backend/src/sro/domain/execution/planning.py#L68): Note on the line above
+## `Look`, [line 35](../../../../../../../backend/src/sro/domain/execution/planning.py#L35): Note on the line above
 
 Code: `elsewhere_is_ours: bool = False`
 
@@ -149,7 +150,7 @@ Code: `elsewhere_is_ours: bool = False`
 > password*. A credential in the wrong system's box is worse than a step
 > that fails: it spends an account's lockout budget.
 
-## `Look`, [line 70](../../../../../../../backend/src/sro/domain/execution/planning.py#L70): Note on the line above
+## `Look`, [line 37](../../../../../../../backend/src/sro/domain/execution/planning.py#L37): Note on the line above
 
 Code: `signed_out: bool = False`
 
@@ -171,7 +172,7 @@ Code: `signed_out: bool = False`
 > False wherever nothing could be asked. This is a reason to stop and it must
 > never be a reason invented by a failure to look.
 
-## `Look`, [line 72](../../../../../../../backend/src/sro/domain/execution/planning.py#L72): Note on the line above
+## `Look`, [line 39](../../../../../../../backend/src/sro/domain/execution/planning.py#L39): Note on the line above
 
 Code: `dialog: str = ""`
 
@@ -190,7 +191,7 @@ Code: `dialog: str = ""`
 > -- it is the evidence, and it is the whole answer to why the step did
 > nothing.
 
-## `Look`, [line 74](../../../../../../../backend/src/sro/domain/execution/planning.py#L74): Note on the line above
+## `Look`, [line 41](../../../../../../../backend/src/sro/domain/execution/planning.py#L41): Note on the line above
 
 Code: `loading: bool = False`
 
@@ -207,7 +208,7 @@ Code: `loading: bool = False`
 > minutes ago and is now fetching the screen, and `readyState` has said
 > `complete` the whole time.
 
-## `Planned`, [line 83](../../../../../../../backend/src/sro/domain/execution/planning.py#L83): Note on the line above
+## `Planned`, [line 50](../../../../../../../backend/src/sro/domain/execution/planning.py#L50): Note on the line above
 
 Code: `opens: bool = False`
 
@@ -218,7 +219,7 @@ Code: `opens: bool = False`
 >
 > Set for the first half of a pick from a dropdown. See `plan_step`.
 
-## `Planned`, [line 85](../../../../../../../backend/src/sro/domain/execution/planning.py#L85): Note on the line above
+## `Planned`, [line 52](../../../../../../../backend/src/sro/domain/execution/planning.py#L52): Note on the line above
 
 Code: `rewrote: bool = False`
 
@@ -235,7 +236,7 @@ Code: `rewrote: bool = False`
 > a create asking for a five-character code is answered **201** and the record
 > is four characters long, with nobody told.
 
-## `Planned`, [line 87](../../../../../../../backend/src/sro/domain/execution/planning.py#L87): Note on the line above
+## `Planned`, [line 54](../../../../../../../backend/src/sro/domain/execution/planning.py#L54): Note on the line above
 
 Code: `filled: Mapping[str, str] = MappingProxyType({})`
 
@@ -246,7 +247,7 @@ Code: `filled: Mapping[str, str] = MappingProxyType({})`
 > write. `confirm` below is this narrowed to the slots a read can settle;
 > both are needed, and for different questions.
 
-## `Planned`, [line 89](../../../../../../../backend/src/sro/domain/execution/planning.py#L89): Note on the line above
+## `Planned`, [line 56](../../../../../../../backend/src/sro/domain/execution/planning.py#L56): Note on the line above
 
 Code: `confirm: Mapping[str, str] = MappingProxyType({})`
 
@@ -259,7 +260,7 @@ Code: `confirm: Mapping[str, str] = MappingProxyType({})`
 > server rewrites every slot this run filled -- in which case there is
 > nothing a read could settle and the status is the whole of the evidence.
 
-## `Planned`, [line 91](../../../../../../../backend/src/sro/domain/execution/planning.py#L91): Note on the line above
+## `Planned`, [line 58](../../../../../../../backend/src/sro/domain/execution/planning.py#L58): Note on the line above
 
 Code: `by: str = ""`
 
@@ -271,17 +272,28 @@ Code: `by: str = ""`
 > is the kind that survives: the row looks exactly like a step the model got
 > right. Empty means the model named at the call site planned it.
 
-## `value_for`, [line 94](../../../../../../../backend/src/sro/domain/execution/planning.py#L94): Docstring
+## `value_for`, [line 69](../../../../../../../backend/src/sro/domain/execution/planning.py#L69): Docstring
 
 > The run's value for this control, else what the model said, else what
 > was recorded. The run's values win: they are what the person asked for.
+>
+> The control's value is its OWN parameter's (`own_parameter`), never
+> another parameter of the same step: a step typing two fields whose second
+> was not given answers nothing for that field, not the first field's value.
+>
+> Never what was recorded for a step that carries a parameter: that value
+> was somebody else's client code, and a parameter nobody gave is answered
+> with nothing. `RunSteps` skips such a step when the value is optional and
+> asks for it when it is required (spec §6.6.6); only a step with no
+> parameter -- a fixed choice the demonstration made -- replays its
+> recorded value.
 >
 > A credential is never filled in from anywhere. The wire parser already nulls
 > the value at parse time when either secret flag is set, so this is the same
 > second belt `trim.is_secret` wears -- and for the same reason: that
 > validator does not re-run if a nested Target is mutated afterwards.
 
-## `unreplayable`, [line 114](../../../../../../../backend/src/sro/domain/execution/planning.py#L114): Docstring
+## `unreplayable`, [line 97](../../../../../../../backend/src/sro/domain/execution/planning.py#L97): Docstring
 
 > Whether replaying this call would send something other than what the
 > operator sent.
@@ -300,40 +312,31 @@ Code: `by: str = ""`
 > an analytics beacon carrying a cookie as a parameter: replayed, it would
 > send the marker's own text where the cookie was.
 
-## module, [line 23](../../../../../../../backend/src/sro/domain/execution/planning.py#L23): Comment
-
-Code: `"properties": {`
-
-> kind first, why last: decide, then explain.
-
-## `Look`, [line 62](../../../../../../../backend/src/sro/domain/execution/planning.py#L62): Comment
+## `Look`, [line 29](../../../../../../../backend/src/sro/domain/execution/planning.py#L29): Comment
 
 Code: `width: int = 0`
 
 > The CSS viewport the picture shows, which is the space `ui.perform_at`
 > acts in. Zero when the browser gave no picture.
 
-## module, [line 131](../../../../../../../backend/src/sro/domain/execution/planning.py#L131): Comment
+## `own_parameter`, [line 61](../../../../../../../backend/src/sro/domain/execution/planning.py#L61): Note
 
-Code: `"action": {"type": "string", "enum": ["click", "type", "press"]},`
+> Which of the step's parameters this control carries: the one its own names
+> (item id, field label, accessible name) match, or the step's only
+> parameter. A step of several parameters whose control matches none of them
+> has no parameter this control can be bound to, and gets none.
 
-> No select: `performAtInPage` has no way to choose an option at a
-> point, and an action the browser cannot take is a step that stops.
+## `shown_after`, [line 90](../../../../../../../backend/src/sro/domain/execution/planning.py#L90): Note
 
-## module, [line 133](../../../../../../../backend/src/sro/domain/execution/planning.py#L133): Comment
+> What the control should show after the step: the run's value, else what the
+> demonstration left there -- but never the demonstration's value for a step
+> that carries a parameter. Sight is told what to aim for from this, and a
+> recorded value in its goal is a recorded value it would type.
 
-Code: `"points_at": {`
+## `own_parameter`, [line 62](../../../../../../../backend/src/sro/domain/execution/planning.py#L62): Comment
 
-> WHAT the point is, which is required and so cannot be skipped.
->
-> This was an optional `open_first` object, and it was skipped every
-> time: the model wrote "it is likely under the 'Partners' menu" in
-> `why` and left the field null, twice in a row, with the Partners tab
-> plainly on the screen it was looking at. A model fills what a schema
-> demands and passes over what it offers.
->
-> So there is one point and one question about it. `the_control` is
-> the step itself; `what_reveals_it` is a menu to open first, clicked
-> instead of the step, after which this rung is asked again with a new
-> picture; `nothing` is nowhere to point, which is the honest refusal
-> this rung must always be able to give.
+Code: `names = {normal(name) for name in control_names(gesture)}`
+
+> Names are compared as `compose.normal` reads a label -- asterisks out,
+> whitespace collapsed, case folded -- so a drafter's "Customer Type" still
+> names the control labelled "customer  type *".

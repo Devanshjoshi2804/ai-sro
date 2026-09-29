@@ -37,7 +37,7 @@ from sro.application.ports.channel import Channel, Reply
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.shared.refusals import OverCap
-from sro.domain.chat.asked_by import only_reads_the_mail
+from sro.domain.chat.asked_by import by_hand, only_reads_the_mail
 from sro.domain.execution.belts import K_WEAK_LOCATORS, StepVerdict
 from sro.domain.execution.evidence import (
     PUTS_A_VALUE,
@@ -67,6 +67,9 @@ from sro.domain.execution.write_plan import (
 )
 from sro.domain.observation.gesture import Gesture
 from sro.domain.observation.trim import path_shape
+from sro.domain.prompts.plan_step import PLAN_STEP, PLAN_STEP_ESCALATED
+from sro.domain.prompts.record import Prompt
+from sro.domain.prompts.see_step import SEE_STEP
 from sro.domain.shared.hosts import (
     origin_of as origin_of_url,
 )
@@ -93,6 +96,11 @@ def write_key(workflow_id: str, step: Step, values: Mapping[str, str]) -> str:
 K_CAP_EVERY = 10
 
 K_STEP_SLACK = 3
+
+BY_HAND = (
+    "this step changes your mailbox in a way the Gmail tool cannot, and a run never clicks "
+    "in your mailbox: do it there yourself, then run the job again from the next step"
+)
 
 K_STILL_COMING_S = 2.0
 
@@ -268,6 +276,13 @@ async def _let_in(
     await _save(uow, run)
     return True
 
+
+_ASKS: Mapping[str, Prompt] = {
+    "evidence": PLAN_STEP,
+    "rescue": PLAN_STEP_ESCALATED,
+    "sight": SEE_STEP,
+    "look": SEE_STEP,
+}
 
 logger = logging.getLogger(__name__)
 
@@ -546,13 +561,14 @@ async def _through_the_mailbox(
     record: RunStep,
     workflow: Workflow,
     values: Mapping[str, str],
+    by_id: Mapping[str, Gesture],
     mail: MailHand,
     *,
     approvals: Approvals,
     stops: Stops,
 ) -> None:
     waiting = read_wait(run.awaiting) if run.awaiting else None
-    written = await mail.write(workflow, values, waiting.thread if waiting else "")
+    written = await mail.write(workflow, values, waiting.thread if waiting else "", by_id, ())
     if isinstance(written, str):
         record.verdict, record.verdict_by, record.reason = "failed", "none", written
         return
@@ -846,8 +862,6 @@ async def run_workflow(
     channel: Channel,
     device_id: DeviceId,
     asker: Asker,
-    plan_model: str,
-    rescue_model: str,
     live: bool,
     allow_focus: bool,
     watched: bool = False,
@@ -994,8 +1008,13 @@ async def run_workflow(
             marks = scaffolding_for(workflow, by_id, write_step=leg.step.order)
             (in_reserve if run.watched else collapsed).update(marks)
 
+    mailbox_by_hand: set[int] = {
+        step.order for step in workflow.steps if by_hand(workflow, step, by_id)
+    }
     already_read: set[int] = {
-        step.order for step in workflow.steps if only_reads_the_mail(step, by_id)
+        step.order
+        for step in workflow.steps
+        if only_reads_the_mail(step, by_id) and step.order not in mailbox_by_hand
     }
     mail_sends: set[int] = (
         {
@@ -1160,6 +1179,21 @@ async def run_workflow(
                 )
                 await _save(uow, run)
                 continue
+            if not leg.rescue and step.order in mailbox_by_hand:
+                run.steps.append(
+                    RunStep(
+                        order=position,
+                        of_step=step.order,
+                        item=leg.item,
+                        says=step.says,
+                        verdict="failed",
+                        verdict_by="none",
+                        reason=BY_HAND,
+                    )
+                )
+                run.outcome = "stopped"
+                await _save(uow, run)
+                break
             if mail is not None and not leg.rescue and step.order in mail_sends:
                 record = RunStep(
                     order=position,
@@ -1171,7 +1205,15 @@ async def run_workflow(
                 in_flight = record
                 run.steps.append(record)
                 await _through_the_mailbox(
-                    uow, run, record, workflow, values, mail, approvals=approvals, stops=stops
+                    uow,
+                    run,
+                    record,
+                    workflow,
+                    values,
+                    by_id,
+                    mail,
+                    approvals=approvals,
+                    stops=stops,
                 )
                 in_flight = None
                 await _save(uow, run)
@@ -1253,14 +1295,10 @@ async def run_workflow(
                 if primary is not None
                 else None
             )
-            rungs: tuple[tuple[str, str], ...] = (
-                (("evidence", plan_model), ("evidence", rescue_model), ("sight", rescue_model))
-                if primary is not None
-                else ()
-            )
+            rungs: tuple[str, ...] = ("evidence", "rescue", "sight") if primary is not None else ()
             route = route_for(step, _next_after(ordered, step), by_id)
             if route is not None:
-                rungs = (("route", ""), *rungs)
+                rungs = ("route", *rungs)
             signed_in_here = False
             waited_here = False
             never_filled = bool(
@@ -1269,26 +1307,26 @@ async def run_workflow(
                 and set(scaffolding_for(workflow, by_id, write_step=step.order)) & collapsed
             )
             if replay is not None and not run.watched:
-                rungs = (("replay", ""),) if never_filled else (("replay", ""), *rungs)
+                rungs = ("replay",) if never_filled else ("replay", *rungs)
             elif replay is not None and never_filled:
-                rungs = (("replay", ""),)
+                rungs = ("replay",)
             elif replay is not None:
-                rungs = (*rungs, ("replay", ""))
+                rungs = (*rungs, "replay")
             if primary is not None and not mutates:
-                rungs = (*rungs, *((("look", rescue_model),) * K_LOOKS))
+                rungs = (*rungs, *(("look",) * K_LOOKS))
             logger.info(
                 "%s step %d %r: rungs %s",
                 run.id,
                 step.order,
                 step.says[:80],
-                " then ".join(how for how, _ in rungs) or "none",
+                " then ".join(rungs) or "none",
             )
             verdict: StepVerdict | None = None
             after_failed: Look | None = None
             refused_already: set[str] = set()
             asked_for_a_browser = False
             stepped_over = False
-            for how, model in rungs:
+            for how in rungs:
                 if stepped_over:
                     break
                 if how == "look" and (
@@ -1340,7 +1378,6 @@ async def run_workflow(
                             look=before,
                             origin=origin,
                             asker=asker,
-                            model=model,
                             failure=verdict.reason if verdict else None,
                             opened=openings > 0,
                         )
@@ -1358,7 +1395,7 @@ async def run_workflow(
                             starts_on=starts_on if sent_nothing_yet else None,
                             allow_focus=allow_focus,
                             asker=asker,
-                            model=model,
+                            prompt=_ASKS[how],
                             failure=verdict.reason if verdict else None,
                             failed_look=after_failed,
                             verified_writes=verified_writes,
@@ -1368,7 +1405,7 @@ async def run_workflow(
                             secret_for=secret_for,
                             opened=openings > 0,
                         )
-                    record.planned_by = proposal.by or model
+                    record.planned_by = proposal.by or (_ASKS[how].model if how in _ASKS else "")
                     record.before_url = before.url
                     _bill(record, proposal.answer)
                     record.sent = {
@@ -1843,7 +1880,6 @@ async def run_workflow(
                         run_id=run.id,
                         origin=origin,
                         asker=asker,
-                        model=plan_model,
                         next_says=(
                             itinerary[position + 1].step.says
                             if position + 1 < len(itinerary)
@@ -1932,7 +1968,14 @@ async def run_workflow(
                             await uow.workflows.remember_locator(workflow.id, found, by_run=run.id)
                     elif planned.kind == "ui.perform":
                         await uow.workflows.clear_stale(workflow.id, step.order)
-                    await record_effect(uow.workflows, run, record, at=_now())
+                    recorded_one = recorded_call(step, by_id)
+                    await record_effect(
+                        uow.workflows,
+                        run,
+                        record,
+                        at=_now(),
+                        recorded=None if recorded_one is None else recorded_one.url,
+                    )
                     break
                 if (
                     may_write

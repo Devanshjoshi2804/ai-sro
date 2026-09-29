@@ -47,6 +47,15 @@ Code: `LESS_THINKING: dict[Effort, Effort] = {"high": "medium", "medium": "low",
 > Without this the pass costs $0.36 and yields nothing at all.
 >
 > `minimal` is the floor, and a call already there is one nothing here can help.
+>
+> ponytail: one table for every model. It holds for 3.8-flash, which takes all
+> four levels. 3.7-flash takes low, medium and high, not `minimal`, and a
+> record's fallback is asked here with the same table: a record at `low` that
+> truncates on 3.7-flash would be asked again at `minimal`, which that model
+> refuses. No record asks at `low` or `minimal` today (MINE is at `medium`,
+> which steps to `low`), so nothing reaches it. When one does, key this table
+> by model -- each model's own levels and floor -- here, where both the
+> record's level and the step-down meet.
 
 ## module, [line 41](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L41): Note on the line above
 
@@ -127,7 +136,7 @@ Code: `thinking_config=None`
 > ThinkingLevel(...) because the SDK types the field as its own enum,
 > and a plain str fails mypy. It takes "high" case-insensitively.
 
-## `GeminiAsker.ask`, [line 71](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L71): Comment
+## `GeminiAsker.ask`, [line 72](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L72): Comment
 
 Code: `logger.info("the answer hit the output ceiling at %s; asking again at %s", effort, lower)`
 
@@ -136,7 +145,7 @@ Code: `logger.info("the answer hit the output ceiling at %s; asking again at %s"
 > that reported only the answer that arrived would understate a pass
 > that had to ask twice, which is the one figure this is about.
 
-## `GeminiAsker._parts`, [line 91](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L91): Comment
+## `GeminiAsker._parts`, [line 93](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L93): Comment
 
 Code: `parts: list[Any] = [part for part in (instructions, evidence) if part]`
 
@@ -144,14 +153,16 @@ Code: `parts: list[Any] = [part for part in (instructions, evidence) if part]`
 > benign in the SDK, and rejected by some endpoints. umbrella.py passes
 > instructions="" on every call.
 
-## `GeminiAsker._parts`, [line 94](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L94): Comment
+## `GeminiAsker._parts`, [line 96](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L96): Comment
 
 Code: `for more in images:`
 
 > Further pictures, in the order given: a rescue shows the page as it
-> is now and then the page the failed attempt left behind.
+> is now and then the page the failed attempt left behind. Audio comes last,
+> under the mime type its caller read off the upload: the transcriber's
+> narration.
 
-## `GeminiAsker._asked_once`, [line 103](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L103): Comment
+## `GeminiAsker._asked_once`, [line 107](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L107): Comment
 
 Code: `with doing("model.ask") as span:`
 
@@ -159,7 +170,7 @@ Code: `with doing("model.ask") as span:`
 > nothing could account for: a request that took ninety seconds said so
 > and said nothing about which of its model calls that was.
 
-## `GeminiAsker._asked_once`, [line 116](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L116): Comment
+## `GeminiAsker._asked_once`, [line 120](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L120): Comment
 
 Code: `except Exception as raised:`
 
@@ -167,15 +178,21 @@ Code: `except Exception as raised:`
 > re-raised just above: the meter refusing the call is the tenant's day being
 > spent, not the model failing, and it has to reach the door's 429 (and stop a
 > mail look) rather than read as an answer that said nothing.
+>
+> `Unattributed` is re-raised with it: a call made for no tenant is a wiring
+> bug, not a model failure. Read as an answer that said nothing, it was asked
+> again on the record's fallback model and refused again, two error lines for
+> a retry that could never succeed. Raised, it fails where the embedder's
+> already did, loudly, at the code that forgot to name its tenant.
 
-## `GeminiAsker._asked_once`, [line 128](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L128): Comment
+## `GeminiAsker._asked_once`, [line 132](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L132): Comment
 
 Code: `return Answer(unpriced=True, error=f"{type(problem).__name__}: {problem}")`
 
 > The call may or may not have been billed before it failed, and we
 > cannot tell -- so the cost figure (0.0 here) is not to be trusted.
 
-## `GeminiAsker._asked_once`, [line 133](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L133): Comment
+## `GeminiAsker._asked_once`, [line 137](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L137): Comment
 
 Code: `thought_tokens = getattr(usage, "thoughts_token_count", None) or 0`
 
@@ -183,18 +200,18 @@ Code: `thought_tokens = getattr(usage, "thoughts_token_count", None) or 0`
 > and candidates_token_count does not include them -- the SDK carries
 > them separately. Reading only candidates_token_count understated every
 > figure this rig has ever produced, and understated them by more the
-> harder the prompt was. K_EFFORT = "high" exists to spend these, so a
+> harder the prompt was. A record's `thinking` exists to spend these, so a
 > short visible answer can carry thousands of billed tokens the bill
 > showed and we did not.
 
-## `GeminiAsker._asked_once`, [line 136](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L136): Comment
+## `GeminiAsker._asked_once`, [line 140](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L140): Comment
 
 Code: `out_tokens = (raw_out or 0) + thought_tokens`
 
 > Kept apart in the record and added together for the bill: one number
 > says what the model wrote, the other says what it cost.
 
-## `GeminiAsker._asked_once`, [line 141](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L141): Comment
+## `GeminiAsker._asked_once`, [line 145](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L145): Comment
 
 Code: `return Answer(`
 

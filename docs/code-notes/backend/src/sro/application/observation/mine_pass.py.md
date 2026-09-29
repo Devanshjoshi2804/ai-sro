@@ -10,7 +10,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/m
 > project has measured came from a script somebody ran by hand. This is the seam
 > a route can reach it through.
 
-## `MinePass`, [line 16](../../../../../../../backend/src/sro/application/observation/mine_pass.py#L16): Docstring
+## `MinePass`, [line 17](../../../../../../../backend/src/sro/application/observation/mine_pass.py#L17): Docstring
 
 > Read this tenant's day, once, and bill it.
 >
@@ -29,7 +29,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/m
 > get 200s describing its own refusals. Raised here, the door answers 503 and
 > 429, which is what those two facts are.
 
-## `MinePass.execute`, [line 35](../../../../../../../backend/src/sro/application/observation/mine_pass.py#L35): Comment
+## `MinePass.execute`, [line 36](../../../../../../../backend/src/sro/application/observation/mine_pass.py#L36): Comment
 
 Code: `asker = asker_or_refuse(self._asker)`
 
@@ -37,7 +37,7 @@ Code: `asker = asker_or_refuse(self._asker)`
 > neither refusal needs a database, and a 503 that first took a
 > connection is a 503 that made the outage slightly worse.
 
-## `MinePass.execute`, [line 37](../../../../../../../backend/src/sro/application/observation/mine_pass.py#L37): Comment
+## `MinePass.execute`, [line 38](../../../../../../../backend/src/sro/application/observation/mine_pass.py#L38): Comment
 
 Code: `async with self._uow as uow:`
 

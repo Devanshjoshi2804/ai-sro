@@ -17,6 +17,7 @@ months from any wall clock this runs against, so a route that reached for
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -25,6 +26,7 @@ from httpx import ASGITransport
 
 from sro.config import Settings
 from sro.domain.chat.reading import ChatReading
+from sro.domain.prompts.read_request import READ_REQUEST
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.domain.shared.prices import Answer, ModelSpend
 from sro.domain.skill.workflow import Step, Workflow
@@ -34,21 +36,17 @@ from sro.interface.http.deps import get_container
 from tests import factories as f
 from tests.unit.fakes import FakeAsker, FakeChatRepository, FakeClock, FakeUnitOfWork
 from tests.unit.interface.test_http import _FakeContainer, token_for
+from tests.unit.runtime_support import save_step
 
 TENANT = TenantId("acme")
+EIGHT = ["zone", "clientCode", "statusCombo", "areaName", "ownerCode", "dockId", "siteCode", "lane"]
 LAPTOP = DeviceId("dev-1")
 HERS = "the-secret-the-laptop-was-minted"
 
 NOW = datetime(2025, 2, 11, 23, 0, tzinfo=UTC)
 CAP = 5.0
 
-MODEL = "gemini-3.8-flash-preview"
-"""Deliberately not the shipped `gemini_plan_model`, and deliberately not
-`gemini_mine_model` either -- a chat door and a mining door look like they
-should share a model and must not, so a route wired to the wrong one of the
-model settings fails here rather than agreeing with a default."""
-
-SAID = "create a work area for zone 4"
+SAID = "create a work area ZONE4 for zone 4"
 
 
 @pytest.fixture
@@ -59,7 +57,7 @@ def uow() -> FakeUnitOfWork:
 @pytest.fixture
 def container(uow: FakeUnitOfWork) -> _FakeContainer:
     built = _FakeContainer(uow)
-    built.settings = Settings(daily_usd_cap=CAP, gemini_plan_model=MODEL, _env_file=None)
+    built.settings = Settings(daily_usd_cap=CAP, _env_file=None)
     built.clock = FakeClock(NOW)
     return built
 
@@ -86,13 +84,17 @@ async def held(uow: FakeUnitOfWork) -> Workflow:
         tenant=TENANT.value,
         title="create a work area",
         narrative="the operator created a work area",
-        steps=[Step(order=0, says="s", system=None, cites=["ges_1"])],
+        steps=[
+            Step(order=0, says="s", system=None, cites=["ges_1"], parameters=["areaName", "zone"])
+        ],
         parameters=[
             {"name": "areaName", "seen_values": ["NEWTESTS"], "required": True},
             {"name": "zone", "seen_values": ["3"], "required": True},
         ],
     )
     await uow.workflows.save(workflow)
+    # A cited, proven save, so the job compiles: only a runnable job is offered.
+    await uow.gestures.add_gestures(tuple(save_step(gid="ges_1")[1].values()))
     return workflow
 
 
@@ -109,10 +111,8 @@ def _billed_rows(uow: FakeUnitOfWork) -> list[ChatReading]:
 
 
 def _answer(workflow_id: str | None, values: list[dict[str, str]], **over: object) -> Answer:
-    return Answer(
-        data={"workflow_id": workflow_id, "values": values, "missing": []},
-        **over,
-    )
+    said = [{"field": one["name"], "value": one["value"], "quote": one["value"]} for one in values]
+    return Answer(data={"job": workflow_id, "sure": True, "values": said}, **over)
 
 
 def test_this_containers_clock_is_nowhere_near_the_wall_clock() -> None:
@@ -176,7 +176,7 @@ async def test_the_cap_the_door_judges_against_is_the_configured_one(
     )
     assert (await client.post("/v1/ask", json={"said": SAID})).status_code == 429
 
-    container.settings = Settings(daily_usd_cap=50.0, gemini_plan_model=MODEL, _env_file=None)
+    container.settings = Settings(daily_usd_cap=50.0, _env_file=None)
 
     assert (await client.post("/v1/ask", json={"said": SAID})).status_code == 200
 
@@ -258,6 +258,18 @@ async def test_the_offer_and_the_bill_both_reach_the_wire(
         40,
     )
     assert (body["job"]["cost_usd"], body["job"]["unpriced"]) == (0.0007, False)
+
+
+async def test_a_job_that_cannot_run_reaches_the_wire_with_why(
+    container: _FakeContainer, client: httpx.AsyncClient, uow: FakeUnitOfWork, held: Workflow
+) -> None:
+    await uow.workflows.save(replace(held, steps=[replace(held.steps[0], cites=["gone"])]))
+    container.asker = FakeAsker(_answer("wfl_1", []))
+
+    body = (await client.post("/v1/ask", json={"said": SAID})).json()
+
+    assert body["job"]["workflow_id"] == "wfl_1"
+    assert body["job"]["cannot_run"] == ["Step 0: has no evidence a browser can act on: s"]
 
 
 async def test_a_sentence_naming_no_job_is_an_offer_of_nothing_and_still_a_bill(
@@ -342,6 +354,7 @@ async def test_what_is_missing_comes_back_in_the_order_the_reader_sorted_it(
             tenant=TENANT.value,
             title="t",
             narrative="n",
+            steps=[Step(order=0, says="s", system=None, cites=["ges_1"], parameters=EIGHT)],
             parameters=[
                 {"name": "zone", "required": True},
                 {"name": "clientCode", "required": True},
@@ -354,6 +367,7 @@ async def test_what_is_missing_comes_back_in_the_order_the_reader_sorted_it(
             ],
         )
     )
+    await uow.gestures.add_gestures(tuple(save_step(gid="ges_1")[1].values()))
     container.asker = FakeAsker(_answer("wfl_8", []))
 
     body = (await client.post("/v1/ask", json={"said": SAID})).json()
@@ -387,7 +401,7 @@ async def test_the_sentence_itself_is_not_stored_and_is_not_echoed_back(
     -- the 404 quotes none of these words either -- so the door would be proved
     private and absent at the same time, which is no proof of privacy.
     """
-    said = "create a work area for zone 4 for ACME-99, ask Priya"
+    said = "create a work area ZONE4 for zone 4 for ACME-99, ask Priya"
     container.asker = FakeAsker(_answer("wfl_1", [{"name": "areaName", "value": "ZONE4"}]))
 
     answered = await client.post("/v1/ask", json={"said": said})
@@ -402,18 +416,18 @@ async def test_the_sentence_itself_is_not_stored_and_is_not_echoed_back(
 # --- whose sentence, whose jobs, whose clock --------------------------------
 
 
-async def test_the_model_asked_is_the_one_this_deployment_configured(
+async def test_the_model_asked_is_the_one_the_record_names(
     container: _FakeContainer, client: httpx.AsyncClient, held: Workflow
 ) -> None:
-    """`gemini_plan_model` and not `gemini_mine_model`. An operator is standing
-    at a screen waiting for this answer, so it is the fast model -- the same
-    trade `gemini_intent_model` records measuring at ~2.3s against ~4.8s."""
+    """An operator is standing at a screen waiting for this answer, so it is
+    the fast model -- and it is `READ_REQUEST`'s, where a change is a prompt
+    change, never a deployment setting that moves it silently."""
     asked = FakeAsker(_answer("wfl_1", []))
     container.asker = asked
 
     await client.post("/v1/ask", json={"said": SAID})
 
-    assert [one["model"] for one in asked.asked] == [MODEL]
+    assert [one["model"] for one in asked.asked] == [READ_REQUEST.model]
 
 
 async def test_the_sentence_the_model_reads_is_the_one_on_the_request(
@@ -440,7 +454,8 @@ async def test_the_jobs_read_against_are_the_ones_on_the_credential(
 ) -> None:
     """Two tenants, because a route that hardcoded `acme` -- or read the tenant
     off anything but `ctx` -- passes every other assertion in this file. The
-    rival holds nothing, so the job the model names is one nobody holds."""
+    rival holds nothing, so the job the model names is one nobody holds. Since
+    M4 the rival is read against the built-in mail actions alone."""
     asked = FakeAsker(_answer("wfl_1", [{"name": "areaName", "value": "ZONE4"}]))
     container.asker = asked
     app = create_app()
@@ -453,7 +468,8 @@ async def test_the_jobs_read_against_are_the_ones_on_the_credential(
         body = (await rival.post("/v1/ask", json={"said": SAID})).json()
 
     assert body["job"]["workflow_id"] is None
-    assert "wfl_1" not in str(asked.asked[0]["evidence"])
+    (read,) = asked.asked
+    assert "wfl_1" not in str(read["evidence"]), "the rival holds no job but the built-ins"
     assert [row.tenant for row in _billed_rows(uow)] == ["rival"], "billed to the wrong tenant"
 
 
@@ -528,6 +544,7 @@ async def test_the_request_name_survives_the_trip_to_the_question(
             "missing": [],
             "limits": {"Customer Type": 4},
             "about": "Customer type for the SRO pilot, round twenty-nine",
+            "sure": True,
         },
     )
 
@@ -539,3 +556,25 @@ async def test_the_request_name_survives_the_trip_to_the_question(
     # And it reached the thread, not just the response.
     threads = await uow.threads.list_for_tenant(TENANT, limit=1)
     assert threads and threads[0].messages[-1].text == asked
+
+
+async def test_a_card_asked_about_keeps_its_offer_s_name(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, held: Workflow
+) -> None:
+    """A mail card pressed while the thread already asks about that mail (E2):
+    the question the press asks carries the mail's offer, so its answer and a
+    yes to the first question start under one name -- one run, not two."""
+    answered = await client.post(
+        "/v1/chat/about-an-offer",
+        json={
+            "workflow_id": "wfl_1",
+            "title": "Create a Customer Type",
+            "values": {"Customer Type": "GT2"},
+            "missing": ["Customer Type Description"],
+            "offer": "mail:m-1",
+        },
+    )
+
+    assert answered.status_code == 200, answered.text
+    threads = await uow.threads.list_for_tenant(TENANT, limit=1)
+    assert (threads[0].messages[-1].decision or {}).get("offer") == "mail:m-1"

@@ -56,7 +56,7 @@ from sro.application.execution.pursuits import Pursuits
 from sro.application.ports.repositories import UnitOfWork
 from sro.config import Settings
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun, already_running
-from sro.domain.observation.gesture import Action, Gesture
+from sro.domain.observation.gesture import Action, Gesture, Target
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.shared.prices import ModelSpend
@@ -138,6 +138,8 @@ async def _hold(container: _RealSessionContainer) -> None:
 
     With the gestures it cites, because the press reads them: a job whose
     evidence the store no longer holds is refused before a row is claimed.
+    Each click names its control, as every recorded click does (role, name
+    and css path on all 816 in the local store), so the job compiles.
     """
     async with SqlUnitOfWork(container._session_factory) as uow:
         await uow.workflows.save(
@@ -166,7 +168,10 @@ async def _hold(container: _RealSessionContainer) -> None:
                     tab_id=7,
                     frame_url=None,
                     action=Action(
-                        kind="click", at=1_739_314_800.0 + n, url="https://wms.acme.test/work-areas"
+                        kind="click",
+                        at=1_739_314_800.0 + n,
+                        url="https://wms.acme.test/work-areas",
+                        target=Target(role="button", name=f"step {n}", css_path=f"#step-{n}"),
                     ),
                 )
                 for n in range(5)

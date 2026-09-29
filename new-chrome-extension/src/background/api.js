@@ -131,6 +131,8 @@ export function asPanelRun(run) {
     // deliberately not carried -- a retry that comes up short asks in the
     // panel, where the person who pressed it is.
     workflow_id: run.workflow_id || "",
+    // Where Steel shows this run's own tab, view-only, while it has one.
+    live_view_url: run.live_view_url || "",
     // WHEN it ran. The fourth thing this whitelist was missing, found the way
     // the paragraph above says they are found: `Recent tasks` drew twelve
     // lines reading `Log in to Keycloak` and nothing else -- no outcome, no
@@ -147,6 +149,12 @@ export function asPanelRun(run) {
     // draws a line per thing so somebody watching knows which of the three
     // records is being made now, and how many are left.
     items: run.items || [],
+    // The offer this run is the one run of, and the mail it came from --
+    // subject, sender, when it arrived, where to open it; never its body.
+    // Home draws a card per mail run from these, and ends any card still
+    // offering what a run already took.
+    offer: run.offer || "",
+    mail: run.mail || null,
     steps: (run.steps || []).map((step) => ({
       index: step.order,
       // Which thing on the list this row was done for, and which step of the
@@ -255,13 +263,13 @@ export const api = {
       { method: "POST", body: values },
     ),
 
-  /** One run, for the panel to say what is happening in this browser.
+  /** One skill run, for the panel to say what is happening.
    *
-   * The worker knows a run is driving a tab and knows its id; what it is called,
-   * which rung it is on and how far through it is are the run's own record. */
+   * The worker knows a run's id; what it is called, which rung it is on and
+   * how far through it is are the run's own record. */
   run: (runId) => call(`/v1/runs/${encodeURIComponent(runId)}`),
 
-  /** A workflow run this browser is performing, in the panel's vocabulary.
+  /** A workflow run the operator is watching, in the panel's vocabulary.
    *
    * `/v1/workflow-runs/{id}`, not `/v1/runs/{id}`: on this host `/v1/runs`
    * already means a *skill* run, `sro.domain.execution.run.Run`, keyed on a
@@ -286,7 +294,7 @@ export const api = {
   rigRun: async (runId) =>
     asPanelRun(await call(`/v1/workflow-runs/${encodeURIComponent(runId)}`)),
 
-  /** Stop a workflow run this browser is driving. It takes effect at the next
+  /** Stop a workflow run the operator is watching. It takes effect at the next
    * step: a gesture already sent cannot be recalled from a warehouse.
    *
    * **No `device_id`, and no body at all.** The rig's abort took one naming the
@@ -326,12 +334,15 @@ export const api = {
       // `can_find` rides along: whether a run can go and find a value nobody
       // typed is a fact about the deployment, and a browser building an offer
       // out of these shapes cannot know it any other way.
+      // `takes_over` likewise: whether a press here is run on the server,
+      // which reads what the operator already did from their uploads.
       return {
         shapes: answered.shapes || [],
         canFind: Boolean(answered.can_find),
+        takesOver: Boolean(answered.takes_over),
       };
     } catch {
-      return { shapes: [], canFind: false };
+      return { shapes: [], canFind: false, takesOver: false };
     }
   },
 
@@ -390,12 +401,10 @@ export const api = {
    * `/v1/workflow-runs`, not `/v1/runs`, which on this host starts a *skill*
    * run from a preview and would refuse a workflow id outright.
    *
-   * **Which browser to drive is a body field here, and it is the one call in
-   * this file where that is right.** Everywhere else `?device_id=` names the
-   * browser *asking*; a press names the browser to *drive*, and the screen
-   * somebody presses on is not always it -- a supervisor's console holds the
-   * tenant's credential and no extension of its own. `StartWorkflowRunRequest`
-   * is where that is written down.
+   * The run is the backend's: it picks the executor by tenant (Steel), and
+   * `device_id` in the body only records which browser pressed -- this one
+   * never drives a step. `offer` names the offer the press answers; the
+   * backend starts one run per offer and answers a second start with it.
    *
    * No `started_by`: the backend reads who authorised it off the credential,
    * and a request that says who authorised it is a signature nobody checked. */
@@ -408,13 +417,6 @@ export const api = {
    * simply start. */
   askAboutOffer: (body) =>
     call("/v1/chat/about-an-offer", { method: "POST", body }),
-
-  /** Say, in the operator's conversation, which run came of their answer.
-   *
-   * Reported from here because the id exists here first: the credential to
-   * drive a run lives in this worker, so the backend cannot know it until the
-   * browser says so. */
-  runStarted: (body) => call("/v1/chat/run-started", { method: "POST", body }),
 
   /** Send the drafted mail the operator has just read.
    *
@@ -436,30 +438,26 @@ export const api = {
       asPanelRun,
     ),
 
-  /** Every job this tenant has mined, with how far each is toward writing on
-   * its own (`runs.proven` of `runs.needed`). For the panel's learned-job
-   * card; `?device_id=` because the route refuses a browser named without its
-   * secret, the same pair `shapes` sends. */
+  /** This operator's own newest runs -- `mine=true`, because a colleague's
+   * mail is not theirs to be shown on Home. */
+  myRuns: async (limit) =>
+    (
+      await call(`/v1/workflow-runs?limit=${encodeURIComponent(limit)}&mine=true`)
+    ).map(asPanelRun),
+
+  /** Every job this tenant has mined, with how proven each is (`runs.proven`
+   * of `runs.needed`) and whether the chat would offer it (`offered`). For
+   * the panel's learned-job card; `?device_id=` because the route refuses a
+   * browser named without its secret, the same pair `shapes` sends. */
   workflows: async (deviceId) => {
     const query = deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : "";
     const answered = await call(`/v1/workflows${query}`);
-    return (answered.workflows || []).map(({ id, title, systems, runs, steps }) => ({
+    return (answered.workflows || []).map(({ id, title, systems, runs, offered }) => ({
       id,
       title,
       systems,
       runs,
-      // Whether any step types a credential.
-      //
-      // Read from the words, because that is all the wire carries: a step
-      // says what it does and nothing on it marks a credential. It decides
-      // which of two jobs of one name the card offers, and it is the one
-      // thing that tells a sign-in that can sign in from one that clicks the
-      // button with the field empty -- so a job whose password was typed by
-      // the browser rather than the operator reads as the weaker of the two,
-      // which is what it is on a machine that does not fill it in.
-      types_a_credential: (steps || []).some((step) =>
-        /\b(password|passcode|credential)/i.test(String(step?.says || "")),
-      ),
+      offered,
     }));
   },
 
@@ -589,12 +587,11 @@ export const api = {
       method: "POST",
     }),
 
-  /** The pages this browser starts a job on.
+  /** The pages this browser offers a job on, and the values to offer it with.
    *
    * Asked for separately from the watches rather than as "this browser's
-   * rules", because the browser does two different things with them: a watch
-   * is matched against a mail and OFFERS what it found, an arrival is matched
-   * against the page in front of somebody and STARTS something. */
+   * rules": a watch is matched against a mail, an arrival against the page in
+   * front of somebody. Both only ever offer; the press starts. */
   arrivals: (deviceId) =>
     call(`/v1/agents/${encodeURIComponent(deviceId)}/arrivals`),
 
@@ -618,16 +615,6 @@ export const api = {
       },
     }),
 
-  /** The operator arrived. No press: they pressed once, when they made the
-   * rule. The url goes with it so the backend can check the rule is about the
-   * page this browser says it is on -- a browser that got that wrong would
-   * otherwise start a live run in somebody's window on a page nobody chose. */
-  arrivalFire: (deviceId, triggerId, url) =>
-    call(
-      `/v1/agents/${encodeURIComponent(deviceId)}/arrivals/${encodeURIComponent(triggerId)}/fire`,
-      { method: "POST", body: { url } },
-    ),
-
   /** One question, asked of every system that could answer it.
    *
    * Straight at the lookup door rather than through `/v1/ask`: this is used
@@ -639,36 +626,26 @@ export const api = {
 
   /** Say something into it. Answers with the whole thread, which is why the
    * panel re-renders from the reply rather than appending locally. */
-  say: (threadId, text) =>
+  say: (threadId, text, answering) =>
     call(`/v1/threads/${encodeURIComponent(threadId)}/messages`, {
       method: "POST",
-      body: { text },
+      body: answering ? { text, answering } : { text },
     }),
 
-  /** The press. Promotes the version a preview just showed and starts it in
-   * the operator's own browser in one call -- see ADR 014 and
-   * `RunFromPreview`. Refused for a looped skill with a sentence written for
-   * an operator to read, which the panel shows rather than swallows.
-   *
-   * `version` is the one the panel rendered, and is what makes ADR 014's
-   * central claim true rather than merely stated: the backend runs that
-   * version and refuses the press outright where the skill has been taught
-   * again since, instead of quietly running whichever version happens to be
-   * newest by the time the press lands. */
-  runFromPreview: (skillId, parameters, deviceId, intent, version) =>
-    call(`/v1/skills/${encodeURIComponent(skillId)}/runs/from-preview`, {
+  /** "Undo that": a skill's reversal, run by the backend in a browser it
+   * owns -- no device, so never this one. `version` is the one the reversal
+   * was checked at, and the backend runs exactly that. `authorized_by` is the
+   * press: the backend reads who from the credential, never the body. */
+  runSkill: (skillId, parameters, version) =>
+    call(`/v1/skills/${encodeURIComponent(skillId)}/runs`, {
       method: "POST",
-      body: { parameters, device_id: deviceId, intent, version },
+      body: { parameters, version, authorized_by: "the operator's press" },
     }),
 
-  /** Ask the backend to stop stepping a run it is performing in this browser.
+  /** Ask the backend to stop a skill run the operator is watching.
    *
-   * The other half of the Stop button. `commands.js`'s `abort` makes this
-   * browser refuse every later command for the run, which is immediate and is
-   * why it is still done first -- but the backend goes on stepping regardless,
-   * sending each next command into a browser that answers `aborted`, so a run
-   * the operator stopped kept running until it ran out of steps. Two
-   * implementations of stopping, one of which the operator could not reach.
+   * The Stop button. The backend drives the run, so stopping it is the
+   * backend's to do; this browser only carries the press.
    *
    * A 409 is swallowed, and only a 409. That is the backend saying there was
    * nothing left to stop -- the run already ended, or it is not one this

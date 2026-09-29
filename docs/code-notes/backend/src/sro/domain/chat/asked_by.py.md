@@ -31,7 +31,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/chat/asked_by.py`]
 > Pure, so what counts as one of these mails can be argued with and tested
 > without a mailbox, a model or a store.
 
-## module, [line 10](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L10): Note on the line above
+## module, [line 15](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L15): Note on the line above
 
 Code: `K_EXAMPLES = 5`
 
@@ -42,7 +42,7 @@ Code: `K_EXAMPLES = 5`
 > goes into every reading of every sentence, where an unbounded list is a prompt
 > that grows with the tenant's history until it costs more than the answer.
 
-## module, [line 12](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L12): Note on the line above
+## module, [line 17](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L17): Note on the line above
 
 Code: `K_TEXT = 200`
 
@@ -53,7 +53,7 @@ Code: `K_TEXT = 200`
 > correspondence -- and the same reasoning `gathering.K_HIT` keeps for a search
 > result, for the same failure modes.
 
-## module, [line 14](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L14): Note on the line above
+## module, [line 19](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L19): Note on the line above
 
 Code: `K_LEAST = 24`
 
@@ -64,7 +64,7 @@ Code: `K_LEAST = 24`
 > name reads "Inbox", "Archive", "More". Those match everything and mean nothing,
 > and a prompt that carried them would be teaching the model noise.
 
-## module, [line 16](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L16): Note on the line above
+## module, [line 21](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L21): Note on the line above
 
 Code: `K_MAILBOXES = tuple(sorted(MAILBOX_HOSTS))`
 
@@ -74,18 +74,18 @@ Code: `K_MAILBOXES = tuple(sorted(MAILBOX_HOSTS))`
 > examples for what a request looks like. `gather.SERVER` names its one connector
 > for the same reason.
 
-## `AskedBy`, [line 20](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L20): Docstring
+## `AskedBy`, [line 25](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L25): Docstring
 
 > One mail the operator acted on, and when they read it.
 
-## `AskedBy`, [line 22](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L22): Note on the line above
+## `AskedBy`, [line 27](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L27): Note on the line above
 
 Code: `at: float`
 
 > The gesture's own clock. What orders these, and what a card saying "you
 > did this after a mail like this one, on the 14th" reads.
 
-## `mails_behind`, [line 25](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L25): Docstring
+## `mails_behind`, [line 30](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L30): Docstring
 
 > The mails this job was asked for by, newest first.
 >
@@ -98,15 +98,15 @@ Code: `at: float`
 > distinct requests -- and five copies of one mail is one example wearing the
 > weight of five.
 
-## `texts`, [line 41](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L41): Docstring
+## `texts`, [line 46](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L46): Docstring
 
 > Just the words, for a prompt that has no use for the clock.
 
-## `from_a_mailbox`, [line 45](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L45): Docstring
+## `from_a_mailbox`, [line 50](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L50): Docstring
 
 > Whether this gesture happened where requests arrive.
 
-## `only_reads_the_mail`, [line 50](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L50): Docstring
+## `only_reads_the_mail`, [line 55](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L55): Docstring
 
 > Whether this step is somebody opening the request and nothing else.
 >
@@ -141,7 +141,7 @@ Code: `at: float`
 > on the mailbox's own page: `Log in to Google Account` is filed under the
 > mailbox and types its password on `accounts.google.com`.
 
-## `_said`, [line 57](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L57): Docstring
+## `_said`, [line 83](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L83): Docstring
 
 > What the mail said, as far as the recording holds it.
 >
@@ -151,9 +151,24 @@ Code: `at: float`
 > in a gesture, and a value the operator typed is `action.value`, which
 > belongs to the warehouse form rather than to the request.
 
-## `mails_behind`, [line 35](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L35): Comment
+## `mails_behind`, [line 40](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L40): Comment
 
 Code: `was = found.get(said)`
 
 > First wins on a tie, and the newest of the two is kept: the same
 > request read twice is one request, dated when it was last read.
+
+## `by_hand`, [line 62](../../../../../../../backend/src/sro/domain/chat/asked_by.py#L62): Docstring
+
+> A mailbox step that changed the mailbox in a way the Gmail tool cannot:
+> labelled, archived, moved (M4). Such a step was read as "only reads the
+> mail" and skipped as if done. The signal is the recording's own: a mailbox
+> gesture that made Gmail's item-write call (`wrote_the_mailbox`, the
+> `/sync/u/N/i/s` POST a Send makes), unless it is a mail row opened (its
+> name is the mail's own text, as `mails_behind` reads it). A step in the
+> run of mailbox steps that leads straight into a Send is that Send's -- the
+> Reply clicked, the body typed and saved as a draft -- and the writer
+> writes it.
+> ponytail: a gesture whose calls were not captured reads as a read; and a
+> label or archive right before a compose and Send counts as that Send's.
+> Upgrade by reading which items the `/i/s` body changed.

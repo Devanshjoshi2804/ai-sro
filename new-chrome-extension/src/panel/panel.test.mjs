@@ -61,6 +61,7 @@ const SOURCE = [
   // `ReferenceError: history is not defined`.
   readFileSync(path.join(here, "history.js"), "utf-8"),
   readFileSync(path.join(here, "learned.js"), "utf-8"),
+  readFileSync(path.join(here, "mail-run.js"), "utf-8"),
   readFileSync(path.join(here, "panel.js"), "utf-8"),
 ]
   .join("\n")
@@ -821,6 +822,78 @@ test("a run reading the mailbox says so, rather than saying Step 0", async () =>
     /Step 0/,
     "it said which step it was on instead",
   );
+});
+
+test("a run a mail started is one card on Home: arrived, noticed, how it went", async () => {
+  // QA 2026-09-29: the mail reader started the run on Steel and it held in
+  // 12 s, while Home said nothing about a mail at all. The card says where it
+  // came from and how it went, and it is the only card for that run -- the
+  // performing card stands aside for it.
+  const mail = {
+    subject: "create transport equipment type AITE4",
+    sender: "Devansh <devansh@example.com>",
+    arrived: "2026-09-29T11:02:07+05:30",
+    thread: "t-1",
+    link: "https://mail.google.com/mail/#all/t-1",
+  };
+  const { cards, sent, opened } = panel({
+    deviceId: "dev-1",
+    performing: {
+      runId: "run-9",
+      kind: "rig",
+      source: "rig",
+      since: new Date().toISOString(),
+      step: 1,
+      liveViewUrl: "https://steel.example/view",
+    },
+    mailRuns: [
+      {
+        id: "run-9",
+        source: "rig",
+        status: "running",
+        title: "Create a Transport Equipment Type",
+        values: { Equipment: "AITE4" },
+        started_at: new Date().toISOString(),
+        steps: [],
+        mail,
+      },
+      {
+        id: "run-8",
+        source: "rig",
+        status: "failed",
+        title: "Create a Transport Equipment Type",
+        values: { Equipment: "AITE3" },
+        started_at: new Date().toISOString(),
+        finished_at: new Date().toISOString(),
+        steps: [{ index: 0, outcome: "failed", reason: "the session expired" }],
+        mail: { ...mail, subject: "AITE3 please" },
+      },
+    ],
+  });
+
+  assert.equal(
+    cards.filter((one) => words(one).includes("is performing here")).length,
+    0,
+    "the mail's run was drawn twice",
+  );
+  const running = cards.find((one) => words(one).includes("AITE4 Arrived"));
+  assert.match(words(running), /Noticed: Create a Transport Equipment Type — Equipment: AITE4/);
+  assert.match(words(running), /Running/);
+  const failed = cards.find((one) => words(one).includes("AITE3 please"));
+  assert.match(words(failed), /Did not finish at \d\d:\d\d: the session expired/);
+
+  const press = (label) => buttons(running).find((one) => one.textContent === label);
+  press("Watch it run").listeners[0]();
+  press("Open the mail").listeners[0]();
+  await press("Stop").listeners[0]();
+  await settled();
+  assert.deepEqual(
+    opened.map((one) => one.url ?? one),
+    ["https://steel.example/view", "https://mail.google.com/mail/#all/t-1"],
+  );
+  assert.deepEqual(sentOf(sent, "abort-run"), [
+    { kind: "abort-run", runId: "run-9", source: "rig" },
+  ]);
 });
 
 test("it opens on Home, with the conversation one tap away", async () => {
@@ -1864,41 +1937,6 @@ test("with no way to reverse it, it says so rather than offering a dead button",
   assert.ok(/I'll fix it/i.test(said), "no way to say it was wrong at all");
 });
 
-test("a rule that fired twice is one card, and one answer settles both", async () => {
-  // Two confirmations from one rule drew two identical cards, one under the
-  // other, with nothing to tell them apart -- and answering the first left
-  // the second asking. A second yes is a second run.
-  const fired = (id) => ({
-    id,
-    trigger_id: "trg_1",
-    skill_name: "Log in to Keycloak",
-    because: "an arrival trigger fired",
-    page: "keycloak.example/auth",
-    values: {},
-  });
-  const drawn = panel(
-    {
-      deviceId: "dev-1",
-      capturing: true,
-      channel: "open",
-      waiting: [fired("cnf_1"), fired("cnf_2")],
-      watched: [{ tabId: 7, host: "keycloak.example", since: new Date().toISOString() }],
-    },
-    { id: 7, host: "keycloak.example", url: "https://keycloak.example/auth?x=1" },
-    { "answer-waiting": { ok: true, run_id: "run_1" } },
-  );
-  const asking = drawn.cards.filter((one) => words(one).includes("Shall I?"));
-  assert.equal(asking.length, 1, "the same rule was drawn twice");
-
-  const yes = buttons(asking[0]).find((b) => /Yes/.test(b.textContent));
-  yes.listeners[0]();
-  await settled();
-  assert.deepEqual(sentOf(drawn.sent, "answer-waiting"), [
-    { kind: "answer-waiting", confirmationId: "cnf_1", answer: "approve" },
-    { kind: "answer-waiting", confirmationId: "cnf_2", answer: "decline" },
-  ]);
-});
-
 test("a run that stopped for a password says so, and never shows the vault key", () => {
   // The backend's reason for that stop names the key it looked under --
   // "greyorange/keycloak-.../password" -- because the refusal carries
@@ -1982,37 +2020,6 @@ test("a write nobody could confirm says that, not the url it read", () => {
   assert.match(said, /It was working on Customer Type SMKY/);
 });
 
-test("a request that has run out is not offered as a press", () => {
-  // The card stayed on screen after its confirmation expired, and the press
-  // came back 422 "this expired without an answer; nothing was run and
-  // nothing can be now" -- cnf_4f2ca91d on the deployment, 2026-09-22 19:17.
-  const fired = (id, expires) => ({
-    id,
-    trigger_id: `trg_${id}`,
-    skill_name: "Log in to Keycloak",
-    because: "an arrival trigger fired",
-    page: "keycloak.example/auth",
-    expires_at: expires,
-    values: {},
-  });
-  const { cards } = panel(
-    {
-      deviceId: "dev-1",
-      capturing: true,
-      channel: "open",
-      waiting: [
-        fired("old", new Date(Date.now() - 60_000).toISOString()),
-        fired("live", new Date(Date.now() + 600_000).toISOString()),
-      ],
-      watched: [{ tabId: 7, host: "keycloak.example", since: new Date().toISOString() }],
-    },
-    { id: 7, host: "keycloak.example", url: "https://keycloak.example/auth?x=1" },
-  );
-  const asking = cards.filter((one) => words(one).includes("Shall I?"));
-  assert.equal(asking.length, 1, "an expired request was still offering a press");
-  assert.equal(asking[0].dataset.id, "live");
-});
-
 test("what was learned here is not offered while a run is going", () => {
   // One browser, one hand: the backend refuses a second run for this device.
   // The card an operator had just pressed sat beside the run it started,
@@ -2020,9 +2027,10 @@ test("what was learned here is not offered while a run is going", () => {
   const jobs = [
     {
       id: "wfl_1",
-      title: "Log in to Keycloak",
+      title: "Create a Customer Type",
       systems: ["https://wms.example"],
       runs: { total: 9, held: 4, stale: 0, earned: false, proven: 0, needed: 3 },
+      offered: true,
     },
   ];
   const status = {
@@ -2038,7 +2046,7 @@ test("what was learned here is not offered while a run is going", () => {
     await settled();
     assert.match(
       [...quiet.ids["cards"].kids].map(words).join(" "),
-      /Learned from what you do here/,
+      /1 job learned on this page/,
       "nothing was learned to hide",
     );
 
@@ -2049,7 +2057,7 @@ test("what was learned here is not offered while a run is going", () => {
     quiet.render(running);
     assert.doesNotMatch(
       [...quiet.ids["cards"].kids].map(words).join(" "),
-      /Learned from what you do here/,
+      /learned on this page/,
       "it offered to start a job while a run was going",
     );
   });
@@ -2152,12 +2160,14 @@ test("what was learned on this system is on Home, and only here", async () => {
       // As the miner writes them: whole origins, not bare hosts.
       systems: ["https://wms.example"],
       runs: { total: 2, held: 2, stale: 0, earned: false, proven: 1, needed: 3 },
+      offered: true,
     },
     {
       id: "wfl_2",
-      title: "Reply to Email",
-      systems: ["https://mail.example"],
+      title: "Create an Invoice",
+      systems: ["https://billing.example"],
       runs: { total: 0, held: 0, stale: 0, earned: false, proven: 0, needed: 3 },
+      offered: true,
     },
   ];
   const drawn = panel(
@@ -2171,10 +2181,16 @@ test("what was learned on this system is on Home, and only here", async () => {
     .map(words)
     .join(" ");
   void cards;
-  assert.match(said, /Learned from what you do here/);
-  assert.match(said, /Delete a Customer Type/);
-  assert.match(said, /1 of 3 runs checked/);
-  assert.doesNotMatch(said, /Reply to Email/, "another system's job was drawn here");
+  // One quiet row, folded: the jobs are one tap away (the user, 2026-09-29).
+  assert.match(said, /1 job learned on this page ›/);
+  assert.doesNotMatch(said, /Delete a Customer Type/, "the list was drawn unfolded");
+  const row = [...drawn.ids["cards"].kids].find((one) =>
+    words(one).includes("learned on this page"),
+  );
+  buttons(row).find((b) => /learned on this page/.test(b.textContent)).listeners[0]();
+  const unfolded = [...drawn.ids["cards"].kids].map(words).join(" ");
+  assert.match(unfolded, /Delete a Customer Type 1 of 3 runs checked Run it here/);
+  assert.doesNotMatch(said, /Create an Invoice/, "another system's job was drawn here");
   assert.ok(
     drawn.sent.some((message) => message.kind === "learned-jobs"),
     "the panel never asked what was learned",
@@ -2187,7 +2203,7 @@ test("what was learned on this system is on Home, and only here", async () => {
   // as "did you mean this one, this one, or that one" about the card they had
   // just pressed.
   const card = [...drawn.ids["cards"].kids].find((one) =>
-    words(one).includes("Learned from what you do here"),
+    words(one).includes("learned on this page"),
   );
   const run = buttons(card).find((b) => /Run it here/.test(b.textContent));
   run.listeners[0]();
@@ -2615,7 +2631,8 @@ test("undo records the ask and starts the reversal skill, nothing else", async (
   const [ran] = sentOf(sent, "run-skill");
   assert.strictEqual(ran.skillId, "skl-2");
   assert.deepStrictEqual(ran.parameters, { operation_id: "NDPCK" });
-  assert.strictEqual(ran.intent, "Undo that");
+  // Run by the backend in a browser it owns: no device, never this one.
+  assert.strictEqual(ran.deviceId, undefined, "the reversal was sent to run in this browser");
 });
 
 test("'it's wrong' records why without offering a run it cannot take back", async () => {
@@ -3352,8 +3369,9 @@ test("Home keeps one request and counts the rest", async () => {
     /G3/,
     "Home drew the oldest request as well as the newest",
   );
-  // And a way to the others, as one line rather than three more cards.
-  assert.match(said, /3 more waiting/);
+  // And no line about the others: one offer at most (the user, 2026-09-29).
+  // The Waiting pane's badge counts all four.
+  assert.doesNotMatch(said, /more waiting/);
 });
 
 test("a rig run that can be taken back offers it, and names what it removes", async () => {
@@ -3617,85 +3635,6 @@ test("and one that is still running still is", async () => {
   );
 });
 
-test("a rule that fired on THIS page asks on Home", async () => {
-  // `waitingOnYou`'s own comments record the last time this card could not be
-  // seen: drawn in the console, another tab, which from where the operator
-  // was standing is indistinguishable from nothing having happened -- "I just
-  // logged in, nothing on panel". It moved into the panel and stopped one
-  // pane short.
-  //
-  // Measured on the deployment 2026-09-20: `trg_a925ce7d` fired on the
-  // Keycloak sign-in page at 17:25 and wrote two confirmations, both still
-  // waiting, while the operator looked at Home and saw a run card for a
-  // different job. An arrival rule fires BECAUSE of the page in front of
-  // somebody, and Home is the pane about the page in front of somebody.
-  const here = {
-    id: 7,
-    host: "keycloak.example",
-    url: "https://keycloak.example/auth/realms/x/protocol/openid-connect/auth?state=abc",
-  };
-  const it = panel(
-    {
-      deviceId: "dev-1",
-      capturing: true,
-      watched: [{ tabId: 7, host: "keycloak.example", on: "keycloak.example" }],
-      waiting: [
-        {
-          id: "cnf-1",
-          trigger_id: "trg-1",
-          skill_name: "Log in to Keycloak",
-          because: "an arrival trigger fired",
-          asked_at: new Date().toISOString(),
-          values: {},
-          page: "keycloak.example/auth/realms/x/protocol/openid-connect/auth",
-          still_there: true,
-        },
-      ],
-    },
-    here,
-  );
-
-  assert.ok(
-    it.cards.find((one) => words(one).includes("Log in to Keycloak")),
-    "the ask fired on this page was nowhere on the pane about this page",
-  );
-});
-
-test("and one about a page they are not on stays out of the way", async () => {
-  // A card about somewhere else belongs in the list rather than in front of
-  // the page being worked.
-  const here = {
-    id: 7,
-    host: "wms.example",
-    url: "https://wms.example/receiving",
-  };
-  const it = panel(
-    {
-      deviceId: "dev-1",
-      capturing: true,
-      watched: [{ tabId: 7, host: "wms.example", on: "wms.example" }],
-      waiting: [
-        {
-          id: "cnf-1",
-          trigger_id: "trg-1",
-          skill_name: "Log in to Keycloak",
-          because: "an arrival trigger fired",
-          asked_at: new Date().toISOString(),
-          values: {},
-          page: "keycloak.example/auth/realms/x/protocol/openid-connect/auth",
-          still_there: true,
-        },
-      ],
-    },
-    here,
-  );
-
-  assert.ok(
-    !it.cards.find((one) => words(one).includes("Log in to Keycloak")),
-    "an ask about another page was put in front of the one being worked",
-  );
-});
-
 test("the job that is running is not also offered", () => {
   // A card offering to do what is already being done is a card whose Yes
   // starts it a second time -- and on `Delete a Customer Type` that is two
@@ -3756,6 +3695,246 @@ test("a different job is still offered while one runs", () => {
   });
 
   assert.match(words(ids["cards"]), /Create a Customer Type/);
+});
+
+test("a Steel run's card links to where it can be watched, and nothing else opens it", async () => {
+  // The run is on Steel, not in this tab, so the operator watches it there:
+  // the backend reads the run's own live view off its lease and puts it on
+  // the run it serves. Only a run that has one gets the link.
+  const view = "https://steel.example/v1/sessions/debug?pageId=tab-9&interactive=false";
+  const it = panel({ deviceId: "dev-1" }, null, {
+    status: {
+      deviceId: "dev-1",
+      performing: { runId: "run_live", source: "rig", kind: "rig", step: 1 },
+    },
+    run: { id: "run_live", outcome: "running", steps: [{}], live_view_url: view },
+  });
+
+  const cards = await it.refresh();
+  const card = cards.find((one) => words(one).includes("is performing here"));
+  const watch = buttons(card).find((b) => b.textContent === "Watch it run");
+  assert.ok(watch, "the run card has no way to watch the run");
+  await watch.listeners[0]();
+
+  assert.deepEqual(it.opened, [view]);
+});
+
+test("a run with nowhere to watch offers no Watch", async () => {
+  const it = panel({ deviceId: "dev-1" }, null, {
+    status: {
+      deviceId: "dev-1",
+      performing: { runId: "run_live", source: "rig", kind: "rig", step: 1 },
+    },
+    run: { id: "run_live", outcome: "running", steps: [{}] },
+  });
+
+  const cards = await it.refresh();
+  const card = cards.find((one) => words(one).includes("is performing here"));
+
+  assert.ok(!buttons(card).some((b) => b.textContent === "Watch it run"));
+});
+
+test("every press on a card is a call to the backend, and a yes is said to the conversation", async () => {
+  // The panel is the product's interface (2026-09-28): Run it here, Try it
+  // again and Do it stay. Each is a message to the worker, which calls a
+  // backend route; the backend starts the run on Steel. Nothing the panel
+  // sends drives a step in this tab.
+  const status = {
+    deviceId: "dev-1",
+    capturing: true,
+    watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+    finished: {
+      id: "run_1",
+      source: "rig",
+      status: "stopped",
+      workflow_id: "wfl_1",
+      values: { "Customer Type": "GGD" },
+      items: [],
+      steps: [],
+      needs: [],
+      try_again: true,
+    },
+  };
+  const jobs = [
+    {
+      id: "wfl_1",
+      title: "Delete a Customer Type",
+      systems: ["https://wms.example"],
+      runs: { total: 2, held: 2, stale: 0, earned: false, proven: 1, needed: 3 },
+      offered: true,
+    },
+  ];
+  const asked = {
+    id: "msg_confirm",
+    speaker: "assistant",
+    text: "Delete a Customer Type — GGD. Shall I?",
+    said_at: "2026-09-28T10:00:00Z",
+    decision: { kind: "job", confirm: true, workflow_id: "wfl_1", values: {} },
+  };
+  const thread = { id: "thr-1", messages: [asked] };
+  const drawn = panel(
+    status,
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+    {
+      status,
+      "learned-jobs": { jobs },
+      thread,
+      "thread-say": thread,
+      "retry-rig-run": { ok: true, run_id: "run_2" },
+      "run-workflow": { ok: true, run_id: "run_3" },
+    },
+  );
+  await drawn.refresh();
+  await settled();
+
+  const home = () => [...(drawn.ids["expanded"]?.kids || []), ...drawn.ids["cards"].kids];
+  const press = async (label) => {
+    const button = home().flatMap(buttons).find((b) => b.textContent === label);
+    assert.ok(button, `Home offers no "${label}"`);
+    await button.listeners[0]();
+    await settled();
+  };
+  await press("Try it again");
+  // The learned jobs are one folded row; its press unfolds them.
+  await press("1 job learned on this page ›");
+  await press("Run it here");
+  const doIt = buttons(drawn.ids["said"]).find((b) => b.textContent === "Do it");
+  await doIt.listeners[0]();
+  await settled();
+
+  assert.deepEqual(sentOf(drawn.sent, "retry-rig-run"), [
+    {
+      kind: "retry-rig-run",
+      workflowId: "wfl_1",
+      values: { "Customer Type": "GGD" },
+      items: [],
+      retryOf: "run_1",
+    },
+  ]);
+  assert.deepEqual(sentOf(drawn.sent, "run-workflow"), [
+    { kind: "run-workflow", workflowId: "wfl_1" },
+  ]);
+  assert.deepEqual(
+    sentOf(drawn.sent, "thread-say").map((one) => [one.text, one.answering]),
+    [["yes", "msg_confirm"]],
+  );
+});
+
+// --- a calm Home (the user, 2026-09-29) --------------------------------------
+//
+// Home shows what is true right now: what needs the operator, then what is
+// running or just finished, then one offer for this page's job -- three loud
+// cards at most. Seen on QA: a mail card, a wrong-page offer and a full ladder
+// card per learned job, stacked.
+
+const WATCHED = [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }];
+const TAB = { id: 7, host: "wms.example", url: "https://wms.example/portal" };
+const aMail = (subject) => ({
+  subject,
+  sender: "Devansh <devansh@example.com>",
+  arrived: new Date().toISOString(),
+  thread: `t-${subject}`,
+});
+const aNudge = (id, workflowId, title) => ({
+  id,
+  source: "rig",
+  state: "open",
+  tabId: null,
+  k: 0,
+  at: new Date().toISOString(),
+  title,
+  workflowId,
+  values: {},
+  items: [],
+  missing: [],
+});
+
+test("more than three loud cards: three, in the order somebody deals with them", () => {
+  const status = {
+    deviceId: "dev-1",
+    capturing: true,
+    watched: WATCHED,
+    nudges: [aNudge("n_1", "wfl_c", "Create a Client")],
+    question: { title: "Create a Customer Type", text: "What is the description for GV3?" },
+    performing: { runId: "run-9", kind: "rig", source: "rig", workflowId: "wfl_run", since: new Date().toISOString(), step: 1 },
+    mailRuns: [
+      { id: "run-1", status: "running", workflow_id: "wfl_a", title: "Create a Transport Equipment Type", values: {}, started_at: new Date().toISOString(), steps: [], mail: aMail("AITE8") },
+      { id: "run-2", status: "running", workflow_id: "wfl_b", title: "Create a Warehouse Equipment Type", values: {}, started_at: new Date().toISOString(), steps: [], mail: aMail("AIWE2") },
+    ],
+  };
+  const { ids } = panel(status, TAB);
+
+  const loud = ids["cards"].kids.map(words);
+  assert.equal(loud.length, 3, loud.join(" | "));
+  assert.match(loud[0], /waiting on you/, "what needs the operator leads");
+  assert.match(loud[1], /performing here/);
+  assert.match(loud[2], /Mail: AITE8/);
+  assert.doesNotMatch(loud.join(" "), /AIWE2|Create a Client/, "a fourth loud card was drawn");
+});
+
+test("a finished mail card folds to one line after ten minutes", () => {
+  const minute = 60_000;
+  const done = (ago) => ({
+    id: "run-1",
+    status: "held",
+    workflow_id: "wfl_a",
+    title: "Create a Transport Equipment Type",
+    values: { Code: "AITE9" },
+    started_at: new Date(Date.now() - ago - minute).toISOString(),
+    finished_at: new Date(Date.now() - ago).toISOString(),
+    steps: [],
+    mail: aMail("create AITE9"),
+  });
+  const status = (ago) => ({ deviceId: "dev-1", capturing: true, watched: WATCHED, mailRuns: [done(ago)] });
+
+  const fresh = panel(status(2 * minute), TAB);
+  assert.match(words(fresh.ids["cards"]), /Mail: create AITE9/, "a card that just finished was folded");
+
+  const old = panel(status(11 * minute), TAB);
+  const said = old.ids["cards"].kids.map(words);
+  assert.ok(
+    said.some((one) => /^✓ AITE9 from mail · \d\d:\d\d$/.test(one)),
+    said.join(" | "),
+  );
+  assert.doesNotMatch(said.join(" "), /Mail: create AITE9/, "the whole card was still drawn");
+});
+
+test("no offer beside a run or a mail card for the same job", () => {
+  const running = {
+    id: "run-1",
+    status: "running",
+    workflow_id: "wfl_ct",
+    title: "Create a Customer Type",
+    values: {},
+    started_at: new Date().toISOString(),
+    steps: [],
+    mail: aMail("GT5 please"),
+  };
+  const same = panel(
+    { deviceId: "dev-1", capturing: true, watched: WATCHED, mailRuns: [running], nudges: [aNudge("n_1", "wfl_ct", "Create a Customer Type")] },
+    TAB,
+  );
+  assert.doesNotMatch(words(same.ids["cards"]), /want me to do it/i, "a Yes beside the mail card doing that job");
+
+  const other = panel(
+    { deviceId: "dev-1", capturing: true, watched: WATCHED, mailRuns: [running], nudges: [aNudge("n_2", "wfl_cl", "Create a Client")] },
+    TAB,
+  );
+  assert.match(words(other.ids["cards"]), /Create a Client — want me to do it/);
+});
+
+test("the state card is its slim line whenever a louder card is present", () => {
+  const quiet = { deviceId: "dev-1", capturing: true, watched: WATCHED };
+  const alone = panel(quiet, TAB);
+  assert.match(words(alone.ids["expanded"]), /Work as usual/);
+
+  const busy = panel(
+    { ...quiet, performing: { runId: "run-9", kind: "rig", source: "rig", since: new Date().toISOString(), step: 1 } },
+    TAB,
+  );
+  const state = busy.ids["expanded"].kids[0];
+  assert.equal(words(state), "Watching this tab · learning from what you do Stop watching");
+  assert.equal(state.dataset.slim, "1");
 });
 
 for (const [name, fn] of tests) {

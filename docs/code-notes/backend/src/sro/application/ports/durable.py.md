@@ -10,10 +10,15 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/durable
 > workflow buys retries and a history to look at when it fails, not
 > correctness.
 
-## `DurableExecution.execute_skill`, [line 11](../../../../../../../backend/src/sro/application/ports/durable.py#L11): Docstring
+## `DurableExecution.execute_skill`, [line 12](../../../../../../../backend/src/sro/application/ports/durable.py#L12): Docstring
 
 > Perform a skill durably and wait for it to finish.
 >
 > Durable for a different reason again: a run touches a live warehouse one
 > step at a time, and a process that dies halfway must be resumable
 > without repeating the step that may already have landed.
+
+## `DurableExecution.run_state`, [line 31](../../../../../../../backend/src/sro/application/ports/durable.py#L31): Note
+
+> Whether a Steel run's workflow is still open, has closed, or was never
+> heard of (`Durably`). The stuck-run sweep asks it; see `waiting.stuck`.

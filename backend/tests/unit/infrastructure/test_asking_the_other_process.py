@@ -161,6 +161,14 @@ async def test_a_job_is_asked_for_live_at_the_workflow_runs_door(dispatcher: _Bu
     assert "started_by" not in sent.json
 
 
+async def test_a_job_with_no_browser_is_asked_for_with_none(dispatcher: _Builds) -> None:
+    sent = _Sent()
+
+    await dispatcher(sent).start_job(CTX, workflow_id="wfl_1", device_id=None, values={})
+
+    assert sent.json["device_id"] is None
+
+
 async def test_the_credential_is_minted_for_the_trigger_principal_and_dies_in_minutes(
     dispatcher: _Builds,
 ) -> None:

@@ -11,6 +11,10 @@ This is the same seam that had already drifted once: the backend served a shape
 read against itself. `test_trim` does this for the redaction word lists and
 `scripts/offer-replay.mjs` now does it for shapes; this is the command
 vocabulary.
+
+Since E1 (2026-09-28) the extension answers no commands: it records and talks,
+and runs are started and driven by the backend alone (Steel). What is left here
+holds the panel and the extension's doors against what this backend serves.
 """
 
 from __future__ import annotations
@@ -18,7 +22,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from sro.domain.execution.planning import COMMAND_KINDS, KINDS, LIVE_FETCHABLE_HEADERS
+from sro.domain.execution.planning import COMMAND_KINDS, KINDS
 from sro.interface.http.app import create_app
 from sro.interface.http.schemas import WorkflowRunModel, WorkflowRunStepModel
 
@@ -66,14 +70,6 @@ def _extension(name: str, *, where: str = "src/background") -> str:
     raise AssertionError(f"no extension source above {here}")
 
 
-def _handled() -> set[str]:
-    """Every kind `commands.js` has a case for, from its one dispatch switch."""
-    body = _extension("commands.js")
-    switch = re.search(r"switch \(command\.kind\) \{(.*?)\n  \}", body, re.DOTALL)
-    assert switch, "the command switch moved"
-    return set(re.findall(r'case "([a-z._]+)":', switch.group(1)))
-
-
 def _sent() -> set[str]:
     """Every kind this backend's senders actually name."""
     found: set[str] = set()
@@ -83,46 +79,11 @@ def _sent() -> set[str]:
     return found
 
 
-def test_the_extension_answers_every_command_this_backend_can_send() -> None:
-    assert _handled() == set(COMMAND_KINDS), (
-        "one side of the wire has a kind the other does not: a command the "
-        "browser answers not_actionable to, read by the run as a step that "
-        "could not be done"
-    )
-
-
 def test_every_kind_a_sender_names_is_one_this_list_knows_about() -> None:
     """The list is only worth having if it is the whole list. A sender reaching
     for a literal nothing declares would pass the test above while putting a
     word on the wire neither side ever agreed on."""
     assert _sent() <= set(COMMAND_KINDS), f"undeclared: {sorted(_sent() - set(COMMAND_KINDS))}"
-
-
-def test_the_extension_answers_with_every_field_this_backend_reads() -> None:
-    """The other direction of the same wire, and the quieter failure.
-
-    A kind that goes missing is loud: the browser says `not_actionable` and the
-    step fails. A reply FIELD that goes missing is silent. `status` is what
-    `belts.status_of` reads to settle a write by rung 1; without it the step
-    falls through to a screenshot and a model, `state_verified` is false, and
-    the job never earns the right to write unattended -- correctly driven
-    forever, and never trusted. Nothing would go red anywhere.
-
-    A canary and not a contract: it checks the NAME appears where the extension
-    builds its replies, not that it is filled in the right case. That is enough
-    to catch a rename, which is the way this drifts.
-    """
-    read: set[str] = set()
-    senders = _senders()
-    for name in (*_SENDERS, "../domain/execution/belts.py"):
-        body = (senders / name).read_text("utf-8")
-        read |= set(re.findall(r'result\.get\("([a-z_]+)"\)', body))
-        read |= set(re.findall(r'result\["([a-z_]+)"\]', body))
-    assert "status" in read and "body" in read, "the two the state belts stand on"
-
-    answers = _extension("commands.js") + _extension("in-page.js")
-    named = set(re.findall(r"\b([a-z_]+):", answers))
-    assert read <= named, f"the extension names no {sorted(read - named)} in any reply"
 
 
 def test_the_panel_reads_a_run_by_fields_the_backend_really_answers_with() -> None:
@@ -190,24 +151,6 @@ def test_every_door_the_extension_knocks_on_is_one_this_app_opens() -> None:
         if path not in served and not (path.endswith("{}") and path[:-2] in served)
     )
     assert not missing, f"the extension calls {missing}, which this app does not serve"
-
-
-def test_the_extension_has_a_source_for_every_header_this_backend_asks_for() -> None:
-    """A sixth seam, and the narrowest: `LIVE_FETCHABLE_HEADERS` here,
-    `LIVE_HEADER_SOURCES` there.
-
-    The backend never sends a struck-out header's value -- it names the header
-    and the extension goes and finds it on the page. So a name on this list
-    with no source over there is a write that fails with `unreachable` at the
-    browser, which `commands.js` is careful to make loud rather than silently
-    dropping the header. Loud is still only loud at run time, in front of
-    somebody, on a call that was about to write to a warehouse.
-    """
-    menu = set(re.findall(r'"([a-z-]+)":\s*\w+InPage', _extension("commands.js")))
-    assert menu == set(LIVE_FETCHABLE_HEADERS), (
-        "one side asks for a header the other cannot find: "
-        f"backend {sorted(LIVE_FETCHABLE_HEADERS)}, extension {sorted(menu)}"
-    )
 
 
 def test_a_plan_may_name_only_the_kinds_a_model_is_offered() -> None:

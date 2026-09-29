@@ -10,18 +10,19 @@ from sro.application.knowledge.retrieve import Question, Retrieve
 from sro.application.ports.model import Asker, asker_or_refuse
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
+from sro.application.shared.asking import ask
 from sro.application.shared.refusals import OverCap
 from sro.domain.knowledge.entry import EntryKind, KnowledgeEntry
 from sro.domain.lookup.plan import (
-    INSTRUCTIONS,
     K_MAX_LOOKUPS,
-    LOOKUP_SCHEMA,
     Lookup,
     Plan,
+    in_declared_slots,
     open_question_for,
     uncited,
     unknown_targets,
 )
+from sro.domain.prompts.plan_lookup import PLAN_LOOKUP
 from sro.domain.shared.prices import Answer
 
 logger = logging.getLogger(__name__)
@@ -52,14 +53,12 @@ class PlanLookups:
         retrieve: Retrieve,
         asker: Asker | None,
         *,
-        model: str,
         clock: Clock,
         cap_usd: float,
     ) -> None:
         self._uow = uow
         self._retrieve = retrieve
         self._asker = asker
-        self._model = model
         self._clock = clock
         self._cap = cap_usd
 
@@ -93,11 +92,11 @@ class PlanLookups:
         if stopped is not None:
             return Planned(Plan(question=asked, asks=stopped, why=stopped.question))
 
-        answer = await asker.ask(
-            model=self._model,
-            instructions=INSTRUCTIONS,
-            evidence=_shown(asked, known),
-            schema=LOOKUP_SCHEMA,
+        answer = await ask(
+            asker,
+            PLAN_LOOKUP,
+            trusted={},
+            untrusted={"question_and_knowledge": _shown(asked, known)},
         )
         if answer.error or not isinstance(answer.data, dict):
             return Planned(Plan(question=asked), answer=answer, refused=answer.error or "no answer")
@@ -119,7 +118,7 @@ class PlanLookups:
         return Planned(
             Plan(
                 question=asked,
-                lookups=tuple(lookups[:K_MAX_LOOKUPS]),
+                lookups=tuple(in_declared_slots(lookups, known)[:K_MAX_LOOKUPS]),
                 why=str(answer.data.get("why") or ""),
             ),
             answer=answer,

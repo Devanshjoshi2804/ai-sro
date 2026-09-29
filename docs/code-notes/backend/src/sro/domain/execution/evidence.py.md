@@ -73,7 +73,7 @@ Code: `PUTS_A_VALUE = frozenset({"type", "select", "upload"})`
 ## `Locator`, [line 22](../../../../../../../backend/src/sro/domain/execution/evidence.py#L22): Docstring
 
 > One rung of the ladder. `within` and `visible_only` are read by the
-> extension (`new-chrome-extension/src/background/in-page.js`) to scope and
+> extension (`new-chrome-extension/src/page/page-code.js`) to scope and
 > filter the match at the wire -- dropping them would let a hidden control
 > through.
 
@@ -153,27 +153,11 @@ Code: `PUTS_A_VALUE = frozenset({"type", "select", "upload"})`
 > What this gesture's control is called -- the names `value_for` looks
 > a run's value up by, in the same three places.
 
-## `unperformable`, [line 122](../../../../../../../backend/src/sro/domain/execution/evidence.py#L122): Docstring
-
-> The first step this job could not be asked to do, or None if it can.
->
-> `primary_gesture`'s question asked of the whole job before it starts, not
-> of one step in the middle of it. A step whose every citation is gone or
-> untargeted gets no locator, no origin and no plan, so the runner records it
-> skipped and stops -- with the steps before it already sent, which leaves a
-> warehouse task half performed and a browser open on it.
->
-> Only the steps the run will attempt: the ones before `from_step` were done
-> by the operator and are never sent, so evidence they no longer have costs
-> this run nothing. Required rather than defaulted to 0 -- a default here is
-> a silent "from the beginning" for a caller resuming halfway, which would
-> refuse a run over evidence for steps it was never going to attempt.
-
-## `_caused_by`, [line 131](../../../../../../../backend/src/sro/domain/execution/evidence.py#L131): Docstring
+## `_caused_by`, [line 122](../../../../../../../backend/src/sro/domain/execution/evidence.py#L122): Docstring
 
 > Whether this gesture is what made this call. See `K_CAUSED_S`.
 
-## `recorded_call`, [line 137](../../../../../../../backend/src/sro/domain/execution/evidence.py#L137): Docstring
+## `recorded_call`, [line 128](../../../../../../../backend/src/sro/domain/execution/evidence.py#L128): Docstring
 
 > The call this step's evidence made: a mutation that came back `CREATED`
 > if there is one, else the first mutation, else the first call at all. What
@@ -247,11 +231,11 @@ Code: `PUTS_A_VALUE = frozenset({"type", "select", "upload"})`
 > -- it picks the create over the keep-alive by rule rather than by the luck
 > of which one the browser happened to fire first.
 
-## `writes`, [line 164](../../../../../../../backend/src/sro/domain/execution/evidence.py#L164): Docstring
+## `writes`, [line 155](../../../../../../../backend/src/sro/domain/execution/evidence.py#L155): Docstring
 
 > Whether performing this step changes something. A dry run withholds it.
 
-## `route_for`, [line 169](../../../../../../../backend/src/sro/domain/execution/evidence.py#L169): Docstring
+## `route_for`, [line 160](../../../../../../../backend/src/sro/domain/execution/evidence.py#L160): Docstring
 
 > Where this step leaves the browser, when leaving it somewhere is all it
 > does -- and there is no other way to know.
@@ -285,13 +269,13 @@ Code: `PUTS_A_VALUE = frozenset({"type", "select", "upload"})`
 > **The next step is on the same page**, so this step did not move the
 > browser and a navigate would be a command that changes nothing.
 
-## `_agreed`, [line 182](../../../../../../../backend/src/sro/domain/execution/evidence.py#L182): Docstring
+## `_agreed`, [line 173](../../../../../../../backend/src/sro/domain/execution/evidence.py#L173): Docstring
 
 > The page this step's doings have in common. `screen_of` keeps what every
 > visit agrees on and drops what varies, so a session token or one record's
 > id cannot become the page a run is sent to.
 
-## `stood_on`, [line 187](../../../../../../../backend/src/sro/domain/execution/evidence.py#L187): Docstring
+## `stood_on`, [line 178](../../../../../../../backend/src/sro/domain/execution/evidence.py#L178): Docstring
 
 > Every system the operator was actually ON while doing this job.
 >
@@ -307,7 +291,7 @@ Code: `PUTS_A_VALUE = frozenset({"type", "select", "upload"})`
 > operator's browser to -- on the evidence of a telemetry beacon, for a job
 > about warehouse customer types. No gesture ever happened there.
 
-## `allowlist`, [line 200](../../../../../../../backend/src/sro/domain/execution/evidence.py#L200): Docstring
+## `allowlist`, [line 191](../../../../../../../backend/src/sro/domain/execution/evidence.py#L191): Docstring
 
 > Where a call this job's evidence already made may be replayed to.
 >
@@ -343,7 +327,7 @@ Code: `leaf = _stable_leaf(target.css_path)`
 > several would get its first. Name the row by its cell text when a
 > job selects among many.
 
-## `recorded_call`, [line 150](../../../../../../../backend/src/sro/domain/execution/evidence.py#L150): Comment
+## `recorded_call`, [line 141](../../../../../../../backend/src/sro/domain/execution/evidence.py#L141): Comment
 
 Code: `if is_background_traffic(request.url):`
 
@@ -352,7 +336,7 @@ Code: `if is_background_traffic(request.url):`
 > dialog was a "write" by `sessionKeepAlive` and `perftrace` alone,
 > and a run could not step over it.
 
-## `route_for`, [line 173](../../../../../../../backend/src/sro/domain/execution/evidence.py#L173): Comment
+## `route_for`, [line 164](../../../../../../../backend/src/sro/domain/execution/evidence.py#L164): Comment
 
 Code: `if not cited or any(one.action.kind != "click" or one.action.value for one in cited):`
 

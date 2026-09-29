@@ -11,7 +11,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/execution/workflow
 > because a run is written step by step -- the runner appends to `steps` as it
 > goes and the orphan sweep rewrites the last verdict of a run nobody is driving.
 
-## module, [line 6](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L6): Note on the line above
+## module, [line 11](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L11): Note on the line above
 
 Code: `OUTCOMES = ("running", "held", "stopped", "refused", "aborted", "failed")`
 
@@ -20,7 +20,7 @@ Code: `OUTCOMES = ("running", "held", "stopped", "refused", "aborted", "failed")
 > allowlist, or the step budget ran out. aborted: the stop button. failed: the
 > browser went away.
 
-## module, [line 8](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L8): Note on the line above
+## module, [line 16](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L16): Note on the line above
 
 Code: `VERDICTS = (`
 
@@ -33,7 +33,7 @@ Code: `VERDICTS = (`
 > step and the job is still whole, which is why it is not `skipped` -- `skipped`
 > is the record's starting value and reads as "nobody got to it".
 
-## `already_running`, [line 21](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L21): Docstring
+## `already_running`, [line 29](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L29): Docstring
 
 > One browser, one hand -- said once, because two places discover it.
 >
@@ -53,7 +53,7 @@ Code: `VERDICTS = (`
 > `run_id` is optional for one case only: the index refused the claim and the
 > winner finished before the losing side could read back which run it was.
 
-## `new_run_id`, [line 25](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L25): Docstring
+## `new_run_id`, [line 41](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L41): Docstring
 
 > A workflow run's id -- and NOT an `sro.domain.shared.identifiers.RunId`.
 >
@@ -64,7 +64,7 @@ Code: `VERDICTS = (`
 > and read as a run that does not exist rather than as a type error. The
 > shape is the rig's and stays; the types are what keep them apart.
 
-## `RunStep`, [line 30](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L30): Docstring
+## `RunStep`, [line 46](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L46): Docstring
 
 > One step of a run, as the panel and the register read it afterwards.
 >
@@ -73,7 +73,7 @@ Code: `VERDICTS = (`
 > is what tells the two apart. A reader treating `sent` as "this reached the
 > warehouse" would report an unapproved write as a performed one.
 
-## `RunStep`, [line 31](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L31): Note on the line above
+## `RunStep`, [line 47](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L47): Note on the line above
 
 Code: `order: int`
 
@@ -82,7 +82,7 @@ Code: `order: int`
 > a job that does one thing once; for a job whose middle repeats, the second
 > pass through the body is further along even though it is the same step.
 
-## `RunStep`, [line 50](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L50): Note on the line above
+## `RunStep`, [line 66](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L66): Note on the line above
 
 Code: `notes: list[str] = field(default_factory=list)`
 
@@ -96,7 +96,7 @@ Code: `notes: list[str] = field(default_factory=list)`
 >
 > A note and never a refusal. See `sro.domain.execution.field_notes`.
 
-## `RunStep`, [line 52](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L52): Note on the line above
+## `RunStep`, [line 68](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L68): Note on the line above
 
 Code: `made: dict[str, str] = field(default_factory=dict)`
 
@@ -107,21 +107,21 @@ Code: `made: dict[str, str] = field(default_factory=dict)`
 > an undo -- the day a tenant's evidence shows one being deleted -- has to
 > address them by whatever the system called them.
 
-## `RunStep`, [line 54](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L54): Note on the line above
+## `RunStep`, [line 70](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L70): Note on the line above
 
 Code: `of_step: int = 0`
 
 > Which step of the JOB this is. `order` says where in the run it happened
 > and these are the same number until a job repeats its middle.
 
-## `RunStep`, [line 56](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L56): Note on the line above
+## `RunStep`, [line 72](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L72): Note on the line above
 
 Code: `item: int | None = None`
 
 > Which thing on the list this was done for, counting from zero, or None
 > for a step done once. What the panel says "item 3 of 5" from.
 
-## `WorkflowRun`, [line 73](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L73): Note on the line above
+## `WorkflowRun`, [line 89](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L89): Note on the line above
 
 Code: `items: list[dict[str, str]] = field(default_factory=list)`
 
@@ -133,7 +133,7 @@ Code: `items: list[dict[str, str]] = field(default_factory=list)`
 > run's own values -- which is the same thing a job with no repeat does, and
 > the reason nothing else in the loop had to learn about repeats.
 
-## `WorkflowRun`, [line 75](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L75): Note on the line above
+## `WorkflowRun`, [line 91](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L91): Note on the line above
 
 Code: `from_step: int = 0`
 
@@ -144,14 +144,14 @@ Code: `from_step: int = 0`
 > run's id -- steps redone against a live warehouse, or steps nobody did
 > recorded as done.
 
-## `WorkflowRun`, [line 78](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L78): Note on the line above
+## `WorkflowRun`, [line 94](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L94): Note on the line above
 
 Code: `withheld: list[dict[str, object]] = field(default_factory=list)`
 
 > The writes a dry run produced and did not send, in full. This is what a
 > person reads before pressing through to live.
 
-## `WorkflowRun`, [line 86](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L86): Note on the line above
+## `WorkflowRun`, [line 102](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L102): Note on the line above
 
 Code: `watched: bool = False`
 
@@ -172,7 +172,7 @@ Code: `watched: bool = False`
 > A press in an open panel means "show me". A trigger at three in the morning
 > means "just do it".
 
-## `WorkflowRun`, [line 88](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L88): Note on the line above
+## `WorkflowRun`, [line 104](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L104): Note on the line above
 
 Code: `doing: str = ""`
 
@@ -189,7 +189,7 @@ Code: `doing: str = ""`
 > looking starts and cleared when it ends. Empty for every run that only ever
 > did its steps, which is what a run normally is.
 
-## `WorkflowRun`, [line 90](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L90): Note on the line above
+## `WorkflowRun`, [line 106](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L106): Note on the line above
 
 Code: `gathered: dict[str, dict[str, str]] = field(default_factory=dict)`
 
@@ -204,7 +204,7 @@ Code: `gathered: dict[str, dict[str, str]] = field(default_factory=dict)`
 > Empty for every run whose values came from a person, which is most of them
 > and all of them before 2026-09-16.
 
-## `WorkflowRun`, [line 92](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L92): Note on the line above
+## `WorkflowRun`, [line 108](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L108): Note on the line above
 
 Code: `unasked: list[str] = field(default_factory=list)`
 
@@ -224,7 +224,7 @@ Code: `unasked: list[str] = field(default_factory=list)`
 > Names and never values. This is read by a panel and a log, and what
 > somebody wrote in their own mail is theirs.
 
-## `WorkflowRun`, [line 94](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L94): Note on the line above
+## `WorkflowRun`, [line 110](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L110): Note on the line above
 
 Code: `needs: list[str] = field(default_factory=list)`
 
@@ -243,7 +243,7 @@ Code: `needs: list[str] = field(default_factory=list)`
 >
 > Empty for every run that found everything, which is nearly all of them.
 
-## `WorkflowRun`, [line 96](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L96): Note on the line above
+## `WorkflowRun`, [line 112](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L112): Note on the line above
 
 Code: `undoes_run: str | None = None`
 
@@ -259,7 +259,7 @@ Code: `undoes_run: str | None = None`
 > An id and never a status. Whether the undo worked is this run's own
 > outcome, read where every other outcome is read.
 
-## `WorkflowRun`, [line 98](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L98): Note on the line above
+## `WorkflowRun`, [line 114](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L114): Note on the line above
 
 Code: `asked_the_asker: bool = False`
 
@@ -269,7 +269,7 @@ Code: `asked_the_asker: bool = False`
 > worker that restarted between one stop and the next would otherwise buy
 > somebody a second mail about one request. A mail cannot be unsent.
 
-## `WorkflowRun`, [line 100](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L100): Note on the line above
+## `WorkflowRun`, [line 116](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L116): Note on the line above
 
 Code: `awaiting: dict[str, str] | None = None`
 
@@ -284,7 +284,7 @@ Code: `awaiting: dict[str, str] | None = None`
 > `domain/execution/waiting.py`, which holds the deadline: a pause with no
 > end to it is not a pause.
 
-## `WorkflowRun`, [line 102](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L102): Note on the line above
+## `WorkflowRun`, [line 118](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L118): Note on the line above
 
 Code: `wrong_because: str | None = None`
 
@@ -299,3 +299,45 @@ Code: `wrong_because: str | None = None`
 > So the only witness is the person whose browser it ran in, and this is
 > where what they said is kept. Null on every run nobody has reported, which
 > is almost all of them.
+
+## module, [line 12](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L12): Note
+
+Code: `ENDED = ("held", "aborted", "failed")`
+
+> The outcomes a run never leaves. `WorkflowRunRepository.save` keeps them
+> (and `finished_at`) against any later save, so a worker that loaded the run
+> before a stop cannot write it back to `running`.
+
+## `WorkflowRun`, [line 126](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L126): Note on the line above
+
+Code: `pinned: Workflow | None = None`
+
+> The job as the run started it (X11), whole: a pinned run never needs the live
+> job to go on. Written once, by the start, in the same
+> unit of work that computed the run's first progress -- a takeover's resume
+> index is an index into these steps -- and never rewritten: the store's upsert
+> leaves it out. None on an extension run, which holds its job in memory for
+> its whole life.
+
+## `answers_for`, [line 146](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L146): Note
+
+Code: `return principal in {run.started_by, opened_by} - {""}`
+
+> Who may answer a run: its starter alone (invariant 5; S1). `AnswerRun`
+> passes no opener, so the route and the mail door answer for the starter and
+> nobody else. `opened_by` is the opener of the thread the caller is in now,
+> which is not always the thread the run started from; chat's `_what_stands`
+> passes it only to say where the run stands, beside chat's own offers and
+> questions in that thread. Never pass it to grant an answer. An empty
+> `started_by` (a legacy row) matches nobody.
+
+## `end_the_steps`, [line 134](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L134): Docstring
+
+> Record why a run ended without its own finish (the stuck-run sweep, the
+> startup orphan sweep). A step that settled (`done`, `skipped`,
+> `not_needed`) keeps its verdict and the reason goes on a new step after it:
+> resuming starts again at the last step's order (`begins_again_at`), so a
+> finished write marked failed would be performed a second time.
+>
+> A run that died before its first step gets a step of its own: the reason
+> has to land somewhere the panel shows it.

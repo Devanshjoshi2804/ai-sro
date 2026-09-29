@@ -1,4 +1,4 @@
-// How a run this browser was driving ended, and which process to ask.
+// How a run the panel was watching ended, and which door to ask.
 //
 // Lifted out of `service-worker.js` -- where `checkFinishing()` still lives and
 // still decides *when* to ask -- for one reason: that file registers chrome
@@ -23,9 +23,8 @@ import { state } from "./state.js";
  * of, because the rig was once its own service with its own store. It was
  * folded into the backend, and both kinds of run now live in the same
  * Postgres. The value on the record is left spelled `"rig"` because it is
- * persisted in `state.activeRun()` and written by `commands.js`,
- * `offering.js` and the worker; renaming it would strand whatever is in
- * flight in somebody's browser. Read it as "workflow run".
+ * persisted in `state.activeRun()` by the worker; renaming it would strand
+ * whatever is in flight in somebody's browser. Read it as "workflow run".
  *
  * Nothing is decided here past which door. `derived` and `reversal` are
  * computed against the tenant's whole skill library, which only the skill

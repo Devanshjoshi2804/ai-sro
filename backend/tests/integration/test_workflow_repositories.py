@@ -13,28 +13,51 @@ rest are the effects and stale rules, which plan 1 ported as pure rules in
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Awaitable, Callable, Mapping
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.exc import DBAPIError
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from sro.application.observation.mining_pass import mine
+from sro.application.context import RequestContext
+from sro.application.observation.mining_pass import (
+    _grow,
+    _mend,
+    fill_in_passwords,
+    learn_parameters,
+    mine,
+)
+from sro.application.runtime.teach import Teach
 from sro.domain.execution.belts import RunProof, earned_from
+from sro.domain.execution.compose import Composed, with_field
+from sro.domain.execution.lanes import Broken, Lane, StepResult
 from sro.domain.execution.learned_step import LearnedStep
 from sro.domain.execution.verified_writes import VerifiedWrite
-from sro.domain.execution.workflow_run import RunStep, WorkflowRun, new_run_id
+from sro.domain.execution.workflow_run import (
+    RunStep,
+    WorkflowRun,
+    new_run_id,
+    pin,
+)
+from sro.domain.execution.write_plan import learned_slots
+from sro.domain.observation.gesture import Gesture
 from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.errors import Conflict, NotFound
-from sro.domain.shared.identifiers import TenantId
+from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
-from sro.domain.skill.workflow import Step, Workflow, new_workflow_id
+from sro.domain.skill.signing_in import Logins
+from sro.domain.skill.workflow import Step, Workflow, field_key, new_workflow_id
+from sro.infrastructure.db import workflows as workflows_module
+from sro.infrastructure.db.locks import PostgresAccountLocks
 from sro.infrastructure.db.models import WorkflowEffectRow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from tests.unit.domain.rig.conftest import gestures as _gestures
-from tests.unit.fakes import FakeAsker
+from tests.unit.fakes import FakeAccountLocks, FakeAsker, FakeClock
 
 FOUND_BY = "pas_abcdef"
 
@@ -67,7 +90,6 @@ def _workflow(**overrides: Any) -> Workflow:
         ],
         "parameters": [{"name": "supplier_name", "seen_values": ["TestYonder2"]}],
         "shape_key": [["https://wms.example", "clientCode", "type"]],
-        "same_as": None,
         "pass_id": "pas_1",
     }
     fields.update(overrides)
@@ -132,10 +154,11 @@ class TestWorkflows:
     async def test_a_job_that_signs_in_is_read_back_as_one(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
-        """Decided once by the mining pass and read by every run after it, so
-        it has to survive the store -- and a re-save must be able to clear it
-        when the healing pass reads the evidence differently."""
-        workflow = _workflow(signs_in=True)
+        """Decided by the mining pass and read by every run after it, so it has
+        to survive the store -- and a decision must be able to clear it when
+        the evidence reads differently; a whole-job re-save never does. A job
+        nobody has judged reads back undecided (None), never as decided."""
+        workflow = _workflow(signs_in=True, signs_out=False)
         ordinary = _workflow()
 
         async with SqlUnitOfWork(session_factory) as uow:
@@ -145,13 +168,16 @@ class TestWorkflows:
 
         async with SqlUnitOfWork(session_factory) as uow:
             assert (await uow.workflows.get(TENANT, workflow.id)).signs_in is True
-            assert (await uow.workflows.get(TENANT, ordinary.id)).signs_in is False
-            workflow.signs_in = False
-            await uow.workflows.save(workflow)
+            back = await uow.workflows.get(TENANT, ordinary.id)
+            assert (back.signs_in, back.signs_out) == (None, None)
+            await uow.workflows.save(replace(workflow, signs_in=False))
+            assert (await uow.workflows.get(TENANT, workflow.id)).signs_in is True
+            assert await uow.workflows.decide(TENANT, workflow, signs_in=False, signs_out=True)
             await uow.commit()
 
         async with SqlUnitOfWork(session_factory) as uow:
-            assert (await uow.workflows.get(TENANT, workflow.id)).signs_in is False
+            back = await uow.workflows.get(TENANT, workflow.id)
+        assert (back.signs_in, back.signs_out) == (False, True)
 
     async def test_a_retired_job_stays_retired_and_its_evidence_stays_placed(
         self, session_factory: async_sessionmaker[AsyncSession]
@@ -509,6 +535,13 @@ class TestEffects:
             await uow.workflows.mark_stale(
                 workflow.id, 1, matched_by="text", noticed_at="2026-09-21T10:00:00+00:00"
             )
+            await uow.workflows.break_lane(
+                TenantId("acme"),
+                workflow.id,
+                Broken(1, Lane.API, "fp"),
+                cites="g1",
+                at=datetime(2026, 9, 21, tzinfo=UTC),
+            )
             await uow.commit()
 
         # It grows: what was step 1 is now step 2, with a new step between.
@@ -529,6 +562,11 @@ class TestEffects:
             )
             assert learnt[0].query == "#save"
             assert await uow.workflows.stale_count(workflow.id) == 1
+            assert await uow.workflows.broken_for(
+                TenantId("acme"), workflow.id, {2: "g1"}, now=datetime(2026, 9, 21, tzinfo=UTC)
+            ) == (Broken(2, Lane.API, "fp"),), (
+                "a lane known broken stayed on a step that is now somebody else's"
+            )
 
     async def test_a_step_left_behind_takes_its_learning_with_it(
         self, session_factory: async_sessionmaker[AsyncSession]
@@ -777,61 +815,69 @@ class TestStaleSteps:
             assert await uow.workflows.stale_count(workflow.id) == 0
 
 
-class TestTheMiningPass:
-    """The one rule of `mine` that only a real session can prove.
+FAILS = "the step Postgres refuses"
 
-    Everything else about the pass is arithmetic over fakes in
-    `tests/unit/application/rig/test_mine.py`. This is the half no fake can
-    answer: what a store does to a transaction whose statement failed, and
-    whether the bill the pass writes in its `finally` survives it.
-    """
 
-    async def test_the_bill_is_written_on_a_session_the_save_killed(
+def _a_step_postgres_refuses(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A step whose insert fails on the server. `workflow_from` refuses what a
+    model could send to make one (control characters, orders past int32), so
+    the failure is planted below the domain: the row's key outgrows its column."""
+    real = workflows_module._step_values
+
+    def refused(workflow_id: str, step: Step) -> dict[str, Any]:
+        values = real(workflow_id, step)
+        return {**values, "workflow_id": "w" * 65} if step.says == FAILS else values
+
+    monkeypatch.setattr(workflows_module, "_step_values", refused)
+
+
+class TestWhatAPassHasMined:
+    """What a pass read is recorded in the same transaction as what it kept,
+    under the tenant's mining lock -- proved against the real lock and store."""
+
+    async def test_a_re_saved_job_keeps_a_column_nothing_maps_any_more(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
-        """A pass whose workflow will not go into the store is still a pass
-        that was billed.
+        """`workflows.same_as` stays in the schema with nothing writing it
+        (GC 17). A re-save replaces what it supplies, and only that."""
+        job = _workflow()
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(job)
+            await uow.commit()
+        async with session_factory() as session:
+            await session.execute(text("UPDATE workflows SET same_as = 'wfl_older'"))
+            await session.commit()
 
-        `same_as` is `varchar(64)` and comes straight off the model answer, so
-        a model that names a job in a hundred characters is an ordinary
-        statement error rather than a contrived one. Postgres then refuses
-        every further statement on the transaction -- so before the
-        rollback-and-retry this probe read `passes: 0, workflows: 0`, with a
-        DBAPIError in place of the error that caused it, and the only record
-        of a paid-for call was gone.
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(replace(job, title="renamed"))
+            await uow.commit()
 
-        The rig never met this: its `store.execute` opened a connection per
-        statement, so each save was its own committed transaction. One session
-        is this port's shape.
-        """
+        async with session_factory() as session:
+            kept = await session.scalar(text("SELECT same_as FROM workflows"))
+        assert kept == "wfl_older"
+
+    async def test_the_bill_is_written_on_a_session_the_save_killed(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A pass whose workflow will not go into the store is still a pass that
+        was billed. Postgres refuses every further statement on a transaction
+        whose statement failed, so without the rollback-and-retry in `_one_pass`'s
+        `finally` the bill went with it. The statement is killed on the server:
+        one step's row carries a key longer than its column allows."""
+        _a_step_postgres_refuses(monkeypatch)
         gestures = _gestures(TENANT.value)
         proposal = {
             "title": "create a work operation",
             "narrative": "n",
             "systems": [gestures[0].system],
-            # Two steps, because `validate` refuses anything shorter than
-            # `identity.K_MIN_SHARED_STEPS` and this probe needs the workflow
-            # to reach the SAVE, where the oversized `same_as` kills the
-            # statement. Both cite the same gesture, so nothing else moves.
             "steps": [
-                {
-                    "order": 0,
-                    "cites": [gestures[0].id],
-                    "says": "do it",
-                    "system": gestures[0].system,
-                },
-                {
-                    "order": 1,
-                    "cites": [gestures[0].id],
-                    "says": "save it",
-                    "system": gestures[0].system,
-                },
+                {"order": 0, "cites": [gestures[0].id], "says": "do it"},
+                {"order": 1, "cites": [gestures[0].id], "says": FAILS},
             ],
-            # Longer than the column, which is what kills the statement.
-            "same_as": "wfl_" + "0" * 100,
         }
         asker = FakeAsker(Answer(data={"workflows": [proposal]}, cost_usd=0.04))
-
         async with SqlUnitOfWork(session_factory) as uow:
             await uow.gestures.add_gestures(tuple(gestures))
             await uow.commit()
@@ -842,7 +888,7 @@ class TestTheMiningPass:
                     uow,
                     tenant_id=TENANT,
                     asker=asker,
-                    model="gemini-3.1-pro",
+                    locks=FakeAccountLocks(),
                     now=datetime(2025, 2, 11, 23, tzinfo=UTC),
                     cap_usd=100.0,
                 )
@@ -850,12 +896,105 @@ class TestTheMiningPass:
         async with SqlUnitOfWork(session_factory) as uow:
             billed = await uow.workflows.passes(TENANT)
             kept = await uow.workflows.known(TENANT)
-
-        assert [one.cost_usd for one in billed] == [0.04], "the call was billed; the row proves it"
+        assert [one.cost_usd for one in billed] == [0.04]
         assert billed[0].proposed == 1
-        # Postgres discarded them when the statement failed. Nothing here can
-        # keep them, and the bill is what must not go with them.
         assert kept == ()
+
+    async def test_a_job_whose_steps_fail_is_not_stored_and_the_job_before_it_is(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Saving one job is one savepoint. A step insert that fails takes that
+        job's row back with it, and the pass's `finally` -- which commits the
+        bill -- can then never commit a job without its steps. The job kept
+        earlier in the same pass is untouched."""
+        _a_step_postgres_refuses(monkeypatch)
+        day = _gestures(TENANT.value)
+        gestures = {g.action.kind: g for g in day}
+        typed, picked = gestures["type"], gestures["select"]
+        good = {
+            "title": "create a work operation",
+            "narrative": "n",
+            "systems": [typed.system],
+            "steps": [
+                {"order": 0, "cites": [typed.id], "says": "type it"},
+                {"order": 1, "cites": [typed.id], "says": "save it"},
+            ],
+        }
+        bad = {
+            "title": "pick a dock",
+            "narrative": "n",
+            "systems": [picked.system],
+            "steps": [
+                {"order": 0, "cites": [picked.id], "says": "pick it"},
+                {"order": 1, "cites": [picked.id], "says": FAILS},
+            ],
+        }
+        asker = FakeAsker(Answer(data={"workflows": [good, bad]}, cost_usd=0.04))
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.gestures.add_gestures(tuple(day))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            with pytest.raises(DBAPIError):
+                await mine(
+                    uow,
+                    tenant_id=TENANT,
+                    asker=asker,
+                    locks=FakeAccountLocks(),
+                    now=datetime(2025, 2, 11, 23, tzinfo=UTC),
+                    cap_usd=100.0,
+                )
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            kept = await uow.workflows.known(TENANT)
+            billed = await uow.workflows.passes(TENANT)
+        async with session_factory() as session:
+            rows = await session.scalar(text("SELECT count(*) FROM workflows"))
+            steps = await session.scalar(text("SELECT count(*) FROM workflow_steps"))
+        assert [one.title for one in kept] == ["create a work operation"]
+        assert (rows, steps) == (1, len(kept[0].steps))
+        assert [one.cost_usd for one in billed] == [0.04]
+
+    async def test_two_passes_at_once_ask_the_model_once(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        gestures = _gestures(TENANT.value)
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.gestures.add_gestures(tuple(gestures))
+            await uow.commit()
+        proposal = {
+            "title": "create a work operation",
+            "narrative": "n",
+            "systems": [gestures[0].system],
+            "steps": [
+                {"order": 0, "cites": [gestures[0].id], "says": "do it"},
+                {"order": 1, "cites": [gestures[0].id], "says": "save it"},
+            ],
+        }
+        asker = FakeAsker(*[Answer(data={"workflows": [proposal]}, cost_usd=0.01)] * 2)
+        locks = PostgresAccountLocks(engine)
+
+        async def mines() -> None:
+            async with SqlUnitOfWork(session_factory) as uow:
+                await mine(
+                    uow,
+                    tenant_id=TENANT,
+                    asker=asker,
+                    locks=locks,
+                    now=datetime(2025, 2, 11, 23, tzinfo=UTC),
+                    cap_usd=100.0,
+                )
+
+        await asyncio.gather(mines(), mines())
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            kept = await uow.workflows.known(TENANT)
+            billed = await uow.workflows.passes(TENANT)
+        assert len(asker.asked) == 1
+        assert len(kept) == 1
+        assert sorted(one.cost_usd for one in billed) == [0.0, 0.01]
 
 
 class TestAStepNamesWhatItUses:
@@ -892,6 +1031,21 @@ class TestAStepNamesWhatItUses:
 
         assert all(step.uses == [] for step in back.steps)
 
+    async def test_a_steps_tab_survives_a_save(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        workflow = _workflow()
+        workflow.steps[1].tab = "opened_from:main"
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(workflow)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            back = await uow.workflows.get(TENANT, workflow.id)
+
+        assert [step.tab for step in back.steps] == ["main", "opened_from:main"]
+
 
 class TestWhatAJobTaughtItself:
     """The history behind the learning, against the store that overwrites it.
@@ -926,6 +1080,29 @@ class TestWhatAJobTaughtItself:
         ]
         assert [one.by_run for one in changes] == ["run_b", "run_a"]
         assert changes[0].found_by == "sight"
+
+    async def test_a_sight_locator_keeps_its_frame_through_a_limit_and_loses_it_when_replaced(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        hops = '[{"index": 1, "url": "https://wms.example/frames/form"}]'
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(_workflow())
+            await uow.workflows.remember_locator(
+                "wfl_1", LearnedStep(2, "component", "#save", "sight", frame_path=hops)
+            )
+            await uow.workflows.remember_limit("wfl_1", 2, 40)
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            kept = await uow.workflows.learned_for("wfl_1")
+            await uow.workflows.remember_locator("wfl_1", LearnedStep(2, "text", "Save", "text"))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            replaced = await uow.workflows.learned_for("wfl_1")
+
+        assert [(one.query, one.holds, one.frame_path) for one in kept] == [("#save", 40, hops)]
+        assert [(one.query, one.frame_path) for one in replaced] == [("Save", None)]
 
     async def test_a_run_that_found_what_the_last_one_found_writes_nothing(
         self, session_factory: async_sessionmaker[AsyncSession]
@@ -987,3 +1164,450 @@ class TestWhatAJobTaughtItself:
 
         async with SqlUnitOfWork(session_factory) as uow:
             assert len(await uow.workflows.taught_itself("wfl_1")) == 1
+
+
+class TestARunKeepsItsVersion:
+    """X11: a grow renumbers the job's steps and what the job learned by step
+    number. Every writer that renumbers, and every reader or teacher that
+    trusts the numbering, holds the job's row lock; each test here holds a
+    grow open on the row and runs one of them against it, and goes red if
+    that one does not take the lock."""
+
+    async def test_two_runs_learning_on_one_version_grow_the_job_once(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        job = _workflow()
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(job)
+            await uow.workflows.remember_locator(
+                job.id, LearnedStep(1, "component", "status", "evidence")
+            )
+            await uow.commit()
+
+        await asyncio.gather(
+            _learns(session_factory, job, "department"), _learns(session_factory, job, "region")
+        )
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            now = await uow.workflows.get(TENANT, job.id)
+            learned = await uow.workflows.learned_for(job.id)
+        assert [one.order for one in now.steps] == [0, 1, 2]
+        assert [(one.ord, one.query) for one in learned] == [(2, "status")]
+
+    async def test_a_mining_grow_waits_for_a_learned_field_and_keeps_it(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        job, by_id = await _a_real_job(session_factory)
+        proposal = replace(
+            job,
+            steps=[
+                *job.steps,
+                Step(order=2, says="press it", system=SYSTEM, cites=[_GESTURES[4].id]),
+            ],
+        )
+
+        async def grows() -> None:
+            async with SqlUnitOfWork(session_factory) as uow:
+                await _grow(uow, tenant_id=TENANT, known_id=job.id, proposal=proposal, by_id=by_id)
+                await uow.commit()
+
+        await _against_an_open_grow(session_factory, engine, job, grows)
+
+        steps, learned = await _now(session_factory, job)
+        assert steps == ["type it", "Fill Department", "save it", "press it"]
+        assert learned == [(1, "combobox|Department"), (2, "#save")]
+
+    async def test_a_run_teaches_nothing_under_a_numbering_a_grow_is_replacing(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        job, by_id = await _a_real_job(session_factory)
+        sighted = {"strategy": "css", "query": "#seen", "frame_path": "[]"}
+
+        async def teaches() -> None:
+            await Teach(SqlUnitOfWork(session_factory), FakeClock()).learn(
+                CTX,
+                job,
+                by_id,
+                job.steps[1],
+                (StepResult("done", Lane.SIGHT, learned=sighted),),
+                run_id="run_old",
+                values={},
+            )
+
+        await _against_an_open_grow(session_factory, engine, job, teaches)
+
+        _, learned = await _now(session_factory, job)
+        assert learned == [(1, "combobox|Department"), (2, "#save")]
+
+    async def test_a_run_reads_no_locator_under_a_numbering_a_grow_is_replacing(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        job, _ = await _a_real_job(session_factory)
+
+        async def reads() -> Mapping[int, LearnedStep]:
+            return await Teach(SqlUnitOfWork(session_factory), FakeClock()).locators(CTX, job)
+
+        assert await _against_an_open_grow(session_factory, engine, job, reads) == {}
+
+    async def test_learning_parameters_waits_for_a_learned_field_and_keeps_it(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        twice = [{"name": "a", "key": "k"}, {"name": "b", "key": "k"}]
+        job, _ = await _a_real_job(session_factory, parameters=twice)
+
+        async def learns() -> None:
+            async with SqlUnitOfWork(session_factory) as uow:
+                await learn_parameters(
+                    uow,
+                    tenant_id=TENANT,
+                    known_id=job.id,
+                    doings=(replace(job, steps=[]),),
+                    by_id={},
+                    intents={},
+                    logins=Logins(),
+                )
+                await uow.commit()
+
+        await _against_an_open_grow(session_factory, engine, job, learns)
+
+        steps, learned = await _now(session_factory, job)
+        assert steps == ["type it", "Fill Department", "save it"]
+        assert learned == [(1, "combobox|Department"), (2, "#save")]
+
+    async def test_healing_the_steps_waits_for_a_learned_field_and_keeps_it(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        job, _ = await _a_real_job(session_factory)
+
+        async def heals() -> None:
+            async with SqlUnitOfWork(session_factory) as uow:
+                assert await fill_in_passwords(uow, tenant_id=TENANT) == 1
+                await uow.commit()
+
+        await _against_an_open_grow(session_factory, engine, job, heals)
+
+        steps, learned = await _now(session_factory, job)
+        assert steps == ["type it", "Fill Department", "save it"]
+        assert learned == [(1, "combobox|Department"), (2, "#save")]
+
+    async def test_a_grow_stopped_mid_way_leaves_the_job_to_the_learning_that_waited(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        job, _ = await _a_real_job(session_factory)
+
+        await _against_an_open_grow(
+            session_factory,
+            engine,
+            job,
+            lambda: _learns(session_factory, job, "region"),
+            stopped=True,
+        )
+
+        steps, learned = await _now(session_factory, job)
+        assert steps == ["type it", "Fill Region", "save it"]
+        assert learned == [(2, "#save")]
+
+    async def test_a_mining_pass_holds_no_job_s_row_while_it_asks_the_model(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        """The pass's listing says the job needs healing; by the locked re-read a
+        heal has landed and there is nothing left to do. That re-read's lock must
+        still end before the model is asked -- a call of up to minutes -- or every
+        run's learning on the job waits for it."""
+        job, by_id = await _a_real_job(session_factory)
+        asker = _AsksAndWaits()
+
+        async def mines() -> None:
+            async with SqlUnitOfWork(session_factory) as uow:
+                await mine(
+                    uow,
+                    tenant_id=TENANT,
+                    asker=asker,
+                    locks=FakeAccountLocks(),
+                    now=datetime(2025, 2, 11, 23, tzinfo=UTC),
+                    cap_usd=100.0,
+                )
+
+        async with SqlUnitOfWork(session_factory) as healer:
+            held = await healer.workflows.get(TENANT, job.id, lock=True)
+            assert await _mend(healer, TENANT, held, by_id)
+            mining = asyncio.ensure_future(mines())
+            await _until_it_waits_or_ends(engine, mining)
+            await healer.commit()
+        asking = asyncio.ensure_future(asker.asked_at.wait())
+        await asyncio.wait({mining, asking}, return_when=asyncio.FIRST_COMPLETED)
+        assert asker.asked_at.is_set()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            healed = await uow.workflows.get(TENANT, job.id)
+        learning = asyncio.ensure_future(_learns(session_factory, healed, "department"))
+        await _until_it_waits_or_ends(engine, learning)
+        learned_while_asking = learning.done()
+        asker.answer.set()
+        await asyncio.gather(mining, learning)
+
+        assert learned_while_asking
+        steps, _ = await _now(session_factory, job)
+        assert "Fill Department" in steps
+
+    async def test_a_run_s_pin_is_written_once(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        job = _workflow()
+        run = _run(job.id, outcome="running", pinned=pin(job))
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflows.save(job)
+            await uow.workflow_runs.save(run)
+            await uow.commit()
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.workflow_runs.save(replace(run, pinned=pin(replace(job, steps=[]))))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            back = await uow.workflow_runs.get(TENANT, run.id)
+        assert back is not None and back.pinned == job
+
+
+class TestAVerdictFollowsTheSteps:
+    """F3: whether a job signs in or out is decided again whenever a grow, a
+    heal or a learn changes its steps, and the decision writes two columns
+    over the job exactly as it was read -- never a whole-job save."""
+
+    async def test_a_learn_that_lands_during_a_decision_is_not_overwritten(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """The learn changes the steps and leaves the verdict exactly as it
+        was, so only the steps can tell the decider its read is stale: a
+        `decide` that compared the verdicts alone would write here."""
+        job, _ = await _a_real_job(session_factory)
+        async with SqlUnitOfWork(session_factory) as sweep:
+            (read,) = await sweep.workflows.undecided()
+            assert await sweep.workflows.decide(TENANT, read, signs_in=True, signs_out=False)
+            await sweep.commit()
+        async with SqlUnitOfWork(session_factory) as sweep:
+            read = await sweep.workflows.get(TENANT, job.id)
+
+        await _learns(session_factory, job, "region")
+
+        async with SqlUnitOfWork(session_factory) as sweep:
+            decided = await sweep.workflows.decide(TENANT, read, signs_in=False, signs_out=True)
+            await sweep.commit()
+        async with SqlUnitOfWork(session_factory) as uow:
+            now = await uow.workflows.get(TENANT, job.id)
+
+        assert decided is False
+        assert [one.says for one in now.steps] == ["type it", "Fill Region", "save it"]
+        assert (now.signs_in, now.signs_out) == (True, False)
+        assert [one["name"] for one in now.parameters] == ["region"]
+
+    async def test_a_learn_waits_for_a_decision_in_flight_and_keeps_both(
+        self, session_factory: async_sessionmaker[AsyncSession], engine: AsyncEngine
+    ) -> None:
+        job, _ = await _a_real_job(session_factory)
+        async with SqlUnitOfWork(session_factory) as sweep:
+            (read,) = await sweep.workflows.undecided()
+            assert await sweep.workflows.decide(TENANT, read, signs_in=True, signs_out=False)
+            learning = asyncio.ensure_future(_learns(session_factory, job, "region"))
+            await _until_it_waits_or_ends(engine, learning)
+            assert not learning.done()
+            await sweep.commit()
+        await learning
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            now = await uow.workflows.get(TENANT, job.id)
+        assert [one.says for one in now.steps] == ["type it", "Fill Region", "save it"]
+        assert (now.signs_in, now.signs_out) == (True, False)
+
+    async def test_a_whole_job_save_from_a_stale_read_keeps_the_decision(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        twice = [{"name": "a", "key": "k"}, {"name": "b", "key": "k"}]
+        job, _ = await _a_real_job(session_factory, parameters=twice)
+        async with SqlUnitOfWork(session_factory) as learner:
+            stale = await learner.workflows.get(TENANT, job.id)
+            async with SqlUnitOfWork(session_factory) as sweep:
+                assert await sweep.workflows.decide(TENANT, stale, signs_in=False, signs_out=True)
+                await sweep.commit()
+            await learner.workflows.save(replace(stale, parameters=twice[:1]))
+            await learner.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            now = await uow.workflows.get(TENANT, job.id)
+        assert now.parameters == twice[:1]
+        assert (now.signs_in, now.signs_out) == (False, True)
+
+
+CTX = RequestContext(tenant_id=TENANT, principal_id=PrincipalId("clerk"))
+_GESTURES = _gestures(TENANT.value)
+SYSTEM = _GESTURES[0].system
+
+
+async def _a_real_job(
+    session_factory: async_sessionmaker[AsyncSession],
+    *,
+    parameters: list[dict[str, object]] | None = None,
+) -> tuple[Workflow, dict[str, Gesture]]:
+    """Type, then save, citing real gestures, stored with them and with a
+    locator learned for the save."""
+    job = _workflow(
+        systems=[SYSTEM],
+        steps=[
+            Step(order=0, says="type it", system=SYSTEM, cites=[_GESTURES[0].id]),
+            Step(order=1, says="save it", system=SYSTEM, cites=[_GESTURES[3].id]),
+        ],
+        parameters=parameters or [],
+        signs_in=None,
+    )
+    async with SqlUnitOfWork(session_factory) as uow:
+        await uow.gestures.add_gestures(tuple(_GESTURES))
+        await uow.workflows.save(job)
+        await uow.workflows.remember_locator(job.id, LearnedStep(1, "css", "#save", "sight"))
+        await uow.commit()
+    return job, {one.id: one for one in _GESTURES}
+
+
+async def _learns(
+    session_factory: async_sessionmaker[AsyncSession], job: Workflow, name: str
+) -> None:
+    await Teach(SqlUnitOfWork(session_factory), FakeClock()).learn_field(
+        CTX,
+        job,
+        Composed(name, name.title(), "combobox", 1),
+        key=name,
+        value="x",
+        learned={},
+        lane=Lane.UI,
+        run_id=f"run_{name}",
+    )
+
+
+async def _against_an_open_grow[T](
+    session_factory: async_sessionmaker[AsyncSession],
+    engine: AsyncEngine,
+    job: Workflow,
+    other: Callable[[], Awaitable[T]],
+    *,
+    stopped: bool = False,
+) -> T:
+    """Grows `job` by a Department field before its save, as `learn_field`
+    does, and holds that open while `other` runs; commits once `other` is
+    waiting on a lock (or has finished without one), or rolls back when
+    `stopped`."""
+    async with SqlUnitOfWork(session_factory) as grow:
+        held = await grow.workflows.get(TENANT, job.id, lock=True)
+        grown, moved = with_field(
+            held, Composed("department", "Department", "combobox", 1), key="department", value="x"
+        )
+        await grow.workflows.grew(grown, moved=moved)
+        await grow.workflows.remember_locator(
+            job.id, LearnedStep(1, "role_and_name", "combobox|Department", "composed")
+        )
+        running = asyncio.ensure_future(other())
+        await _until_it_waits_or_ends(engine, running)
+        if not stopped:
+            await grow.commit()
+    return await running
+
+
+async def _until_it_waits_or_ends(engine: AsyncEngine, running: asyncio.Future[Any]) -> None:
+    """Returns once some session waits on a lock, or `running` has finished."""
+    async with engine.connect() as watching:
+        while not running.done():
+            waiting = await watching.scalar(
+                text(
+                    "SELECT count(*) FROM pg_stat_activity"
+                    " WHERE datname = current_database() AND wait_event_type = 'Lock'"
+                )
+            )
+            if waiting:
+                return
+            await asyncio.sleep(0.01)
+
+
+class _AsksAndWaits(FakeAsker):
+    """A model call that holds until `answer` is set, and says when it began."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.asked_at = asyncio.Event()
+        self.answer = asyncio.Event()
+
+    async def ask(self, **question: Any) -> Answer:
+        self.asked_at.set()
+        await self.answer.wait()
+        return await super().ask(**question)
+
+
+async def _now(
+    session_factory: async_sessionmaker[AsyncSession], job: Workflow
+) -> tuple[list[str], list[tuple[int, str]]]:
+    async with SqlUnitOfWork(session_factory) as uow:
+        now = await uow.workflows.get(TENANT, job.id)
+        learned = await uow.workflows.learned_for(job.id)
+    return [one.says for one in now.steps], sorted((one.ord, one.query) for one in learned)
+
+
+class TestALearnedSlot:
+    """K1: an API break takes a learned field's slot out of the job, a keyed UI
+    write puts it back, and both are saved under the job's row lock."""
+
+    async def _slotted(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> tuple[Workflow, Step, dict[str, Gesture]]:
+        job, by_id = await _a_real_job(session_factory)
+        await _learns(session_factory, job, "department")
+        async with SqlUnitOfWork(session_factory) as uow:
+            grown = await uow.workflows.get(TENANT, job.id)
+        write = next(one for one in grown.steps if one.says == "save it")
+        assert learned_slots(grown, write) == {"department": "department"}
+        return grown, write, by_id
+
+    async def _learn(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        job: Workflow,
+        write: Step,
+        by_id: dict[str, Gesture],
+        result: StepResult,
+    ) -> Workflow:
+        await Teach(SqlUnitOfWork(session_factory), FakeClock()).learn(
+            CTX, job, by_id, write, (result,), run_id="run_k1", values={}
+        )
+        async with SqlUnitOfWork(session_factory) as uow:
+            return await uow.workflows.get(TENANT, job.id)
+
+    async def test_an_api_break_takes_the_slot_out_and_a_keyed_ui_write_puts_it_back(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        job, write, by_id = await self._slotted(session_factory)
+
+        broke = await self._learn(
+            session_factory, job, write, by_id, StepResult("failed", Lane.API, fingerprint="f")
+        )
+        assert learned_slots(broke, write) == {}
+        assert field_key(broke, broke.steps[1]) == "department"
+
+        back = await self._learn(
+            session_factory,
+            broke,
+            write,
+            by_id,
+            StepResult("done", Lane.UI, keyed={"department": "department"}),
+        )
+        assert learned_slots(back, write) == {"department": "department"}
+
+    async def test_two_runs_breaking_the_api_lane_at_once_both_teach_and_the_slot_stays_out(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        job, write, by_id = await self._slotted(session_factory)
+        broken = StepResult("failed", Lane.API, fingerprint="f")
+
+        await asyncio.gather(
+            self._learn(session_factory, job, write, by_id, broken),
+            self._learn(session_factory, job, write, by_id, broken),
+        )
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            now = await uow.workflows.get(TENANT, job.id)
+        assert learned_slots(now, write) == {}
+        assert [one.says for one in now.steps] == ["type it", "Fill Department", "save it"]

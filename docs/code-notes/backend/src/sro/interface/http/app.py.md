@@ -48,7 +48,7 @@ Code: `async with mcp_server.session_manager.run():`
 > walk that would trigger it -- so its session manager's task group is
 > started explicitly, in this one instead.
 
-## `lifespan`, [line 140](../../../../../../../backend/src/sro/interface/http/app.py#L140): Comment
+## `lifespan`, [line 141](../../../../../../../backend/src/sro/interface/http/app.py#L141): Comment
 
 Code: `if container.driving_runs is not None:`
 
@@ -62,7 +62,7 @@ Code: `if container.driving_runs is not None:`
 > down cleanly and started again -- a dev reload -- would find its
 > own lock still held and skip the sweep it exists to do.
 
-## `create_app`, [line 232](../../../../../../../backend/src/sro/interface/http/app.py#L232): Comment
+## `create_app`, [line 235](../../../../../../../backend/src/sro/interface/http/app.py#L235): Comment
 
 Code: `origins = list(settings.cors_origins)`
 
@@ -71,7 +71,7 @@ Code: `origins = list(settings.cors_origins)`
 > configurable at all, and it cannot be defaulted because the id is per
 > build.
 
-## `create_app`, [line 244](../../../../../../../backend/src/sro/interface/http/app.py#L244): Comment
+## `create_app`, [line 247](../../../../../../../backend/src/sro/interface/http/app.py#L247): Comment
 
 Code: `app.add_middleware(Attributing)`
 

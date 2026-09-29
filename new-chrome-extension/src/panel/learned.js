@@ -1,16 +1,17 @@
-// What was learned here, and how far each job is toward doing it alone.
+// What was learned here, and how proven each job is.
 //
 // Learning is passive: nobody starts a demonstration. What the operator
 // repeats on this system is mined into a job, and this card is the one place
 // they see that it happened -- which jobs exist for the page in front of them,
-// and where each stands on the way to writing without asking.
+// and how proven each is.
 //
-// The way is the rig's own and nothing else: a job exists (learned), has run
-// (ran with you), has held, and after `needed` live runs whose every write was
-// verified by what the warehouse said, writes on its own. A job with a hundred
-// held runs and nothing verified has earned nothing, and the count here is the
-// same count the backend's verdict reads (`runs.proven`), so the two cannot
-// disagree.
+// Nothing here says a write waits for approval: a Steel run writes on its
+// own from its first run (full autonomy). The ladder is how proven a job is
+// and nothing else: it exists (learned), has run (ran with you), has held,
+// and after `needed` live runs whose every write was verified by what the
+// warehouse said, is proven. A job with a hundred held runs and nothing
+// verified is not proven, and the count here is the same count the backend's
+// verdict reads (`runs.proven`), so the two cannot disagree.
 //
 // Pure: jobs in, DOM out. What a press means is the caller's.
 
@@ -19,11 +20,8 @@ const RUNGS = [
   ["Learned", () => true],
   ["Ran with you", (runs) => runs.total > 0],
   ["Held", (runs) => runs.held > 0],
-  ["On its own", (runs) => runs.earned],
+  ["Proven", (runs) => runs.earned],
 ];
-
-/** How many learned jobs one card lists. The rest are in the console. */
-export const K_SHOWN = 3;
 
 /** The host a mined job's `systems` entry names.
  *
@@ -42,58 +40,18 @@ export function hostOf(system) {
   }
 }
 
-/** The jobs whose systems include this host, one per job.
+/** The jobs offered on this host.
  *
- * Mining produces more than one workflow for the same work -- the deployment
- * holds three called "Log in to Keycloak" and three called "Reply to Email" --
- * and a card listing each of them asks the operator to choose between things
- * that have the same name and no visible difference. The one that has run
- * most, and among equals the one furthest along, is the one a press should
- * start; the rest are in the console where their ids are readable.
+ * Which jobs are real -- no chores, no mail-only doings, no fragments, one
+ * copy per title -- is the backend's `offered`, the rule the chat offers by.
+ * A backend that does not say is not guessed at: nothing is shown.
  */
 export function learnedHere(jobs, host) {
   if (!host) return [];
   const here = host.toLowerCase();
-  const mine = (jobs || []).filter((job) =>
-    (job.systems || []).some((system) => hostOf(system) === here),
+  return (jobs || []).filter(
+    (job) => job.offered === true && (job.systems || []).some((system) => hostOf(system) === here),
   );
-  const byName = new Map();
-  for (const job of mine) {
-    const name = String(job.title || "").trim().toLowerCase();
-    const seen = byName.get(name);
-    if (!seen || furtherOn(job, seen)) byName.set(name, job);
-  }
-  return [...byName.values()];
-}
-
-/** Whether `job` is the one to offer over `than`.
- *
- * A step that types a credential first, then run more, then proved more, then
- * earned. Never the newest -- a job mined this morning and never run is not
- * the one a press should start.
- *
- * The credential comes first because the alternative is a sign-in that cannot
- * sign in. Two readings of one login differ by whether the operator typed
- * their password or the browser filled it: the one where nobody typed has no
- * step for it, and on a machine that does not fill it in, it presses Sign In
- * with the field empty. The one that has run MORE is often that one, because
- * it is the one that runs on a browser where autofill does the work.
- */
-function furtherOn(job, than) {
-  const rank = ({ runs = {}, types_a_credential: credential = false }) => [
-    credential ? 1 : 0,
-    runs.total || 0,
-    runs.proven || 0,
-    runs.earned ? 1 : 0,
-  ];
-  const mine = rank(job);
-  const theirs = rank(than);
-  // Compared as numbers, place by place. Joined into a string, "10,0,0" sorts
-  // below "9,0,0" and the job with ten runs loses to the one with nine.
-  for (let i = 0; i < mine.length; i += 1) {
-    if (mine[i] !== theirs[i]) return mine[i] > theirs[i];
-  }
-  return false;
 }
 
 /** One sentence for where a job stands, from counted facts only.
@@ -102,15 +60,11 @@ function furtherOn(job, than) {
  * backend has no `proven`, and "0 of 3" would be this panel inventing a number
  * about somebody's warehouse. It says what it knows instead. */
 export function standing(runs) {
-  if (runs.earned) return "Writes on its own now. Every write is still read back.";
-  if (!runs.total) return "Not run yet. Its writes ask you first.";
-  if (!counts(runs)) return "Its writes ask you first.";
-  const needed = runs.needed;
-  const proven = Math.min(runs.proven, needed);
-  return (
-    `${proven} of ${needed} runs checked against the warehouse.` +
-    " Its writes ask you first until then."
-  );
+  if (runs.earned) return "Checked against the warehouse. Every write is still read back.";
+  if (!runs.total) return "Not run yet.";
+  if (!counts(runs)) return "Has run with you.";
+  const proven = Math.min(runs.proven, runs.needed);
+  return `${proven} of ${runs.needed} runs checked against the warehouse.`;
 }
 
 /** Whether this deployment says how far along a job is. */
@@ -118,16 +72,33 @@ export function counts(runs) {
   return Number.isFinite(runs?.proven) && Number.isFinite(runs?.needed) && runs.needed > 0;
 }
 
+/** The same count, in the few words a one-line row has room for. */
+function checkedCount(runs) {
+  if (runs.earned) return "proven";
+  if (!runs.total) return "not run yet";
+  if (!counts(runs)) return "has run";
+  return `${Math.min(runs.proven, runs.needed)} of ${runs.needed} runs checked`;
+}
+
+/** The rungs, lit where the job stands: every rung it reached is done, and the
+ * last one reached is the one it is on -- unless it reached them all. A rung
+ * it has not reached is never lit, so "0 of 3 checked" cannot sit under a
+ * glowing Proven (QA 2026-09-29): Proven is `earned`, the fact the count
+ * beside it reads. */
 function ladder(runs) {
   const list = document.createElement("ol");
   list.className = "ladder";
   const reached = RUNGS.map(([, did]) => Boolean(did(runs)));
-  // The rung being worked toward is the first not yet reached.
-  const next = reached.indexOf(false);
+  const at = reached.lastIndexOf(true);
+  const all = reached.every(Boolean);
   RUNGS.forEach(([name], index) => {
     const rung = document.createElement("li");
     rung.className = "rung";
-    rung.dataset.state = reached[index] ? "done" : index === next ? "now" : "todo";
+    rung.dataset.state = !reached[index]
+      ? "todo"
+      : index === at && !all
+        ? "now"
+        : "done";
     rung.textContent = name;
     list.append(rung);
   });
@@ -148,65 +119,82 @@ function checked(runs) {
   return bar;
 }
 
+function button(label, act, className = "quiet") {
+  const press = document.createElement("button");
+  press.type = "button";
+  press.className = className;
+  press.textContent = label;
+  press.addEventListener("click", () => act(press));
+  return press;
+}
+
+/** One job, as a line: its title (which opens its ladder), its checked count,
+ * and Run it here. The ladder only under the job somebody opened. */
+function jobLine(job, { opened, onRun, onReview, onOpen }) {
+  const runs = { total: 0, held: 0, earned: false, ...job.runs };
+  const isOpen = opened === job.id;
+  const one = document.createElement("li");
+  one.className = "job";
+  one.dataset.workflowId = job.id;
+
+  const line = document.createElement("div");
+  line.className = "line";
+  const title = button(job.title, () => onOpen?.(isOpen ? null : job.id), "title");
+  title.setAttribute("aria-expanded", String(isOpen));
+  const count = document.createElement("span");
+  count.className = "count";
+  count.textContent = checkedCount(runs);
+  line.append(title, count, button("Run it here", (press) => onRun?.(job, press)));
+  one.append(line);
+
+  if (isOpen) {
+    const says = document.createElement("p");
+    says.textContent = standing(runs);
+    one.append(says, ladder(runs));
+    if (!runs.earned && counts(runs)) one.append(checked(runs));
+    one.append(button("Review in console ↗", () => onReview?.(job)));
+  }
+  return one;
+}
+
 /**
- * The card, or `null` when nothing was learned for this host.
+ * One quiet row, or `null` when nothing was learned for this host.
  *
- * `onRun(job, button)` when they ask for one; `onReview(job)` for the console.
+ * Learned jobs are standing facts, not things happening now, so Home gives
+ * them one line (the user, 2026-09-29): "N jobs learned on this page ›".
+ * `open` is whether that line is unfolded to a compact line per job, and
+ * `opened` which job's ladder is showing -- both this window's, held by the
+ * panel. `onToggle(open)`, `onOpen(id | null)`, `onRun(job, button)` and
+ * `onReview(job)` are the caller's.
  *
  * Nothing here knows about a run in progress: while one drives this browser
- * the panel does not draw this card at all, the way an offer taken stops
+ * the panel does not draw this row at all, the way an offer taken stops
  * being an offer. See `render` in `panel.js`.
  */
-export function learned(jobs, { onRun, onReview } = {}) {
+export function learned(
+  jobs,
+  { open = false, opened = null, onToggle, onOpen, onRun, onReview } = {},
+) {
   if (!jobs?.length) return null;
   const card = document.createElement("section");
   card.className = "card learned";
   card.dataset.key = "learned";
-  // Ember while something here has not earned its writes yet, because that is
-  // the thing worth the operator's attention; quiet once all of it has.
-  if (jobs.some((job) => !job.runs?.earned)) card.dataset.tone = "live";
 
-  const eyebrow = document.createElement("p");
-  eyebrow.className = "eyebrow";
-  eyebrow.textContent = "Learned from what you do here";
-  card.append(eyebrow);
+  const head = button(
+    `${jobs.length} ${jobs.length === 1 ? "job" : "jobs"} learned on this page ›`,
+    () => onToggle?.(!open),
+    "learned-head",
+  );
+  head.setAttribute("aria-expanded", String(open));
+  head.setAttribute("aria-controls", "learned-list");
+  card.append(head);
 
-  jobs.slice(0, K_SHOWN).forEach((job, index) => {
-    const runs = { total: 0, held: 0, earned: false, ...job.runs };
-    const one = document.createElement("div");
-    one.className = "job";
-    one.dataset.workflowId = job.id;
-
-    const title = document.createElement("h3");
-    title.textContent = job.title;
-    const says = document.createElement("p");
-    says.textContent = standing(runs);
-    one.append(title, says, ladder(runs));
-    if (!runs.earned && counts(runs)) one.append(checked(runs));
-
-    const row = document.createElement("div");
-    row.className = "row";
-    const run = document.createElement("button");
-    run.type = "button";
-    run.textContent = "Run it here";
-    // One primary press per card: the first job's. The rest are quiet.
-    if (index > 0) run.className = "quiet";
-    run.addEventListener("click", () => onRun?.(job, run));
-    const review = document.createElement("button");
-    review.type = "button";
-    review.className = "quiet";
-    review.textContent = "Review in console ↗";
-    review.addEventListener("click", () => onReview?.(job));
-    row.append(run, review);
-    one.append(row);
-    card.append(one);
-  });
-
-  if (jobs.length > K_SHOWN) {
-    const more = document.createElement("p");
-    more.className = "note";
-    more.textContent = `${jobs.length - K_SHOWN} more learned here, in the console.`;
-    card.append(more);
+  if (open) {
+    const list = document.createElement("ul");
+    list.className = "learned-list";
+    list.id = "learned-list";
+    for (const job of jobs) list.append(jobLine(job, { opened, onRun, onReview, onOpen }));
+    card.append(list);
   }
   return card;
 }

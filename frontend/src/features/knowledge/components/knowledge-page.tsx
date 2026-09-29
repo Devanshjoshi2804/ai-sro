@@ -213,7 +213,7 @@ function JobRow({ job, triggers }: { job: WorkflowModel; triggers: TriggerModel[
             </Link>
             {job.runs.earned && (
               <Badge variant="secondary" className="text-good font-normal">
-                writes unasked
+                proven
               </Badge>
             )}
             {triggers.map((trigger) => (

@@ -32,7 +32,6 @@ const asking = (over = {}) => ({
   visit: "1:100",
   candidates: [TAUGHT],
   nudges: [],
-  performing: null,
   now: T0,
   ...over,
 });
@@ -59,12 +58,6 @@ test("a task nobody has done often enough says nothing", () => {
   // skill exists, and offering to run it is not a guess about a pattern.
   const taught = { ...twice, skill_id: "skl-1" };
   assert.equal(shouldFire(asking({ candidates: [taught] })), taught);
-});
-
-test("nothing is offered over a run that is already happening", () => {
-  // The browser is being driven. Offering to drive it again is the panel
-  // talking over itself.
-  assert.equal(shouldFire(asking({ performing: { runId: "run-1" } })), null);
 });
 
 test("once per visit, and a later visit may ask again", () => {

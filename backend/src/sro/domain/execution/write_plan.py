@@ -6,13 +6,15 @@ from dataclasses import dataclass, replace
 from types import MappingProxyType
 from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
-from sro.domain.execution.evidence import READ_METHODS, recorded_call
+from sro.domain.execution.evidence import READ_METHODS, control_names, recorded_call
 from sro.domain.execution.planning import unreplayable
 from sro.domain.execution.secrets import needs_a_secret
 from sro.domain.execution.verified_writes import VerifiedWrite, verified_write_for
 from sro.domain.observation.gesture import Call, Gesture
+from sro.domain.observation.trim import is_secret
 from sro.domain.shared.hosts import system_of
-from sro.domain.skill.workflow import Step, Workflow
+from sro.domain.skill.learned import called
+from sro.domain.skill.workflow import Step, Workflow, cited_ids
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,7 +29,9 @@ class WritePlan:
     entry: VerifiedWrite
 
 
-def seen_values(workflow: Workflow) -> dict[str, frozenset[str]]:
+def seen_values(
+    workflow: Workflow, by_id: Mapping[str, Gesture] | None = None
+) -> dict[str, frozenset[str]]:
     found: dict[str, frozenset[str]] = {}
     for parameter in workflow.parameters:
         name = parameter.get("name")
@@ -36,7 +40,30 @@ def seen_values(workflow: Workflow) -> dict[str, frozenset[str]]:
             continue
         values = frozenset(value for value in raw if isinstance(value, str) and value.strip())
         if values:
-            found[name] = values
+            # One value mined under two parameters of one name (a search box and
+            # a form field) is one value: every value either saw.
+            found[name] = found.get(name, frozenset()) | values
+    if by_id is not None:
+        # What the recording typed into a parameter's control is a value it was
+        # seen with, whatever mining wrote down: greyorange's transport job typed
+        # AISR, AISF and AUSII and mining kept two, so its save never read as its.
+        labels = {
+            one.strip(): str(parameter["name"])
+            for parameter in workflow.parameters
+            if isinstance(parameter.get("name"), str)
+            for one in called(parameter)
+        }
+        for cited in cited_ids(workflow):
+            gesture = by_id.get(cited)
+            if gesture is None or gesture.action.kind not in ("type", "select"):
+                continue
+            value = (gesture.action.value or "").strip()
+            owner = next(
+                (labels[one.strip()] for one in control_names(gesture) if one.strip() in labels),
+                None,
+            )
+            if value and owner and not is_secret(gesture):
+                found[owner] = found.get(owner, frozenset()) | {value}
     return found
 
 
@@ -117,7 +144,23 @@ def _returned(step: Step, by_id: Mapping[str, Gesture], like: Call) -> frozenset
     return None if returned is None else frozenset(returned)
 
 
-def _slots(bodies: list[dict[str, object]]) -> frozenset[str]:
+def _seen_in(taken: set[str], observed: frozenset[str]) -> bool:
+    return bool(taken) and {one.strip().casefold() for one in taken} <= {
+        one.strip().casefold() for one in observed
+    }
+
+
+def _slots(bodies: list[dict[str, object]], seen: Mapping[str, frozenset[str]]) -> frozenset[str]:
+    if len(bodies) == 1:
+        # One demonstration shows nothing varying; a field holding a value the
+        # job's parameter was seen with is that parameter's all the same.
+        return frozenset(
+            key
+            for key, value in bodies[0].items()
+            if isinstance(value, str)
+            and value.strip()
+            and any(_seen_in({value}, observed) for observed in seen.values())
+        )
     if len(bodies) < 2:
         return frozenset()
     shared = set(bodies[0])
@@ -126,6 +169,14 @@ def _slots(bodies: list[dict[str, object]]) -> frozenset[str]:
     return frozenset(
         key for key in shared if len({json.dumps(body[key], sort_keys=True) for body in bodies}) > 1
     )
+
+
+def _taken(bodies: list[dict[str, object]], slot: str) -> set[str]:
+    return {
+        value if isinstance(value, str) else json.dumps(value)
+        for body in bodies
+        if slot in body and not isinstance(value := body[slot], dict | list)
+    }
 
 
 def wanted_by(
@@ -141,11 +192,11 @@ def wanted_by(
     if not bodies:
         return frozenset({owner}) if owner else frozenset()
     owners: set[str] = {owner} if owner else set()
-    for slot in sorted(_slots(bodies)):
-        taken = {body[slot] for body in bodies if isinstance(body.get(slot), str)}
+    for slot in sorted(_slots(bodies, seen)):
+        taken = _taken(bodies, slot)
         if not taken:
             continue
-        claiming = [name for name, observed in seen.items() if taken <= observed]
+        claiming = [name for name, observed in seen.items() if _seen_in(taken, observed)]
         if len(claiming) == 1:
             owners.add(claiming[0])
     return frozenset(owners)
@@ -161,17 +212,29 @@ def _assigned(
     claimed: dict[str, str] = {}
     placed: set[str] = set()
     for slot in sorted(slots):
-        taken = {body[slot] for body in bodies if isinstance(body.get(slot), str)}
+        taken = _taken(bodies, slot)
         if not taken:
             continue
-        owners = [name for name, observed in seen.items() if name in values and taken <= observed]
+        owners = [
+            name for name, observed in seen.items() if name in values and _seen_in(taken, observed)
+        ]
         if len({values[name] for name in owners}) > 1:
+            return None
+        if owners and not isinstance(bodies[0][slot], str):
             return None
         if owners:
             claimed[slot] = owners[0]
             placed.update(owners)
-    if len(set(claimed.values())) != len(claimed):
-        return None
+    for parameter in set(claimed.values()):
+        # One value in several fields is fine only where those fields held one
+        # value in every doing -- the record's code echoed (customerType and
+        # resourceId), not two different things one parameter would overwrite.
+        mine = [slot for slot, owner in claimed.items() if owner == parameter]
+        if len(mine) > 1 and any(
+            len({json.dumps(body.get(slot), sort_keys=True) for slot in mine}) > 1
+            for body in bodies
+        ):
+            return None
     carried = {values[name] for name in placed}
     if any(
         name not in placed and name not in elsewhere and values[name] not in carried
@@ -181,6 +244,45 @@ def _assigned(
     return claimed
 
 
+def _owned_by_nobody_given(
+    slots: frozenset[str],
+    bodies: list[dict[str, object]],
+    values: Mapping[str, str],
+    seen: Mapping[str, frozenset[str]],
+) -> frozenset[str]:
+    left_out: set[str] = set()
+    for slot in slots:
+        taken = _taken(bodies, slot)
+        owners = [name for name, observed in seen.items() if _seen_in(taken, observed)]
+        if len(owners) == 1 and not values.get(owners[0], "").strip():
+            left_out.add(slot)
+    return frozenset(left_out)
+
+
+def learned_slots(workflow: Workflow, step: Step) -> dict[str, str]:
+    keys = {
+        str(one["name"]): str(one["body_key"])
+        for one in workflow.parameters
+        if isinstance(one.get("name"), str)
+        and isinstance(one.get("body_key"), str)
+        and one["body_key"]
+        and one.get("slot") is not False
+    }
+    by_order = {one.order: one for one in workflow.steps}
+    slots: dict[str, str] = {}
+    order = step.order - 1
+    while (
+        (field := by_order.get(order)) is not None
+        and not field.cites
+        and len(field.parameters) == 1
+    ):
+        (name,) = field.parameters
+        if name in keys:
+            slots[name] = keys[name]
+        order -= 1
+    return slots
+
+
 def write_plan_for(
     step: Step,
     by_id: Mapping[str, Gesture],
@@ -188,6 +290,7 @@ def write_plan_for(
     verified: tuple[VerifiedWrite, ...],
     seen: Mapping[str, frozenset[str]],
     keys: Mapping[str, str] = MappingProxyType({}),
+    learned: Mapping[str, str] = MappingProxyType({}),
 ) -> WritePlan | None:
     call = recorded_call(step, by_id)
     if call is None or call.method.upper() in READ_METHODS:
@@ -207,24 +310,35 @@ def write_plan_for(
     bodies = _bodies_of(step, by_id, call)
     if not bodies:
         return _path_plan(step, by_id, call, values, seen, entry)
+    owner = _path_owner(step, by_id, call, seen)
+    if owner and not values.get(owner, "").strip():
+        return None
 
-    slots = _slots(bodies)
+    slots = _slots(bodies, seen)
     echoed = _echoed(step, by_id, call)
-    also = _undemonstrated(keys, values, bodies[0], slots, _returned(step, by_id, call))
-    named = frozenset(keys)
+    also = _undemonstrated(
+        {**keys, **learned},
+        values,
+        bodies[0],
+        slots,
+        _returned(step, by_id, call),
+        learned=learned,
+    )
+    named = frozenset(keys) | {name for name, slot in learned.items() if slot in also}
     claimed = _assigned(slots, bodies, values, seen, named)
     if claimed is None:
         return None
     if not claimed:
         return None
 
-    aimed = dict(bodies[0])
+    left_out = _owned_by_nobody_given(slots, bodies, values, seen)
+    aimed = {key: value for key, value in bodies[0].items() if key not in left_out}
     for slot, parameter in claimed.items():
         aimed[slot] = values[parameter]
     aimed.update(also)
     return WritePlan(
         method=call.method.upper(),
-        url=call.url,
+        url=_addressed(call, values.get(owner, "").strip()) if owner else call.url,
         body=json.dumps(aimed, ensure_ascii=False),
         filled={**claimed, **{slot: slot for slot in also}},
         confirm={
@@ -264,6 +378,14 @@ def _path_owner(
     return claiming[0] if len(claiming) == 1 else None
 
 
+def _addressed(call: Call, wanted: str) -> str:
+    """The recorded url with its last path segment -- the record it addressed --
+    replaced by this run's."""
+    parts = urlsplit(call.url)
+    head = parts.path.rsplit("/", 1)[0]
+    return urlunsplit(parts._replace(path=f"{head}/{quote(wanted, safe='')}"))
+
+
 def _path_plan(
     step: Step,
     by_id: Mapping[str, Gesture],
@@ -276,9 +398,7 @@ def _path_plan(
     wanted = values.get(owner, "").strip() if owner else ""
     if not wanted:
         return None
-    parts = urlsplit(call.url)
-    head = parts.path.rsplit("/", 1)[0]
-    url = urlunsplit(parts._replace(path=f"{head}/{quote(wanted, safe='')}"))
+    url = _addressed(call, wanted)
     if verified_write_for(replace(call, url=url), (entry,)) is None:
         return None
     return WritePlan(
@@ -294,7 +414,7 @@ def _path_plan(
 def demonstrated_writes(
     workflow: Workflow, by_id: Mapping[str, Gesture]
 ) -> tuple[VerifiedWrite, ...]:
-    seen = seen_values(workflow)
+    seen = seen_values(workflow, by_id)
     found: list[VerifiedWrite] = []
     for step in workflow.steps:
         call = recorded_call(step, by_id)
@@ -313,13 +433,20 @@ def _undemonstrated(
     body: Mapping[str, object],
     slots: frozenset[str],
     returned: frozenset[str] | None,
+    *,
+    learned: Mapping[str, str] = MappingProxyType({}),
 ) -> dict[str, str]:
     if not keys or returned is None:
         return {}
     filled: dict[str, str] = {}
     for name, slot in keys.items():
         value = values.get(name)
-        if value is None or slot in slots or slot not in body or slot not in returned:
+        if (
+            value is None
+            or slot in slots
+            or (slot not in body and learned.get(name) != slot)
+            or slot not in returned
+        ):
             continue
         filled[slot] = value
     return filled

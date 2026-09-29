@@ -15,6 +15,7 @@ class Asker(Protocol):
         schema: dict[str, object],
         image: bytes | None = None,
         images: tuple[bytes, ...] = (),
+        audio: tuple[bytes, str] | None = None,
         effort: Effort | None = None,
     ) -> Answer: ...
 

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import os
+import signal
 import socket
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from temporalio.client import Client
 from temporalio.worker import Worker
@@ -12,12 +14,15 @@ from temporalio.worker import Worker
 from sro.application.observation.mining_pass import rekey_workflows
 from sro.config import Settings, get_settings
 from sro.container import Container, build_container
-from sro.infrastructure.temporal.activities import Activities
-from sro.infrastructure.temporal.queues import DEFAULT_QUEUE
-from sro.infrastructure.temporal.workflows import ExecutionWorkflow, TriggerWorkflow
+from sro.domain.execution.progress import K_STEP_HEARTBEAT_S
+from sro.infrastructure.temporal.activities import Activities, RunActivities
+from sro.infrastructure.temporal.queues import DEFAULT_QUEUE, RUNS_QUEUE
+from sro.infrastructure.temporal.workflows import ExecutionWorkflow, RunWorkflow, TriggerWorkflow
 from sro.observability import configure_logging
 
 logger = logging.getLogger("sro.infrastructure.temporal.worker")
+
+_STOP_SIGNALS = (signal.SIGTERM, signal.SIGINT)
 
 
 def identity(settings: Settings) -> str:
@@ -26,6 +31,22 @@ def identity(settings: Settings) -> str:
 
 async def connect(settings: Settings) -> Client:
     return await Client.connect(settings.temporal_address, namespace=settings.temporal_namespace)
+
+
+async def until_signalled(*workers: Worker) -> None:
+    loop = asyncio.get_running_loop()
+    stopping = asyncio.Event()
+    for one in _STOP_SIGNALS:
+        loop.add_signal_handler(one, stopping.set)
+    try:
+        async with contextlib.AsyncExitStack() as serving:
+            for worker in workers:
+                await serving.enter_async_context(worker)
+            await stopping.wait()
+            logger.info("stopping: letting running activities finish first")
+    finally:
+        for one in _STOP_SIGNALS:
+            loop.remove_signal_handler(one)
 
 
 async def keep_sessions_open(container: Container, every_seconds: float) -> None:
@@ -39,13 +60,20 @@ async def keep_sessions_open(container: Container, every_seconds: float) -> None
             for tenant, count in expired.items():
                 logger.info("%s: %s confirmation(s) expired unanswered", tenant, count)
         try:
+            closed = await container.close_stuck_runs().execute()
+        except Exception:
+            logger.exception("the stuck-run sweep could not finish")
+        else:
+            for run_id in closed:
+                logger.info("%s stopped responding and was closed", run_id)
+        try:
             swept = await container.keep_sessions_open().sweep()
         except Exception:
             logger.exception("the session keeper could not finish its sweep")
             continue
         if swept.open_now or swept.unreachable or swept.released:
             logger.info(
-                "sessions kept open: %s; unreachable: %s; left alone: %s; browsers released: %s",
+                "sessions kept open: %s; unreachable: %s; left alone: %s; contexts released: %s",
                 ", ".join(swept.open_now) or "none",
                 ", ".join(swept.unreachable) or "none",
                 ", ".join(swept.left_alone) or "none",
@@ -77,6 +105,22 @@ async def mine_the_rig_lately(container: Container, every_seconds: float) -> Non
                     result.proposed,
                     result.learned_parameters,
                 )
+
+
+async def look_in_the_mail_lately(container: Container, every_seconds: float) -> None:
+    if every_seconds <= 0:
+        logger.info("the mail poll is off (mail_sweep_seconds=0)")
+        return
+    while True:
+        await asyncio.sleep(every_seconds)
+        try:
+            looked = await container.look_in_the_mail_lately().execute()
+        except Exception:
+            logger.exception("the mail poll could not finish")
+            continue
+        for who, one in looked.items():
+            if one.read:
+                logger.info("%s: %s mail(s) read -- %s", who, one.read, one.why)
 
 
 async def retain_lately(container: Container, every_seconds: float) -> None:
@@ -129,6 +173,22 @@ async def run() -> None:
             activities.fire_trigger,
         ],
     )
+    run_activities = RunActivities(container)
+    runs = Worker(
+        client,
+        identity=me,
+        task_queue=RUNS_QUEUE,
+        graceful_shutdown_timeout=timedelta(seconds=K_STEP_HEARTBEAT_S),
+        workflows=[RunWorkflow],
+        activities=[
+            run_activities.prepare,
+            run_activities.acquire,
+            run_activities.step,
+            run_activities.stopped,
+            run_activities.finish,
+            run_activities.release,
+        ],
+    )
     try:
         rekeyed = await rekey_everything(container)
         if rekeyed:
@@ -139,13 +199,15 @@ async def run() -> None:
     keeper = asyncio.create_task(keep_sessions_open(container, settings.session_sweep_seconds))
     rig_miner = asyncio.create_task(mine_the_rig_lately(container, settings.rig_sweep_seconds))
     retainer = asyncio.create_task(retain_lately(container, settings.retention_sweep_seconds))
+    mailer = asyncio.create_task(look_in_the_mail_lately(container, settings.mail_sweep_seconds))
     try:
-        async with default:
-            await asyncio.Future()
+        await until_signalled(default, runs)
     finally:
         keeper.cancel()
         rig_miner.cancel()
         retainer.cancel()
+        mailer.cancel()
+        await container.driver.aclose()
 
 
 def main() -> None:

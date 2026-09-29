@@ -42,16 +42,16 @@ const KEYS = {
   queueEpoch: "sro.queueEpoch",
   pendingBatch: "sro.pendingBatch",
   shotTimes: "sro.shotTimes",
-  treeTimes: "sro.treeTimes",
   finishedRun: "sro.finishedRun",
   question: "sro.question",
   activeRun: "sro.activeRun",
   answer: "sro.answer",
   arrivals: "sro.arrivals",
-  arrived: "sro.arrived",
   nearMisses: "sro.nearMisses",
   said: "sro.said",
   repaired: "sro.repaired",
+  mailRuns: "sro.mailRuns",
+  mailRunsDismissed: "sro.mailRunsDismissed",
 };
 
 // Whichever deployment this build belongs to. `make gen-deployment` writes it;
@@ -75,6 +75,9 @@ export const RETIRED_KEYS = [
   "sro.rigRefusal",
   "sro.teaching",
   "sro.muted",
+  "sro.treeTimes",
+  // Navigations a page rule had fired on. A rule offers now, and never fires.
+  "sro.arrived",
 ];
 
 async function read(key, fallback = null) {
@@ -99,7 +102,7 @@ export const state = {
    * nowhere cleverer: `chrome.storage.local` is the extension's own origin and
    * no page can reach it -- a content script runs in the page's world but with
    * the extension's `chrome.storage`, and nothing here is ever handed to one
-   * (`in-page.js` is given locators and gives back values). A page that could
+   * (`page-code.js` is given locators and gives back values). A page that could
    * read this could already read the credential, and the credential is the
    * larger loss: it is the whole tenant, this is one browser.
    *
@@ -147,23 +150,13 @@ export const state = {
   answer: () => read(KEYS.answer, null),
   setAnswer: (answer) => write(KEYS.answer, answer),
 
-  /** The pages this browser starts a job on, from the backend that keeps them.
+  /** The pages this browser offers a job on, from the backend that keeps them.
    *
    * Held here for the same reason the watches are: the rule is evaluated where
-   * the operator is, and a browser on a train should still do what its
-   * operator told it to do on the page in front of them. */
+   * the operator is. `{ id, page, workflowId, values }`: what to offer, and
+   * with which values. An offer, never a start. */
   arrivals: () => read(KEYS.arrivals, []),
   setArrivals: (arrivals) => write(KEYS.arrivals, arrivals),
-
-  /** Navigations this browser has already fired a rule on.
-   *
-   * In storage and not in a module variable, because MV3 evicts this worker
-   * between events and a reload of the same page would otherwise start the
-   * job again -- the worker having forgotten, not the operator having asked
-   * twice. Capped: the visit id carries the moment it happened, so old ones
-   * can never come back. */
-  arrived: () => read(KEYS.arrived, []),
-  setArrived: (visits) => write(KEYS.arrived, visits),
 
   /** Rules that almost fired, so a miss is not silent.
    *
@@ -322,13 +315,6 @@ export const state = {
   shotTimes: () => read(KEYS.shotTimes, []),
   setShotTimes: (times) => write(KEYS.shotTimes, times),
 
-  /** When accessibility trees were last taken, for their own per-minute cap.
-   * Separate from the screenshots' budget: a tree is a round trip and some
-   * JSON, a picture is a PNG, and sharing one counter would have whichever
-   * happened first spend the other's allowance. */
-  treeTimes: () => read(KEYS.treeTimes, []),
-  setTreeTimes: (times) => write(KEYS.treeTimes, times),
-
   /** The last run this browser finished, and what it made -- `{ id, status,
    * derived, reversal, failure, at, wrongBecause? }`, or null. In storage
    * rather than a module variable for the reason this whole file exists: the
@@ -353,16 +339,20 @@ export const state = {
   setQuestion: (question) => write(KEYS.question, question),
   setFinishedRun: (run) => write(KEYS.finishedRun, run),
 
-  /** The run this browser is currently -- or was most recently -- being asked
-   * to do something for, and when it was last asked: `{ runId, at }`, or
-   * null. The storage-backed mirror of `commands.js`'s own `latest`, written
-   * on every run-bearing command; see `perform()` there for why a module
-   * variable is not enough on its own. Nothing else `latest` carries belongs
-   * here -- this exists only so a worker woken by the heartbeat alarm, with
-   * no memory of `latest` at all, can still tell whether the run it was last
-   * asked about has gone quiet. */
+  /** The run the panel is watching, and when it started watching it:
+   * `{ runId, at, source }`, or null. The backend starts and runs it; this
+   * is only which one to draw. In storage so a worker woken by the heartbeat
+   * alarm can still tell whether the run it was watching has ended. */
   activeRun: () => read(KEYS.activeRun, null),
   setActiveRun: (run) => write(KEYS.activeRun, run),
+
+  /** Today's runs a mail started, as `mailRunsOfToday` gave them, for Home's
+   * mail cards; and the ids somebody dismissed, so a card they closed stays
+   * closed for the rest of the day. */
+  mailRuns: () => read(KEYS.mailRuns, []),
+  setMailRuns: (runs) => write(KEYS.mailRuns, runs),
+  mailRunsDismissed: () => read(KEYS.mailRunsDismissed, []),
+  setMailRunsDismissed: (ids) => write(KEYS.mailRunsDismissed, ids),
 
   async forget() {
     await chrome.storage.local.remove(Object.values(KEYS));
@@ -388,7 +378,7 @@ export async function capturing() {
 }
 
 /** How long the last finished run stays offerable, and why an hour rather
- * than the thirty seconds `performing()` uses to call a run quiet.
+ * than the thirty seconds `RUN_QUIET_MS` uses to call a run quiet.
  *
  * That thirty seconds answers a different question -- "is this still
  * happening" -- and is right to be short: a stale "running" card is a lie
@@ -441,7 +431,7 @@ export async function finishedRun() {
  *
  * Pure and exported on its own so this boundary has a self-check that needs
  * neither `chrome.*` nor a real wait to run it -- `now` and `quietMs` are
- * passed in rather than read from `Date.now()` and `commands.js`'s
+ * passed in rather than read from `Date.now()` and `service-worker.js`'s
  * `RUN_QUIET_MS` directly for exactly that reason.
  */
 export function activeRunAge(active, now, quietMs) {

@@ -57,7 +57,8 @@ from sro.application.execution.pursuits import Pursuits
 from sro.config import Settings
 from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
-from sro.domain.observation.gesture import Action, Body, Call, Gesture
+from sro.domain.observation.gesture import Action, Body, Call, Gesture, Target
+from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import DeviceId, SkillId, TenantId
 from sro.domain.shared.prices import ModelSpend
 from sro.domain.skill.promotion import PromotionStage
@@ -77,9 +78,6 @@ DESK = DeviceId("dev-2")
 CAP = 3.25
 """Not the shipped 5.0, so a door wired to a default rather than to the
 container's settings answers 200 where this expects 429."""
-
-PLAN = "gemini-3.8-flash-preview-rig"
-RESCUE = "gemini-3.1-pro-preview-rig"
 
 
 class _Attached:
@@ -134,8 +132,6 @@ def container(uow: FakeUnitOfWork, spawned: _Spawned) -> _FakeContainer:
     built = _FakeContainer(uow)
     built.settings = Settings(
         daily_usd_cap=CAP,
-        gemini_plan_model=PLAN,
-        gemini_rescue_model=RESCUE,
         _env_file=None,
     )
     # A deployment that has a model. `_FakeContainer` ships `None`, which is
@@ -192,7 +188,12 @@ def _gesture(gesture_id: str, *, tenant: TenantId = TENANT) -> Gesture:
         system=WMS,
         tab_id=7,
         frame_url=None,
-        action=Action(kind="click", at=1_739_314_800.0, url=f"{WMS}/work-areas"),
+        action=Action(
+            kind="click",
+            at=1_739_314_800.0,
+            url=f"{WMS}/work-areas",
+            target=Target(role="button", name="Save"),
+        ),
     )
 
 
@@ -575,6 +576,55 @@ async def test_from_step_true_does_not_become_step_one(
     assert spawned.handed_over == 0
 
 
+async def test_a_takeover_that_ends_before_it_begins_answers_422(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, held: Workflow, spawned: _Spawned
+) -> None:
+    took = {"tab_id": 7, "since": 100.0, "through": 90.0, "newest": 100.0}
+
+    landed = await client.post("/v1/workflow-runs", json=_body(matched=3, took_over=took))
+
+    assert landed.status_code == 422
+    assert uow.workflow_runs.rows == {} and spawned.handed_over == 0
+
+
+async def test_a_takeover_proves_the_browser_it_names_with_its_secret(
+    client: httpx.AsyncClient,
+    container: _FakeContainer,
+    held: Workflow,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    heard: dict[str, Any] = {}
+
+    class _Refusing:
+        async def execute(self, ctx: Any, **given: Any) -> WorkflowRun:
+            heard.update(given)
+            raise NotFound(f"device {given['device_id']} was not found")
+
+    monkeypatch.setattr(container, "start_workflow_run", _Refusing)
+    took = {"tab_id": 7, "since": 90.0, "through": 100.0, "newest": 100.0}
+    proof = "the-browser-s-proof"
+
+    landed = await client.post(
+        "/v1/workflow-runs",
+        json=_body(matched=3, took_over=took),
+        headers={"X-Device-Secret": proof},
+    )
+
+    assert landed.status_code == 404
+    assert heard["device_secret"] == proof
+    assert heard["device_id"] == LAPTOP
+
+
+async def test_a_takeover_s_tab_is_a_number_never_true(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, held: Workflow
+) -> None:
+    took = {"tab_id": True, "since": 90.0, "through": 100.0, "newest": 100.0}
+
+    landed = await client.post("/v1/workflow-runs", json=_body(matched=3, took_over=took))
+
+    assert landed.status_code == 422 and uow.workflow_runs.rows == {}
+
+
 async def test_a_nested_object_in_values_is_refused_and_not_stringified(
     client: httpx.AsyncClient, uow: FakeUnitOfWork, held: Workflow
 ) -> None:
@@ -689,9 +739,18 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
         thought_tokens=33,
         cost_usd=0.44,
         unpriced=True,
+        offer="mail:m-9",
+        mail={
+            "subject": "new type",
+            "sender": "Alex R <alex.r@example.com>",
+            "thread": "t-1",
+            "arrived": "2025-02-11T22:58:00+00:00",
+        },
     )
 
-    on_the_wire = WorkflowRunModel.of(run).model_dump()
+    on_the_wire = WorkflowRunModel.of(
+        run, live_view_url="https://steel.example/v1/sessions/debug?pageId=t-1"
+    ).model_dump()
 
     assert on_the_wire == {
         "id": "run_abc",
@@ -775,21 +834,29 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
         "undoes_run": "run_before",
         # This one HELD: there is nothing to try again.
         "try_again": False,
+        "live_view_url": "https://steel.example/v1/sessions/debug?pageId=t-1",
+        "offer": "mail:m-9",
+        # The mail this run came from, and never its body: what the panel's
+        # card says arrived, and where to open it.
+        "mail": {
+            "subject": "new type",
+            "sender": "Alex R <alex.r@example.com>",
+            "arrived": "2025-02-11T22:58:00+00:00",
+            "thread": "t-1",
+            "link": "https://mail.google.com/mail/#all/t-1",
+        },
     }
 
 
-def test_the_container_plans_on_one_model_and_rescues_on_the_other(
+def test_the_container_builds_the_starter_on_the_cap_and_the_shared_registers(
     container: _FakeContainer,
 ) -> None:
-    """A clean step never touches the expensive model, and the two settings are
-    one letter apart in the container. Read off the built use case rather than
-    driven through a run, because which model plans is only visible on a model
-    call and every one of those is `test_runner.py`'s.
+    """Read off the built use case rather than driven through a run. Which model
+    plans is no longer a setting the container passes: it is on the prompt
+    records, and every model call is `test_runner.py`'s.
     """
     starter = container.start_workflow_run()
 
-    assert starter._plan_model == PLAN
-    assert starter._rescue_model == RESCUE
     assert starter._cap_usd == CAP
     # The process-wide registers, not new ones: a tap or a stop arriving on
     # another route sets the register this run is waiting on.

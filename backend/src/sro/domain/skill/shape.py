@@ -1,18 +1,19 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from urllib.parse import urlsplit
 
 from sro.domain.chat.asked_by import K_MAILBOXES
 from sro.domain.execution.evidence import primary_gesture, stood_on
 from sro.domain.execution.what_it_writes import what_it_writes
 from sro.domain.observation.gesture import Gesture
-from sro.domain.observation.identity import shape_key, target_identity
-from sro.domain.shared.hosts import page_of, system_of
-from sro.domain.skill.learned import control_names
+from sro.domain.observation.identity import screen_of, shape_key, target_identity
+from sro.domain.shared.hosts import system_of
+from sro.domain.skill.learned import control_key, control_names, same_control
 from sro.domain.skill.offers import K_OFFER_AFTER, Counsel
-from sro.domain.skill.workflow import Step, Workflow, ordered_cites
+from sro.domain.skill.tabs import MAIN
+from sro.domain.skill.workflow import Step, Workflow, field_key, ordered_cites
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,7 +82,9 @@ def typed_at(cited: list[tuple[Gesture, Step]], parameter: dict[str, object]) ->
         if name in step.parameters and seen & put_by(gesture):
             return index
     for index, (gesture, _) in enumerate(cited):
-        if name in control_names(gesture) and seen & put_by(gesture):
+        if same_control((name,), control_names(gesture), theirs=control_key(gesture)) and (
+            seen & put_by(gesture)
+        ):
             return index
     return None
 
@@ -111,7 +114,7 @@ def shape_of(
     by_id = {g.id: g for g in gestures}
     first_step = min(workflow.steps, key=lambda s: s.order)
     first = primary_gesture(first_step, by_id) or gestures[0]
-    starts_on = page_of(first.page_url or first.url)
+    starts_on = screen_of(first) or None
     hosts = sorted(stood_on(workflow, by_id))
     if system_of(starts_on) not in hosts:
         return None
@@ -148,6 +151,34 @@ def where_steps_moved(
         if same:
             moved[step.order] = same.pop(0)
     return moved
+
+
+def keeping_fields(
+    was: Workflow, now: Sequence[Step], by_id: Mapping[str, Gesture]
+) -> tuple[list[Step], dict[int, int]]:
+    fields = [one for one in was.steps if field_key(was, one)]
+    moved = where_steps_moved([one for one in was.steps if one not in fields], now, by_id)
+    before: dict[int, list[Step]] = {}
+    waiting: list[Step] = []
+    for one in sorted(was.steps, key=lambda step: step.order):
+        if one in fields:
+            waiting.append(one)
+        elif one.order in moved and waiting:
+            before.setdefault(moved[one.order], []).extend(waiting)
+            waiting = []
+    placed: list[tuple[Step, bool]] = []
+    for one in sorted(now, key=lambda step: step.order):
+        placed += [(field, True) for field in before.get(one.order, [])]
+        placed.append((one, False))
+    renumber = {one.order: n for n, (one, kept) in enumerate(placed) if not kept}
+    steps: list[Step] = []
+    for n, (one, kept) in enumerate(placed):
+        if kept:
+            steps.append(replace(one, order=n, tab=steps[-1].tab if steps else MAIN))
+        else:
+            steps.append(replace(one, order=n, uses=[renumber.get(use, use) for use in one.uses]))
+    kept_at = {one.order: n for n, (one, kept) in enumerate(placed) if kept}
+    return steps, {**{old: renumber[new] for old, new in moved.items()}, **kept_at}
 
 
 def _did(step: Step, by_id: Mapping[str, Gesture]) -> tuple[tuple[str, ...], ...]:

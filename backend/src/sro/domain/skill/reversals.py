@@ -32,12 +32,14 @@ def identifies(undo: Workflow, gestures: Mapping[str, Gesture]) -> frozenset[str
 
 
 def asks_for(undo: Workflow) -> str | None:
-    named = [
+    # By name, not by entry: one value mined twice (a search box and a form
+    # field both labelled "Customer Type") is still the one value the undo asks.
+    named = {
         str(one["name"]).strip()
         for one in undo.parameters
         if isinstance(one, Mapping) and str(one.get("name", "")).strip()
-    ]
-    return named[0] if len(named) == 1 else None
+    }
+    return next(iter(named)) if len(named) == 1 else None
 
 
 def _record(text: str | None) -> dict[str, str]:

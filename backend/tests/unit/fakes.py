@@ -7,15 +7,18 @@ rather than a capability, and should be redesigned before it gets an adapter.
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 import sys
 from collections import Counter
-from collections.abc import AsyncIterator, Callable, Mapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Collection, Mapping, Sequence
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from copy import deepcopy
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from itertools import count
 from types import MappingProxyType
+from typing import Any
 
 from sro.application.context import RequestContext
 from sro.application.execution.execute_skill import ExecuteSkill, ExecutionRequest
@@ -32,7 +35,10 @@ from sro.application.ports.http import (
     TargetUnreachable,
 )
 from sro.application.ports.intent import Extraction, Reading
+from sro.application.ports.locks import AccountBusy
 from sro.application.ports.model import Asker
+from sro.application.ports.page import PageAnswer, PageGone, PageUnsettled, SessionRef
+from sro.application.ports.pool import PoolFull
 from sro.application.ports.repositories import (
     AttemptRepository,
     BrowserSessionRepository,
@@ -80,12 +86,23 @@ from sro.application.ports.vision import (
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import MessageId, Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
+from sro.domain.execution.account import K_LEASE_TTL, LIVE, Account, Lease, LeaseState
 from sro.domain.execution.belts import RunProof, state_verified
+from sro.domain.execution.compose import normal
+from sro.domain.execution.lanes import K_BROKEN_COOL_DOWN, Broken, Lane, SeenCall
 from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
+from sro.domain.execution.mail_job import JobRecipient, built_in
 from sro.domain.execution.model_call import ModelCall
 from sro.domain.execution.run import Medium, Run, RunId
 from sro.domain.execution.verified_writes import VerifiedWrite
-from sro.domain.execution.workflow_run import RunStep, WorkflowRun, already_running
+from sro.domain.execution.waiting import Durably, asks_a_person
+from sro.domain.execution.workflow_run import (
+    ENDED,
+    OfferTaken,
+    WorkflowRun,
+    already_running,
+    end_the_steps,
+)
 from sro.domain.knowledge.entry import (
     EntryKind,
     EvidenceLevel,
@@ -102,12 +119,15 @@ from sro.domain.observation.identity import ShapeKey
 from sro.domain.observation.mining import MiningPass
 from sro.domain.observation.policy import ObservationPolicy
 from sro.domain.observation.pool import (
+    K_MINE_ATTEMPTS,
     K_POOL_AGE,
     K_POOL_DAYS,
     RETIRED_PASSES,
     RETIRED_STALE,
+    RETIRED_UNMINABLE,
     PoolEntry,
 )
+from sro.domain.observation.trim import path_shape
 from sro.domain.recording.events import ActionKind
 from sro.domain.recording.recording import Recording, RecordingStatus
 from sro.domain.shared.errors import Conflict, NotFound
@@ -128,8 +148,10 @@ from sro.domain.shared.objective import ObjectiveKey
 # `Answer` is already the trigger confirmation's; this one is a model's reply.
 from sro.domain.shared.prices import Answer as ModelAnswer
 from sro.domain.shared.prices import DaySpend, Effort, ModelSpend
+from sro.domain.skill.aliases import JobAlias
 from sro.domain.skill.locator import LocatorStrategy
 from sro.domain.skill.offers import Offer, OfferRow
+from sro.domain.skill.signing_in import PageSignals
 from sro.domain.skill.skill import Skill
 from sro.domain.skill.workflow import Noticed, Workflow
 from sro.domain.trigger.confirmation import Answer, Confirmation
@@ -404,6 +426,21 @@ class FakeDurableExecution:
         and the person who approved one of its fires are different people, and
         which of them a run carries is the point of the confirmation queue."""
 
+        self.runs_started: list[tuple[str, float]] = []
+        """One `(run_id, budget_s)` per `start_run` call."""
+        self.cancelled: list[str] = []
+        """One run id per `cancel_run` call."""
+
+        self.answered: list[tuple[str, ...]] = []
+        """Every argument of each `answer_run` call, in order: what a signal
+        to the run's workflow would carry into its history."""
+
+        self.ended: set[str] = set()
+        """Runs whose workflow has closed -- timed out, terminated, or lost
+        with its worker -- without the row hearing of it. A run in
+        `runs_started` and not here is still open; one in neither was never
+        handed over, which Temporal answers as not found."""
+
     async def execute_skill(
         self,
         ctx: RequestContext,
@@ -436,6 +473,20 @@ class FakeDurableExecution:
             ),
         )
         return run.id
+
+    async def start_run(self, ctx: RequestContext, *, run_id: str, budget_s: float) -> None:
+        self.runs_started.append((run_id, budget_s))
+
+    async def answer_run(self, run_id: str, question_id: str) -> None:
+        self.answered.append((run_id, question_id))
+
+    async def cancel_run(self, run_id: str) -> None:
+        self.cancelled.append(run_id)
+
+    async def run_state(self, run_id: str) -> Durably:
+        if run_id in self.ended:
+            return "closed"
+        return "open" if any(one == run_id for one, _ in self.runs_started) else "unknown"
 
 
 class FakeRecordingRepository:
@@ -866,16 +917,28 @@ class FakeThreadRepository:
         self.rows: dict[tuple[str, str], Thread] = {}
 
     async def add(self, thread: Thread) -> None:
-        self.rows[(str(thread.tenant_id), str(thread.id))] = thread
+        self.rows[(str(thread.tenant_id), str(thread.id))] = _copied(thread)
+        thread.saved()
+
+    async def get_for_answer(self, tenant_id: TenantId, thread_id: ThreadId) -> Thread:
+        return await self.get(tenant_id, thread_id)
 
     async def get(self, tenant_id: TenantId, thread_id: ThreadId) -> Thread:
         try:
-            return self.rows[(str(tenant_id), str(thread_id))]
+            return _copied(self.rows[(str(tenant_id), str(thread_id))])
         except KeyError:
             raise NotFound(f"thread {thread_id} not found") from None
 
     async def save(self, thread: Thread) -> None:
-        await self.add(thread)
+        # An append, as the store's `messages || :new` is: a writer that read
+        # the thread before somebody else wrote to it adds its messages after
+        # theirs rather than writing its stale copy over them.
+        held = self.rows.get((str(thread.tenant_id), str(thread.id)))
+        if held is None:
+            raise NotFound(f"thread {thread.id} not found")
+        for message in thread.unsaved():
+            held.say(message)
+        thread.saved()
 
     async def list_for_tenant(
         self,
@@ -891,7 +954,34 @@ class FakeThreadRepository:
             if tenant == str(tenant_id) and (opened_by is None or t.opened_by == opened_by)
         ]
         rows.sort(key=lambda thread: thread.opened_at, reverse=True)
-        return tuple(rows[offset : offset + limit])
+        return tuple(_copied(one) for one in rows[offset : offset + limit])
+
+    async def holding(
+        self, tenant_id: TenantId, *, opened_by: PrincipalId, message_id: str
+    ) -> Thread | None:
+        return next(
+            (
+                _copied(one)
+                for (tenant, _), one in self.rows.items()
+                if tenant == str(tenant_id)
+                and one.opened_by == opened_by
+                and any(said.id.value == message_id for said in one.messages)
+            ),
+            None,
+        )
+
+
+def _copied(thread: Thread) -> Thread:
+    copy = Thread(
+        id=thread.id,
+        tenant_id=thread.tenant_id,
+        opened_by=thread.opened_by,
+        opened_at=thread.opened_at,
+    )
+    for message in thread.messages:
+        copy.say(message)
+    copy.saved()
+    return copy
 
 
 class FakeModelCallRepository:
@@ -913,6 +1003,7 @@ class FakeBrowserSessionRepository:
 
     def __init__(self) -> None:
         self.rows: dict[str, tuple[str, datetime]] = {}
+        self.leases: dict[str, Lease] = {}
 
     async def claim(
         self,
@@ -937,6 +1028,124 @@ class FakeBrowserSessionRepository:
 
     async def release(self, session_id: BrowserSessionId) -> None:
         self.rows.pop(str(session_id), None)
+
+    async def lease(self, tenant_id: TenantId, lease: Lease) -> Lease:
+        current = await self.current_lease(tenant_id, lease.account)
+        if current is not None:
+            return current
+        self.leases[lease.id] = lease
+        return lease
+
+    async def current_lease(self, tenant_id: TenantId, account: Account) -> Lease | None:
+        for held in self.leases.values():
+            if (
+                held.account.tenant == str(tenant_id)
+                and held.account.key == account.key
+                and held.state in LIVE
+            ):
+                return held
+        return None
+
+    async def get_lease(self, tenant_id: TenantId, lease_id: str) -> Lease | None:
+        found = self.leases.get(lease_id)
+        if found is None or found.account.tenant != str(tenant_id):
+            return None
+        return found
+
+    async def settle(
+        self,
+        tenant_id: TenantId,
+        lease_id: str,
+        *,
+        state: LeaseState,
+        until: datetime | None = None,
+        now: datetime | None = None,
+        waits_for: str = "",
+        holder: str | None = None,
+    ) -> bool:
+        if state is LeaseState.EXPIRED:
+            raise ValueError("settle cannot move a lease to expired; use expire")
+        found = self.leases.get(lease_id)
+        if found is None or found.account.tenant != str(tenant_id) or found.state not in LIVE:
+            return False
+        if now is not None and found.expires_at <= now:
+            return False
+        self.leases[lease_id] = replace(
+            found,
+            state=state,
+            expires_at=found.expires_at if until is None else until,
+            waits_for=waits_for,
+            holder=found.holder if holder is None else holder,
+        )
+        return True
+
+    async def expire(self, tenant_id: TenantId, lease_id: str, *, now: datetime) -> bool:
+        found = self.leases.get(lease_id)
+        if (
+            found is None
+            or found.account.tenant != str(tenant_id)
+            or found.state not in LIVE
+            or found.expires_at > now
+        ):
+            return False
+        self.leases[lease_id] = replace(found, state=LeaseState.EXPIRED)
+        return True
+
+    async def beat(
+        self, tenant_id: TenantId, lease_id: str, *, now: datetime, holder: str | None = None
+    ) -> bool:
+        found = self.leases.get(lease_id)
+        if found is None or found.account.tenant != str(tenant_id) or found.state not in LIVE:
+            return False
+        self.leases[lease_id] = replace(
+            found,
+            heartbeat_at=now,
+            expires_at=(
+                found.expires_at if found.state is LeaseState.WAITING else now + K_LEASE_TTL
+            ),
+            holder=(
+                found.holder if holder is None or found.state is LeaseState.WAITING else holder
+            ),
+        )
+        return True
+
+    async def expired(self, *, now: datetime) -> tuple[Lease, ...]:
+        return tuple(
+            held for held in self.leases.values() if held.state in LIVE and held.expires_at <= now
+        )
+
+    async def pinned_container(self, tenant_id: TenantId, account: Account) -> str | None:
+        return next(
+            (
+                held.container_url
+                for held in reversed(self.leases.values())
+                if held.account.tenant == str(tenant_id) and held.account.key == account.key
+            ),
+            None,
+        )
+
+    async def busy_containers(self, *, now: datetime) -> tuple[str, ...]:
+        return tuple(
+            held.container_url
+            for held in self.leases.values()
+            if held.state in LIVE and held.expires_at > now
+        )
+
+    async def retired_contexts(
+        self, container_url: str, context_ids: Collection[str]
+    ) -> frozenset[str]:
+        return frozenset(
+            held.context_id
+            for held in self.leases.values()
+            if held.container_url == container_url
+            and held.context_id in context_ids
+            and held.state not in LIVE
+        )
+
+    async def leased_sessions(self) -> frozenset[str]:
+        return frozenset(
+            held.steel_session_id for held in self.leases.values() if held.state in LIVE
+        )
 
 
 class FakeDeviceRepository:
@@ -1273,6 +1482,418 @@ class FakeTriggerRepository:
         return trigger if trigger is not None and self._live(trigger) else None
 
 
+async def _no_op_on_wait() -> None:
+    return None
+
+
+class FakeBrowserPool:
+    """`containers` maps a container url to its context capacity. `open`
+    picks the least-loaded container of the given tenant (`by_tenant`, empty
+    unless a test needs tenant isolation, falling back to every container)
+    that `busy` (supplied by the caller) has not filled, and hands back a
+    fresh `context_id` inside the container's one Steel session
+    (`session_id`), on `pinned` alone when it is one of the tenant's.
+    `contexts` lists what Chrome would: every context opened (or appended to
+    `opened` by a test, as another process would) and not closed, less
+    `dead`, the ones a test has killed; `closes_hang` makes `close` never
+    return, the way a sibling's hung page has held a real disposal; `down`
+    names container urls whose `cdp_url` raises `BrowserUnavailable`, the
+    way a restarted Steel container answers; `unknown` names ones whose
+    `cdp_url` raises `KeyError`, the way one dropped from the pool's own
+    config answers -- a real `SteelBrowserPool` indexes its clients by
+    container url and never had one to begin with."""
+
+    def __init__(
+        self,
+        containers: Mapping[str, int],
+        *,
+        by_tenant: Mapping[str, Sequence[str]] | None = None,
+    ) -> None:
+        self._containers = dict(containers)
+        self._by_tenant = dict(by_tenant or {})
+        self.opened: list[tuple[str, str]] = []
+        self.closed: list[tuple[str, str]] = []
+        self.dead: set[str] = set()
+        self.down: set[str] = set()
+        self.unknown: set[str] = set()
+        self.closes_hang = False
+        self.viewers: dict[str, str] = {}
+        self.session_id = "ses_1"
+        self._next = count(1)
+
+    async def open(
+        self, tenant: str, busy: Mapping[str, int], *, pinned: str | None = None
+    ) -> tuple[str, str, str]:
+        urls = self._by_tenant.get(tenant, tuple(self._containers))
+        if pinned is not None and pinned in urls:
+            urls = (pinned,)
+        candidates = [
+            (busy.get(url, 0), url) for url in urls if busy.get(url, 0) < self._containers[url]
+        ]
+        if not candidates:
+            raise PoolFull(f"all {len(urls)} container(s) for tenant {tenant!r} are full")
+        _, url = min(candidates, key=lambda pair: pair[0])
+        context_id = f"ctx_{next(self._next)}"
+        self.opened.append((url, context_id))
+        return url, self.session_id, context_id
+
+    async def close(self, container_url: str, context_id: str) -> None:
+        if self.closes_hang:
+            await asyncio.Event().wait()
+        self.closed.append((container_url, context_id))
+
+    async def contexts(self, container_url: str) -> frozenset[str]:
+        return frozenset(
+            context_id
+            for url, context_id in self.opened
+            if url == container_url
+            and (url, context_id) not in self.closed
+            and context_id not in self.dead
+        )
+
+    async def live_view_url(self, container_url: str, session_id: str) -> str | None:
+        return self.viewers.get(container_url)
+
+    async def cdp_url(self, container_url: str) -> str:
+        if container_url in self.down:
+            raise BrowserUnavailable(f"{container_url} is down")
+        if container_url in self.unknown:
+            raise KeyError(container_url)
+        return f"ws://{container_url}"
+
+
+class FakePageDriver:
+    """`tabs` maps a target id (`tab-1`, `tab-2`, ...) to the url it was last
+    sent to, and `owners` maps it to the context id that opened it: a tab
+    asked for under another account's context is `PageGone`, as the real
+    driver answers. `states` holds the saved storage-state JSON per context
+    id, and `dead` names context ids whose calls raise `PageGone`, the way a
+    context a lease no longer holds would. `calls` logs every tab-lifecycle
+    call as a tuple starting with the method name, for tests that check what
+    was asked of the driver rather than only its answers.
+
+    `signals` answers `signals_for_every_tab`, except that with
+    `shows_sign_in_until_signed` a context not yet in `signed` answers a
+    password form: whoever drives the recorded sign-in adds the context to
+    `signed`, unless `refuses` says the system turns the password away.
+    `expire_session` signs every context out, the way a system ending its
+    session server-side does.
+
+    `act`/`wait_for`/`calls_since` answer exactly what a test scripted, for
+    the runtime lanes that drive a page through it (`UiLane` first). The call
+    log is numbered the way the real one is: `before` holds calls numbered
+    ahead of any `mark`, `calls` arrive with the first `act`, and
+    `calls_since`/`wait_for_call` see only calls numbered after the mark they
+    are given. The log is one for every tab, so `forget_calls` empties all
+    of it.
+
+    For the sight lane, `screenshot` answers a blank screen, `hit_test`
+    answers `hits[(x, y)]`, else `hit` (a `sroPage.hitTest` answer), and
+    `point` records each gesture and the frame path it was given in `pointed`
+    and `aimed`, lets `calls` arrive on the first point and `calls_on[(x, y)]`
+    on that point, and moves the tab to `lands` when set. `arrive` numbers
+    calls into the log at any moment a test chooses; a call with no status is
+    one sent and not yet answered. `storage_state_hangs` makes `storage_state`
+    never return, the way a wedged renderer's CDP socket answers nothing.
+
+    For a field nobody demonstrated, `resolve` records each payload in
+    `resolved` and answers the scripted `resolved` answer (one control by
+    default), and `outline` answers the scripted live outline."""
+
+    def __init__(
+        self,
+        *,
+        answer: PageAnswer | None = None,
+        calls: Sequence[SeenCall] = (),
+        before: Sequence[SeenCall] = (),
+        holds: bool = False,
+        sign_in: bool = False,
+        url: str = "",
+        unsettled: bool = False,
+        hit: Mapping[str, object] | None = None,
+        resolved: PageAnswer | None = None,
+        outline: Mapping[str, object] | None = None,
+    ) -> None:
+        self.tabs: dict[str, str] = {}
+        self.owners: dict[str, str] = {}
+        self.states: dict[str, str] = {}
+        self.dead: set[str] = set()
+        self.calls: list[tuple[str, ...]] = []
+        self.closed = False
+        self.storage_state_hangs = False
+        self._next = count(1)
+        self._answer = answer if answer is not None else PageAnswer(ok=True)
+        self._arriving = tuple(calls)
+        self._seq = count(1)
+        self._log = [(next(self._seq), call) for call in before]
+        self._holds = holds
+        self._unsettled = unsettled
+        self.signals_for_every_tab = PageSignals(url or "https://wms.example/app", password=sign_in)
+        self.shows_sign_in_until_signed = False
+        self.refuses = False
+        self.signed: set[str] = set()
+        self.acted: list[tuple[SessionRef, str, dict[str, object]]] = []
+        self.waited_for: list[dict[str, object]] = []
+        self.hit = hit
+        self.hits: dict[tuple[int, int], Mapping[str, object] | None] = {}
+        self.calls_on: dict[tuple[int, int], Sequence[SeenCall]] = {}
+        self.lands: str | None = None
+        self.pointed: list[tuple[str, int, int, str | None]] = []
+        self.aimed: list[Sequence[Mapping[str, object]] | None] = []
+        self._resolves = resolved if resolved is not None else PageAnswer(ok=True, candidates=1)
+        self._outline = outline
+        self.resolved: list[dict[str, object]] = []
+        self.http: HttpCaller | None = None
+        self.sent: list[tuple[str, str, str]] = []
+        self.cookie = ""
+        self.headers: dict[str, str] = {}
+        self.headers_after_mark: dict[str, str] | None = None
+        self.needed: tuple[str, ...] = ()
+        self.waited_out: list[float] = []
+        self.floors: dict[str, int] = {}
+
+    def expire_session(self) -> None:
+        self.shows_sign_in_until_signed = True
+        self.signed.clear()
+
+    def _live(self, session: SessionRef) -> None:
+        if session.context_id in self.dead:
+            raise PageGone(f"context {session.context_id} is gone")
+
+    def _tab(self, session: SessionRef, target_id: str) -> None:
+        self._live(session)
+        if self.owners.get(target_id) != session.context_id:
+            raise PageGone(f"tab {target_id} is not open in context {session.context_id}")
+
+    async def open_tab(self, session: SessionRef, url: str) -> str:
+        self._live(session)
+        target_id = f"tab-{next(self._next)}"
+        self.tabs[target_id] = url
+        self.owners[target_id] = session.context_id
+        self.calls.append(("open_tab", session.context_id, url))
+        return target_id
+
+    async def close_tab(self, session: SessionRef, target_id: str) -> None:
+        self._tab(session, target_id)
+        del self.tabs[target_id], self.owners[target_id]
+        self.calls.append(("close_tab", session.context_id, target_id))
+
+    async def goto(self, session: SessionRef, target_id: str, url: str) -> None:
+        self._tab(session, target_id)
+        self.tabs[target_id] = url
+        self.calls.append(("goto", session.context_id, target_id, url))
+
+    async def send(
+        self,
+        session: SessionRef,
+        target_id: str,
+        method: str,
+        url: str,
+        *,
+        headers: Mapping[str, str],
+        body: str | None = None,
+        timeout_s: float = 30.0,
+    ) -> HttpResponse:
+        """A call the page makes: answered by `http`, the scripted server
+        behind this page, and seen in `sent` as the tab that sent it."""
+        self.sent.append((target_id, method, url))
+        if self.http is None:
+            raise AssertionError("this page was sent a call with no server scripted behind it")
+        return await self.http.send(method, url, headers=headers, body=body, timeout_s=timeout_s)
+
+    async def url_of(self, session: SessionRef, target_id: str) -> str:
+        self._tab(session, target_id)
+        self.calls.append(("url_of", session.context_id, target_id))
+        return self.tabs[target_id]
+
+    async def headers_for(
+        self,
+        session: SessionRef,
+        origin: str,
+        deadline_s: float,
+        *,
+        since: int = 0,
+        needs: Collection[str] = (),
+    ) -> dict[str, str]:
+        self._live(session)
+        since = max(since, self.floors.get(session.context_id, 0))
+        self.calls.append(("headers_for", session.context_id, origin, since))
+        self.needed = tuple(needs)
+        said = (
+            self.headers_after_mark
+            if since and self.headers_after_mark is not None
+            else self.headers
+        )
+        if not all(name in said for name in needs):
+            self.waited_out.append(deadline_s)
+        return dict(said)
+
+    async def cookies_for(self, session: SessionRef, url: str) -> str:
+        self._live(session)
+        self.calls.append(("cookies_for", session.context_id, url))
+        return self.cookie
+
+    async def storage_state(self, session: SessionRef) -> str:
+        self._live(session)
+        if self.storage_state_hangs:
+            await asyncio.Event().wait()
+        self.calls.append(("storage_state", session.context_id))
+        return self.states.get(session.context_id, "{}")
+
+    async def restore_state(self, session: SessionRef, state: str) -> None:
+        self._live(session)
+        self.states[session.context_id] = state
+        self.calls.append(("restore_state", session.context_id, state))
+
+    async def forget_headers_before(self, session: SessionRef, mark: int) -> None:
+        self._live(session)
+        self.floors[session.context_id] = max(mark, self.floors.get(session.context_id, 0))
+
+    async def forget(self, session: SessionRef) -> None:
+        self.floors.pop(session.context_id, None)
+        self.calls.append(("forget", session.context_id))
+
+    async def forget_calls(self, session: SessionRef, target_id: str) -> None:
+        self._tab(session, target_id)
+        self._log = []
+        self.calls.append(("forget_calls", session.context_id, target_id))
+
+    async def aclose(self) -> None:
+        self.closed = True
+
+    async def act(
+        self, session: SessionRef, target_id: str, payload: Mapping[str, object]
+    ) -> PageAnswer:
+        self.acted.append((session, target_id, dict(payload)))
+        self._log += [(next(self._seq), call) for call in self._arriving]
+        self._arriving = ()
+        return self._answer
+
+    async def mark(self, session: SessionRef, target_id: str) -> int:
+        return next(self._seq)
+
+    async def resolve(
+        self, session: SessionRef, target_id: str, payload: Mapping[str, object]
+    ) -> PageAnswer:
+        self.resolved.append(dict(payload))
+        return self._resolves
+
+    async def outline(
+        self,
+        session: SessionRef,
+        target_id: str,
+        frame_path: Sequence[Mapping[str, object]] | None,
+    ) -> Mapping[str, object] | None:
+        return self._outline
+
+    async def screenshot(self, session: SessionRef, target_id: str) -> Screen:
+        self._tab(session, target_id)
+        return Screen(image=b"", mime_type="image/png", width=1280, height=800)
+
+    async def hit_test(
+        self, session: SessionRef, target_id: str, x: int, y: int
+    ) -> Mapping[str, object] | None:
+        self._tab(session, target_id)
+        return self.hits.get((x, y), self.hit)
+
+    def arrive(self, *calls: SeenCall) -> None:
+        self._log += [(next(self._seq), call) for call in calls]
+
+    async def point(
+        self,
+        session: SessionRef,
+        target_id: str,
+        action: ActionKind,
+        x: int,
+        y: int,
+        value: str | None,
+        frame_path: Sequence[Mapping[str, object]] | None,
+    ) -> None:
+        self._tab(session, target_id)
+        self.pointed.append((action.value, x, y, value))
+        self.aimed.append(frame_path)
+        self.arrive(*self._arriving, *self.calls_on.get((x, y), ()))
+        self._arriving = ()
+        if self.lands is not None:
+            self.tabs[target_id] = self.lands
+
+    async def calls_since(
+        self, session: SessionRef, target_id: str, mark: int
+    ) -> tuple[SeenCall, ...]:
+        return tuple(call for at, call in self._log if at > mark)
+
+    async def wait_for_call(
+        self,
+        session: SessionRef,
+        target_id: str,
+        *,
+        method: str,
+        shape: str,
+        since: int,
+        deadline_s: float,
+    ) -> bool:
+        return any(
+            call.method.upper() == method.upper() and path_shape(call.url) == shape
+            for call in await self.calls_since(session, target_id, since)
+        )
+
+    async def wait_for(
+        self,
+        session: SessionRef,
+        target_id: str,
+        payload: Mapping[str, object],
+        deadline_s: float,
+    ) -> bool:
+        self.waited_for.append(dict(payload))
+        return self._holds
+
+    async def signals(self, session: SessionRef, target_id: str) -> PageSignals:
+        if self._unsettled:
+            raise PageUnsettled(f"tab {target_id} did not settle")
+        if self.shows_sign_in_until_signed and session.context_id not in self.signed:
+            return PageSignals(self.tabs.get(target_id, ""), password=True)
+        return self.signals_for_every_tab
+
+
+class FakeAccountLocks:
+    """One `asyncio.Lock` per `Account.key`, keyed the same way the real
+    advisory lock is: two accounts that normalise to the same key share a
+    lock, and nothing here is a process boundary the way Postgres is.
+
+    `busy` names accounts this fake refuses instead of queuing behind, the
+    way a real hold eventually raises `AccountBusy` -- a caller under test
+    puts a key there to see that path without waiting out a real timeout."""
+
+    def __init__(self) -> None:
+        self._locks: dict[str, asyncio.Lock] = {}
+        self.busy: set[str] = set()
+
+    def hold(
+        self, account: Account, *, on_wait: Callable[[], Awaitable[None]] = _no_op_on_wait
+    ) -> AbstractAsyncContextManager[None]:
+        return self.hold_named(account.key, on_wait=on_wait)
+
+    @asynccontextmanager
+    async def hold_named(
+        self, name: str, *, on_wait: Callable[[], Awaitable[None]] = _no_op_on_wait
+    ) -> AsyncIterator[None]:
+        if name in self.busy:
+            await on_wait()
+            raise AccountBusy(f"{name} is held by another session")
+        lock = self._locks.setdefault(name, asyncio.Lock())
+        async with lock:
+            yield
+
+    @asynccontextmanager
+    async def try_hold_named(self, name: str) -> AsyncIterator[bool]:
+        lock = self._locks.setdefault(name, asyncio.Lock())
+        if name in self.busy or lock.locked():
+            yield False
+            return
+        async with lock:
+            yield True
+
+
 class FakeScheduler:
     """A clock that keeps a list. What matters is that a trigger which cannot
     be scheduled is never stored, and a paused one leaves nothing behind."""
@@ -1297,7 +1918,7 @@ class FakeRunDispatcher:
 
     def __init__(self, *, reachable: bool = True) -> None:
         self.reachable = reachable
-        self.asked: list[tuple[str, str]] = []
+        self.asked: list[tuple[str, str | None]] = []
         self.with_values: list[dict[str, str]] = []
         self.may_take_focus = False
 
@@ -1325,7 +1946,7 @@ class FakeRunDispatcher:
         ctx: RequestContext,
         *,
         workflow_id: str,
-        device_id: DeviceId,
+        device_id: DeviceId | None,
         values: Mapping[str, str],
         allow_focus: bool = False,
     ) -> RunId:
@@ -1333,7 +1954,7 @@ class FakeRunDispatcher:
         the same thing: which browser, and with what."""
         if not self.reachable:
             raise DispatchFailed(f"{device_id} has no channel open anywhere")
-        self.asked.append((workflow_id, device_id.value))
+        self.asked.append((workflow_id, device_id.value if device_id is not None else None))
         self.with_values.append(dict(values))
         self.may_take_focus = allow_focus
         return RunId(f"run-dispatched-{len(self.asked)}")
@@ -1402,10 +2023,19 @@ class FakeToolCallRepository:
         self.when[where] = at
         return True
 
-    async def forget(self, tenant_id: TenantId, key: str) -> None:
+    async def forget(self, tenant_id: TenantId, key: str, *, tool: str | None = None) -> bool:
         where = (tenant_id.value, key)
-        self.claimed.pop(where, None)
+        if tool is not None and self.claimed.get(where) != tool:
+            return False
         self.when.pop(where, None)
+        return self.claimed.pop(where, None) is not None
+
+    async def held(
+        self, tenant_id: TenantId, key: str, *, since: datetime, tool: str | None = None
+    ) -> bool:
+        at = self.when.get((tenant_id.value, key))
+        mine = tool is None or self.claimed.get((tenant_id.value, key)) == tool
+        return at is not None and at >= since and mine
 
 
 def _read_clock(said: str) -> datetime | None:
@@ -1463,12 +2093,14 @@ class FakeGestureRepository:
         ids: tuple[str, ...] | None = None,
         after: float | None = None,
         before: float | None = None,
+        stream_id: str | None = None,
     ) -> tuple[Gesture, ...]:
         self.gestures_for_calls += 1
         found = [
             gesture
             for gesture in self.rows.values()
             if gesture.tenant == tenant_id.value
+            and (stream_id is None or gesture.stream_id == stream_id)
             and (ids is None or gesture.id in ids)
             and (after is None or gesture.at > after)
             and (before is None or gesture.at <= before)
@@ -1543,8 +2175,14 @@ class FakeGestureRepository:
         # second reading: the row is replaced, not appended to.
         self.read_at[intent.gesture_id] = datetime.now(tz=UTC)
 
-    async def intents_for(self, tenant_id: TenantId) -> tuple[Intent, ...]:
-        return tuple(intent for intent in self.intents.values() if intent.tenant == tenant_id.value)
+    async def intents_for(
+        self, tenant_id: TenantId, *, ids: tuple[str, ...] | None = None
+    ) -> tuple[Intent, ...]:
+        return tuple(
+            intent
+            for intent in self.intents.values()
+            if intent.tenant == tenant_id.value and (ids is None or intent.gesture_id in ids)
+        )
 
     async def intents_since(self, tenant_id: TenantId, *, since: str) -> tuple[Intent, ...]:
         # On instants, never on the ISO text: the store compares timestamps,
@@ -1609,7 +2247,7 @@ class FakePoolRepository:
 
     Faithful rather than convenient: an entry ages only when it was shown, an
     empty window still moves everything's waiting, and retirement is a flag
-    rather than a delete -- a retired entry is still packed on its own merits.
+    rather than a delete -- and a retired entry has been mined, so no pass packs it again.
     """
 
     def __init__(self) -> None:
@@ -1634,7 +2272,9 @@ class FakePoolRepository:
             added += 1
         return added
 
-    async def age(self, tenant_id: TenantId, *, shown: tuple[str, ...] | None = None) -> int:
+    async def age(
+        self, tenant_id: TenantId, *, shown: tuple[str, ...] | None = None, failed: bool = False
+    ) -> int:
         stale_before = datetime.now(tz=UTC) - timedelta(days=K_POOL_DAYS)
         retired = 0
         for key, entry in list(self.rows.items()):
@@ -1642,6 +2282,9 @@ class FakePoolRepository:
                 continue
             if shown is None:
                 entry = replace(entry, age=entry.age + 1)
+            elif failed:
+                if entry.gesture_id in shown:
+                    entry = replace(entry, failed=entry.failed + 1)
             elif entry.gesture_id in shown:
                 entry = replace(entry, age=entry.age + 1, waited=0)
             else:
@@ -1650,8 +2293,10 @@ class FakePoolRepository:
                 entry = replace(entry, waited=entry.waited + 1)
             if entry.age > K_POOL_AGE:
                 entry = replace(entry, reason=RETIRED_PASSES)
-            elif when(entry.entered_at) < stale_before:
+            elif entry.age > 0 and when(entry.entered_at) < stale_before:
                 entry = replace(entry, reason=RETIRED_STALE)
+            elif entry.failed >= K_MINE_ATTEMPTS:
+                entry = replace(entry, reason=RETIRED_UNMINABLE)
             if entry.reason:
                 self.retired_ids.add(key)
                 retired += 1
@@ -1667,6 +2312,19 @@ class FakePoolRepository:
     async def retired(self, tenant_id: TenantId) -> tuple[PoolEntry, ...]:
         return self._entries(tenant_id, retired=True)
 
+    async def retire(
+        self, tenant_id: TenantId, gesture_ids: tuple[str, ...], *, reason: str
+    ) -> int:
+        gone = 0
+        for gesture_id in dict.fromkeys(gesture_ids):
+            key = (tenant_id.value, gesture_id)
+            if key not in self.rows or key in self.retired_ids:
+                continue
+            self.rows[key] = replace(self.rows[key], reason=reason)
+            self.retired_ids.add(key)
+            gone += 1
+        return gone
+
     def _entries(self, tenant_id: TenantId, *, retired: bool) -> tuple[PoolEntry, ...]:
         found = [
             entry
@@ -1679,16 +2337,22 @@ class FakePoolRepository:
 class FakeWorkflowRunRepository:
     """Runs, their steps, and the approvals on them, in two dicts.
 
-    Faithful rather than convenient. A run is stored and returned as a copy, so
-    the "steps are replaced, not appended" rule is real here and a caller that
-    mutates what it loaded does not silently rewrite the store. Approvals take
-    the first tap only, and the orphan sweep crosses tenants -- the two rules
-    a caller can actually get wrong.
+    Faithful rather than convenient. A run is stored and returned as a copy,
+    so a caller that mutates what it loaded does not silently rewrite the
+    store. Steps are upserted by `order` and never deleted -- a save that
+    carries fewer steps than the row already has leaves the rest alone, same
+    as the real store's per-step upsert. Approvals take the first tap only,
+    and the orphan sweep crosses tenants -- rules a caller can actually get
+    wrong.
     """
 
     def __init__(self) -> None:
         self.rows: dict[str, WorkflowRun] = {}
         self.approved: dict[tuple[str, int], tuple[str, str | None]] = {}
+        self.on_save: Callable[[WorkflowRun], None] | None = None
+        """Called with a copy of the row after every write to it -- `save` and
+        `record_progress` alike -- so a test can see the order progress was
+        made durable in, not only where it ended."""
 
     async def save(self, run: WorkflowRun) -> None:
         # `uq_workflow_runs_one_running_per_device`, the rule rather than the
@@ -1698,7 +2362,10 @@ class FakeWorkflowRunRepository:
         # It cannot reproduce the RACE -- nothing here yields, which is exactly
         # why the concurrent-press test is an integration test -- but it can
         # refuse the state.
-        if run.outcome == "running":
+        # Narrowed to `executor == "extension"`, same as the index's predicate:
+        # a Steel run has no device and may sit beside others on one account,
+        # so it is never the run this rule is about.
+        if run.outcome == "running" and run.executor == "extension":
             clash = next(
                 (
                     held
@@ -1707,18 +2374,74 @@ class FakeWorkflowRunRepository:
                     and held.tenant == run.tenant
                     and held.device_id == run.device_id
                     and held.outcome == "running"
+                    and held.executor == "extension"
                 ),
                 None,
             )
             if clash is not None:
                 raise Conflict(already_running(run.device_id, clash.id))
+        taken = next(
+            (
+                held.id
+                for held in self.rows.values()
+                if run.offer is not None
+                and held.id != run.id
+                and held.tenant == run.tenant
+                and held.offer == run.offer
+            ),
+            None,
+        )
+        if taken is not None:
+            raise OfferTaken(str(run.offer), taken)
         kept = deepcopy(run)
         # Both clocks as the store hands them back, not as the caller spelled
         # them: `started_at` is what three reads order on.
         kept.started_at = _stored(kept.started_at)
         if kept.finished_at is not None:
             kept.finished_at = _stored(kept.finished_at)
+        # `progress` is written by `save` only on the row's first insert, same
+        # as the real store's INSERT columns; every later `save` leaves it
+        # exactly as the row already has it, so a caller that loaded the run
+        # before a worker settled a step and now saves its stale copy cannot
+        # roll that mark back -- only `record_progress` ever changes it again.
+        existing = self.rows.get(run.id)
+        kept.progress = dict(run.progress) if existing is None else dict(existing.progress)
+        kept.pinned = kept.pinned if existing is None else deepcopy(existing.pinned)
+        kept.mail = kept.mail if existing is None else deepcopy(existing.mail)
+        # An ended run keeps how and when it ended, same as the store's
+        # `CASE` on `outcome`/`finished_at`: a stale copy saved by a worker
+        # that loaded the run before a stop cannot reopen it.
+        if existing is not None and existing.outcome in ENDED:
+            kept.outcome = existing.outcome
+            kept.finished_at = existing.finished_at or kept.finished_at
+        # Steps are upserted by `order`, same as the real store's per-step
+        # `ON CONFLICT DO UPDATE`, and never deleted: a step the run being
+        # saved does not carry stays exactly as the row already has it, so a
+        # stale save cannot erase a step a worker has since added.
+        merged = {step.order: step for step in existing.steps} if existing is not None else {}
+        merged.update({step.order: step for step in kept.steps})
+        kept.steps = [merged[order] for order in sorted(merged)]
         self.rows[run.id] = kept
+        if self.on_save is not None:
+            self.on_save(deepcopy(kept))
+
+    async def record_progress(
+        self,
+        tenant_id: TenantId,
+        run_id: str,
+        progress: dict[str, object],
+        *,
+        was: Mapping[str, object] | None = None,
+    ) -> bool:
+        found = self.rows.get(run_id)
+        if found is None or found.tenant != tenant_id.value:
+            return False
+        if was is not None and found.progress != dict(was):
+            return False
+        found.progress = dict(progress)
+        if self.on_save is not None:
+            self.on_save(deepcopy(found))
+        return True
 
     async def get(self, tenant_id: TenantId, run_id: str) -> WorkflowRun | None:
         run = self.rows.get(run_id)
@@ -1841,6 +2564,7 @@ class FakeWorkflowRunRepository:
             if run.tenant == tenant_id.value
             and run.device_id == device_id.value
             and run.outcome == "running"
+            and run.executor == "extension"
         ]
         driving.sort(key=lambda run: (when(run.started_at), run.id))
         return driving[0].id if driving else None
@@ -1856,9 +2580,20 @@ class FakeWorkflowRunRepository:
             if run.tenant == tenant_id.value
             and (run.awaiting or {}).get("server") == server.strip()
             and (run.awaiting or {}).get("thread") == thread.strip()
+            and asks_a_person(run)
         ]
         asked.sort(key=lambda run: (when(run.started_at), run.id), reverse=True)
         return asked[0] if asked else None
+
+    async def started_on(self, tenant_id: TenantId, *, server: str, thread: str) -> bool:
+        if not server.strip() or not thread.strip():
+            return False
+        return any(
+            run.tenant == tenant_id.value
+            and (run.awaiting or {}).get("server") == server.strip()
+            and (run.awaiting or {}).get("thread") == thread.strip()
+            for run in self.rows.values()
+        )
 
     async def awaiting(self, tenant_id: TenantId) -> tuple[tuple[str, int, str], ...]:
         parked = [
@@ -1889,23 +2624,55 @@ class FakeWorkflowRunRepository:
 
     async def fail_orphans(self, reason: str) -> int:
         # Every tenant, as at startup: nobody is making the request, and a run
-        # left running in one tenant goes on 409-ing its browser.
+        # left running in one tenant goes on 409-ing its browser. Steel runs
+        # live in the worker, not the API process, so an API restart loses
+        # nothing of theirs -- only `executor == "extension"` is swept.
         now = datetime.now(tz=UTC).isoformat()
         orphans = sorted(
-            (run for run in self.rows.values() if run.outcome == "running"),
+            (
+                run
+                for run in self.rows.values()
+                if run.outcome == "running" and run.executor == "extension"
+            ),
             key=lambda run: (when(run.started_at), run.id),
         )
         for run in orphans:
-            if run.steps:
-                last = run.steps[-1]
-                last.verdict, last.verdict_by, last.reason = "failed", "none", reason
-            else:
-                run.steps.append(
-                    RunStep(order=0, says="", verdict="failed", verdict_by="none", reason=reason)
-                )
+            end_the_steps(run.steps, reason)
             run.outcome = "failed"
             run.finished_at = now
         return len(orphans)
+
+    async def running(self) -> tuple[WorkflowRun, ...]:
+        return tuple(
+            deepcopy(run)
+            for run in sorted(self.rows.values(), key=lambda run: (when(run.started_at), run.id))
+            if run.outcome == "running"
+        )
+
+    async def close_stuck(
+        self,
+        tenant_id: TenantId,
+        run_id: str,
+        *,
+        reason: str,
+        at: str,
+        was: Mapping[str, object],
+    ) -> bool:
+        found = self.rows.get(run_id)
+        if (
+            found is None
+            or found.tenant != tenant_id.value
+            or found.outcome != "running"
+            or found.progress != dict(was)
+        ):
+            return False
+        found.outcome, found.finished_at = "failed", _stored(at)
+        if not found.needs:
+            found.awaiting = None
+        end_the_steps(found.steps, reason)
+        if self.on_save is not None:
+            self.on_save(deepcopy(found))
+        return True
 
 
 class FakeWorkflowRepository:
@@ -1943,6 +2710,14 @@ class FakeWorkflowRepository:
         self.stale: dict[tuple[str, int], tuple[str | None, str]] = {}
         # What runs have found out about steps whose recorded identity missed.
         self.learned: dict[tuple[str, int], LearnedStep] = {}
+        # Each known-broken lane, keyed as the store's primary key, to the
+        # step's cites key when it last broke.
+        self.broken: dict[tuple[str, str, int, Lane, str], tuple[str, datetime]] = {}
+        self.recipients: dict[tuple[str, str, str], JobRecipient] = {}
+        self.aliases: dict[tuple[str, str], dict[str, JobAlias]] = {}
+        # Written by a unit of work and kept only when it commits, as the
+        # store keeps them: an alias is taught in the answer's own commit.
+        self.staged_aliases: list[tuple[str, str, JobAlias]] = []
         # Append-only, like the store's: a history that can be edited is a
         # history nobody can rely on.
         self.taught: dict[str, list[Taught]] = {}
@@ -1956,6 +2731,11 @@ class FakeWorkflowRepository:
         """(tenant, gesture) -> the job a folded doing was placed against."""
         """Retired jobs by id, as the store's ``retired_at``: the row stays,
         and a re-save does not bring it back."""
+        self.rules: dict[str, int] = {}
+        """Job id -> the parameters rule last applied to it, as the store's
+        ``parameters_rule``; absent is NULL."""
+        self.save_kills = False
+        """The next `save` is the statement that fails, and kills the session."""
         self._saved = count()
         self._created: dict[str, int] = {}
         self.created_at: dict[str, datetime] = {}
@@ -1966,7 +2746,16 @@ class FakeWorkflowRepository:
 
     async def save(self, workflow: Workflow) -> None:
         self._alive()
+        if self.save_kills:
+            self.poisoned = True
+            raise RuntimeError("value too long for type character varying(64)")
+        kept = self.rows.get(workflow.id)
         self.rows[workflow.id] = deepcopy(workflow)
+        # A re-save keeps the verdicts, as the store's upsert does: only
+        # `decide` writes them on a stored job.
+        if kept is not None:
+            self.rows[workflow.id].signs_in = kept.signs_in
+            self.rows[workflow.id].signs_out = kept.signs_out
         # A re-save keeps the creation time, as the store's upsert does.
         if workflow.id not in self._created:
             self._created[workflow.id] = next(self._saved)
@@ -2001,7 +2790,9 @@ class FakeWorkflowRepository:
         found.sort(key=lambda row: (self._created[row.id], row.id))
         return tuple(deepcopy(row) for row in found)
 
-    async def get(self, tenant_id: TenantId, workflow_id: str) -> Workflow:
+    async def get(self, tenant_id: TenantId, workflow_id: str, *, lock: bool = False) -> Workflow:
+        if (made := built_in(workflow_id, tenant_id.value)) is not None:
+            return made
         row = self.rows.get(workflow_id)
         if row is None or row.tenant != tenant_id.value or workflow_id in self.retired:
             raise NotFound(f"workflow {workflow_id} was not found")
@@ -2030,6 +2821,78 @@ class FakeWorkflowRepository:
         row = self.rows.get(workflow_id)
         if row is not None and row.tenant == tenant_id.value:
             row.shape_key = [list(entry) for entry in key]
+
+    async def undecided(self) -> tuple[Workflow, ...]:
+        found = [
+            row
+            for row in self.rows.values()
+            if (row.signs_in is None or row.signs_out is None) and row.id not in self.retired
+        ]
+        found.sort(key=lambda row: (row.tenant, self._created[row.id], row.id))
+        return tuple(deepcopy(row) for row in found)
+
+    async def decide(
+        self, tenant_id: TenantId, workflow: Workflow, *, signs_in: bool, signs_out: bool
+    ) -> bool:
+        row = self.rows.get(workflow.id)
+        if (
+            row is None
+            or row.tenant != tenant_id.value
+            or workflow.id in self.retired
+            or (row.steps, row.signs_in, row.signs_out)
+            != (workflow.steps, workflow.signs_in, workflow.signs_out)
+        ):
+            return False
+        row.signs_in = signs_in
+        row.signs_out = signs_out
+        return True
+
+    async def placed_on(self, tenant_id: TenantId, workflow_id: str) -> tuple[str, ...]:
+        return tuple(
+            sorted(
+                one
+                for (tenant, one), job in self.placements.items()
+                if tenant == tenant_id.value and job == workflow_id
+            )
+        )
+
+    async def behind_the_rule(self, rule: int) -> tuple[Workflow, ...]:
+        found = [
+            row
+            for row in self.rows.values()
+            if row.id not in self.retired
+            and row.signs_in is not None
+            and row.signs_out is not None
+            and self.rules.get(row.id, 0) < rule
+        ]
+        found.sort(key=lambda row: (row.tenant, self._created[row.id], row.id))
+        return tuple(deepcopy(row) for row in found)
+
+    async def tabs_undecided(self) -> tuple[Workflow, ...]:
+        found = [
+            row
+            for row in self.rows.values()
+            if row.id not in self.retired and any(step.tab is None for step in row.steps)
+        ]
+        found.sort(key=lambda row: (row.tenant, self._created[row.id], row.id))
+        return tuple(deepcopy(row) for row in found)
+
+    async def ruled(self, tenant_id: TenantId, workflow_id: str, rule: int) -> bool:
+        row = self.rows.get(workflow_id)
+        if row is None or row.tenant != tenant_id.value or self.rules.get(workflow_id, 0) >= rule:
+            return False
+        self.rules[workflow_id] = rule
+        return True
+
+    async def decide_tab(self, tenant_id: TenantId, workflow_id: str, order: int, tab: str) -> bool:
+        row = self.rows.get(workflow_id)
+        if row is None or row.tenant != tenant_id.value:
+            return False
+        step = next((one for one in row.steps if one.order == order and one.tab is None), None)
+        if step is None:
+            return False
+        step.tab = tab
+        return True
 
     async def add_pass(self, mining_pass: MiningPass) -> None:
         self._alive()
@@ -2075,7 +2938,7 @@ class FakeWorkflowRepository:
         # other learnt.
         was = self.learned.get((workflow_id, ord_))
         now = (
-            LearnedStep(ord_, was.strategy, was.query, was.found_by, holds)
+            replace(was, holds=holds)
             if was is not None
             else LearnedStep(ord_, "", "", "typed", holds)
         )
@@ -2090,6 +2953,65 @@ class FakeWorkflowRepository:
     async def learned_for(self, workflow_id: str) -> tuple[LearnedStep, ...]:
         return tuple(one for (workflow, _), one in self.learned.items() if workflow == workflow_id)
 
+    async def break_lane(
+        self, tenant_id: TenantId, workflow_id: str, broken: Broken, *, cites: str, at: datetime
+    ) -> None:
+        key = (tenant_id.value, workflow_id, broken.step, broken.lane, broken.fingerprint)
+        self.broken[key] = (cites, at)
+
+    async def broken_for(
+        self, tenant_id: TenantId, workflow_id: str, cites: Mapping[int, str], *, now: datetime
+    ) -> tuple[Broken, ...]:
+        return tuple(
+            Broken(step, lane, fingerprint)
+            for (tenant, workflow, step, lane, fingerprint), (was, at) in sorted(
+                self.broken.items()
+            )
+            if (tenant, workflow) == (tenant_id.value, workflow_id)
+            and cites.get(step) == was
+            and at > now - K_BROKEN_COOL_DOWN
+        )
+
+    async def recipients_for(
+        self, tenant_id: TenantId, workflow_id: str
+    ) -> tuple[JobRecipient, ...]:
+        return tuple(
+            sorted(
+                (
+                    one
+                    for (tenant, job, _), one in self.recipients.items()
+                    if (tenant, job) == (tenant_id.value, workflow_id)
+                ),
+                key=lambda one: (one.at, one.address),
+            )
+        )
+
+    async def confirm_recipient(
+        self, tenant_id: TenantId, workflow_id: str, recipient: JobRecipient
+    ) -> None:
+        self.recipients[(tenant_id.value, workflow_id, recipient.address)] = recipient
+
+    async def aliases_for(self, tenant_id: TenantId, workflow_id: str) -> tuple[JobAlias, ...]:
+        kept = dict(self.aliases.get((tenant_id.value, workflow_id), {}))
+        for tenant, job, alias in self.staged_aliases:
+            if (tenant, job) == (tenant_id.value, workflow_id):
+                kept[normal(alias.wording)] = alias
+        return tuple(sorted(kept.values(), key=lambda one: (one.at, normal(one.wording))))
+
+    async def confirm_alias(self, tenant_id: TenantId, workflow_id: str, alias: JobAlias) -> None:
+        self.staged_aliases.append((tenant_id.value, workflow_id, alias))
+
+    def commit_aliases(self) -> None:
+        for tenant, job, alias in self.staged_aliases:
+            self.aliases.setdefault((tenant, job), {})[normal(alias.wording)] = alias
+        self.staged_aliases = []
+
+    async def mend_lane(self, tenant_id: TenantId, workflow_id: str, step: int, lane: Lane) -> None:
+        for key in [
+            one for one in self.broken if one[:4] == (tenant_id.value, workflow_id, step, lane)
+        ]:
+            del self.broken[key]
+
     async def stale_count(self, workflow_id: str) -> int:
         return sum(1 for workflow, _ in self.stale if workflow == workflow_id)
 
@@ -2101,13 +3023,24 @@ class FakeWorkflowRepository:
         # A step the new shape does not have is a step nobody performs, and
         # its learning goes with it.
         self.learned = {
-            ((one, moved[ord_]) if one == workflow.id else (one, ord_)): found
+            ((one, moved[ord_]) if one == workflow.id else (one, ord_)): (
+                replace(found, ord=moved[ord_]) if one == workflow.id else found
+            )
             for (one, ord_), found in self.learned.items()
             if one != workflow.id or ord_ in moved
         }
         self.stale = {
             ((one, moved[ord_]) if one == workflow.id else (one, ord_)): mark
             for (one, ord_), mark in self.stale.items()
+            if one != workflow.id or ord_ in moved
+        }
+        self.broken = {
+            (
+                (tenant, one, moved[ord_], lane, fingerprint)
+                if one == workflow.id
+                else (tenant, one, ord_, lane, fingerprint)
+            ): cites
+            for (tenant, one, ord_, lane, fingerprint), cites in self.broken.items()
             if one != workflow.id or ord_ in moved
         }
         history = self.taught.get(workflow.id)
@@ -2490,11 +3423,13 @@ class FakeUnitOfWork:
     async def __aexit__(self, *exc: object) -> None:
         if exc[0] is not None:
             await self.rollback()
+        self._workflows.staged_aliases = []
 
     async def commit(self) -> None:
         if self.commit_raises is not None:
             raise self.commit_raises
         self.commits += 1
+        self._workflows.commit_aliases()
 
     async def rollback(self) -> None:
         self.rollbacks += 1
@@ -2503,6 +3438,7 @@ class FakeUnitOfWork:
         # written -- the class does not simulate rollback at all, and the
         # integration suite is where that half is proved.
         self._workflows.poisoned = False
+        self._workflows.staged_aliases = []
 
 
 class FakeIntentParser:
@@ -2528,6 +3464,15 @@ class FakeIntentParser:
         return self._reading
 
 
+def fenced_block(evidence: object, name: str = "evidence") -> str:
+    assert isinstance(evidence, str)
+    return evidence.split(f'<untrusted name="{name}">\n', 1)[1].split("\n</untrusted>", 1)[0]
+
+
+def fenced_json(evidence: object, name: str = "evidence") -> Any:
+    return json.loads(fenced_block(evidence, name))
+
+
 class FakeAsker:
     """Queued answers, and a record of every question.
 
@@ -2548,6 +3493,7 @@ class FakeAsker:
         schema: dict[str, object],
         image: bytes | None = None,
         images: tuple[bytes, ...] = (),
+        audio: tuple[bytes, str] | None = None,
         effort: Effort | None = None,
     ) -> ModelAnswer:
         # Yield, because the real thing does. Without a suspension point this
@@ -2563,6 +3509,7 @@ class FakeAsker:
                 "schema": schema,
                 "image": image,
                 "images": images,
+                "audio": audio,
                 "effort": effort,
             }
         )

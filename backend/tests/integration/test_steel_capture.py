@@ -18,14 +18,15 @@ import pytest
 from playwright.async_api import async_playwright
 
 from sro.application.capture.assemble import assemble_frames
-from sro.application.capture.events import InputEvent, RequestEvent, SnapshotEvent
+from sro.application.capture.events import InputEvent, RequestEvent
+from sro.config import get_settings
 from sro.domain.recording.network import InitiatorKind
 from sro.infrastructure.steel.capture import CaptureSession
 from sro.infrastructure.steel.client import SteelClient
 from tests.unit.fakes import FakeBlobStore
 
-STEEL_URL = "http://localhost:3010"
-CDP_URL = "http://localhost:9223"
+STEEL_URL = get_settings().steel_base_url
+CDP_URL = get_settings().steel_cdp_url
 
 PAGE = """
 <!doctype html>
@@ -93,15 +94,12 @@ async def test_a_click_becomes_a_frame_carrying_the_call_it_caused(
         await steel.close(session.id)
 
     inputs = [e for e in batch.events if isinstance(e, InputEvent)]
-    snapshots = [e for e in batch.events if isinstance(e, SnapshotEvent)]
     requests = [e for e in batch.events if isinstance(e, RequestEvent)]
 
     assert inputs, "the injected recorder never reached the binding"
     assert inputs[0].action.target is not None
     assert inputs[0].action.target.css_path
-
-    assert snapshots, "no accessibility tree was taken at gesture time"
-    assert any(node.accessible_name == "Release" for node in snapshots[0].snapshot.nodes)
+    assert inputs[0].action.target.accessible_name == "Release"
 
     released = next((r for r in requests if "release" in r.request.url), None)
     assert released is not None, "the POST the click caused was not captured"

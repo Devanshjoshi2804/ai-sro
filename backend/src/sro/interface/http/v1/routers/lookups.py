@@ -50,7 +50,5 @@ async def look(body: LookupRequest, container: ContainerDep, ctx: ContextDep) ->
     if not body.execute or not planned.plan.ready:
         return LookupResponse.of(planned)
 
-    answers = await container.run_lookups().execute(
-        ctx, plan=planned.plan, allow_focus=body.allow_focus
-    )
+    answers = await container.run_lookups().execute(ctx, plan=planned.plan)
     return LookupResponse.of(planned, answers)

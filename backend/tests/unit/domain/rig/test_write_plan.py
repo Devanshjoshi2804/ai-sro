@@ -321,12 +321,17 @@ def test_two_names_for_one_value_is_not_ambiguity() -> None:
     assert '"GPDP"' in plan.body
 
 
-def test_one_demonstration_names_no_parameters_and_so_replays_nothing() -> None:
-    """Tied to the evidence rather than to a constant of its own: with one doing
-    nothing distinguishes a slot from a constant."""
+def test_one_demonstration_places_a_value_where_the_operator_typed_one() -> None:
+    """Ruling 2026-09-28 (greyorange Steel run): this used to decline -- "with
+    one doing nothing distinguishes a slot from a constant". The job's seen
+    values do: they are what the operator typed into each field, so a body
+    field holding one of them is that field. Declining left a proven POST
+    unused and sent the run through a form it then failed to fill."""
     once = {"g1": _saving("g1", CREATED)}
 
-    assert write_plan_for(_step("g1"), once, {CODE: "GPDP"}, LEDGER, SEEN) is None
+    plan = write_plan_for(_step("g1"), once, {CODE: "GPDP"}, LEDGER, SEEN)
+
+    assert plan is not None and json.loads(plan.body or "{}")["customerType"] == "GPDP"
 
 
 def test_a_body_this_run_changes_nothing_in_gets_no_plan_at_all() -> None:
@@ -568,9 +573,10 @@ def test_another_endpoint_on_the_same_host_is_not_this_step_s_write() -> None:
         ],
     )
 
-    # One body left to diff, so nothing is a slot and the supplied value has
-    # nowhere to go.
-    assert write_plan_for(_step("g1", "g2"), mixed, {CODE: "GPDP"}, LEDGER, SEEN) is None
+    # Only the customerTypes doing is this step's write; the customers one is
+    # never read, so the plan is the one body's.
+    plan = write_plan_for(_step("g1", "g2"), mixed, {CODE: "GPDP"}, LEDGER, SEEN)
+    assert plan is not None and "/customerTypes" in plan.url
 
 
 def test_a_key_one_doing_carried_and_the_other_did_not_is_never_a_slot() -> None:
@@ -807,9 +813,10 @@ def test_a_call_says_which_parameters_its_body_carries_without_being_given_any()
     """
     # Both fields this job varies, named without a single value being supplied.
     assert wanted_by(_step("g1", "g2"), _twice(), SEEN) == frozenset({CODE, DESCRIPTION})
-    # A call whose body carries no parameter at all still replays exactly as it
-    # was demonstrated, which is what most calls are.
-    assert wanted_by(_step("g1"), {"g1": _saving("g1", CREATED)}, SEEN) == frozenset()
+    # One doing carries them too: its fields hold values the operator typed.
+    assert wanted_by(_step("g1"), {"g1": _saving("g1", CREATED)}, SEEN) == frozenset(
+        {CODE, DESCRIPTION}
+    )
 
 
 def test_the_same_value_under_two_names_is_carried_rather_than_refused() -> None:
@@ -1188,3 +1195,172 @@ def test_a_create_is_not_admitted_by_its_demonstrations() -> None:
     )
 
     assert demonstrated_writes(job, by_id) == ()
+
+
+def _counted(qty: object) -> dict[str, object]:
+    return {"name": "GT0", "qty": qty}
+
+
+QTY: dict[str, frozenset[str]] = {
+    "Name": frozenset({"GT0", "GT1"}),
+    "Quantity": frozenset({"10", "20"}),
+}
+
+
+def test_an_absent_number_is_never_sent_as_the_demonstration_s() -> None:
+    doings = _twice(_counted(10), {"name": "GT1", "qty": 20})
+
+    plan = write_plan_for(_step("g1", "g2"), doings, {"Name": "GT2"}, LEDGER, QTY)
+
+    assert plan is not None
+    assert json.loads(plan.body or "{}") == {"name": "GT2"}
+    assert wanted_by(_step("g1", "g2"), doings, QTY) == {"Name", "Quantity"}
+
+
+def test_an_absent_bool_or_null_is_never_sent_either() -> None:
+    for first, second, seen in ((True, False, {"true", "false"}), (None, "x", {"null", "x"})):
+        doings = _twice({"name": "GT0", "flag": first}, {"name": "GT1", "flag": second})
+        both = {"Name": frozenset({"GT0", "GT1"}), "Flag": frozenset(seen)}
+
+        plan = write_plan_for(_step("g1", "g2"), doings, {"Name": "GT2"}, LEDGER, both)
+
+        assert plan is not None
+        assert json.loads(plan.body or "{}") == {"name": "GT2"}
+
+
+def test_a_given_number_does_not_replay_as_a_string() -> None:
+    doings = _twice(_counted(10), {"name": "GT1", "qty": 20})
+
+    plan = write_plan_for(_step("g1", "g2"), doings, {"Name": "GT2", "Quantity": "30"}, LEDGER, QTY)
+
+    assert plan is None
+
+
+def test_a_job_recorded_once_fills_the_fields_its_parameters_were_seen_in() -> None:
+    """Greyorange, 2026-09-28: the Steel run of Create a Customer Type had one
+    recorded Save, so no field was seen to vary and the proven POST was never
+    planned -- the run fell back to typing into the form and failed there. A
+    field whose recorded value is one of a parameter's seen values is that
+    parameter's; a parameter nobody gave now leaves its field empty rather
+    than copying the recorded run's ('NEW' was seen as 'new')."""
+    once = {
+        **CREATED,
+        "customerType": "YYYA",
+        "longDescription": "new ai testing",
+        "departmentNumber": "NEW",
+    }
+    by_id = {"g1": _saving("g1", once)}
+    seen = {
+        "Customer Type": frozenset({"YYYA", "GGD"}),
+        "Customer Type Description": frozenset({"new ai testing"}),
+        "Department": frozenset({"new", "IN"}),
+    }
+
+    plan = write_plan_for(
+        _step("g1"),
+        by_id,
+        {"Customer Type": "SRT5", "Customer Type Description": "AI-SRO steel test"},
+        LEDGER,
+        seen,
+    )
+
+    assert plan is not None
+    body = json.loads(plan.body)
+    assert (body["customerType"], body["longDescription"]) == ("SRT5", "AI-SRO steel test")
+    assert body.get("departmentNumber", "") == ""
+    assert body["createShipmentBy"] == CREATED["createShipmentBy"]
+
+
+def test_one_value_mined_under_two_parameters_keeps_every_value_seen() -> None:
+    """Greyorange, 2026-09-28: Delete a Customer Type carries 'Customer Type'
+    twice -- the grid filter (MRN5, DDLS, ...) and a form field (ZQ45). The
+    last one overwrote the first, the DELETE's path no longer read as that
+    parameter's, and the undo walked the grid by hand instead of its call."""
+    job = Workflow(
+        id="wfl_d",
+        tenant="greyorange",
+        title="Delete a Customer Type",
+        narrative="n",
+        steps=[],
+        parameters=[
+            {"name": "Customer Type", "seen_values": ["MRN5", "DDLS"]},
+            {"name": "Customer Type", "seen_values": ["ZQ45"]},
+        ],
+    )
+
+    assert seen_values(job) == {"Customer Type": frozenset({"MRN5", "DDLS", "ZQ45"})}
+
+
+def test_a_delete_that_carries_its_record_is_addressed_by_the_value_in_path_and_body() -> None:
+    """Greyorange, 2026-09-28: Blue Yonder's DELETE .../customerTypes/MRN5
+    sends the record as its body, the code twice (customerType, resourceId).
+    The plan refused -- one value in two fields -- so the Undo of SR10 walked
+    the grid; and a body plan kept the recorded path, which would have
+    addressed MRN5 while the body said SR10. The value goes in the path and in
+    every field that held the recorded code."""
+    deletes = {
+        f"g{n}": _saving(
+            f"g{n}",
+            {**CREATED, "customerType": code, "resourceId": code},
+            method="DELETE",
+            url=f"{HOST}{PATH}/{code}?siteId=SG",
+        )
+        for n, code in enumerate(("MRN5", "DDLS"))
+    }
+    deletes["g1"] = replace(
+        deletes["g1"], requests=[replace(deletes["g1"].requests[0], request_body=None)]
+    )
+    ledger = (VerifiedWrite(method="DELETE", path_pattern=f"{PATH}/{{id}}"),)
+    seen = {"Customer Type": frozenset({"MRN5", "DDLS", "ZQ45"})}
+
+    plan = write_plan_for(_step("g0", "g1"), deletes, {"Customer Type": "SR10"}, ledger, seen)
+
+    assert plan is not None
+    assert plan.url.split("?")[0].endswith(f"{PATH}/SR10")
+    body = json.loads(plan.body or "{}")
+    assert (body["customerType"], body["resourceId"]) == ("SR10", "SR10")
+
+
+def test_a_value_typed_into_a_parameters_control_is_a_value_it_was_seen_with() -> None:
+    """Greyorange, 2026-09-29: Create a Transport Equipment Type typed AISR,
+    AISF and AUSII into its Equipment box, but mining wrote seen values AISR
+    and AUSII -- the saved AISF was missing, so the save's codeValue did not
+    read as Equipment and the proven POST was never planned; every run filled
+    the form by hand. What the recording typed into the control is what the
+    parameter was seen with."""
+
+    def typed(gid: str, value: str) -> Gesture:
+        return Gesture(
+            id=gid,
+            tenant="greyorange",
+            stream_id="s",
+            batch_id="b",
+            at=1.0,
+            url=f"{HOST}/portal",
+            system=HOST,
+            tab_id=1,
+            frame_url=None,
+            action=Action(
+                kind="type", at=1.0, value=value, target=Target(tag="input", name="Equipment*")
+            ),
+        )
+
+    by_id = {"t1": typed("t1", "AISR"), "t2": typed("t2", "AISF")}
+    job = Workflow(
+        id="wfl_t",
+        tenant="greyorange",
+        title="Create a Transport Equipment Type",
+        narrative="n",
+        steps=[Step(order=1, says="Enter Equipment code", system=HOST, cites=["t1", "t2"])],
+        parameters=[
+            {
+                "name": "Equipment",
+                "key": "trailerType",
+                "names": ["Equipment", "Equipment*"],
+                "seen_values": ["AISR"],
+            },
+        ],
+    )
+
+    assert seen_values(job, by_id) == {"Equipment": frozenset({"AISR", "AISF"})}
+    assert seen_values(job) == {"Equipment": frozenset({"AISR"})}

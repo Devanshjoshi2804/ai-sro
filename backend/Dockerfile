@@ -86,6 +86,10 @@ COPY --from=build --chown=sro:sro /app/src ./src
 COPY --from=build --chown=sro:sro /app/migrations ./migrations
 COPY --from=build --chown=sro:sro /app/alembic.ini ./
 COPY --from=build --chown=sro:sro /app/scripts ./scripts
+# One page-code source (spec §6.4): the same file the extension injects,
+# handed in through a BuildKit named context (`--build-context page=...`)
+# rather than copied from `backend/` itself, which does not have it.
+COPY --from=page --chown=sro:sro page-code.js /app/page-code/page-code.js
 # The Gmail connector, served as its own process from this same image: one
 # image, one revision, no second thing to keep in step.
 COPY --from=build --chown=sro:sro /app/gmail-connector ./gmail-connector
@@ -94,7 +98,8 @@ ARG REVISION=unknown
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    SRO_REVISION=$REVISION
+    SRO_REVISION=$REVISION \
+    SRO_PAGE_CODE_PATH=/app/page-code/page-code.js
 
 # Not root, and not able to become root. The container runs a browser's worth
 # of untrusted captured payloads through a parser.

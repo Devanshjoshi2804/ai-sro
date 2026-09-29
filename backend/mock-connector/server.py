@@ -12,6 +12,7 @@ MAILBOX: list[dict[str, str]] = [
     {
         "id": "msg-1",
         "from": "devansh.j@greyorange.com",
+        "to": "warehouse@greyorange.com",
         "subject": "Create a supplier with these details",
         "body": (
             "Create a supplier of name TestYonder2\n"
@@ -23,6 +24,7 @@ MAILBOX: list[dict[str, str]] = [
     {
         "id": "msg-2",
         "from": "warehouse@greyorange.com",
+        "to": "devansh.j@greyorange.com",
         "subject": "Weekly counts",
         "body": "Nothing to action.",
     },

@@ -7,18 +7,19 @@ Comments and docstrings moved out of [`backend/src/sro/domain/observation/readin
 > A3 — the words one gesture is read in, and what a model's answer becomes.
 >
 > Everything here is arithmetic over an answer that has already come back: the
-> instructions, the response schema, the confidence vocabulary, the one line an
+> confidence vocabulary, the one line an
 > intent contributes to the next gesture's context, and the parsing that turns a
 > model's JSON into an `Intent`. The call itself is
 > `sro.application.observation.read_gesture`, which is the only half that needs a
-> port.
+> port. The words and the response schema are the `READ_GESTURE` record, in
+> `sro.domain.prompts.read_gesture`.
 >
-> Ported from `new_agent_arch/src/rig/intents.py`. The schema is advisory --
-> nothing between the model and this file enforces it -- so every field is read
-> back defensively here rather than trusted, and a field that came back the wrong
-> type is treated as unusable rather than coerced into a plausible-looking one.
+> Ported from `new_agent_arch/src/rig/intents.py`. An answer that breaks the
+> record's schema never reaches this file -- `ask` turns it into no answer --
+> and every field is still read back defensively, so a field of the wrong type
+> is treated as unusable rather than coerced into a plausible-looking one.
 
-## module, [line 12](../../../../../../../backend/src/sro/domain/observation/reading.py#L12): Note on the line above
+## module, [line 13](../../../../../../../backend/src/sro/domain/observation/reading.py#L13): Note on the line above
 
 Code: `TAIL = 8`
 
@@ -30,23 +31,14 @@ Code: `TAIL = 8`
 > longest job fits inside; every reading pays for them in prompt tokens, once per
 > gesture, thousands of times a day.
 
-## module, [line 29](../../../../../../../backend/src/sro/domain/observation/reading.py#L29): Note on the line above
-
-Code: `_CONFIDENCE = ["high", "medium", "low"]`
-
-> The one declaration of the confidence vocabulary; the schema below and
-> `CONFIDENCE_VALUES` are both this list. Restated in two places they drift, and
-> a word the schema offers that the guard has never heard of is nulled on the way
-> in -- indistinguishable from a model that declined to give one.
-
-## `_string_field`, [line 69](../../../../../../../backend/src/sro/domain/observation/reading.py#L69): Docstring
+## `_string_field`, [line 25](../../../../../../../backend/src/sro/domain/observation/reading.py#L25): Docstring
 
 > The schema is advisory, not enforced. A model can return `"act": [...]`
 > and nothing here validates it before it reaches `Intent`. Treating a
 > wrong-typed field as unusable is what stops that field poisoning `one_line`
 > the next time this intent is pulled into somebody else's tail context.
 
-## `intent_from`, [line 74](../../../../../../../backend/src/sro/domain/observation/reading.py#L74): Docstring
+## `intent_from`, [line 30](../../../../../../../backend/src/sro/domain/observation/reading.py#L30): Docstring
 
 > One reading, as it will be stored -- whatever came back in it.
 >
@@ -56,7 +48,7 @@ Code: `_CONFIDENCE = ["high", "medium", "low"]`
 > but not the name it was run up against -- which is the one thing a reader of
 > a $0.00 row needs.
 
-## `_values_seen`, [line 102](../../../../../../../backend/src/sro/domain/observation/reading.py#L102): Docstring
+## `_values_seen`, [line 56](../../../../../../../backend/src/sro/domain/observation/reading.py#L56): Docstring
 
 > What the model reported the operator entering, with credentials blanked.
 >
@@ -68,7 +60,7 @@ Code: `_CONFIDENCE = ["high", "medium", "low"]`
 > typed a password is worth reading, what they typed is not. This is the
 > single point every stored values_seen passes through.
 
-## `is_write`, [line 126](../../../../../../../backend/src/sro/domain/observation/reading.py#L126): Docstring
+## `is_write`, [line 71](../../../../../../../backend/src/sro/domain/observation/reading.py#L71): Docstring
 
 > Whether this gesture's own calls actually wrote something.
 >
@@ -76,7 +68,7 @@ Code: `_CONFIDENCE = ["high", "medium", "low"]`
 > what it typed -- and it typed nothing: the click itself carries no value,
 > only the calls it caused prove a write happened at all.
 
-## `field_of`, [line 135](../../../../../../../backend/src/sro/domain/observation/reading.py#L135): Docstring
+## `field_of`, [line 80](../../../../../../../backend/src/sro/domain/observation/reading.py#L80): Docstring
 
 > What to call the box this value was typed into.
 >
@@ -87,7 +79,7 @@ Code: `_CONFIDENCE = ["high", "medium", "low"]`
 > is the typed value itself, so a fold built on it would name every field
 > after its own contents.
 
-## `_typed_before`, [line 147](../../../../../../../backend/src/sro/domain/observation/reading.py#L147): Docstring
+## `_typed_before`, [line 92](../../../../../../../backend/src/sro/domain/observation/reading.py#L92): Docstring
 
 > (field, value) for every value RECORDED as typed just before this one.
 >
@@ -99,7 +91,7 @@ Code: `_CONFIDENCE = ["high", "medium", "low"]`
 > lives, and a secret gesture contributes nothing rather than contributing a
 > blanked value that would then be matched against a request body.
 
-## `_carried_any`, [line 159](../../../../../../../backend/src/sro/domain/observation/reading.py#L159): Docstring
+## `_carried_any`, [line 104](../../../../../../../backend/src/sro/domain/observation/reading.py#L104): Docstring
 
 > Whether this gesture's writes actually sent something just typed.
 >
@@ -112,7 +104,7 @@ Code: `_CONFIDENCE = ["high", "medium", "low"]`
 > so matching on one would hand the fold back to the telemetry post this
 > guard exists to refuse.
 
-## `with_recent_values`, [line 174](../../../../../../../backend/src/sro/domain/observation/reading.py#L174): Docstring
+## `with_recent_values`, [line 119](../../../../../../../backend/src/sro/domain/observation/reading.py#L119): Docstring
 
 > A write's reading folds in what was typed just before it.
 >
@@ -163,64 +155,20 @@ Code: `_CONFIDENCE = ["high", "medium", "low"]`
 > holds the reading it just built, and a `with_` that quietly rewrites its
 > argument is the kind of surprise that costs an afternoon.
 
-## module, [line 33](../../../../../../../backend/src/sro/domain/observation/reading.py#L33): Comment
+## module, [line 15](../../../../../../../backend/src/sro/domain/observation/reading.py#L15): Note on the line above
 
-Code: `"properties": {`
+Code: `CONFIDENCE = ["high", "medium", "low"]`
 
-> `why` first, and `confidence` last, because a structured answer is
-> written left to right: the model fills these fields in this order, so
-> this order is the order it thinks in. Asked for `act` first, it commits
-> to a verb and then writes the sentence that defends it; asked for `why`
-> first, it has to name the evidence -- the label, the component metadata,
-> the request body, the picture -- before it names the act, and states a
-> confidence with both already written down. INSTRUCTIONS asks for exactly
-> this sequence, and a prompt that asks for one order while the schema
-> imposes another is a prompt arguing with itself.
+> The one declaration of the confidence vocabulary; `READ_GESTURE`'s schema
+> enum is this list. `ask` refuses a word outside the enum, so a second copy
+> that drifted would refuse every answer carrying a word the schema offers.
 
-## module, [line 48](../../../../../../../backend/src/sro/domain/observation/reading.py#L48): Comment
+## `_values_seen`, [line 57](../../../../../../../backend/src/sro/domain/observation/reading.py#L57): Comment
 
-Code: `"propertyOrdering": [`
+Code: `seen = cast(list[dict[str, str]], data.get("values_seen", []))`
 
-> Stated rather than left to the key order above. Gemini honours the dict's
-> own order today -- measured, both with and without this field -- and
-> `propertyOrdering` is the documented way to say so, which makes the
-> ordering a promise of the schema rather than an accident of how Python
-> happens to preserve insertion order through the SDK's conversion.
-
-## `intent_from`, [line 94](../../../../../../../backend/src/sro/domain/observation/reading.py#L94): Comment
-
-Code: `intent.continues = _string_field(data, "continues") or None`
-
-> No longer asked for (2026-09-23): nothing read it, and every reading paid
-> for the model to write it. Still read here, tolerantly, from an answer that
-> carries it anyway, and the column stays.
->
-> `or None`: the old schema said "empty unless it continues the last doing",
-> so "" is what a model returned for most gestures. Stored verbatim it is
-> neither a link nor an absence.
->
-> This comment used to end "and `continues` is what the mining pass walks
-> to join gestures into one doing", which is not true and was worth
-> checking rather than repeating: `mining_pass` does not contain the word,
-> and `window.as_evidence` -- the function that builds what the miner is
-> shown -- lists `act`, `object`, `page`, `why`, `confidence` and
-> `values_seen`, and not this. Nothing in the backend reads it. It is
-> stored because it is cheap to store and because the day something does
-> join a doing it will want it; it is not load-bearing today, and `TAIL`
-> above should not be defended on its account.
-
-## `_values_seen`, [line 105](../../../../../../../backend/src/sro/domain/observation/reading.py#L105): Comment
-
-Code: `for seen in seen_list if isinstance(seen_list, list) else []:`
-
-> Both containers are checked, not just the outer one: a mapping iterates
-> as its own keys and a string as its characters, so an outer guard alone
-> walks a `{"clientCode": "ACME-4471"}` straight into the per-entry code.
-
-## `_values_seen`, [line 109](../../../../../../../backend/src/sro/domain/observation/reading.py#L109): Comment
-
-Code: `if not isinstance(field, str) or not field:`
-
-> `field` unusable unless it's a non-empty str; a non-str `value` is
-> treated as unseen ("") rather than fabricated by str()-coercing it --
-> same rule as `_string_field` above.
+> A cast and not a check: the only caller reads an answer `ask` has already
+> held to `READ_GESTURE`'s schema, where `values_seen` is a list of objects
+> whose `field` and `value` are both required strings. The per-entry type
+> guards that stood here could no longer be reached. An empty `field` is
+> still allowed by the schema, so that one test stays.

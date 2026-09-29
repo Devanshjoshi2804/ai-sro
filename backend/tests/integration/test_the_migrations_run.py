@@ -1,10 +1,11 @@
 """Every migration, applied to an empty database, in order.
 
-The integration suite builds its schema with `Base.metadata.create_all`, which
-proves the models agree with themselves and says nothing about the migrations
-that actually run in a deployment. A migration with a typo in it therefore
-passed the whole suite and failed at deploy, on the one path where failing is
-expensive.
+`conftest.postgres_url` already runs `alembic upgrade head` once per session,
+against a fresh database, so every other test in this directory runs against
+a real migration and never against `Base.metadata.create_all`. This file
+drops the schema and migrates again, on that same database, so it can assert
+what the session setup does not: specific tables and indexes exist, and the
+migrated shape agrees with what `models.py` declares.
 """
 
 from __future__ import annotations
@@ -13,13 +14,15 @@ import asyncio
 import os
 import subprocess
 import sys
+from datetime import UTC, datetime
 
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
-from sqlalchemy import Connection, inspect, text
+from sqlalchemy import Connection, insert, inspect, text
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from sro.infrastructure.db.models import Base
+from sro.infrastructure.db.models import Base, WorkflowRow, WorkflowRunRow, WorkflowStepRow
+from sro.infrastructure.db.workflows import workflow_from_json
 
 
 async def test_upgrading_from_nothing_builds_the_schema(postgres_url: str) -> None:
@@ -58,24 +61,360 @@ async def test_upgrading_from_nothing_builds_the_schema(postgres_url: str) -> No
             .scalars()
             .all()
         )
+        # `compare_metadata` does not read `postgresql_where`, and `create_all`
+        # is not what a deployment runs -- so nothing else here would notice a
+        # 0073 that forgot to narrow the index to `executor = 'extension'`, or
+        # that skipped `ck_workflow_runs_executor` entirely.
+        one_running_def = (
+            await connection.execute(
+                text(
+                    "SELECT indexdef FROM pg_indexes "
+                    "WHERE indexname = 'uq_workflow_runs_one_running_per_device'"
+                )
+            )
+        ).scalar_one()
+        executor_check = (
+            await connection.execute(
+                text(
+                    "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+                    "WHERE conname = 'ck_workflow_runs_executor'"
+                )
+            )
+        ).scalar_one()
     await engine.dispose()
 
     assert upgrade.returncode == 0, upgrade.stderr
     assert "browser_sessions" in tables, "the ownership record a browser is claimed in"
     assert {"skills", "runs", "recordings", "connections"} <= tables
     assert "uq_workflow_runs_one_running_per_device" in indexes
+    assert "outcome" in one_running_def and "'running'" in one_running_def, one_running_def
+    assert "executor" in one_running_def and "'extension'" in one_running_def, one_running_def
+    assert "'extension'" in executor_check and "'steel'" in executor_check, executor_check
 
 
-# The migrated schema is not just A schema -- it is the one every test after
-# this file uses.
-#
-# This test drops `public` and rebuilds it with alembic. `conftest`'s engine
-# fixture then calls `Base.metadata.create_all`, which does nothing to a table
-# that already exists, so every later test in the directory silently runs
-# against the MIGRATED schema and never against the models'. That is why
-# deleting `uq_workflow_runs_one_running_per_device` from `models.py` left
-# `make check` green: the index was still there, put there by migration 0043,
-# and the suite that was supposed to notice was reading the wrong schema.
+async def test_downgrading_0073_refuses_when_two_steel_runs_share_a_device(
+    postgres_url: str,
+) -> None:
+    """0073's `downgrade` recreates the wider index --
+    `UNIQUE (tenant_id, device_id) WHERE outcome = 'running'` -- which two
+    running Steel runs with `device_id = ""` cannot both satisfy. It has to
+    refuse before Postgres's own duplicate-key error does, with a message
+    that names the tenant and device rather than a bare constraint name."""
+    engine = create_async_engine(postgres_url)
+    async with engine.begin() as connection:
+        await connection.execute(text("DROP SCHEMA public CASCADE"))
+        await connection.execute(text("CREATE SCHEMA public"))
+        await connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+
+    upgrade = await asyncio.to_thread(
+        subprocess.run,
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        env={**os.environ, "SRO_DATABASE_URL": postgres_url},
+        capture_output=True,
+        text=True,
+    )
+    assert upgrade.returncode == 0, upgrade.stderr
+
+    now = datetime.now(tz=UTC)
+    async with engine.begin() as connection:
+        await connection.execute(
+            insert(WorkflowRunRow.__table__),
+            [
+                {
+                    "id": "run_steel_clash_1",
+                    "tenant_id": "acme",
+                    "workflow_id": "wfl_1",
+                    "device_id": "",
+                    "started_at": now,
+                    "outcome": "running",
+                    "executor": "steel",
+                },
+                {
+                    "id": "run_steel_clash_2",
+                    "tenant_id": "acme",
+                    "workflow_id": "wfl_1",
+                    "device_id": "",
+                    "started_at": now,
+                    "outcome": "running",
+                    "executor": "steel",
+                },
+            ],
+        )
+
+    downgrade = await asyncio.to_thread(
+        subprocess.run,
+        # Not "-1": 0073 no longer heads the chain (S2's 0074 does), so one
+        # relative step would only undo 0074 and never reach 0073's own
+        # downgrade -- naming the target revision runs every step down to
+        # it, including the one this test means to exercise.
+        [sys.executable, "-m", "alembic", "downgrade", "0072"],
+        env={**os.environ, "SRO_DATABASE_URL": postgres_url},
+        capture_output=True,
+        text=True,
+    )
+    await engine.dispose()
+
+    assert downgrade.returncode != 0
+    assert "cannot downgrade 0073" in downgrade.stderr, downgrade.stderr
+    assert "'acme'" in downgrade.stderr, downgrade.stderr
+
+
+async def _alembic(postgres_url: str, *args: str) -> None:
+    ran = await asyncio.to_thread(
+        subprocess.run,
+        [sys.executable, "-m", "alembic", *args],
+        env={**os.environ, "SRO_DATABASE_URL": postgres_url},
+        capture_output=True,
+        text=True,
+    )
+    assert ran.returncode == 0, ran.stderr
+
+
+async def test_0078_makes_every_stored_job_undecided_and_back(postgres_url: str) -> None:
+    """0069 stored `false` on every job it found, which reads as "decided: does
+    not sign in" and so no sweep ever looked again. 0078 turns every stored
+    `false` into NULL -- undecided -- for the sweep to decide from evidence,
+    and keeps `true`, which only ever came from evidence. Its downgrade maps
+    NULL back to the `false` the older code expects."""
+    engine = create_async_engine(postgres_url)
+    try:
+        async with engine.begin() as connection:
+            await connection.execute(text("DROP SCHEMA public CASCADE"))
+            await connection.execute(text("CREATE SCHEMA public"))
+            await connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        await _alembic(postgres_url, "upgrade", "0077")
+        async with engine.begin() as connection:
+            await connection.execute(
+                insert(WorkflowRow.__table__),
+                [
+                    {
+                        "id": "wfl_old",
+                        "tenant_id": "acme",
+                        "created_at": datetime.now(tz=UTC),
+                        "signs_in": False,
+                    },
+                    {
+                        "id": "wfl_marked",
+                        "tenant_id": "acme",
+                        "created_at": datetime.now(tz=UTC),
+                        "signs_in": True,
+                    },
+                ],
+            )
+        read = text("SELECT id, signs_in FROM workflows ORDER BY id")
+
+        await _alembic(postgres_url, "upgrade", "0078")
+        async with engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "INSERT INTO workflows (id, tenant_id, pass_id, title, narrative, systems,"
+                    " parameters, shape_key, created_at) VALUES ('wfl_new', 'acme', '', '', '',"
+                    " '[]', '[]', '[]', now())"
+                )
+            )
+            upgraded = (await connection.execute(read)).all()
+        await _alembic(postgres_url, "downgrade", "0077")
+        async with engine.begin() as connection:
+            downgraded = (await connection.execute(read)).all()
+        await _alembic(postgres_url, "upgrade", "head")
+    finally:
+        await engine.dispose()
+
+    assert [tuple(row) for row in upgraded] == [
+        ("wfl_marked", True),
+        ("wfl_new", None),
+        ("wfl_old", None),
+    ]
+    assert [tuple(row) for row in downgraded] == [
+        ("wfl_marked", True),
+        ("wfl_new", False),
+        ("wfl_old", False),
+    ]
+
+
+async def test_0087_leaves_every_stored_job_undecided_about_signing_out_and_back(
+    postgres_url: str,
+) -> None:
+    """0087 adds `signs_out` NULL on every stored job, keeping `signs_in` as it
+    was; the sweep decides both. Its downgrade drops the column and nothing
+    else."""
+    engine = create_async_engine(postgres_url)
+    try:
+        async with engine.begin() as connection:
+            await connection.execute(text("DROP SCHEMA public CASCADE"))
+            await connection.execute(text("CREATE SCHEMA public"))
+            await connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        await _alembic(postgres_url, "upgrade", "0085")
+        async with engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "INSERT INTO workflows (id, tenant_id, pass_id, title, narrative, systems,"
+                    " parameters, shape_key, created_at, signs_in) VALUES"
+                    " ('wfl_in', 'acme', '', '', '', '[]', '[]', '[]', now(), true),"
+                    " ('wfl_out', 'acme', '', '', '', '[]', '[]', '[]', now(), false)"
+                )
+            )
+        await _alembic(postgres_url, "upgrade", "0087")
+        async with engine.begin() as connection:
+            upgraded = (
+                await connection.execute(
+                    text("SELECT id, signs_in, signs_out FROM workflows ORDER BY id")
+                )
+            ).all()
+        await _alembic(postgres_url, "downgrade", "0085")
+        async with engine.begin() as connection:
+            downgraded = (
+                await connection.execute(text("SELECT id, signs_in FROM workflows ORDER BY id"))
+            ).all()
+            columns = await connection.run_sync(
+                lambda sync: [one["name"] for one in inspect(sync).get_columns("workflows")]
+            )
+        await _alembic(postgres_url, "upgrade", "head")
+    finally:
+        await engine.dispose()
+
+    assert [tuple(row) for row in upgraded] == [("wfl_in", True, None), ("wfl_out", False, None)]
+    assert [tuple(row) for row in downgraded] == [("wfl_in", True), ("wfl_out", False)]
+    assert "signs_out" not in columns
+
+
+async def test_0082_pins_every_steel_run_still_going_and_back(postgres_url: str) -> None:
+    """A Steel run going when 0081 lands has been reading its job as it
+    stands, so that is the version it is pinned to; an ended run and an
+    extension run are left unpinned. The downgrade drops the pin."""
+    engine = create_async_engine(postgres_url)
+    now = datetime.now(tz=UTC)
+    try:
+        async with engine.begin() as connection:
+            await connection.execute(text("DROP SCHEMA public CASCADE"))
+            await connection.execute(text("CREATE SCHEMA public"))
+            await connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        await _alembic(postgres_url, "upgrade", "0081")
+        async with engine.begin() as connection:
+            await connection.execute(
+                insert(WorkflowRow.__table__),
+                [
+                    {
+                        "id": "wfl_1",
+                        "tenant_id": "acme",
+                        "created_at": now,
+                        "parameters": [{"name": "who"}],
+                    }
+                ],
+            )
+            await connection.execute(
+                insert(WorkflowStepRow.__table__),
+                [
+                    {
+                        "workflow_id": "wfl_1",
+                        "ord": 1,
+                        "says": "save",
+                        "cites": ["g2"],
+                        "parameters": [],
+                        "system": None,
+                    },
+                    {
+                        "workflow_id": "wfl_1",
+                        "ord": 0,
+                        "says": "type",
+                        "cites": ["g1"],
+                        "parameters": ["who"],
+                        "system": "https://wms.example",
+                    },
+                ],
+            )
+            await connection.execute(
+                insert(WorkflowRunRow.__table__),
+                [
+                    {
+                        "id": run_id,
+                        "tenant_id": "acme",
+                        "workflow_id": "wfl_1",
+                        "device_id": "",
+                        "started_at": now,
+                        "outcome": outcome,
+                        "executor": executor,
+                    }
+                    for run_id, outcome, executor in (
+                        ("run_going", "running", "steel"),
+                        ("run_ended", "held", "steel"),
+                        ("run_extension", "running", "extension"),
+                    )
+                ],
+            )
+        read = text("SELECT id, pinned FROM workflow_runs ORDER BY id")
+
+        await _alembic(postgres_url, "upgrade", "0082")
+        async with engine.begin() as connection:
+            upgraded = dict(tuple(row) for row in (await connection.execute(read)).all())
+        await _alembic(postgres_url, "downgrade", "0081")
+        async with engine.connect() as connection:
+            columns = await connection.run_sync(
+                lambda sync: {one["name"] for one in inspect(sync).get_columns("workflow_runs")}
+            )
+        await _alembic(postgres_url, "upgrade", "head")
+    finally:
+        await engine.dispose()
+
+    assert (upgraded["run_ended"], upgraded["run_extension"]) == (None, None)
+    going = workflow_from_json(upgraded["run_going"])
+    assert (going.id, going.parameters, going.repeat) == ("wfl_1", [{"name": "who"}], None)
+    assert [
+        (one.order, one.says, one.system, one.cites, one.parameters) for one in going.steps
+    ] == [
+        (0, "type", "https://wms.example", ["g1"], ["who"]),
+        (1, "save", None, ["g2"], []),
+    ]
+    assert "pinned" not in columns
+
+
+async def test_0086_leaves_every_stored_step_undecided_and_back(postgres_url: str) -> None:
+    """A step stored before 0086 was mined without its tab, so its tab is
+    NULL -- undecided -- for the sweep to decide from its evidence, and a new
+    row writes its own. The downgrade drops the column."""
+    engine = create_async_engine(postgres_url)
+    now = datetime.now(tz=UTC)
+    step = {"workflow_id": "wfl_1", "says": "save", "cites": ["g1"], "parameters": []}
+    read = text("SELECT ord, tab FROM workflow_steps ORDER BY ord")
+    try:
+        async with engine.begin() as connection:
+            await connection.execute(text("DROP SCHEMA public CASCADE"))
+            await connection.execute(text("CREATE SCHEMA public"))
+            await connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        await _alembic(postgres_url, "upgrade", "0085")
+        async with engine.begin() as connection:
+            await connection.execute(
+                insert(WorkflowRow.__table__),
+                [{"id": "wfl_1", "tenant_id": "acme", "created_at": now, "parameters": []}],
+            )
+            await connection.execute(insert(WorkflowStepRow.__table__), [{**step, "ord": 0}])
+        await _alembic(postgres_url, "upgrade", "0086")
+        async with engine.begin() as connection:
+            await connection.execute(
+                insert(WorkflowStepRow.__table__), [{**step, "ord": 1, "tab": "opened_from:main"}]
+            )
+            upgraded = [tuple(row) for row in (await connection.execute(read)).all()]
+        await _alembic(postgres_url, "downgrade", "0085")
+        async with engine.connect() as connection:
+            columns = await connection.run_sync(
+                lambda sync: {one["name"] for one in inspect(sync).get_columns("workflow_steps")}
+            )
+        await _alembic(postgres_url, "upgrade", "head")
+    finally:
+        await engine.dispose()
+
+    assert upgraded == [(0, None), (1, "opened_from:main")]
+    assert "tab" not in columns
+
+
+# Every test in this directory already runs against the migrated schema --
+# `conftest.postgres_url` builds it with `alembic upgrade head` before the
+# session's first test. Before that fixture ran migrations itself, this test
+# was the only thing standing between `models.py` and a deploy that never
+# noticed the two had drifted: deleting `uq_workflow_runs_one_running_per_device`
+# from `models.py` left `make check` green, because the rest of the suite
+# still built its tables with `Base.metadata.create_all` and the index came
+# from migration 0043 either way.
 #
 # So the two are compared, once, here: what a deployment runs against what the
 # code declares.
@@ -89,6 +428,76 @@ KNOWN_DRIFT = {
     ("remove_index", "ix_observation_batches_recording"),
     ("add_index", "ix_observation_batches_recording_id"),
 }
+
+
+async def test_0089_leaves_every_job_to_be_brought_in_and_back(postgres_url: str) -> None:
+    """Additive: every stored job arrives with no parameters rule, which is
+    what tells the sweep to bring it in once. The downgrade drops the column
+    and keeps the jobs."""
+    engine = create_async_engine(postgres_url)
+    read = text("SELECT id FROM workflows ORDER BY id")
+    try:
+        async with engine.begin() as connection:
+            await connection.execute(text("DROP SCHEMA public CASCADE"))
+            await connection.execute(text("CREATE SCHEMA public"))
+            await connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        await _alembic(postgres_url, "upgrade", "head")
+        await _alembic(postgres_url, "downgrade", "0088")
+        async with engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "INSERT INTO workflows (id, tenant_id, pass_id, title, narrative, systems,"
+                    " parameters, shape_key, created_at) VALUES ('wfl_old', 'acme', '', '', '',"
+                    " '[]', '[]', '[]', now())"
+                )
+            )
+        await _alembic(postgres_url, "upgrade", "head")
+        async with engine.begin() as connection:
+            upgraded = (
+                await connection.execute(text("SELECT id, parameters_rule FROM workflows"))
+            ).all()
+        await _alembic(postgres_url, "downgrade", "0088")
+        async with engine.begin() as connection:
+            kept = (await connection.execute(read)).scalars().all()
+            columns = {
+                one["name"]
+                for one in await connection.run_sync(
+                    lambda sync: inspect(sync).get_columns("workflows")
+                )
+            }
+        await _alembic(postgres_url, "upgrade", "head")
+    finally:
+        await engine.dispose()
+
+    assert [tuple(row) for row in upgraded] == [("wfl_old", None)]
+    assert kept == ["wfl_old"] and "parameters_rule" not in columns
+
+
+async def test_0090_gives_every_run_an_empty_mail_and_takes_it_back(postgres_url: str) -> None:
+    """Additive: a run no mail started has none, and the downgrade drops only
+    the column."""
+    engine = create_async_engine(postgres_url)
+
+    async def columns() -> dict[str, bool]:
+        async with engine.begin() as connection:
+            return {
+                one["name"]: one["nullable"]
+                for one in await connection.run_sync(
+                    lambda sync: inspect(sync).get_columns("workflow_runs")
+                )
+            }
+
+    try:
+        await _alembic(postgres_url, "upgrade", "head")
+        upgraded = await columns()
+        await _alembic(postgres_url, "downgrade", "0089")
+        downgraded = await columns()
+        await _alembic(postgres_url, "upgrade", "head")
+    finally:
+        await engine.dispose()
+
+    assert upgraded.get("mail") is True
+    assert "mail" not in downgraded and "offer" in downgraded
 
 
 async def test_the_migrated_schema_is_the_schema_the_code_declares(postgres_url: str) -> None:

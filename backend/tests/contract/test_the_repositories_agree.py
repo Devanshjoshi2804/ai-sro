@@ -64,6 +64,7 @@ column.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -71,11 +72,19 @@ import pytest
 
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.chat.reading import ChatReading
+from sro.domain.execution.account import K_LEASE_TTL, Account, Lease, LeaseState
+from sro.domain.execution.lanes import K_BROKEN_COOL_DOWN, Broken, Lane
 from sro.domain.execution.run import Run, RunId
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.observation.gesture import Action, Gesture, GestureBatch, Intent
 from sro.domain.observation.mining import MiningPass
-from sro.domain.observation.pool import K_POOL_AGE, RETIRED_PASSES
+from sro.domain.observation.pool import (
+    K_MINE_ATTEMPTS,
+    K_POOL_AGE,
+    RETIRED_DRIVING,
+    RETIRED_PASSES,
+    RETIRED_UNMINABLE,
+)
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import (
     ConfirmationId,
@@ -87,6 +96,7 @@ from sro.domain.shared.identifiers import (
 )
 from sro.domain.shared.prices import ModelSpend
 from sro.domain.skill import PromotionStage
+from sro.domain.skill.aliases import JobAlias
 from sro.domain.skill.offers import Offer
 from sro.domain.skill.workflow import Step, Workflow
 from sro.domain.trigger.confirmation import Answer, Confirmation
@@ -393,6 +403,7 @@ class TestWorkflows:
                     coverage=0.9,
                     skew=-0.5,
                     lopsided=True,
+                    dropped=6,
                     error="the model would not answer",
                 )
             )
@@ -407,6 +418,7 @@ class TestWorkflows:
         assert (made.proposed, made.kept, made.rejected) == (5, 4, 3)
         assert made.learned_parameters == 2
         assert (made.coverage, made.skew, made.lopsided) == (0.9, -0.5, True)
+        assert made.dropped == 6
         assert made.error == "the model would not answer"
 
     async def test_a_pass_id_is_stored_once(self, store: UnitOfWork) -> None:
@@ -439,6 +451,113 @@ class TestWorkflows:
 
         async with store as work:
             assert await work.workflows.stale_count("wfl_1") == 1
+
+    async def test_a_broken_lane_holds_only_while_its_step_cites_the_same_doing(
+        self, store: UnitOfWork
+    ) -> None:
+        async with store as work:
+            for step, lane, cites in (
+                (2, Lane.API, "cites-b"),
+                (1, Lane.UI, "cites-a"),
+                (1, Lane.UI, "cites-a"),
+                (1, Lane.SIGHT, "cites-a"),
+            ):
+                await work.workflows.break_lane(
+                    TENANT,
+                    "wfl_1",
+                    Broken(step, lane, f"fp-{lane}"),
+                    cites=cites,
+                    at=datetime(2026, 9, 25, tzinfo=UTC),
+                )
+            await work.commit()
+
+        async with store as work:
+            assert await work.workflows.broken_for(
+                TENANT, "wfl_1", {1: "cites-a", 2: "cites-b"}, now=datetime(2026, 9, 25, tzinfo=UTC)
+            ) == (
+                Broken(1, Lane.SIGHT, "fp-sight"),
+                Broken(1, Lane.UI, "fp-ui"),
+                Broken(2, Lane.API, "fp-api"),
+            )
+            assert await work.workflows.broken_for(
+                TENANT,
+                "wfl_1",
+                {1: "cites-new", 2: "cites-b"},
+                now=datetime(2026, 9, 25, tzinfo=UTC),
+            ) == (Broken(2, Lane.API, "fp-api"),)
+            assert (
+                await work.workflows.broken_for(
+                    OTHER_TENANT, "wfl_1", {1: "cites-a"}, now=datetime(2026, 9, 25, tzinfo=UTC)
+                )
+                == ()
+            )
+            await work.workflows.mend_lane(TENANT, "wfl_1", 1, Lane.UI)
+            await work.workflows.mend_lane(OTHER_TENANT, "wfl_1", 1, Lane.SIGHT)
+            await work.commit()
+
+        async with store as work:
+            assert await work.workflows.broken_for(
+                TENANT, "wfl_1", {1: "cites-a", 2: "cites-b"}, now=datetime(2026, 9, 25, tzinfo=UTC)
+            ) == (Broken(1, Lane.SIGHT, "fp-sight"), Broken(2, Lane.API, "fp-api"))
+
+    async def test_a_broken_lane_is_tried_again_once_its_cool_down_has_passed(
+        self, store: UnitOfWork
+    ) -> None:
+        at = datetime(2026, 9, 25, tzinfo=UTC)
+        ui = Broken(1, Lane.UI, "fp-ui")
+        async with store as work:
+            await work.workflows.break_lane(TENANT, "wfl_1", ui, cites="a", at=at)
+            await work.commit()
+
+        async with store as work:
+            still = at + K_BROKEN_COOL_DOWN - timedelta(seconds=1)
+            assert await work.workflows.broken_for(TENANT, "wfl_1", {1: "a"}, now=still) == (ui,)
+            later = at + K_BROKEN_COOL_DOWN
+            assert await work.workflows.broken_for(TENANT, "wfl_1", {1: "a"}, now=later) == ()
+            await work.workflows.break_lane(TENANT, "wfl_1", ui, cites="a", at=later)
+            await work.commit()
+
+        async with store as work:
+            assert await work.workflows.broken_for(TENANT, "wfl_1", {1: "a"}, now=later) == (ui,)
+
+    async def test_a_lane_broken_again_on_a_new_doing_is_known_broken_for_that_doing(
+        self, store: UnitOfWork
+    ) -> None:
+        at = datetime(2026, 9, 25, tzinfo=UTC)
+        async with store as work:
+            ui = Broken(1, Lane.UI, "fp-ui")
+            await work.workflows.break_lane(TENANT, "wfl_1", ui, cites="old", at=at)
+            await work.workflows.break_lane(TENANT, "wfl_1", ui, cites="new", at=at)
+            await work.commit()
+
+        async with store as work:
+            assert await work.workflows.broken_for(
+                TENANT, "wfl_1", {1: "new"}, now=datetime(2026, 9, 25, tzinfo=UTC)
+            ) == (ui,)
+            assert (
+                await work.workflows.broken_for(
+                    TENANT, "wfl_1", {1: "old"}, now=datetime(2026, 9, 25, tzinfo=UTC)
+                )
+                == ()
+            )
+
+    async def test_one_job_id_under_two_tenants_keeps_two_broken_lists(
+        self, store: UnitOfWork
+    ) -> None:
+        at = datetime(2026, 9, 25, tzinfo=UTC)
+        ui = Broken(1, Lane.UI, "fp-ui")
+        async with store as work:
+            await work.workflows.break_lane(TENANT, "wfl_1", ui, cites="ours", at=at)
+            await work.workflows.break_lane(OTHER_TENANT, "wfl_1", ui, cites="theirs", at=at)
+            await work.commit()
+
+        async with store as work:
+            assert await work.workflows.broken_for(
+                TENANT, "wfl_1", {1: "ours"}, now=datetime(2026, 9, 25, tzinfo=UTC)
+            ) == (ui,)
+            assert await work.workflows.broken_for(
+                OTHER_TENANT, "wfl_1", {1: "theirs"}, now=datetime(2026, 9, 25, tzinfo=UTC)
+            ) == (ui,)
 
     async def test_only_a_state_belt_registers_an_effect_and_one_write_is_one_row(
         self, store: UnitOfWork
@@ -485,6 +604,124 @@ class TestWorkflows:
                 ["type", "code", "wms"],
                 ["click", "Save", "wms"],
             ]
+
+    async def test_the_undecided_are_every_live_job_missing_either_verdict(
+        self, store: UnitOfWork
+    ) -> None:
+        async with store as work:
+            await work.workflows.save(_workflow("wfl_1", signs_in=None, signs_out=None))
+            await work.workflows.save(_workflow("wfl_2", signs_in=False, signs_out=None))
+            await work.workflows.save(
+                _workflow("wfl_3", signs_in=None, signs_out=False, tenant=OTHER_TENANT)
+            )
+            await work.workflows.save(_workflow("wfl_4", signs_in=True, signs_out=False))
+            await work.workflows.save(_workflow("wfl_5", signs_in=None))
+            await work.workflows.retire(TENANT, "wfl_5", at=_when(12))
+            await work.commit()
+
+        async with store as work:
+            undecided = await work.workflows.undecided()
+        assert [(job.tenant, job.id) for job in undecided] == [
+            (TENANT.value, "wfl_1"),
+            (TENANT.value, "wfl_2"),
+            (OTHER_TENANT.value, "wfl_3"),
+        ]
+
+    async def test_deciding_writes_both_verdicts_only_over_the_job_it_was_decided_from(
+        self, store: UnitOfWork
+    ) -> None:
+        """The decision is a compare-and-set on the job as it was read: its
+        steps and both verdicts. A grow, heal or learn that changed the steps,
+        or another decider that got there first, wins, and nothing else about
+        the job is rewritten with it."""
+        step = Step(order=0, says="press it", system=None, cites=["ges_1"])
+        read = _workflow("wfl_1", steps=[step], signs_in=False, signs_out=None)
+        async with store as work:
+            await work.workflows.save(read)
+            await work.workflows.save(_workflow("wfl_2", steps=[step], signs_in=None))
+            await work.commit()
+
+        async with store as work:
+            grown = replace(read, steps=[step, replace(step, order=1, cites=["ges_2"])])
+            assert (
+                await work.workflows.decide(TENANT, grown, signs_in=True, signs_out=True) is False
+            )
+            assert (
+                await work.workflows.decide(OTHER_TENANT, read, signs_in=True, signs_out=True)
+                is False
+            )
+            assert await work.workflows.decide(TENANT, read, signs_in=True, signs_out=False) is True
+            assert (
+                await work.workflows.decide(TENANT, read, signs_in=False, signs_out=True) is False
+            )
+            await work.commit()
+
+        async with store as work:
+            now = await work.workflows.get(TENANT, "wfl_1")
+            other = await work.workflows.get(TENANT, "wfl_2")
+        assert (now.signs_in, now.signs_out) == (True, False)
+        assert now.title == read.title and now.steps == [step]
+        assert (other.signs_in, other.signs_out) == (None, None)
+
+    async def test_a_whole_job_save_never_rewrites_a_stored_verdict(
+        self, store: UnitOfWork
+    ) -> None:
+        """Only `decide` writes the verdict of a stored job. A learn that read
+        the job before a decision landed saves its own change and leaves the
+        decision standing; a new job is stored with the verdict it carries."""
+        async with store as work:
+            await work.workflows.save(_workflow("wfl_1", signs_in=None, signs_out=None))
+            await work.workflows.save(_workflow("wfl_2", signs_in=True, signs_out=False))
+            await work.commit()
+
+        async with store as work:
+            stale = await work.workflows.get(TENANT, "wfl_1")
+            assert await work.workflows.decide(TENANT, stale, signs_in=True, signs_out=True)
+            await work.workflows.save(replace(stale, title="put away two pallets"))
+            await work.commit()
+
+        async with store as work:
+            now = await work.workflows.get(TENANT, "wfl_1")
+            new = await work.workflows.get(TENANT, "wfl_2")
+        assert (now.title, now.signs_in, now.signs_out) == ("put away two pallets", True, True)
+        assert (new.signs_in, new.signs_out) == (True, False)
+
+    async def test_deciding_a_tab_sets_only_an_undecided_step_and_never_overwrites_one(
+        self, store: UnitOfWork
+    ) -> None:
+        """The sweep decides a step's tab by writing that one column, and only
+        while it is still NULL: a role already decided -- by mining, or by a
+        sweep in another worker -- is never overwritten."""
+        steps = [
+            Step(order=0, says="a", system=None, cites=["g1"], tab=None),
+            Step(order=1, says="b", system=None, cites=["g2"], tab="tab_2"),
+        ]
+        async with store as work:
+            await work.workflows.save(_workflow("wfl_1", steps=steps))
+            await work.workflows.save(_workflow("wfl_2", steps=[steps[1]]))
+            await work.workflows.save(_workflow("wfl_3", steps=[steps[0]], tenant=OTHER_TENANT))
+            await work.workflows.save(_workflow("wfl_4", steps=[steps[0]]))
+            await work.workflows.retire(TENANT, "wfl_4", at=_when(12))
+            await work.commit()
+
+        async with store as work:
+            undecided = await work.workflows.tabs_undecided()
+            assert [(job.tenant, job.id) for job in undecided] == [
+                (TENANT.value, "wfl_1"),
+                (OTHER_TENANT.value, "wfl_3"),
+            ]
+            assert await work.workflows.decide_tab(TENANT, "wfl_1", 0, "main") is True
+            assert await work.workflows.decide_tab(TENANT, "wfl_1", 0, "tab_2") is False
+            assert await work.workflows.decide_tab(TENANT, "wfl_1", 1, "main") is False
+            assert await work.workflows.decide_tab(TENANT, "wfl_3", 0, "main") is False
+            await work.commit()
+
+        async with store as work:
+            assert [one.tab for one in (await work.workflows.get(TENANT, "wfl_1")).steps] == [
+                "main",
+                "tab_2",
+            ]
+            assert [job.id for job in await work.workflows.tabs_undecided()] == ["wfl_3"]
 
     async def test_proofs_name_the_written_steps_of_every_live_held_run(
         self, store: UnitOfWork
@@ -539,8 +776,45 @@ class TestWorkflows:
         assert proofs[0].wrote == frozenset({0})
         assert proofs[0].verified == frozenset()
 
+    async def test_a_job_keeps_one_alias_per_wording_oldest_first_and_the_later_wins(
+        self, store: UnitOfWork
+    ) -> None:
+        first = JobAlias("Cost Centre", "Department", "clerk", _when(9))
+        region = JobAlias("region code", "Region", "clerk", _when(10))
+        later = JobAlias("cost  centre", "Region", "lead", _when(11), role="textbox")
+        async with store as work:
+            for one in (first, region, later):
+                await work.workflows.confirm_alias(TENANT, "wfl_1", one)
+            await work.commit()
+
+        async with store as work:
+            assert await work.workflows.aliases_for(TENANT, "wfl_1") == (region, later)
+            assert await work.workflows.aliases_for(TENANT, "wfl_2") == ()
+            assert await work.workflows.aliases_for(OTHER_TENANT, "wfl_1") == ()
+
 
 class TestWorkflowRuns:
+    async def test_a_run_keeps_the_mail_it_came_from_as_first_written(
+        self, store: UnitOfWork
+    ) -> None:
+        """Written once, with the run: a later save of a copy that lost it --
+        a worker that loaded the row before the column existed -- leaves it."""
+        mail = {"subject": "new type", "sender": "Alex <a@x>", "thread": "t-1"}
+        async with store as work:
+            await work.workflow_runs.save(_run("run_mail", mail=dict(mail)))
+            await work.workflow_runs.save(_run("run_plain"))
+            await work.commit()
+        async with store as work:
+            await work.workflow_runs.save(_run("run_mail", mail=None, outcome="failed"))
+            await work.commit()
+
+        async with store as work:
+            kept = await work.workflow_runs.get(TENANT, "run_mail")
+            plain = await work.workflow_runs.get(TENANT, "run_plain")
+
+        assert kept is not None and kept.mail == mail
+        assert plain is not None and plain.mail is None
+
     async def test_for_workflow_is_oldest_first_on_the_instant_and_breaks_ties_on_the_id(
         self, store: UnitOfWork
     ) -> None:
@@ -717,9 +991,13 @@ class TestWorkflowRuns:
             found = await work.workflow_runs.outcomes_since(TENANT, since=_at(9))
         assert sorted(found) == [("held", False, 1), ("held", True, 2), ("stopped", False, 1)]
 
-    async def test_save_replaces_a_runs_steps_rather_than_appending(
+    async def test_save_upserts_a_runs_steps_and_never_deletes_the_rest(
         self, store: UnitOfWork
     ) -> None:
+        """D1: `save` upserts the steps it carries by `order`, changing a step
+        already there and adding a step that is new, but never deletes a step
+        it does not carry -- a stale save (fewer steps than the row already
+        has) must not erase a step another writer has since added."""
         async with store as work:
             await work.workflow_runs.save(
                 _run(
@@ -734,14 +1012,17 @@ class TestWorkflowRuns:
 
         async with store as work:
             await work.workflow_runs.save(
-                _run("run_1", steps=[RunStep(order=0, says="scan", verdict="held")])
+                _run("run_1", steps=[RunStep(order=0, says="scanned", verdict="read")])
             )
             await work.commit()
 
         async with store as work:
             kept = await work.workflow_runs.get(TENANT, "run_1")
         assert kept is not None
-        assert [step.says for step in kept.steps] == ["scan"]
+        by_order = {step.order: step for step in kept.steps}
+        assert by_order[0].says == "scanned"
+        assert by_order[0].verdict == "read"
+        assert by_order[1].says == "place"
 
     async def test_a_run_carries_back_the_step_it_was_saved_at(self, store: UnitOfWork) -> None:
         """Both repositories, one assertion. The fake keeps a dataclass and the
@@ -866,6 +1147,65 @@ class TestWorkflowRuns:
                 (1, "2026-09-06T10:00:00+00:00", DEVICE.value),
             )
 
+    async def test_waiting_on_answers_only_a_run_that_is_asking(self, store: UnitOfWork) -> None:
+        """A thread's wait counts only while its run waits on a person: stopped
+        for values, or running and parked on a question. A run working its
+        steps, or finished with nothing asked, is waiting on nobody."""
+        wait = {"server": "gmail", "thread": "t-9", "until": _at(12)}
+        asking = {"asking": {"id": "q-1", "kind": "step", "text": "which?"}}
+        async with store as work:
+            await work.workflow_runs.save(
+                _run("run_working", outcome="running", awaiting=wait, started_at=_at(11))
+            )
+            await work.workflow_runs.save(
+                _run("run_done", awaiting=wait, device_id=OTHER_DEVICE.value, started_at=_at(11))
+            )
+            await work.commit()
+
+        async with store as work:
+            assert await work.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-9") is None
+            await work.workflow_runs.save(
+                _run("run_short", outcome="stopped", needs=["workArea"], awaiting=wait)
+            )
+            await work.workflow_runs.save(
+                _run(
+                    "run_parked",
+                    outcome="running",
+                    awaiting=wait,
+                    progress=asking,
+                    device_id=OTHER_DEVICE.value,
+                    started_at=_at(9),
+                )
+            )
+            await work.commit()
+
+        async with store as work:
+            found = await work.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-9")
+            assert found is not None and found.id == "run_short"
+            await work.workflow_runs.save(_run("run_short", outcome="held", awaiting=wait))
+            await work.commit()
+
+        async with store as work:
+            found = await work.workflow_runs.waiting_on(TENANT, server="gmail", thread="t-9")
+            assert found is not None and found.id == "run_parked"
+
+    async def test_started_on_counts_every_run_a_conversation_started(
+        self, store: UnitOfWork
+    ) -> None:
+        wait = {"server": "gmail", "thread": "t-9", "until": _at(12)}
+        async with store as work:
+            assert not await work.workflow_runs.started_on(TENANT, server="gmail", thread="t-9")
+            await work.workflow_runs.save(_run("run_done", awaiting=wait))
+            await work.commit()
+
+        async with store as work:
+            assert await work.workflow_runs.started_on(TENANT, server="gmail", thread="t-9")
+            assert not await work.workflow_runs.started_on(TENANT, server="gmail", thread="t-8")
+            assert not await work.workflow_runs.started_on(
+                OTHER_TENANT, server="gmail", thread="t-9"
+            )
+            assert not await work.workflow_runs.started_on(TENANT, server="gmail", thread=" ")
+
     async def test_in_flight_names_the_run_this_browser_is_already_driving(
         self, store: UnitOfWork
     ) -> None:
@@ -945,6 +1285,130 @@ class TestWorkflowRuns:
         # A run that died before its first step still has to say why somewhere.
         assert [step.order for step in elsewhere.steps] == [0]
         assert elsewhere.steps[0].reason == "the worker restarted"
+
+    async def test_running_lists_every_tenant_s_running_rows_oldest_first(
+        self, store: UnitOfWork
+    ) -> None:
+        async with store as work:
+            await work.workflow_runs.save(
+                _run("run_late", outcome="running", started_at=_at(11), executor="steel")
+            )
+            await work.workflow_runs.save(
+                _run("run_b", tenant=OTHER_TENANT, outcome="running", started_at=_at(10))
+            )
+            await work.workflow_runs.save(_run("run_a", outcome="running", started_at=_at(10)))
+            await work.workflow_runs.save(_run("run_done", started_at=_at(9)))
+            await work.commit()
+
+        async with store as work:
+            running = await work.workflow_runs.running()
+
+        assert [run.id for run in running] == ["run_a", "run_b", "run_late"]
+
+    async def test_close_stuck_closes_a_running_row_once_and_lands_the_reason_on_a_step(
+        self, store: UnitOfWork
+    ) -> None:
+        async with store as work:
+            await work.workflow_runs.save(
+                _run(
+                    "run_stuck",
+                    outcome="running",
+                    progress={"step": 1},
+                    awaiting={"server": "s", "thread": "t", "until": _at(23)},
+                    steps=[RunStep(order=0, says="scan", verdict="held")],
+                )
+            )
+            await work.workflow_runs.save(
+                _run("run_bare", outcome="running", device_id=OTHER_DEVICE.value)
+            )
+            await work.commit()
+
+        async with store as work:
+            assert await work.workflow_runs.close_stuck(
+                TENANT, "run_stuck", reason="stuck", at=_at(12), was={"step": 1}
+            )
+            assert await work.workflow_runs.close_stuck(
+                TENANT, "run_bare", reason="stuck", at=_at(12), was={}
+            )
+            await work.commit()
+
+        async with store as work:
+            assert not await work.workflow_runs.close_stuck(
+                TENANT, "run_stuck", reason="again", at=_at(13), was={"step": 1}
+            )
+            await work.commit()
+
+        async with store as work:
+            closed = await work.workflow_runs.get(TENANT, "run_stuck")
+            bare = await work.workflow_runs.get(TENANT, "run_bare")
+        assert closed is not None and bare is not None
+        assert (closed.outcome, closed.finished_at) == ("failed", _at(12))
+        assert closed.awaiting is None
+        assert [(one.verdict, one.verdict_by, one.reason) for one in closed.steps] == [
+            ("failed", "none", "stuck")
+        ]
+        assert [(one.order, one.says, one.reason) for one in bare.steps] == [(0, "", "stuck")]
+
+    async def test_close_stuck_leaves_an_ended_a_moved_or_another_tenant_s_run_alone(
+        self, store: UnitOfWork
+    ) -> None:
+        async with store as work:
+            await work.workflow_runs.save(_run("run_done", outcome="stopped"))
+            await work.workflow_runs.save(
+                _run("run_moved", outcome="running", progress={"step": 2})
+            )
+            await work.commit()
+
+        async with store as work:
+            assert not await work.workflow_runs.close_stuck(
+                TENANT, "run_done", reason="stuck", at=_at(12), was={}
+            )
+            assert not await work.workflow_runs.close_stuck(
+                TENANT, "run_moved", reason="stuck", at=_at(12), was={"step": 1}
+            )
+            assert not await work.workflow_runs.close_stuck(
+                OTHER_TENANT, "run_moved", reason="stuck", at=_at(12), was={"step": 2}
+            )
+            await work.commit()
+
+        async with store as work:
+            done = await work.workflow_runs.get(TENANT, "run_done")
+            moved = await work.workflow_runs.get(TENANT, "run_moved")
+        assert done is not None and (done.outcome, done.steps) == ("stopped", [])
+        assert moved is not None and (moved.outcome, moved.steps) == ("running", [])
+
+    async def test_an_ended_run_is_never_saved_back_to_running(self, store: UnitOfWork) -> None:
+        async with store as work:
+            await work.workflow_runs.save(
+                _run("run_steel", executor="steel", outcome="aborted", finished_at=_at(11))
+            )
+            await work.workflow_runs.save(
+                _run(
+                    "run_steel",
+                    executor="steel",
+                    outcome="running",
+                    finished_at=None,
+                    steps=[RunStep(order=0, says="save", verdict="failed")],
+                )
+            )
+            await work.commit()
+            run = await work.workflow_runs.get(TENANT, "run_steel")
+
+        assert run is not None
+        assert (run.outcome, run.finished_at) == ("aborted", _at(11))
+        assert [one.verdict for one in run.steps] == ["failed"]
+
+    async def test_a_stopped_run_is_still_given_its_finish_time(self, store: UnitOfWork) -> None:
+        async with store as work:
+            await work.workflow_runs.save(_run("run_steel", executor="steel", outcome="aborted"))
+            await work.workflow_runs.save(
+                _run("run_steel", executor="steel", outcome="failed", finished_at=_at(12))
+            )
+            await work.commit()
+            run = await work.workflow_runs.get(TENANT, "run_steel")
+
+        assert run is not None
+        assert (run.outcome, run.finished_at) == ("aborted", _at(12))
 
 
 class TestOffers:
@@ -1122,6 +1586,25 @@ class TestGestures:
         async with store as work:
             assert await work.gestures.gestures_for(TENANT, ids=()) == ()
             assert len(await work.gestures.gestures_for(TENANT, ids=None)) == 2
+
+    async def test_one_browser_s_gestures_are_read_by_its_stream_from_an_instant(
+        self, store: UnitOfWork
+    ) -> None:
+        """A takeover reads only the pressing browser's uploads since its doing
+        began: another browser's gesture, and one before `after`, are not it."""
+        async with store as work:
+            await work.gestures.add_gestures(
+                (
+                    _gesture("ges_1", at=1.0),
+                    _gesture("ges_2", at=2.0),
+                    _gesture("ges_3", at=2.0, stream_id="dev_2"),
+                )
+            )
+            await work.commit()
+
+        async with store as work:
+            found = await work.gestures.gestures_for(TENANT, stream_id="dev_1", after=1.5)
+            assert [one.id for one in found] == ["ges_2"]
 
     async def test_gestures_and_unread_are_oldest_first_and_a_reading_is_never_reoffered(
         self, store: UnitOfWork
@@ -1337,6 +1820,50 @@ class TestPool:
             gone = await work.pool.retired(TENANT)
         assert [(one.gesture_id, one.reason) for one in gone] == [("ges_1", RETIRED_PASSES)]
 
+    async def test_an_entry_retired_by_name_says_why_and_only_once(self, store: UnitOfWork) -> None:
+        """A pass retires what it will never mine -- this browser's own driving
+        -- by name, and only the tenant's own live entries."""
+        async with store as work:
+            await work.pool.add_unclaimed(
+                TENANT, window_ids=("ges_1", "ges_2"), claimed=frozenset()
+            )
+            assert await work.pool.retire(TENANT, ("ges_1", "ges_9"), reason=RETIRED_DRIVING) == 1
+            assert await work.pool.retire(TENANT, ("ges_1",), reason=RETIRED_DRIVING) == 0
+            assert await work.pool.retire(OTHER_TENANT, ("ges_2",), reason=RETIRED_DRIVING) == 0
+            await work.commit()
+
+        async with store as work:
+            assert await work.pool.ids(TENANT) == ("ges_2",)
+            gone = await work.pool.retired(TENANT)
+        assert [(one.gesture_id, one.reason) for one in gone] == [("ges_1", RETIRED_DRIVING)]
+
+    async def test_an_unusable_reading_is_counted_and_retires_unminable(
+        self, store: UnitOfWork
+    ) -> None:
+        """An answer that could not be used did not mine its window: the entry
+        is not aged, it counts a failed reading, and K_MINE_ATTEMPTS of them
+        retire it rather than bill it for ever."""
+        async with store as work:
+            await work.pool.add_unclaimed(
+                TENANT, window_ids=("ges_1", "ges_2"), claimed=frozenset()
+            )
+            await work.commit()
+
+        retired = 0
+        for _ in range(K_MINE_ATTEMPTS):
+            async with store as work:
+                retired += await work.pool.age(TENANT, shown=("ges_1",), failed=True)
+                await work.commit()
+
+        async with store as work:
+            waiting = await work.pool.waiting(TENANT)
+            gone = await work.pool.retired(TENANT)
+        assert retired == 1
+        assert [(one.gesture_id, one.age, one.waited) for one in waiting] == [("ges_2", 0, 0)]
+        assert [(one.gesture_id, one.age, one.failed, one.reason) for one in gone] == [
+            ("ges_1", 0, K_MINE_ATTEMPTS, RETIRED_UNMINABLE)
+        ]
+
     async def test_ageing_one_tenant_does_not_age_another(self, store: UnitOfWork) -> None:
         """Retiring on a tenant filter while counting passes without one is the
         sibling mistake: the eviction looks scoped and the clock is not. The
@@ -1489,6 +2016,18 @@ class TestToolCalls:
     while the deployment let a second warehouse record through, or refused the
     same job forever.
     """
+
+    async def test_a_claim_is_held_since_it_was_made_and_not_before(
+        self, store: UnitOfWork
+    ) -> None:
+        async with store as work:
+            await work.tool_calls.remember(TENANT, "mail:m-1", tool="s", at=_when(9))
+            await work.commit()
+        async with store as work:
+            assert await work.tool_calls.held(TENANT, "mail:m-1", since=_when(9))
+            assert not await work.tool_calls.held(TENANT, "mail:m-1", since=_when(10))
+            assert not await work.tool_calls.held(OTHER_TENANT, "mail:m-1", since=_when(9))
+            assert not await work.tool_calls.held(TENANT, "mail:m-2", since=_when(9))
 
     async def test_the_first_claim_is_the_one_that_writes(self, store: UnitOfWork) -> None:
         async with store as work:
@@ -1652,3 +2191,118 @@ class TestTenantsWaiting:
 
         async with store as work:
             assert await work.confirmations.tenants_waiting() == ()
+
+
+def _lease(lease_id: str, **over: Any) -> Lease:
+    fields: dict[str, Any] = {
+        "id": lease_id,
+        "account": Account.of("acme", "https://wms.example", "lena"),
+        "container_url": "http://steel:3000",
+        "steel_session_id": f"s-{lease_id}",
+        "context_id": f"ctx-{lease_id}",
+        "holder": "run_1",
+        "heartbeat_at": _when(9),
+        "expires_at": _when(9) + K_LEASE_TTL,
+        "state": LeaseState.SIGNING_IN,
+    }
+    fields.update(over)
+    return Lease(**fields)
+
+
+class TestLeases:
+    async def test_a_beat_on_a_waiting_lease_never_moves_its_deadline(
+        self, store: UnitOfWork
+    ) -> None:
+        until = _when(9) + timedelta(minutes=10)
+        async with store as work:
+            await work.browser_sessions.lease(TENANT, _lease("lse_a"))
+            await work.browser_sessions.settle(
+                TENANT, "lse_a", state=LeaseState.WAITING, until=until
+            )
+            await work.commit()
+
+        async with store as work:
+            # A sibling beats well past the WAITING deadline -- the beat is
+            # accepted (it still holds the lease as the caller's), but it
+            # must never push a WAITING lease's expiry out.
+            assert await work.browser_sessions.beat(
+                TENANT, "lse_a", now=until + timedelta(minutes=20)
+            )
+            await work.commit()
+
+        async with store as work:
+            waiting = await work.browser_sessions.get_lease(TENANT, "lse_a")
+            assert waiting is not None
+            assert waiting.state is LeaseState.WAITING
+            assert waiting.expires_at == until
+
+    async def test_a_park_names_the_run_that_parked_and_a_sibling_s_beat_never_renames_it(
+        self, store: UnitOfWork
+    ) -> None:
+        until = _when(9) + timedelta(minutes=10)
+        async with store as work:
+            await work.browser_sessions.lease(TENANT, _lease("lse_a"))
+            await work.browser_sessions.settle(
+                TENANT, "lse_a", state=LeaseState.WAITING, until=until, holder="run_a"
+            )
+            await work.commit()
+
+        async with store as work:
+            assert await work.browser_sessions.beat(TENANT, "lse_a", now=_when(9), holder="run_b")
+            await work.commit()
+
+        async with store as work:
+            waiting = await work.browser_sessions.get_lease(TENANT, "lse_a")
+            assert waiting is not None
+            assert waiting.holder == "run_a"
+
+    async def test_settle_given_now_needs_its_old_deadline_not_yet_passed(
+        self, store: UnitOfWork
+    ) -> None:
+        deadline = _when(9)
+        fresh = deadline + K_LEASE_TTL
+        async with store as work:
+            await work.browser_sessions.lease(
+                TENANT, _lease("lse_a", state=LeaseState.WAITING, expires_at=deadline)
+            )
+            await work.commit()
+
+        async with store as work:
+            # At the deadline, not before it: this is the sweeper's own
+            # `expire` condition, and the two must never both succeed.
+            at_deadline = await work.browser_sessions.settle(
+                TENANT, "lse_a", state=LeaseState.READY, until=fresh, now=deadline
+            )
+            after_deadline = await work.browser_sessions.settle(
+                TENANT,
+                "lse_a",
+                state=LeaseState.READY,
+                until=fresh,
+                now=deadline + timedelta(minutes=1),
+            )
+            await work.commit()
+
+        assert at_deadline is False
+        assert after_deadline is False
+        async with store as work:
+            untouched = await work.browser_sessions.get_lease(TENANT, "lse_a")
+            assert untouched is not None
+            assert untouched.state is LeaseState.WAITING
+            assert untouched.expires_at == deadline
+
+        async with store as work:
+            before_deadline = await work.browser_sessions.settle(
+                TENANT,
+                "lse_a",
+                state=LeaseState.READY,
+                until=fresh,
+                now=deadline - timedelta(seconds=1),
+            )
+            await work.commit()
+
+        assert before_deadline is True
+        async with store as work:
+            revived = await work.browser_sessions.get_lease(TENANT, "lse_a")
+            assert revived is not None
+            assert revived.state is LeaseState.READY
+            assert revived.expires_at == fresh

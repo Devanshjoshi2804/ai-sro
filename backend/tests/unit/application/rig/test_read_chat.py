@@ -21,7 +21,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-from dataclasses import fields
+from dataclasses import fields, replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -30,20 +30,17 @@ from sro.application.chat.read_chat import ReadChat
 from sro.application.context import RequestContext
 from sro.application.ports.model import AskerUnavailable
 from sro.application.shared.refusals import OverCap
-from sro.domain.chat.reading import UNDERSTAND_SCHEMA, ChatReading
+from sro.domain.chat.reading import ChatReading
+from sro.domain.prompts.read_request import READ_REQUEST
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer, ModelSpend
 from sro.domain.skill.workflow import Step, Workflow
 from sro.infrastructure.db.codec import when
 from tests.unit.fakes import FakeAsker, FakeChatRepository, FakeClock, FakeUnitOfWork
+from tests.unit.runtime_support import save_step
 
 TENANT = TenantId("acme")
 RIVAL = TenantId("rival")
-MODEL = "gemini-3.8-flash-preview"
-"""Deliberately not the shipped `gemini_plan_model` and not the mining one
-either, so a use case wired to a literal -- or to the wrong one of the model
-settings -- fails rather than agreeing with a default."""
-
 NOW = datetime(2025, 2, 11, 23, 0, tzinfo=UTC)
 """23:00, one hour before a midnight. `over_cap` sums the day from the midnight
 BEFORE `now`, so an hour's advance moves this into the next day and out of
@@ -68,7 +65,7 @@ def _workflow(tenant: TenantId = TENANT) -> Workflow:
         tenant=tenant.value,
         title="create a work area",
         narrative="the operator created a work area",
-        steps=[Step(order=0, says="s", system=None, cites=["ges_1"])],
+        steps=[Step(order=0, says="s", system=None, cites=["ges_1"], parameters=["areaName"])],
         parameters=[{"name": "areaName", "seen_values": ["NEWTESTS"], "required": True}],
     )
 
@@ -78,7 +75,6 @@ def _read(
     *,
     asker: FakeAsker | None,
     clock: FakeClock | None = None,
-    model: str = MODEL,
     cap_usd: float = CAP,
 ) -> ReadChat:
     # `hand_out`, as a container hands one out: strict, and not yet entered. A
@@ -87,7 +83,6 @@ def _read(
     return ReadChat(
         uow.hand_out(),
         asker=asker,
-        model=model,
         clock=clock or FakeClock(NOW),
         cap_usd=cap_usd,
     )
@@ -96,14 +91,16 @@ def _read(
 async def _held(tenant: TenantId = TENANT) -> FakeUnitOfWork:
     uow = FakeUnitOfWork()
     await uow.workflows.save(_workflow(tenant))
+    # A cited, proven save, so the job compiles: only a runnable job is offered.
+    _, by_id = save_step(gid="ges_1")
+    await uow.gestures.add_gestures(
+        tuple(replace(one, tenant=tenant.value) for one in by_id.values())
+    )
     return uow
 
 
 def _answer(workflow_id: str | None, values: list[dict[str, str]], **over: object) -> Answer:
-    return Answer(
-        data={"workflow_id": workflow_id, "values": values, "missing": []},
-        **over,
-    )
+    return Answer(data={"job": workflow_id, "sure": True, "values": values}, **over)
 
 
 def _billed_rows(uow: FakeUnitOfWork) -> list[ChatReading]:
@@ -239,7 +236,7 @@ async def test_the_sentence_read_is_the_one_the_operator_typed() -> None:
     constant, or read the empty string the rig's `body.get` fell back to, still
     answers, still bills and offers whatever the model makes of nothing."""
     uow = await _held()
-    asker = FakeAsker(_answer("wfl_1", [{"name": "areaName", "value": "ZONE4"}]))
+    asker = FakeAsker(_answer("wfl_1", [{"field": "areaName", "value": "4", "quote": "zone 4"}]))
 
     await _read(uow, asker=asker).execute(_ctx(), utterance=SAID)
 
@@ -250,29 +247,32 @@ async def test_the_jobs_it_is_read_against_are_the_ones_this_tenant_holds() -> N
     """Two tenants, because a door that read the tenant off anything but `ctx`
     passes every other assertion in this file. `rival` shares the store and
     holds nothing, so the job the model names is one nobody holds -- which is a
-    hallucination and not an offer."""
+    hallucination and not an offer. Since M4 the rival is still read -- against
+    the built-in mail actions every tenant has -- and never against acme's job."""
     uow = await _held()
-    asker = FakeAsker(_answer("wfl_1", [{"name": "areaName", "value": "ZONE4"}]))
+    asker = FakeAsker(_answer("wfl_1", [{"field": "areaName", "value": "4", "quote": "zone 4"}]))
 
     got = await _read(uow, asker=asker).execute(_ctx(RIVAL), utterance=SAID)
 
     assert got.workflow_id is None
-    assert "wfl_1" not in str(asker.asked[0]["evidence"]), (
-        "it read the store's jobs, not this tenant's"
-    )
+    (asked,) = asker.asked
+    assert "wfl_1" not in str(asked["evidence"]), "it read the store's jobs, not this tenant's"
+
     assert [row.tenant for row in _billed_rows(uow)] == ["rival"], "billed to the wrong tenant"
 
 
-async def test_the_model_asked_is_the_one_this_deployment_configured() -> None:
-    """Several model settings, and the plan one is the only one this door may
-    spend on -- a person is standing at a screen waiting for the answer."""
+async def test_the_model_asked_is_the_one_the_record_names() -> None:
+    """A model change is a prompt change, so the record names it and nothing
+    a deployment configures can move it."""
     uow = await _held()
     asker = FakeAsker(_answer("wfl_1", []))
 
-    await _read(uow, asker=asker, model="gemini-3.1-pro-preview").execute(_ctx(), utterance=SAID)
+    await _read(uow, asker=asker).execute(_ctx(), utterance=SAID)
 
-    assert [one["model"] for one in asker.asked] == ["gemini-3.1-pro-preview"]
-    assert asker.asked[0]["schema"] is UNDERSTAND_SCHEMA, "structured output, or it is prose"
+    assert [one["model"] for one in asker.asked] == [READ_REQUEST.model]
+    assert asker.asked[0]["schema"] == dict(READ_REQUEST.output_schema), (
+        "structured output, or it is prose"
+    )
 
 
 async def test_the_bill_is_stamped_with_the_containers_clock() -> None:
@@ -299,7 +299,7 @@ async def test_a_sentence_naming_no_job_still_writes_the_bill() -> None:
     """
     both: tuple[dict[str, object] | None, ...] = (
         None,
-        {"workflow_id": "wfl_nope", "values": [], "missing": []},
+        {"job": "wfl_nope", "sure": True, "values": []},
     )
     for data in both:
         uow = await _held()
@@ -367,6 +367,8 @@ _ORDER_UNDER_ONE_SEED = """
 import asyncio
 
 from sro.application.chat.understand import understand
+from sro.domain.chat.request import Candidate
+from sro.domain.execution.field_classes import field_classes
 from sro.domain.shared.prices import Answer, ModelSpend
 from sro.domain.skill.workflow import Workflow
 
@@ -384,7 +386,7 @@ NAMES = [
 
 class _Asker:
     async def ask(self, **_: object) -> Answer:
-        return Answer(data={"workflow_id": "wfl_8", "values": [], "missing": []})
+        return Answer(data={"job": "wfl_8", "sure": True, "values": []})
 
 
 held = Workflow(
@@ -394,7 +396,8 @@ held = Workflow(
     narrative="n",
     parameters=[{"name": name, "required": True} for name in NAMES],
 )
-print(",".join(asyncio.run(understand("x", [held], _Asker(), "m")).missing))
+job = Candidate(held.id, held.title, field_classes(held, {}, {}), {}, {})
+print(",".join(asyncio.run(understand("x", [job], _Asker())).missing))
 """
 """One reading, in a fresh interpreter, printing the order its fields came back
 in. Runs `understand` rather than `ReadChat` because that is where the set is

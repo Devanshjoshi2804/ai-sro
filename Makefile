@@ -14,9 +14,11 @@ FRONTEND := cd frontend &&
 
 .DEFAULT_GOAL := help
 .PHONY: help up down ps logs reset install migrate revision api worker status web vault-key one-whole-run \
-        lint lint-backend check-code-notes lint-frontend format test test-unit test-integration \
-        test-contract test-browser types check ingest-kb gen-recorder \
-        mutants-backend images smoke gen-deployment
+        lint lint-backend recipe check-code-notes lint-frontend format test test-unit test-integration \
+        test-replay record-histories \
+        test-contract test-browser types check ingest-kb gen-recorder eval eval-ci eval-redact \
+        mutants-backend images smoke gen-deployment migrate-vault-keys \
+        steel-up steel-down steel-env
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -41,6 +43,15 @@ reset: ## Destroy all local data and start clean
 	$(MAKE) up
 	$(MAKE) migrate
 
+steel-up: ## This worktree's own Steel; its URLs go to .env.steel, which the tests load
+	$(BACKEND) uv run python scripts/steel_worktree.py up
+
+steel-down: ## Stop and remove this worktree's own Steel, and its .env.steel
+	$(BACKEND) uv run python scripts/steel_worktree.py down
+
+steel-env: ## Point a shell at this worktree's Steel: eval "$$(make -s steel-env)"
+	@sed 's/^/export /' .env.steel
+
 # --- backend ----------------------------------------------------------------
 
 install: ## Install backend and frontend dependencies
@@ -49,6 +60,9 @@ install: ## Install backend and frontend dependencies
 
 vault-key: ## Generate a vault key: export SRO_VAULT_KEY=$$(make -s vault-key)
 	@$(BACKEND) uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+
+migrate-vault-keys: ## Copy QA's old-scheme vault passwords to the new S1 keys: dry-run by default, add apply=1 [delete-old=1]
+	$(BACKEND) uv run python scripts/migrate_vault_keys.py $(if $(apply),--apply) $(if $(delete-old),--delete-old)
 
 migrate: ## Apply database migrations
 	$(BACKEND) uv run alembic upgrade head
@@ -111,7 +125,8 @@ images: ## Build both deployment images, tagged with this commit: make images [a
 	@# build -- so an image is per environment until the console is proxied.
 	@# See docs/18-deployment.md.
 	@rev=$$(git rev-parse --short HEAD); \
-	docker build -t ai-sro-backend:$$rev --build-arg REVISION=$$rev backend/ && \
+	docker build --build-context page=new-chrome-extension/src/page \
+		-t ai-sro-backend:$$rev --build-arg REVISION=$$rev backend/ && \
 	docker build -t ai-sro-web:$$rev \
 		--build-arg NEXT_PUBLIC_API_URL=$(or $(api),http://localhost:8000) \
 		--build-arg NEXT_PUBLIC_EXTENSION_ORIGINS=$(or $(origins),chrome-extension://onfmljaebeipeiinflhgdochbcjeoehl) \
@@ -150,11 +165,23 @@ lint: lint-backend lint-frontend lint-extension ## Run every linter
 lint-backend: ## ruff + mypy --strict + import-linter
 	$(BACKEND) uv run ruff check .
 	$(BACKEND) uv run ruff format --check .
-	$(BACKEND) uv run mypy src tests
+	$(BACKEND) uv run mypy src tests evals
 	$(BACKEND) uv run lint-imports
+
+recipe: ## A job's compiled view, for reading (never an import format): make recipe job=wfl_… tenant=acme
+	$(BACKEND) uv run python scripts/recipe.py --tenant $(tenant) --job $(job)
 
 check-code-notes: ## docs/code-notes/ anchors still point at the line they name
 	$(BACKEND) uv run python scripts/check_code_notes.py
+
+eval: ## LIVE EVAL (spends model money): real local cases, report + gate: make eval suite=reader tenant=acme [baseline=1] [limit=N] [rebuild=1]
+	$(BACKEND) uv run python -m evals run --suite $(suite) --tenant $(tenant) $(if $(baseline),--baseline,) $(if $(limit),--limit $(limit),) $(if $(rebuild),--rebuild,)
+
+eval-ci: ## The committed redacted cases, offline: prompts render, answers conform, scores hold [live=1]
+	$(BACKEND) uv run python -m evals ci $(if $(live),--live,)
+
+eval-redact: ## Redacted copies of the local cases, for a person to read before committing any
+	$(BACKEND) uv run python -m evals redact --suite $(suite) --tenant $(tenant)
 
 lint-frontend: ## eslint + tsc
 	$(FRONTEND) npm run lint
@@ -168,10 +195,16 @@ format: ## Autoformat both sides
 	$(BACKEND) uv run ruff format .
 	$(FRONTEND) npm run format
 
-test: test-unit test-integration ## Unit + integration tests
+test: test-unit test-replay test-integration ## Unit + replay + integration tests
 
 test-unit: ## Fast tests. No Docker, no network.
 	$(BACKEND) uv run pytest tests/unit -q
+
+test-replay: ## Every recorded RunWorkflow history replays on the current workflow code
+	$(BACKEND) uv run pytest tests/replay -q
+
+record-histories: ## Record RunWorkflow histories from the real-Temporal tests (needs `make up`)
+	$(BACKEND) SRO_RECORD_HISTORIES=1 uv run pytest tests/integration/test_run_workflow.py -q
 
 test-integration: ## Tests against real Postgres/MinIO via testcontainers
 	$(BACKEND) uv run pytest tests/integration -q
@@ -262,11 +295,9 @@ test-extension: ## The extension's own self-checks, in plain node
 	@# file and reads its exit code. Verified in both directions: 0 when green,
 	@# 1 for a `node:test` failure AND 1 for a plain script that throws.
 	@#
-	@# One process per file also retires two ordering traps the old serial run
-	@# had: `commands.js`'s `abort()` poisoned a run id in module scope with no
-	@# undo, so the Stop tests had to run last, and `shapesFor`'s five-minute
-	@# module-scope cache meant only the first test in the process could pin a
-	@# shapes request. Neither survives a fresh process per file.
+	@# One process per file also means no suite inherits another's module
+	@# scope -- a cache or a flag one file leaves behind never decides the
+	@# order the next file's tests have to run in.
 	cd new-chrome-extension && node --test "**/*.test.?(c|m)js"
 
 smoke: ## Does a DEPLOYMENT work from outside itself: make smoke at=http://host:8088 [DOCKER="sudo docker"]
@@ -275,6 +306,10 @@ smoke: ## Does a DEPLOYMENT work from outside itself: make smoke at=http://host:
 	@# browser name anything a browser can reach. Every defect on the first day
 	@# of deploying was on one of those edges. See backend/scripts/smoke.py.
 	@test -n "$(at)" || { echo "at= is required: make smoke at=http://<host>:<port>"; exit 2; }
-	@$(DEPLOY) exec -T api python scripts/smoke.py $(at)
+	@# Hashed here, on the host, and handed in -- smoke.py runs inside the api
+	@# container, where the "repository" it would otherwise read is the very
+	@# file /health hashes, so a check computed in there could never fail.
+	@page_code=$$(python3 -c "import hashlib; print(hashlib.sha256(open('new-chrome-extension/src/page/page-code.js','rb').read()).hexdigest())") && \
+	$(DEPLOY) exec -T api python scripts/smoke.py $(at) $$page_code
 
 check: lint test test-contract test-frontend test-extension test-browser ## What CI runs

@@ -27,7 +27,7 @@ let failed = 0;
 const test = (name, fn) => tests.push([name, fn]);
 
 /** A world a content script can be run in, twice. */
-function aWorld({ runtimeId = "ext-1" } = {}) {
+function aWorld({ runtimeId = "ext-1", reply = undefined } = {}) {
   const sent = [];
   /** Every call the script MADE, whether or not it got through. */
   const tried = [];
@@ -42,6 +42,12 @@ function aWorld({ runtimeId = "ext-1" } = {}) {
       },
     },
     location: { href: "https://wms.example/receiving" },
+    CustomEvent: class {
+      constructor(type, init) {
+        this.type = type;
+        this.detail = init?.detail;
+      }
+    },
     chrome: {
       runtime: {
         get id() {
@@ -56,7 +62,7 @@ function aWorld({ runtimeId = "ext-1" } = {}) {
             throw new Error("Extension context invalidated.");
           }
           sent.push(message);
-          return Promise.resolve();
+          return Promise.resolve(reply);
         },
       },
     },
@@ -165,6 +171,40 @@ test("nothing the page dispatches is trusted", () => {
   gesture(world, "x".repeat(128 * 1024 + 1));
 
   assert.deepEqual(world.sent, []);
+});
+
+test("a gesture the worker drops tells the recorder to forget its target", async () => {
+  // Paused, an unwatched tab, a tab running a job: the worker drops the
+  // gesture, and the recorder must not read that target's state into the
+  // next gesture it records.
+  for (const [reply, told] of [
+    [{ ok: false, dropped: "capture is paused" }, ["r.7"]],
+    [{ error: "the worker threw" }, ["r.7"]],
+    [{ ok: true }, []],
+  ]) {
+    const world = aWorld({ reply });
+    run(world);
+    const dropped = [];
+    world.window.addEventListener("sro:dropped", (event) => dropped.push(event.detail));
+
+    gesture(world, JSON.stringify({ kind: "type", ref: "r.7" }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    assert.deepEqual(dropped, told, JSON.stringify(reply));
+  }
+});
+
+test("a gesture too large to relay tells the recorder it was dropped", () => {
+  // Refused for size, the gesture is lost; silently, the recorder would go on
+  // believing its screen was sent and never send it again.
+  const world = aWorld();
+  run(world);
+  const dropped = [];
+  world.window.addEventListener("sro:dropped", (event) => dropped.push(event.detail));
+
+  gesture(world, "x".repeat(128 * 1024 + 1));
+
+  assert.deepEqual(dropped, [null]);
 });
 
 for (const [name, fn] of tests) {

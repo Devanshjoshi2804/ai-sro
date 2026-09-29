@@ -1,31 +1,21 @@
 // The surface docked beside the system the operator is working in.
 //
-// Everything above the console frame is native, because everything on it needs
-// `chrome.*` or needs to know which tab this is: a run driving this browser has
-// to be stoppable while it happens, and "tasks you keep doing *here*" is a
-// question a page that does not know the host cannot ask.
+// Everything here is native, because everything on it needs `chrome.*` or
+// needs to know which tab this is. This browser recognises, offers and
+// watches: every press is a call to the backend, which starts the run and has
+// Steel do it. Nothing here ever drives a step in this tab.
 //
 // What is drawn is one card per thing that is true, in the order somebody
-// should deal with it. Not connected outranks not observing, which outranks a
-// closed channel.
+// should deal with it. Not connected outranks not observing.
 
 import { hostMatches } from "../background/scripts.js";
-import {
-  alreadyAnswered,
-  composer,
-  ledger,
-  nudging,
-  waitingOnYou,
-} from "./ledger.js";
-// The same rendering of "which page is this" the worker matches rules by.
-// One function, so a card drawn here and a rule evaluated there cannot
-// disagree about which page somebody is on.
-import { page } from "./nudge.js";
+import { alreadyAnswered, composer, ledger, nudging } from "./ledger.js";
 import { runCard } from "./run-card.js";
 import { history } from "./history.js";
 import { learned, learnedHere } from "./learned.js";
+import { foldedRun, mailRunCard } from "./mail-run.js";
 import { panes } from "./panes.js";
-import { dayNamed, pending, when } from "./pending.js";
+import { pending, when } from "./pending.js";
 import { needsAPress, strip } from "./strip.js";
 import { today } from "./today.js";
 import { waiting } from "./waiting.js";
@@ -252,6 +242,131 @@ function render(status) {
   // for it. Everything else is a fact a line states and a card would nag about.
   $("expanded").hidden = !(why || expanded);
 
+  // Home is what is true right now, and at most three loud cards of it (the
+  // user, 2026-09-29), in the order somebody deals with them:
+  //
+  //   1. what needs the operator -- a run's question;
+  //   2. what is running or just finished -- run cards, mail cards, the wait
+  //      on a reply. A finished one folds to one line after ten minutes;
+  //   3. one offer at most, for this page's job, and none for a job a card
+  //      above is already doing.
+  //
+  // Seen on QA before this: a mail card, an offer for another page's job and
+  // a full ladder card per learned job, stacked. What was learned is one quiet
+  // row below all of it, and the state card is its slim line whenever any of
+  // this is present. Trouble cards are the design's own tier above the loud
+  // ones and are not counted.
+  const needs = [];
+  const now = [];
+  const folded = [];
+  const offers = [];
+  const standing = [];
+
+  // A question nobody has answered: the one thing here waiting on THEM.
+  if (status.question) needs.push(theQuestion(status.question));
+
+  // A run a mail started is drawn as its mail card -- arrived, noticed, how it
+  // went -- and never twice: its performing or finished card stands aside.
+  const mailRuns = status.mailRuns || [];
+  const fromMail = new Set(mailRuns.map((run) => run.id));
+  if (status.performing && !fromMail.has(status.performing.runId))
+    now.push(performing(status));
+  // A look back at the last thing this browser did, after the run happening
+  // now.
+  const last = status.finished;
+  if (last && !fromMail.has(last.id)) {
+    if (folds(last.at)) folded.push(foldedRun(last, { at: last.at }));
+    else now.push(finished(status));
+  }
+  for (const run of mailRuns) {
+    if (run.status !== "running" && folds(run.finished_at)) {
+      folded.push(foldedRun(run, { at: run.finished_at, fromMail: true }));
+      continue;
+    }
+    now.push(
+      mailRunCard(run, {
+        live: status.performing?.runId === run.id ? status.performing : null,
+        onOpen: (url) => void chrome.tabs.create({ url }),
+        onReview: (one) => openConsole(`/jobs/runs/${one.id}`),
+        onStop: async (one, button) => {
+          button.disabled = true;
+          const stopped = await ask({
+            kind: "abort-run",
+            runId: one.id,
+            source: one.source,
+          });
+          button.textContent = stopped?.error
+            ? `the run could not be told to stop: ${stopped.error}`
+            : "stopping — the step already sent will finish";
+        },
+        onDismiss: async (one) => {
+          await ask({ kind: "dismiss-mail-run", runId: one.id });
+          await refresh();
+        },
+      }),
+    );
+  }
+  // A mail that has gone out and not been answered: what is true for as long
+  // as a reply takes, on Home as well as in the conversation.
+  const waitingOnMail = mailCard(status);
+  if (waitingOnMail) now.push(waitingOnMail);
+
+  // The jobs a card above is already doing. A card offering to do what is
+  // already being done is a card whose Yes starts it a second time -- on
+  // `Delete a Customer Type` that was two deletes of one record (deployment
+  // 2026-09-22) -- and an offer beside the mail card doing the same job is the
+  // same Yes (the user, 2026-09-29).
+  const onHome = new Set(
+    [
+      status.performing?.workflowId,
+      last?.workflow_id,
+      ...mailRuns.map((run) => run.workflow_id),
+    ].filter(Boolean),
+  );
+  // ONE offer, the newest: Home had eleven cards on it once (deployment
+  // 2026-09-18), and the rest are counted on the Waiting pane's badge. Not the
+  // ones that are waiting -- those are in the banner above -- and not another
+  // tab's: an offer about a page nobody is looking at is words without
+  // buttons. Which page's job it is was decided where it was made
+  // (`shouldFire`, `match`).
+  for (const offer of status.offers || []) offers.push(offering(offer));
+  const openHere = (lastStatus?.nudges || status.nudges || []).filter(
+    (nudge) =>
+      nudge.state === "open" &&
+      !nudge.missed &&
+      !onHome.has(nudge.workflowId) &&
+      !(nudge.tabId != null && nudge.tabId !== tabHere.tabId),
+  );
+  const [newest] = [...openHere].sort((a, b) => when(b.at) - when(a.at));
+  if (newest) {
+    const one = nudging(newest, answered);
+    if (justArrived(newest)) one.dataset.fresh = "1";
+    offers.push(one);
+  }
+  const loud = [...needs, ...now, ...offers.slice(0, 1)].slice(0, K_LOUD);
+
+  // What was learned on this system, as one row. Not while a run is going:
+  // one browser, one hand -- the backend refuses a second run for this device,
+  // so every press here would come back refused.
+  if (status.deviceId && !status.performing) {
+    const here = learned(learnedHere(learnedJobs, tabHere.host), {
+      open: learnedOpen,
+      opened: learnedJob,
+      onToggle: (open) => {
+        learnedOpen = open;
+        render(lastStatus);
+      },
+      onOpen: (id) => {
+        learnedJob = id;
+        render(lastStatus);
+      },
+      onRun: runHere,
+      onReview: (job) => openConsole(`/jobs/${encodeURIComponent(job.id)}`),
+    });
+    if (here) standing.push(here);
+  }
+
+  const trouble = troubles(status);
   if (!status.deviceId) {
     cards.push(
       card({
@@ -270,162 +385,9 @@ function render(status) {
       }),
     );
   } else {
-    cards.push(watching(status));
+    cards.push(watching(status, loud.length + trouble.length > 0));
   }
-
-  // Before the run and after the state card: it is the only thing here waiting
-  // on the person.
-  // Everything after the state card is gathered by kind and laid down in one
-  // order at the end -- the design's: what is wrong, the run, what it made,
-  // what is asked, and only then what is offered and what was learned. The
-  // order these are BUILT in is the order they are reasoned about below.
-  const offers = [];
-  const asks = [];
-  const now = [];
-  const standing = [];
-  for (const offer of status.offers || []) offers.push(offering(offer));
-
-  // The jobs this browser is offering to do, HERE rather than in the
-  // conversation.
-  //
-  // They were drawn in the thread, interleaved with what was said, which was
-  // right when the panel was one column and wrong the moment it became two:
-  // Home is what is true right now and an offer is the truest thing on it, so
-  // splitting the panel left Home empty and put the card a person was waiting
-  // to press behind the other tab. Seen on the deployment 2026-09-16 --
-  // "Create a Customer Type — GDY, so far" sitting in Chat with nothing at all
-  // on Home.
-  //
-  // Not the ones that are waiting: those are in the banner above, and a card
-  // drawn twice is a card somebody answers twice. Not another tab's, either --
-  // an offer about a page nobody is looking at is words without buttons.
-  //
-  // ONE of them, and the rest behind the tray.
-  //
-  // Home had eleven cards on it: two of them the same request twice, four from
-  // earlier in the day, and the one that had just arrived at the bottom. A
-  // panel that exists to say "here is the thing that needs you" was saying it
-  // eleven times, which is the same as not saying it. Measured on the
-  // deployment 2026-09-18.
-  //
-  // The newest, because that is the one anybody acts on -- nobody works
-  // Tuesday's request on Thursday, and the older ones are a list to go
-  // through rather than a thing in the way of the run happening now.
-  // Not the job that is running right now.
-  //
-  // A card offering to do what is already being done is a card whose Yes
-  // starts it a second time -- and on `Delete a Customer Type` that is two
-  // deletes of one record. Measured on the deployment 2026-09-22 at 15:57:
-  // "Delete a Customer Type — NEX. Want me to do it?" with a live Yes,
-  // directly above "A run is performing here" for that same job.
-  //
-  // The mail path has had this since it was written -- `offer.started`,
-  // "a run is already going for this one, so there is nothing to offer" --
-  // and the rig's own offers never consulted anything. They are drawn from
-  // the same list, so the guard belongs here, where the list is filtered.
-  const running = status.performing?.workflowId || null;
-  const openHere = (lastStatus?.nudges || status.nudges || []).filter(
-    (nudge) =>
-      nudge.state === "open" &&
-      !nudge.missed &&
-      !(running && nudge.workflowId === running) &&
-      !(nudge.tabId != null && nudge.tabId !== tabHere.tabId),
-  );
-  const [newest, ...others] = [...openHere].sort((a, b) => when(b.at) - when(a.at));
-  if (newest) {
-    const one = nudging(newest, answered);
-    if (justArrived(newest)) one.dataset.fresh = "1";
-    offers.push(one);
-  }
-  // And a way to the rest, which is a line rather than ten more cards.
-  if (others.length) offers.push(theRest(others));
-
-  // A standing rule that fired on THIS page and stopped to ask.
-  //
-  // `waitingOnYou`'s own docstring records the last time this card could not
-  // be seen: it was drawn in the console, another tab, which from where the
-  // operator was standing is indistinguishable from nothing having happened
-  // -- "I just logged in, nothing on panel". It moved into the panel and
-  // stopped one pane short. An arrival rule fires because of the page in
-  // front of somebody, and Home is the pane about the page in front of
-  // somebody; the conversation is where it was, behind the other tab.
-  //
-  // Measured on the deployment 2026-09-20: `trg_a925ce7d` fired on the
-  // Keycloak sign-in page at 17:25 and wrote two confirmations, both still
-  // `waiting`, while the operator looked at Home and saw a run card for a
-  // different job.
-  //
-  // Only the ones about the page they are on. `page` is the rule's own, put
-  // there by the worker, and a card about somewhere else belongs in the list
-  // rather than in the way of the page being worked.
-  const thisPage = page(tabHere.url || "").toLowerCase();
-  // Not one that has already run out.
-  //
-  // A confirmation expires, and the card stayed on screen offering a press
-  // that could not work: "Yes, do it" came back 422 "this expired without
-  // an answer; nothing was run and nothing can be now". Measured on the
-  // deployment 2026-09-22 at 19:17, on cnf_4f2ca91d. The backend serves
-  // `expires_at` and this never read it.
-  const gone = (card) => {
-    const at = Date.parse(card.expires_at || "");
-    return Number.isFinite(at) && at <= Date.now();
-  };
-  const mineToAnswer = (status.waiting || []).filter(
-    (card) =>
-      card.page && card.page === thisPage && card.still_there !== false && !gone(card),
-  );
-  // One card per rule, however many times it fired.
-  //
-  // A rule that fires twice writes two confirmations, and the panel drew a
-  // card for each: the same sentence, the same two buttons, one under the
-  // other, with no way to tell them apart. Seen on the Keycloak sign-in page
-  // on 2026-09-22 -- "Log in to Keycloak, an arrival trigger fired. Shall
-  // I?" twice. They are one decision to the person reading them, so one
-  // answer settles all of them (`answeredWaiting` carries the rest).
-  const byRule = new Map();
-  for (const card of mineToAnswer) {
-    const rule = card.trigger_id || card.id;
-    const first = byRule.get(rule);
-    if (first) first.twins.push(card.id);
-    else byRule.set(rule, { ...card, twins: [] });
-  }
-  for (const card of byRule.values()) asks.push(waitingOnYou(card, answered));
-
-  // A mail that has gone out and not been answered.
-  //
-  // On Home as well as in the conversation, because the two panes answer two
-  // different questions and this is an answer to both: the conversation says
-  // what was said, and Home says what is true right now. What was true for as
-  // long as a reply took was a panel doing visibly nothing.
-  const waitingOnMail = mailCard(status);
-  if (waitingOnMail) asks.push(waitingOnMail);
-
-  // A question nobody has answered, before anything about what is happening
-  // now. It is the one thing on this panel that is waiting on THEM.
-  if (status.question) asks.unshift(theQuestion(status.question));
-  if (status.performing) now.push(performing(status));
-  // Placed after the run that is happening now and before what is wrong,
-  // because it outranks neither -- it is a look back at the last thing this
-  // browser did, not a fault.
-  if (status.finished) now.push(finished(status));
-  // What was learned on this system, and how far each job is toward writing
-  // on its own. Below everything that is happening now: it is standing
-  // information, and the loud cards above are the ones waiting on somebody.
-  // Not while a run is going.
-  //
-  // One browser, one hand: the backend refuses a second run for this device,
-  // so every press on this card would come back refused -- and the card an
-  // operator just pressed sat there beside the run it started, offering to
-  // start it again. An offer taken stops being an offer, which is the rule
-  // the nudges have always followed; this card is the same kind of thing.
-  if (status.deviceId && !status.performing) {
-    const here = learned(learnedHere(learnedJobs, tabHere.host), {
-      onRun: runHere,
-      onReview: (job) => openConsole(`/jobs/${encodeURIComponent(job.id)}`),
-    });
-    if (here) standing.push(here);
-  }
-  cards.push(...troubles(status), ...now, ...asks, ...offers, ...standing);
+  cards.push(...trouble, ...loud, ...folded, ...standing);
   // A panel with nothing on it says so.
   //
   // Home is empty whenever nothing needs anybody, which is most of a good
@@ -481,6 +443,24 @@ function render(status) {
   return status;
 }
 
+/** How many loud cards Home draws at most (the user, 2026-09-29). */
+const K_LOUD = 3;
+
+/** How long a finished card stays whole on Home before it folds to one line. */
+const K_FOLD_MS = 10 * 60_000;
+
+/** Whether a card that ended at `at` is one line by now. A card whose end
+ * nobody recorded stays whole. */
+function folds(at) {
+  const ended = when(at);
+  return Boolean(ended) && Date.now() - ended >= K_FOLD_MS;
+}
+
+/** Whether the learned row is unfolded, and whose ladder is open under it.
+ * This window's, like the waiting banner's. */
+let learnedOpen = false;
+let learnedJob = null;
+
 const K_FRESH_MS = 20000;
 /** How long a card that has just arrived keeps its moving border. Long enough
  * to be on screen when somebody is sent here to look at it, short enough that
@@ -516,28 +496,6 @@ function justArrived(nudge) {
     }
   }
   return (freshUntil.get(id) || 0) > Date.now();
-}
-
-/** The requests Home is not showing, as one line that opens them.
- *
- * Not a card per request, which is what this replaces. A person looking at
- * Home is looking for the next thing to do; how much else is queued is a
- * number, and the queue itself is somewhere to go.
- */
-function theRest(rest) {
-  const oldest = rest.reduce(
-    (was, one) => (when(one.at) < when(was.at) ? one : was),
-    rest[0],
-  );
-  return card({
-    title: `${rest.length} more waiting`,
-    says:
-      rest.length === 1
-        ? `One more request, from ${dayNamed(oldest.at).toLowerCase()}.`
-        : `The oldest is from ${dayNamed(oldest.at).toLowerCase()}.`,
-    // Home's way to the queue, which is now a place rather than a dialog.
-    actions: [{ label: "Go through them", primary: true, act: goToTheQueue }],
-  });
 }
 
 /** Waiting on somebody's mailbox, said on Home.
@@ -706,7 +664,7 @@ function toggleExpanded() {
  */
 let watchOpen = false;
 
-function watching(status) {
+function watching(status, louder = false) {
   const paused = status.paused || status.serverPaused;
   if (paused) {
     return watchCard(status, true, null, {
@@ -825,21 +783,23 @@ function watching(status) {
         `You turned this on for ${mine.host}. Everything you do here is evidence,` +
         " until you close the tab or stop watching." +
         elsewhere,
-      // Said out loud, because it is a change to the screen they are working
-      // on. Chrome puts a debugging banner up for it on any browser that did
-      // not install this by policy, and an operator meeting that with no
-      // explanation has been given a reason to distrust everything else the
-      // panel says.
-      metrics:
-        `since ${clock(mine.since)}` +
-        (status.policy?.capture_snapshots
-          ? " · reading this page's structure too"
-          : ""),
+      metrics: `since ${clock(mine.since)}`,
       actions: [
         { label: "Stop watching", act: (button) => setWatch(button, false) },
         pauseAction(status),
       ],
     });
+  }
+
+  // The slim line, whenever a louder card is on Home (design §3): the fact
+  // that this tab is evidence, and the one way to stop it.
+  if (louder) {
+    const slim = card({
+      title: "Watching this tab · learning from what you do",
+      actions: [{ label: "Stop watching", act: (button) => setWatch(button, false) }],
+    });
+    slim.dataset.slim = "1";
+    return slim;
   }
 
   // Nothing here is asking to be answered: this tab has been evidence for a
@@ -861,11 +821,7 @@ function watching(status) {
       // begin or end.
       `Work as usual in ${mine.on || mine.host || "this tab"}. It learns from what you repeat.` +
       elsewhere,
-    metrics:
-      `since ${clock(mine.since)}` +
-      (status.policy?.capture_snapshots
-        ? " · reading this page's structure too"
-        : ""),
+    metrics: `since ${clock(mine.since)}`,
     actions: [
       { label: "Stop watching", act: (button) => setWatch(button, false) },
       pauseAction(status),
@@ -1015,10 +971,9 @@ async function setWatch(button, on) {
  * scrolling past on a page none of it was about. */
 const JUST_ENDED_MS = 4_000;
 
-/** A run driving this browser, possibly started somewhere else.
+/** A run the backend is performing, possibly started somewhere else.
  *
- * Stoppable from here because this is where somebody sees it happening: a run
- * started by a schedule is otherwise a cursor moving on its own.
+ * Stoppable from here because this is where somebody sees it happening.
  */
 function performing(status) {
   const run = status.performing;
@@ -1052,20 +1007,28 @@ function performing(status) {
         act: async (button) => {
           button.disabled = true;
           const stopped = await ask({ kind: "abort-run", runId: run.runId });
-          // What is already inside the page finishes; this stops the next step,
+          // What is already underway finishes; this stops the next step,
           // which is what the button says. Where the backend could not be
-          // told, this browser has still stopped taking part -- but the run
-          // itself is still being driven, and saying "stopping" for that would
+          // told, the run is still going, and saying "stopping" for that would
           // be the one thing a stop control must never do.
           button.textContent = stopped?.error
-            ? `this browser has stopped — but the run could not be told: ${stopped.error}`
+            ? `the run could not be told to stop: ${stopped.error}`
             : "stopping — the step already sent will finish";
           await refresh();
         },
       },
+      // The run is on Steel, not in this tab: this is where to see it.
+      ...(run.liveViewUrl
+        ? [
+            {
+              label: "Watch it run",
+              act: () => void chrome.tabs.create({ url: run.liveViewUrl }),
+            },
+          ]
+        : []),
       // Where the run actually is. Two routes because there are two id
       // spaces: `/jobs/runs/{id}` reads a workflow-run id (`source: "rig"`,
-      // the name the channel gave it) and `/runs/{id}` a skill-run id. The
+      // the watched run's own record) and `/runs/{id}` a skill-run id. The
       // backend keeps them apart on purpose, so a workflow-run id sent to
       // `/runs/` is not a type error -- it is looked up in the skill-run
       // repository, found missing, and drawn as a run that does not exist.
@@ -1097,9 +1060,8 @@ function performing(status) {
           onPress: async (answer, drawn, row, button) => {
             button.disabled = true;
             if (answer === "approve") {
-              // The panel never holds the rig's bearer. The press goes to the
-              // worker, which is where it lives -- the same path the offer's
-              // "yes" takes.
+              // The panel never holds the bearer. The press goes to the
+              // worker, which is where it lives.
               const got = await ask({
                 kind: "approve-rig-run",
                 runId: drawn.id,
@@ -1311,6 +1273,8 @@ function tryAgainRow(run) {
         workflowId: run.workflow_id,
         values: run.values || {},
         items: run.items || [],
+        // Which run this presses again, so two panels are one retry.
+        retryOf: run.id,
       });
       if (started?.ok === false) {
         again.disabled = false;
@@ -1698,12 +1662,13 @@ async function undoRun(button, run) {
     // it the press ran whatever version happened to be newest by the time it
     // landed, which is neither the version that was checked nor one anybody
     // was shown; the backend refuses that outright now rather than running it.
-    await runIt(
-      run.reversal.skill_id,
-      run.reversal.parameters,
-      "Undo that",
-      run.reversal.version,
-    );
+    // Run by the backend in a browser it owns, never this one.
+    await ask({
+      kind: "run-skill",
+      skillId: run.reversal.skill_id,
+      parameters: run.reversal.parameters,
+      version: run.reversal.version,
+    });
     said("undoing it — a new run is reversing this one");
   } catch (error) {
     said(error.message);
@@ -1832,24 +1797,6 @@ function troubles(status) {
       }),
     );
   }
-  if (status.deviceId && status.channel !== "open") {
-    cards.push(
-      card({
-        title: "This browser cannot be reached",
-        says:
-          (status.channelWhy
-            ? `Not dialling: ${status.channelWhy}. `
-            : `The command channel is ${status.channel}. `) +
-          "A run started from the console or a schedule cannot act here until it " +
-          "opens; nothing already captured is lost.",
-        tone: "attention",
-        // It redials on the minute alarm by itself. This is for the operator
-        // watching the card right now, who otherwise has nothing to press and
-        // goes looking for a switch to flip in the options page.
-        actions: [{ label: "Try again", act: reconnect }],
-      }),
-    );
-  }
   if (status.lastError) {
     cards.push(
       card({
@@ -1864,17 +1811,6 @@ function troubles(status) {
     );
   }
   return cards;
-}
-
-async function reconnect(button) {
-  button.disabled = true;
-  try {
-    await ask({ kind: "reconnect" });
-    said("dialling — this can take a few seconds");
-  } catch (error) {
-    said(error.message);
-  }
-  await refresh();
 }
 
 async function dismissError(button) {
@@ -1950,16 +1886,15 @@ async function runHere(job, button) {
 async function refresh() {
   void fetchLearned();
   const status = await ask({ kind: "status" });
-  // What a run driving this browser actually is: the worker knows its id and
-  // that it is happening, and the run's own record knows what it is called, how
+  // What the run being watched actually is: the worker knows its id and that
+  // it is happening, and the run's own record knows what it is called, how
   // far through it is and which rung it is allowed to be on.
   if (status.performing) {
     try {
       // The door that holds this kind of run. A mined job's run lives at
       // `/v1/workflow-runs` and a skill's at `/v1/runs`, and asking the second
       // about the first is a 404 every time -- which is what the card showing
-      // "A run is performing here" and no job name was, all evening, on every
-      // run this browser drove.
+      // "A run is performing here" and no job name was, all evening.
       const rig = status.performing.source === "rig";
       const run = await ask({
         kind: "run",
@@ -1967,13 +1902,8 @@ async function refresh() {
         source: status.performing.source,
       });
       // A run that has ENDED is not performing, whatever the worker still
-      // believes.
-      //
-      // The worker's own answer is `latest`, a module variable that says "a
-      // run is happening" until it goes quiet -- and a worker evicted in the
-      // middle of a run comes back with no memory of it at all, so the two
-      // ways that answer can be wrong point in opposite directions. The run's
-      // own row is the authority and the panel has just fetched it.
+      // believes. The run's own row is the authority and the panel has just
+      // fetched it.
       //
       // Measured on the deployment 2026-09-20: `run_83efedf5` stopped at
       // 13:35:55 and the panel was still drawing "A run is performing here"
@@ -1995,6 +1925,9 @@ async function refresh() {
               // and the offers list has to be able to ask "is this the job
               // that is already happening?" before it draws a Yes beside it.
               workflowId: run.workflow_id || null,
+              // Where the backend says this run can be watched: Steel's own
+              // view of the run's tab. Empty when it has none.
+              liveViewUrl: run.live_view_url || "",
               // The rig plans one step at a time, so there is no total to
               // count towards and the card says "step 3" rather than
               // "step 3 of 7". `rigRun` maps the row; `steps` is what it has
@@ -2720,7 +2653,7 @@ function show(thread, { asked = false } = {}) {
  * marked as not-yet-answered and replaced wholesale when the answer lands, so
  * the two can never disagree.
  */
-async function say(text) {
+async function say(text, answering) {
   if (!threadId) return conversation();
   // Said from Home, read in the conversation. The box is under their hand on
   // both panes; the answer to what they said is only in one of them, and a
@@ -2757,10 +2690,13 @@ async function say(text) {
   try {
     // `tabId` so an offer the sentence turns into is drawn beside the tab the
     // operator is working in -- `show` only draws an OPEN nudge for this tab.
+    // `answering` binds a press to the question it was pressed under, so the
+    // door acts on that question's offer and never on a newer one.
     answered = await ask({
       kind: "thread-say",
       threadId,
       text,
+      answering,
       tabId: tabHere.tabId,
     });
   } catch (error) {
@@ -2777,7 +2713,7 @@ async function say(text) {
   if (answered) show(answered, { asked: true });
   // And if that answer was the last one, go and watch it.
   //
-  // The run starts in the worker the moment the reply lands, and the card that
+  // The backend starts the run the moment the reply lands, and the card that
   // says what it is doing is drawn on Home -- so answering the last question
   // left the operator sitting in the conversation while the job they had just
   // finished authorising ran somewhere they were not looking. The outbound
@@ -2787,10 +2723,9 @@ async function say(text) {
 
 /** Whether the reply to that sentence set a job running.
  *
- * `resume` is the door's word, and it is the door's to give -- the same field
- * the worker starts the run on. Read here rather than inferred from the text,
- * for the reason the worker reads it: this browser must not decide that a
- * press was implied.
+ * `resume` is the door's word, and it is the door's to give: the backend
+ * started the run. Read here rather than inferred from the text: this browser
+ * must not decide that a press was implied.
  */
 function startedByTheAnswer(thread) {
   for (const message of [...(thread?.messages || [])].reverse()) {
@@ -2799,17 +2734,6 @@ function startedByTheAnswer(thread) {
     return Boolean(decision.kind === "job" && decision.resume);
   }
   return false;
-}
-
-/** Go to the queue, which is a place.
- *
- * The mirror of `goToTheConversation`, and it exists for its reason: a
- * transition with only an outbound half leaves somebody somewhere they cannot
- * see what they just did.
- */
-function goToTheQueue() {
-  pane = "waiting";
-  paintPanes();
 }
 
 /** Show the half of the panel a run is drawn in.
@@ -2849,7 +2773,7 @@ function thinking(text) {
  *
  * Every path below is the rig's. The mining pipeline's own offer -- "you've
  * done this 4 times, want me to do the next one?" -- is gone: it offered to
- * teach a SKILL from recordings, which is not the system this browser drives,
+ * teach a SKILL from recordings, which is not the system this browser offers,
  * and the rig already holds that work as a job with steps. The ledger no
  * longer draws those messages at all.
  */
@@ -2883,6 +2807,10 @@ async function answered(answer, message, where, button, values) {
   if (answer === "which-job") {
     button.disabled = true;
     return say(values?.title || button.textContent || "");
+  }
+  if (answer === "say") {
+    button.disabled = true;
+    return say(values?.said || "", values?.answering);
   }
   // A rule that fired and stopped to ask, answered from where the operator is
   // rather than only in the console.
@@ -3117,40 +3045,6 @@ async function firedFromMail(decision, answer, button, values) {
     button.disabled = false;
   }
   await refresh();
-}
-
-// -- tasks you keep doing here ----------------------------------------------
-
-/** The press. Promotes the version the preview just showed and starts it in
- * this browser -- `POST /skills/{id}/runs/from-preview`, never the ordinary
- * run endpoint, because that call does both at once and only this browser is
- * the one the operator watched the preview name. A looped skill is refused
- * here with a sentence written for an operator to read; it is returned to the
- * caller to show, not swallowed into a generic failure.
- *
- * `version` is not optional in practice, even though nothing here enforces it:
- * it is the version number the preview was actually drawn from, and the
- * backend runs exactly that one. If the skill has been taught again between
- * the preview and this press -- re-teaching, a drift repair, or either of the
- * console screens that reset a version for review -- the press is refused
- * with a sentence saying so rather than quietly running steps and values
- * nobody read. That refusal is ADR 014's central claim made true: what was on
- * the screen is what runs.
- */
-async function runIt(skillId, parameters, intent, version) {
-  // The device this browser is, read fresh rather than cached: it is the one
-  // thing every run in this panel already asks for at the moment it presses,
-  // not before, because a device id fixed earlier in the flow is one more
-  // thing that could go stale while the operator was still typing.
-  const { deviceId } = await ask({ kind: "status" });
-  return ask({
-    kind: "run-skill",
-    skillId,
-    parameters,
-    deviceId,
-    intent,
-    version,
-  });
 }
 
 // The worker pushes the state; this only asks when it has not heard.

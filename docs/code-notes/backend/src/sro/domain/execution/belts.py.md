@@ -53,65 +53,13 @@ Code: `STATE_BELTS = ("status", "read")`
 > The two verdicts that saw the state itself. `screen` is a model reading a
 > picture, and a picture is not an effect.
 
-## module, [line 25](../../../../../../../backend/src/sro/domain/execution/belts.py#L25): Note on the line above
-
-Code: `SCREEN_INSTRUCTIONS = """You are checking whether one step of a warehouse job was actually done.`
-
-> What a picture can settle about a step that DID something.
->
-> The last two sentences were added 2026-09-22, measured on the deployment that
-> night. `Create a Customer Type` reached *"Select Create Shipment By value"*,
-> the dropdown stayed empty, and the step was held on the reason *"The Save
-> button is clearly visible and accessible at the bottom of the screen."* True,
-> about a different control, and no answer to the question asked. The run went
-> on to Save with the field unset and the record was never created -- the
-> read-back looked for it and it was not there.
->
-> The rule this rung already carried -- do not assume success from the absence
-> of an error -- did not cover it, because the model was not assuming anything
-> from an absence. It was reporting a presence, of something else.
-
-## module, [line 39](../../../../../../../backend/src/sro/domain/execution/belts.py#L39): Note on the line above
-
-Code: `WAY_THROUGH_INSTRUCTIONS = """`
-
-> The proposition a step that changes nothing can actually settle.
->
-> Measured on the deployment 2026-09-19. `Delete a Customer Type` stopped six
-> times running on its first step, *"Opens the filter dropdown."* -- a sentence a
-> mining model wrote about a click on a combobox field that sent no request and
-> typed nothing. The click landed every time (`matched_by = component`), the
-> field was focused, and the screen belt was asked whether a dropdown had opened.
-> It had not, and the job stopped, and it could never have done anything else:
-> five of that job's six steps send no traffic at all, so five of six were being
-> judged against a guess.
->
-> A picture cannot settle what a click was FOR. It can settle whether the screen
-> is now somewhere the job can continue from, which is the only thing the step
-> after this one needs to be true.
->
-> And it has to be TOLD what that step is. Until 2026-09-22 this rung claimed
-> that proposition and never tested it: the model was shown one screen and asked
-> whether anything looked broken, which is a different question and a weaker one.
-> Measured on the deployment that night, on this same job. *"Presses Enter to
-> apply the filter"* was held with the reason *"the screen remains functional and
-> unchanged, with no blocking errors"* -- true, and the filter had not applied.
-> Enter had opened the field's suggestion list, four rows of `KKYT in Customer
-> Type`, `KKYT in Description`, sitting over an unfiltered grid. The next step,
-> *"Selects the matching customer type from the grid"*, then spent nine attempts
-> and a trip to the vision rung hunting a row that was not there, and refused.
->
-> A suggestion list over the grid is not something "looking broken". It is
-> exactly and only a problem for the step that comes next, so the step that comes
-> next is what the question has to name.
-
-## `StepVerdict`, [line 60](../../../../../../../backend/src/sro/domain/execution/belts.py#L60): Docstring
+## `StepVerdict`, [line 20](../../../../../../../backend/src/sro/domain/execution/belts.py#L20): Docstring
 
 > One step's verify, and which belt decided it. Named for the step because
 > `sro.domain.skill.track_record.Verdict` is the other one -- a whole run's
 > standing, counted over many of these.
 
-## `StepVerdict`, [line 68](../../../../../../../backend/src/sro/domain/execution/belts.py#L68): Note on the line above
+## `StepVerdict`, [line 28](../../../../../../../backend/src/sro/domain/execution/belts.py#L28): Note on the line above
 
 Code: `refuted: bool = False`
 
@@ -131,7 +79,7 @@ Code: `refuted: bool = False`
 > Only from a read that succeeded. A read-back that could not be performed
 > leaves this false, which is the safe direction.
 
-## `StepVerdict`, [line 70](../../../../../../../backend/src/sro/domain/execution/belts.py#L70): Note on the line above
+## `StepVerdict`, [line 30](../../../../../../../backend/src/sro/domain/execution/belts.py#L30): Note on the line above
 
 Code: `called: Mapping[str, str] = field(default_factory=dict)`
 
@@ -144,7 +92,7 @@ Code: `called: Mapping[str, str] = field(default_factory=dict)`
 > replayed as a call could ever prove an endpoint, which is a bootstrap that
 > never starts. See `effects._remember_the_write`.
 
-## `StepVerdict`, [line 59](../../../../../../../backend/src/sro/domain/execution/belts.py#L59): Note on the line above
+## `StepVerdict`, [line 19](../../../../../../../backend/src/sro/domain/execution/belts.py#L19): Note on the line above
 
 Code: `@dataclass(frozen=True, slots=True)`
 
@@ -155,7 +103,7 @@ Code: `@dataclass(frozen=True, slots=True)`
 > A run that made three records has to be able to say which three, or nobody
 > can go and look at them.
 
-## `expected_statuses`, [line 73](../../../../../../../backend/src/sro/domain/execution/belts.py#L73): Docstring
+## `expected_statuses`, [line 33](../../../../../../../backend/src/sro/domain/execution/belts.py#L33): Docstring
 
 > Every status the call this step replays actually came back with.
 >
@@ -180,7 +128,7 @@ Code: `@dataclass(frozen=True, slots=True)`
 > carries is not a status the warehouse returned -- see `origin_of`, which
 > learned the same thing about picking a host off a dead call.
 
-## `confirming_read`, [line 91](../../../../../../../backend/src/sro/domain/execution/belts.py#L91): Docstring (debt)
+## `confirming_read`, [line 51](../../../../../../../backend/src/sro/domain/execution/belts.py#L51): Docstring (debt)
 
 > A GET a cited gesture made after its write, and that came back: the read
 > the page performs to show the result, which is the hidden state a run can
@@ -198,11 +146,11 @@ Code: `@dataclass(frozen=True, slots=True)`
 > ponytail: "first completed GET after the write" still admits a stream, a
 > beacon or a health poll; pick by response shape if that starts costing.
 
-## `status_of`, [line 110](../../../../../../../backend/src/sro/domain/execution/belts.py#L110): Docstring
+## `status_of`, [line 70](../../../../../../../backend/src/sro/domain/execution/belts.py#L70): Docstring
 
 > The status out of the browser's reply, when it gave one.
 
-## `mentions`, [line 126](../../../../../../../backend/src/sro/domain/execution/belts.py#L126): Docstring
+## `mentions`, [line 86](../../../../../../../backend/src/sro/domain/execution/belts.py#L86): Docstring
 
 > Whether the read came back carrying a value this run supplied.
 >
@@ -219,7 +167,7 @@ Code: `@dataclass(frozen=True, slots=True)`
 > write, where any is the wrong quantifier and the difference is a write
 > that never happens.
 
-## `carries_every`, [line 130](../../../../../../../backend/src/sro/domain/execution/belts.py#L130): Docstring
+## `carries_every`, [line 90](../../../../../../../backend/src/sro/domain/execution/belts.py#L90): Docstring
 
 > Whether the read shows ALL of what this run would write.
 >
@@ -236,7 +184,7 @@ Code: `@dataclass(frozen=True, slots=True)`
 > Nothing in 3000 unit tests saw it, because nothing asked what happens when
 > one of the values is the same as last time.
 
-## `carries_in_slot`, [line 134](../../../../../../../backend/src/sro/domain/execution/belts.py#L134): Docstring
+## `carries_in_slot`, [line 94](../../../../../../../backend/src/sro/domain/execution/belts.py#L94): Docstring
 
 > Whether the read shows each value in the KEY the plan put it in.
 >
@@ -258,7 +206,7 @@ Code: `@dataclass(frozen=True, slots=True)`
 > caller decides what to do with a belt that could not run -- `verify` does
 > not reach here at all for an empty one, and holds on the status instead.
 
-## `record_carrying`, [line 140](../../../../../../../backend/src/sro/domain/execution/belts.py#L140): Docstring
+## `record_carrying`, [line 100](../../../../../../../backend/src/sro/domain/execution/belts.py#L100): Docstring
 
 > The record in this answer that carries every one of these values, or None.
 >
@@ -268,7 +216,7 @@ Code: `@dataclass(frozen=True, slots=True)`
 > ends in none of `id`/`code`/`name`/`number`/`key`. The plan already knows
 > which keys this job varies, so the row those keys found is the row to show.
 
-## `_records`, [line 153](../../../../../../../backend/src/sro/domain/execution/belts.py#L153): Docstring
+## `_records`, [line 113](../../../../../../../backend/src/sro/domain/execution/belts.py#L113): Docstring
 
 > The records an answer holds, whether it is one or a page of them.
 >
@@ -292,7 +240,7 @@ Code: `@dataclass(frozen=True, slots=True)`
 > including in two different rows and including in the row the demonstration
 > made.
 
-## `unreturned`, [line 178](../../../../../../../backend/src/sro/domain/execution/belts.py#L178): Docstring
+## `unreturned`, [line 138](../../../../../../../backend/src/sro/domain/execution/belts.py#L138): Docstring
 
 > The names this run supplied that the read did not come back carrying.
 >
@@ -319,45 +267,39 @@ Code: `@dataclass(frozen=True, slots=True)`
 >
 > Names, never values: this is read by a panel and a log.
 
-## `RunProof`, [line 190](../../../../../../../backend/src/sro/domain/execution/belts.py#L190): Docstring
+## `RunProof`, [line 150](../../../../../../../backend/src/sro/domain/execution/belts.py#L150): Docstring
 
 > One live run that held, reduced to the two sets the rule compares:
 > the steps that wrote, and the steps a state belt verified.
 
-## `proven_runs`, [line 200](../../../../../../../backend/src/sro/domain/execution/belts.py#L200): Docstring
+## `proven_runs`, [line 160](../../../../../../../backend/src/sro/domain/execution/belts.py#L160): Docstring
 
 > How many live held runs had every write verified by state -- the count
 > `earned_from` compares, served so a surface can say "2 of 3" and not only
 > yes or no.
 
-## `earned_from`, [line 204](../../../../../../../backend/src/sro/domain/execution/belts.py#L204): Docstring
+## `earned_from`, [line 164](../../../../../../../backend/src/sro/domain/execution/belts.py#L164): Docstring
 
 > Whether a job may write unasked: `K_EARNED_RUNS` live held runs, each
 > with every write verified by state (`STATE_BELTS`). Effects decided by
 > screen are never recorded, so `verified` here is state by construction.
 
-## `state_verified`, [line 208](../../../../../../../backend/src/sro/domain/execution/belts.py#L208): Docstring
+## `state_verified`, [line 168](../../../../../../../backend/src/sro/domain/execution/belts.py#L168): Docstring
 
 > The gate `record_effect` keeps: only a state belt's verdict is an effect.
 
-## `RunProof.proves`, [line 196](../../../../../../../backend/src/sro/domain/execution/belts.py#L196): Docstring
+## `RunProof.proves`, [line 156](../../../../../../../backend/src/sro/domain/execution/belts.py#L156): Docstring
 
 > A run with no write proves nothing about writing. One with a write
 > a state belt did not see proves the opposite.
 
-## module, [line 20](../../../../../../../backend/src/sro/domain/execution/belts.py#L20): Comment
-
-Code: `"properties": {"held": {"type": "boolean"}, "why": {"type": "string"}},`
-
-> held first, why last: decide, then explain.
-
-## `StepVerdict`, [line 61](../../../../../../../backend/src/sro/domain/execution/belts.py#L61): Inline
+## `StepVerdict`, [line 21](../../../../../../../backend/src/sro/domain/execution/belts.py#L21): Inline
 
 Code: `state: str`
 
 > held | failed | unclear
 
-## `StepVerdict`, [line 62](../../../../../../../backend/src/sro/domain/execution/belts.py#L62): Inline
+## `StepVerdict`, [line 22](../../../../../../../backend/src/sro/domain/execution/belts.py#L22): Inline
 
 Code: `by: str`
 

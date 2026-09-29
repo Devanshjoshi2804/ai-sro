@@ -338,3 +338,24 @@ async def test_a_session_belonging_to_another_tenant_is_never_vaulted() -> None:
         )
 
     assert await vault.get(connection.cookie_key) is None, "their session stays theirs"
+
+
+@pytest.mark.asyncio
+async def test_a_session_scoped_to_the_api_path_is_kept_for_the_whole_system() -> None:
+    uow, vault, browser = FakeUnitOfWork(), FakeCredentialVault(), FakeBrowserProvider()
+    connection = await _connection(uow)
+    connection.base_url = "https://wms.example.com/portal/page?siteId=SG"
+    browsers = Browsers(browser, uow, FakeClock(), FakeIdFactory())
+    session = await browsers.open(CTX)
+    browser.cookies = (
+        {"name": "JSESSIONID", "value": "api", "domain": "wms.example.com", "path": "/data"},
+    )
+
+    await StoreSession(uow, vault, FakeClock(), browser, browsers).execute(
+        CTX, connection_id=connection.id, browser_session_id=session.id
+    )
+
+    async with uow:
+        stored = await uow.connections.get(CTX.tenant_id, connection.id)
+    assert stored.base_url.endswith("/portal/page?siteId=SG")
+    assert await vault.get(connection.cookie_key) == "JSESSIONID=api"

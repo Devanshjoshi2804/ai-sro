@@ -20,6 +20,8 @@ class Address:
 
     seen_at: float | None = None
 
+    page: str = ""
+
 
 def address_for(lookup: Lookup, gestures: Iterable[Gesture]) -> Address | None:
     seen = list(gestures)
@@ -30,7 +32,7 @@ def address_for(lookup: Lookup, gestures: Iterable[Gesture]) -> Address | None:
 
 def _call_address(lookup: Lookup, gestures: list[Gesture]) -> Address | None:
     worked = [
-        call
+        (gesture, call)
         for gesture in gestures
         for call in gesture.requests
         if call.method.upper() == "GET"
@@ -41,7 +43,7 @@ def _call_address(lookup: Lookup, gestures: list[Gesture]) -> Address | None:
     ]
     if not worked:
         return None
-    call = max(worked, key=lambda one: one.started_at or 0.0)
+    gesture, call = max(worked, key=lambda one: one[1].started_at or 0.0)
     struck_out = [name for name, value in call.request_headers.items() if REDACTED in value]
     return Address(
         url=_with_params(call.url, lookup.params),
@@ -49,6 +51,7 @@ def _call_address(lookup: Lookup, gestures: list[Gesture]) -> Address | None:
         live_headers=tuple(n for n in struck_out if n.lower() in LIVE_FETCHABLE_HEADERS),
         struck=tuple(n for n in struck_out if n.lower() not in LIVE_FETCHABLE_HEADERS),
         seen_at=call.started_at,
+        page=gesture.page_url or gesture.url or "",
     )
 
 

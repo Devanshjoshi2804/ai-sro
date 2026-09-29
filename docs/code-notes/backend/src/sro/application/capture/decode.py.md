@@ -17,49 +17,42 @@ Comments and docstrings moved out of [`backend/src/sro/application/capture/decod
 > what it translates is this system's own protocol (docs/14-extension-protocol.md)
 > rather than anything Steel decides.
 
-## `epoch_to_datetime`, [line 74](../../../../../../../backend/src/sro/application/capture/decode.py#L74): Docstring
+## `epoch_to_datetime`, [line 58](../../../../../../../backend/src/sro/application/capture/decode.py#L58): Docstring
 
 > CDP wall-clock timestamps are Unix seconds as a float.
 
-## `to_headers`, [line 78](../../../../../../../backend/src/sro/application/capture/decode.py#L78): Docstring
+## `to_headers`, [line 62](../../../../../../../backend/src/sro/application/capture/decode.py#L62): Docstring
 
 > Every header, verbatim. Nothing filtered -- see docs/11-capture-completeness.md.
 
-## `to_initiator`, [line 84](../../../../../../../backend/src/sro/application/capture/decode.py#L84): Docstring
+## `to_initiator`, [line 68](../../../../../../../backend/src/sro/application/capture/decode.py#L68): Docstring
 
 > The 'why' of a request: what caused the browser to make it.
 
-## `to_timing`, [line 111](../../../../../../../backend/src/sro/application/capture/decode.py#L111): Docstring
+## `to_timing`, [line 95](../../../../../../../backend/src/sro/application/capture/decode.py#L95): Docstring
 
 > CDP timings are offsets in milliseconds from ``requestTime``.
 >
 > Negative offsets mean the phase did not happen -- a reused connection has no
 > DNS or TLS -- so they collapse to ``None`` rather than to a bogus zero.
 
-## `to_cookies`, [line 139](../../../../../../../backend/src/sro/application/capture/decode.py#L139): Docstring
+## `to_cookies`, [line 123](../../../../../../../backend/src/sro/application/capture/decode.py#L123): Docstring
 
 > All cookie attributes, including the ones that decide replayability.
 
-## `to_ax_graph`, [line 165](../../../../../../../backend/src/sro/application/capture/decode.py#L165): Docstring
-
-> ``Accessibility.getFullAXTree`` to a graph with its edges intact.
->
-> Ignored nodes are kept: an element becoming ignored is itself a state change,
-> and dropping them would break the parent chain for everything beneath.
-
-## `to_console_message`, [line 226](../../../../../../../backend/src/sro/application/capture/decode.py#L226): Docstring
+## `to_console_message`, [line 149](../../../../../../../backend/src/sro/application/capture/decode.py#L149): Docstring
 
 > ``Runtime.consoleAPICalled``. A logged validation failure is a branch reason.
 
-## `to_input_action`, [line 271](../../../../../../../backend/src/sro/application/capture/decode.py#L271): Docstring
+## `to_input_action`, [line 194](../../../../../../../backend/src/sro/application/capture/decode.py#L194): Docstring
 
-> A record emitted by the injected page recorder.
->
-> The element description here is DOM-side and deliberately shallow: roles and
-> accessible names come from the AX tree taken at the same instant, which is
-> authoritative. This carries the selectors the AX tree cannot give.
+> A record emitted by the injected page recorder: role and accessible name
+> come from the recorder's own DOM reading (page-code.js `roleOf`/`labelOf`),
+> not a separate accessibility-tree snapshot -- there is none any more (the
+> screen outline, spec §4.6, replaced it). This carries the selectors that
+> reading alone gives: bounds, css path, xpath, component identity.
 
-## `_said`, [line 334](../../../../../../../backend/src/sro/application/capture/decode.py#L334): Docstring
+## `_said`, [line 257](../../../../../../../backend/src/sro/application/capture/decode.py#L257): Docstring
 
 > A three-state answer kept as three states.
 >
@@ -69,7 +62,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/capture/decod
 > coercing the second to the first would be this system claiming a form said
 > something it never said.
 
-## `to_captured_request`, [line 341](../../../../../../../backend/src/sro/application/capture/decode.py#L341): Docstring
+## `to_captured_request`, [line 264](../../../../../../../backend/src/sro/application/capture/decode.py#L264): Docstring
 
 > A network exchange in the shape this system's own protocol uses.
 >
@@ -77,7 +70,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/capture/decod
 > browser, so what arrives is the domain's field names. Validated rather than
 > trusted -- the invariants are the same ones a recording made here obeys.
 
-## `to_input_action`, [line 278](../../../../../../../backend/src/sro/application/capture/decode.py#L278): Comment
+## `to_input_action`, [line 201](../../../../../../../backend/src/sro/application/capture/decode.py#L201): Comment
 
 Code: `value=(`
 

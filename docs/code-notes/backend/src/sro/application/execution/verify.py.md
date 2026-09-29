@@ -42,7 +42,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/execution/ver
 > Source: *Multimodal Auto Validation for Self-Refinement in Web Agents*,
 > arXiv:2410.00689, Tables 1 and 2, read from the paper.
 
-## module, [line 44](../../../../../../../backend/src/sro/application/execution/verify.py#L44): Note on the line above
+## module, [line 43](../../../../../../../backend/src/sro/application/execution/verify.py#L43): Note on the line above
 
 Code: `_PUTS_A_VALUE = frozenset({"type", "select", "upload"})`
 
@@ -51,7 +51,7 @@ Code: `_PUTS_A_VALUE = frozenset({"type", "select", "upload"})`
 > the right control, the wrong text -- so it is never held on the strength of
 > "the browser did something".
 
-## module, [line 155](../../../../../../../backend/src/sro/application/execution/verify.py#L155): Note on the line above
+## module, [line 154](../../../../../../../backend/src/sro/application/execution/verify.py#L154): Note on the line above
 
 Code: `K_SCREEN_SAID = 600`
 
@@ -59,10 +59,10 @@ Code: `K_SCREEN_SAID = 600`
 >
 > Enough for a dialog and the controls around it; short enough that a run record
 > cannot become a copy of the page. The digest is names and positions, which is
-> what `viewportInPage` collects -- no values, because a form's contents are the
+> what `sroPage.viewport` collects -- no values, because a form's contents are the
 > operator's and a record outlives the run.
 
-## `_was_watched`, [line 38](../../../../../../../backend/src/sro/application/execution/verify.py#L38): Docstring
+## `_was_watched`, [line 37](../../../../../../../backend/src/sro/application/execution/verify.py#L37): Docstring
 
 > Whether the recorder saw this gesture's traffic complete.
 >
@@ -70,11 +70,11 @@ Code: `K_SCREEN_SAID = 600`
 > gesture did -- the same completion guard `origin_of` and `expected_statuses`
 > already wear.
 
-## `check`, [line 47](../../../../../../../backend/src/sro/application/execution/verify.py#L47): Docstring
+## `check`, [line 46](../../../../../../../backend/src/sro/application/execution/verify.py#L46): Docstring
 
 > Failures, in order. Empty means the step satisfied its post-conditions.
 
-## `check_text`, [line 83](../../../../../../../backend/src/sro/application/execution/verify.py#L83): Docstring
+## `check_text`, [line 82](../../../../../../../backend/src/sro/application/execution/verify.py#L82): Docstring
 
 > The same post-conditions against a body with no status code behind it.
 >
@@ -84,7 +84,7 @@ Code: `K_SCREEN_SAID = 600`
 > on a tool step is a mistake in the mapping, and a mistake nothing mentions
 > is a step that verified less than whoever wrote it believed.
 
-## `check_on_screen`, [line 113](../../../../../../../backend/src/sro/application/execution/verify.py#L113): Docstring
+## `check_on_screen`, [line 112](../../../../../../../backend/src/sro/application/execution/verify.py#L112): Docstring
 
 > The same post-conditions, against a screen instead of a response.
 >
@@ -101,11 +101,11 @@ Code: `K_SCREEN_SAID = 600`
 > demonstration's own evidence is what is checked: the text that appeared on
 > screen in both runs after this gesture.
 
-## `extract`, [line 131](../../../../../../../backend/src/sro/application/execution/verify.py#L131): Docstring
+## `extract`, [line 130](../../../../../../../backend/src/sro/application/execution/verify.py#L130): Docstring
 
 > A derived parameter's value from this response, or ``None`` if absent.
 
-## `already_done`, [line 158](../../../../../../../backend/src/sro/application/execution/verify.py#L158): Docstring
+## `already_done`, [line 157](../../../../../../../backend/src/sro/application/execution/verify.py#L157): Docstring
 
 > Whether this write's effect is already true, said in a sentence.
 >
@@ -131,7 +131,7 @@ Code: `K_SCREEN_SAID = 600`
 > is the safe answer and the common one: a step with no probe, a read that
 > could not be made, a body that does not carry the value.
 
-## `_read_back`, [line 186](../../../../../../../backend/src/sro/application/execution/verify.py#L186): Docstring
+## `_read_back`, [line 185](../../../../../../../backend/src/sro/application/execution/verify.py#L185): Docstring
 
 > The confirming read, made, or None where it answers nothing.
 >
@@ -139,7 +139,7 @@ Code: `K_SCREEN_SAID = 600`
 > precondition that decides whether to make one -- because a read that counts
 > as evidence in one of them and not in the other is two rules for one fact.
 
-## `by_what_the_page_called`, [line 211](../../../../../../../backend/src/sro/application/execution/verify.py#L211): Docstring
+## `by_what_the_page_called`, [line 210](../../../../../../../backend/src/sro/application/execution/verify.py#L210): Docstring
 
 > The status the warehouse answered this step with, or None to look.
 >
@@ -180,7 +180,7 @@ Code: `K_SCREEN_SAID = 600`
 > stronger than a wildcard would be -- it proves the call went to THIS run's
 > record.
 
-## `_named`, [line 260](../../../../../../../backend/src/sro/application/execution/verify.py#L260): Docstring
+## `_named`, [line 259](../../../../../../../backend/src/sro/application/execution/verify.py#L259): Docstring
 
 > The slots this run filled, as the warehouse now holds them.
 >
@@ -188,11 +188,11 @@ Code: `K_SCREEN_SAID = 600`
 > for as long as the tenant keeps it, and a description field can be a
 > paragraph -- what is kept is what NAMES the row.
 
-## `verify`, [line 271](../../../../../../../backend/src/sro/application/execution/verify.py#L271): Docstring
+## `verify`, [line 270](../../../../../../../backend/src/sro/application/execution/verify.py#L270): Docstring
 
 > Did this step actually happen: state first, and a picture only last.
 
-## `check`, [line 78](../../../../../../../backend/src/sro/application/execution/verify.py#L78): Comment
+## `check`, [line 77](../../../../../../../backend/src/sro/application/execution/verify.py#L77): Comment
 
 Code: `failures.append(f"cannot check UI text {expected!r} from a network replay")`
 
@@ -201,7 +201,7 @@ Code: `failures.append(f"cannot check UI text {expected!r} from a network replay
 > as satisfied is how a network replay convinces itself it
 > produced a result nobody saw.
 
-## `already_done`, [line 172](../../../../../../../backend/src/sro/application/execution/verify.py#L172): Comment
+## `already_done`, [line 171](../../../../../../../backend/src/sro/application/execution/verify.py#L171): Comment
 
 Code: `distinctive = {`
 
@@ -213,7 +213,7 @@ Code: `distinctive = {`
 > this does not matter; asked before it, it is the difference between
 > "already there" and "this is the right screen".
 
-## `already_done`, [line 178](../../../../../../../backend/src/sro/application/execution/verify.py#L178): Comment
+## `already_done`, [line 177](../../../../../../../backend/src/sro/application/execution/verify.py#L177): Comment
 
 Code: `if got is None or not carries_every(got, distinctive):`
 
@@ -226,14 +226,14 @@ Code: `if got is None or not carries_every(got, distinctive):`
 > all four skipped the write on the PREVIOUS record's reference and
 > reported `held` with nothing sent.
 
-## `_read_back`, [line 205](../../../../../../../backend/src/sro/application/execution/verify.py#L205): Comment
+## `_read_back`, [line 204](../../../../../../../backend/src/sro/application/execution/verify.py#L204): Comment
 
 Code: `status = status_of(got.result) if got.ok else None`
 
 > The read has to have come back 2xx before its body means anything. A 404
 > or a 503 answers ok=True with a body that matches nothing.
 
-## `by_what_the_page_called`, [line 227](../../../../../../../backend/src/sro/application/execution/verify.py#L227): Comment
+## `by_what_the_page_called`, [line 226](../../../../../../../backend/src/sro/application/execution/verify.py#L226): Comment
 
 Code: `got = await channel.send(`
 
@@ -245,7 +245,7 @@ Code: `got = await channel.send(`
 > after it (`commands.js`'s `marks`), which has one clock and no skew. The
 > value stays on the wire because it is what an older extension reads.
 
-## `by_what_the_page_called`, [line 254](../../../../../../../backend/src/sro/application/execution/verify.py#L254): Comment
+## `by_what_the_page_called`, [line 253](../../../../../../../backend/src/sro/application/execution/verify.py#L253): Comment
 
 Code: `called={"method": method, "url": str(call.get("url", ""))},`
 
@@ -255,7 +255,7 @@ Code: `called={"method": method, "url": str(call.get("url", ""))},`
 > `shape` has already starred by a digits heuristic that never
 > fires on a code like `GZ5`.
 
-## `by_what_the_page_called`, [line 225](../../../../../../../backend/src/sro/application/execution/verify.py#L225): Comment
+## `by_what_the_page_called`, [line 255](../../../../../../../backend/src/sro/application/execution/verify.py#L255): Comment
 
 Code: `return None`
 
@@ -263,7 +263,7 @@ Code: `return None`
 > failure and not a hold: exactly the case the rest of the ladder is
 > for.
 
-## `verify`, [line 284](../../../../../../../backend/src/sro/application/execution/verify.py#L284): Comment
+## `verify`, [line 283](../../../../../../../backend/src/sro/application/execution/verify.py#L283): Comment
 
 Code: `origin: str | None,`
 
@@ -273,13 +273,13 @@ Code: `origin: str | None,`
 > `test_the_probe_names_no_origin_because_the_url_already_does` fails if a
 > probe ever starts carrying one.
 
-## `verify`, [line 295](../../../../../../../backend/src/sro/application/execution/verify.py#L295): Comment
+## `verify`, [line 293](../../../../../../../backend/src/sro/application/execution/verify.py#L293): Comment
 
 Code: `if sent_kind == "http.send":`
 
 > 1. Artifact: what the command itself returned.
 
-## `verify`, [line 298](../../../../../../../backend/src/sro/application/execution/verify.py#L298): Comment
+## `verify`, [line 296](../../../../../../../backend/src/sro/application/execution/verify.py#L296): Comment
 
 Code: `if status >= 400:`
 
@@ -287,7 +287,7 @@ Code: `if status >= 400:`
 > teach the verifier that a 409 is what success looks like. What the
 > operator got is evidence, not a licence.
 
-## `verify`, [line 301](../../../../../../../backend/src/sro/application/execution/verify.py#L301): Comment
+## `verify`, [line 299](../../../../../../../backend/src/sro/application/execution/verify.py#L299): Comment
 
 Code: `if not rewrote and (status in wanted or (not wanted and 200 <= status < 300)):`
 
@@ -305,13 +305,13 @@ Code: `if not rewrote and (status in wanted or (not wanted and 200 <= status < 3
 > told. So a re-aimed write falls through to the read-back below,
 > which is the belt that can tell.
 
-## `verify`, [line 309](../../../../../../../backend/src/sro/application/execution/verify.py#L309): Comment
+## `verify`, [line 307](../../../../../../../backend/src/sro/application/execution/verify.py#L307): Comment
 
 Code: `probe = confirming_read(step, by_id)`
 
 > 2. Hidden state: a read the cited evidence shows this page performs.
 
-## `verify`, [line 310](../../../../../../../backend/src/sro/application/execution/verify.py#L310): Comment
+## `verify`, [line 308](../../../../../../../backend/src/sro/application/execution/verify.py#L308): Comment
 
 Code: `askable = bool(confirm) if rewrote else bool(values)`
 
@@ -326,7 +326,7 @@ Code: `askable = bool(confirm) if rewrote else bool(values)`
 > demonstration shows the server rewriting, so the record will never hold
 > what was posted into it however right the record is.
 
-## `verify`, [line 314](../../../../../../../backend/src/sro/application/execution/verify.py#L314): Comment
+## `verify`, [line 312](../../../../../../../backend/src/sro/application/execution/verify.py#L312): Comment
 
 Code: `found = record_carrying(body, confirm) if rewrote else None`
 
@@ -351,7 +351,7 @@ Code: `found = record_carrying(body, confirm) if rewrote else None`
 > that is roughly one create in six un-earning a job for being
 > right.
 
-## `verify`, [line 317](../../../../../../../backend/src/sro/application/execution/verify.py#L317): Comment
+## `verify`, [line 315](../../../../../../../backend/src/sro/application/execution/verify.py#L315): Comment
 
 Code: `missing_back = unreturned(body, values)`
 
@@ -360,7 +360,7 @@ Code: `missing_back = unreturned(body, values)`
 > shortens a field answers exactly like one that stored it, and
 > every belt in this chain compares the record to itself.
 
-## `verify`, [line 327](../../../../../../../backend/src/sro/application/execution/verify.py#L327): Comment
+## `verify`, [line 325](../../../../../../../backend/src/sro/application/execution/verify.py#L325): Comment
 
 Code: `made=_named(found, confirm),`
 
@@ -380,7 +380,7 @@ Code: `made=_named(found, confirm),`
 > with whatever the warehouse kept in it, which is not
 > always what was sent.
 
-## `verify`, [line 333](../../../../../../../backend/src/sro/application/execution/verify.py#L333): Comment
+## `verify`, [line 331](../../../../../../../backend/src/sro/application/execution/verify.py#L331): Comment
 
 Code: `refuted=True,`
 
@@ -389,7 +389,7 @@ Code: `refuted=True,`
 > leaves the state unknown, and this is the one case that does
 > not.
 
-## `verify`, [line 296](../../../../../../../backend/src/sro/application/execution/verify.py#L296): Comment
+## `verify`, [line 334](../../../../../../../backend/src/sro/application/execution/verify.py#L334): Comment
 
 Code: `status = status_of(answer.result)`
 
@@ -400,7 +400,7 @@ Code: `status = status_of(answer.result)`
 > photograph a page to ask a model about a record the warehouse already
 > answered for.
 
-## `verify`, [line 345](../../../../../../../backend/src/sro/application/execution/verify.py#L345): Comment
+## `verify`, [line 343](../../../../../../../backend/src/sro/application/execution/verify.py#L343): Comment
 
 Code: `changes_nothing = not writes(step, by_id) and not any(`
 
@@ -408,9 +408,9 @@ Code: `changes_nothing = not writes(step, by_id) and not any(`
 >
 > A step that changes nothing by itself -- no write in its own evidence, no
 > value put anywhere. What a picture can settle about such a step is not
-> what it was FOR; see `WAY_THROUGH_INSTRUCTIONS`.
+> what it was FOR; see `CHECK_WAY_THROUGH`.
 
-## `verify`, [line 349](../../../../../../../backend/src/sro/application/execution/verify.py#L349): Comment
+## `verify`, [line 347](../../../../../../../backend/src/sro/application/execution/verify.py#L347): Comment
 
 Code: `if changes_nothing and any(_was_watched(gesture) for gesture in cited):`
 
@@ -441,7 +441,7 @@ Code: `if changes_nothing and any(_was_watched(gesture) for gesture in cited):`
 > stays `unclear`. What this rung asserts is that the traffic WAS
 > watched and none of it on the page's own origin mutated anything.
 
-## `verify`, [line 302](../../../../../../../backend/src/sro/application/execution/verify.py#L302): Comment
+## `verify`, [line 348](../../../../../../../backend/src/sro/application/execution/verify.py#L348): Comment
 
 Code: `return StepVerdict(`
 
@@ -453,7 +453,7 @@ Code: `return StepVerdict(`
 > value WAS typed (`ok: true, matched_by: component`) and the run
 > collapsed the form anyway, saying four words about it.
 
-## `verify`, [line 365](../../../../../../../backend/src/sro/application/execution/verify.py#L365): Comment
+## `verify`, [line 363](../../../../../../../backend/src/sro/application/execution/verify.py#L363): Comment
 
 Code: `"browser_answered": {"ok": answer.ok, "status": status_of(answer.result)},`
 
@@ -461,7 +461,7 @@ Code: `"browser_answered": {"ok": answer.ok, "status": status_of(answer.result)}
 > body and headers, and nothing here trims them. The model is
 > judging a picture; it does not need the payload to do it.
 
-## `verify`, [line 369](../../../../../../../backend/src/sro/application/execution/verify.py#L369): Comment
+## `verify`, [line 367](../../../../../../../backend/src/sro/application/execution/verify.py#L367): Comment
 
 Code: `**({"next_step": next_says} if changes_nothing and next_says else {}),`
 
@@ -470,23 +470,23 @@ Code: `**({"next_step": next_says} if changes_nothing and next_says else {}),`
 > Only for the rung that judges a step which changes nothing:
 > that rung's whole proposition is "the job can go on from here",
 > and it cannot be judged without knowing what going on means.
-> `SCREEN_INSTRUCTIONS` checks the step's own sentence and has no
+> `CHECK_SCREEN` checks the step's own sentence and has no
 > use for it.
 
-## `verify`, [line 372](../../../../../../../backend/src/sro/application/execution/verify.py#L372): Comment
+## `verify`, [line 370](../../../../../../../backend/src/sro/application/execution/verify.py#L370): Comment
 
 Code: `ensure_ascii=False,`
 
 > The redaction marker is «redacted»; the default ensure_ascii would
 > write it into the prompt in a form nothing else in this system uses.
 
-## `verify`, [line 387](../../../../../../../backend/src/sro/application/execution/verify.py#L387): Comment
+## `verify`, [line 385](../../../../../../../backend/src/sro/application/execution/verify.py#L385): Comment
 
 Code: `aimed = primary_gesture(step, {gesture.id: gesture for gesture in cited})`
 
 > A password is masked, so no picture can say it was typed.
 >
-> `SCREEN_INSTRUCTIONS` already tells the model not to read success from a
+> `CHECK_SCREEN` already tells the model not to read success from a
 > page with no errors on it, and on 2026-09-22 it did exactly that: step 1
 > of `run_2a9d4c7d` was held on "the sign-in form is displayed properly
 > without any errors", with the box empty and nobody signed in. A rule the
@@ -508,7 +508,7 @@ Code: `aimed = primary_gesture(step, {gesture.id: gesture for gesture in cited})
 > masked. Measured 2026-09-22, runs `run_2f59552b` and `run_60a7020e`,
 > twenty minutes after the guard shipped.
 
-## `verify`, [line 398](../../../../../../../backend/src/sro/application/execution/verify.py#L398): Comment
+## `verify`, [line 396](../../../../../../../backend/src/sro/application/execution/verify.py#L396): Comment
 
 Code: `said = " ".join(look_after.digest.split())[:K_SCREEN_SAID]`
 

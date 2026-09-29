@@ -21,6 +21,13 @@ class Component:
     name: str | None = None
     xtype: str | None = None
     required: bool | None = None
+    chain: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class Landmark:
+    role: str
+    name: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +43,44 @@ class Target:
     required: bool | None = None
 
     component: Component | None = None
+    bounds: dict[str, float] = field(default_factory=dict, hash=False)
+    attributes: dict[str, object] = field(default_factory=dict, hash=False)
+    landmarks: tuple[Landmark, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class FrameHop:
+    index: int
+    url: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class AfterState:
+    value: str | None = None
+    visible: bool | None = None
+    enabled: bool | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class OutlineField:
+    role: str
+    label: str
+    required: bool | None = None
+    options: tuple[str, ...] | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class OutlineMessage:
+    role: str
+
+
+@dataclass(frozen=True, slots=True)
+class Outline:
+    headings: tuple[str, ...] = ()
+    landmarks: tuple[Landmark, ...] = ()
+    fields: tuple[OutlineField, ...] = ()
+    buttons: tuple[str, ...] = ()
+    messages: tuple[OutlineMessage, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +91,12 @@ class Action:
     secret: bool = False
     url: str | None = None
     target: Target | None = None
+    modifiers: tuple[str, ...] = ()
+    frame_path: tuple[FrameHop, ...] | None = None
+    detail: int | None = None
+    trusted: bool | None = None
+    after: AfterState | None = None
+    outlines: tuple[Outline, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +130,7 @@ class PageMark:
     url: str | None = None
     detail: str | None = None
     tab_id: int | None = None
+    opener_tab_id: int | None = None
 
 
 @dataclass
@@ -126,7 +178,6 @@ class Intent:
     object: str | None = None
     page: str | None = None
     values_seen: list[ValueSeen] = field(default_factory=list)
-    continues: str | None = None
     confidence: str | None = None
     why: str | None = None
     model: str | None = None

@@ -26,7 +26,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/r
 > what a person could read on the screen -- gets the shape rule, because that is
 > where a page can render a credential.
 
-## module, [line 16](../../../../../../../backend/src/sro/application/observation/redact.py#L16): Note on the line above
+## module, [line 20](../../../../../../../backend/src/sro/application/observation/redact.py#L20): Note on the line above
 
 Code: `_URL_KEYS = ("url", "frame_url", "page_url", "location")`
 
@@ -38,7 +38,7 @@ Code: `_URL_KEYS = ("url", "frame_url", "page_url", "location")`
 > `location`. Naming them once is what stops the next kind of event from
 > arriving with a URL nobody redacts.
 
-## module, [line 18](../../../../../../../backend/src/sro/application/observation/redact.py#L18): Note on the line above
+## module, [line 22](../../../../../../../backend/src/sro/application/observation/redact.py#L22): Note on the line above
 
 Code: `_PROSE = ("name", "text", "fieldLabel")`
 
@@ -53,25 +53,34 @@ Code: `_PROSE = ("name", "text", "fieldLabel")`
 > for telling a model what the operator was doing. Measured over the 926 distinct
 > URLs and 5,422 events in this store: no label moves.
 
-## `redact_events`, [line 21](../../../../../../../backend/src/sro/application/observation/redact.py#L21): Docstring
+## `_EVENT_KEYS`, [line 27](../../../../../../../backend/src/sro/application/observation/redact.py#L27): Constant
+
+> The keys an event of each kind may carry into the blob, read off the wire
+> models (`GestureEvent`, `RequestEvent`, `PageEvent`, `SnapshotEvent`), with
+> `_GESTURE_KEYS` the same for the gesture inside a gesture event. Anything
+> else is dropped before the blob is written. The blob used to pass unknown
+> keys through verbatim, so a forged outline under a near key --
+> `gesture.outline`, `gesture.snapshot`, a top-level `outlines` on a page
+> event -- escaped the shape rule that `gesture.outlines` gets (E6 review,
+> M2). Reading the models rather than listing keys here means a field the
+> protocol adds is kept the day it is declared, and never before.
+>
+> **Ceiling:** the objects inside a gesture or request (`target`, `request`,
+> `prior`) are not allowlisted here; each is redacted by its own rule and the
+> parsed store copies only declared fields.
+
+## `redact_events`, [line 39](../../../../../../../backend/src/sro/application/observation/redact.py#L39): Docstring
 
 > The same events with every credential-shaped or credential-named value gone.
 >
 > Copies rather than mutates: the caller's events came off an HTTP request
 > body and the rejection report beside them refers to positions in it.
 
-## `_shapes_only`, [line 44](../../../../../../../backend/src/sro/application/observation/redact.py#L44): Docstring
-
-> Every string under here through `redact_shapes`, and nothing else.
->
-> Structure is preserved exactly -- a locator is built from this tree, so a
-> key or a role that changed would change what a skill can find.
-
-## `_element`, [line 76](../../../../../../../backend/src/sro/application/observation/redact.py#L76): Docstring
+## `_element`, [line 134](../../../../../../../backend/src/sro/application/observation/redact.py#L134): Docstring
 
 > A `target` or the `component` hanging off it -- the same three fields.
 
-## `_attributes`, [line 91](../../../../../../../backend/src/sro/application/observation/redact.py#L91): Docstring
+## `_attributes`, [line 149](../../../../../../../backend/src/sro/application/observation/redact.py#L149): Docstring
 
 > Every DOM attribute of the element the operator touched, by all three rules.
 >
@@ -86,7 +95,7 @@ Code: `_PROSE = ("name", "text", "fieldLabel")`
 > `placeholder` whose value is "Password" is a label. The key is kept and the
 > value replaced, so a reviewer still sees what was taken out.
 
-## `_headers`, [line 121](../../../../../../../backend/src/sro/application/observation/redact.py#L121): Docstring
+## `_headers`, [line 179](../../../../../../../backend/src/sro/application/observation/redact.py#L179): Docstring
 
 > The name kept and the value replaced, so a reader still sees the call was
 > authenticated.
@@ -98,7 +107,7 @@ Code: `_PROSE = ("name", "text", "fieldLabel")`
 > the 34 `X-Goog-Api-Key` values in this store are matched by nothing but
 > their shape.
 
-## `_hop`, [line 145](../../../../../../../backend/src/sro/application/observation/redact.py#L145): Docstring
+## `_hop`, [line 203](../../../../../../../backend/src/sro/application/observation/redact.py#L203): Docstring
 
 > One entry of a redirect chain, whose shape the protocol leaves open.
 >
@@ -108,19 +117,20 @@ Code: `_PROSE = ("name", "text", "fieldLabel")`
 > audit put both a `?code=` URL and an `Authorization` header on disk through
 > it.
 
-## `_event`, [line 36](../../../../../../../backend/src/sro/application/observation/redact.py#L36): Comment
+## `_event`, [line 66](../../../../../../../backend/src/sro/application/observation/redact.py#L66): Comment
 
-Code: `out["snapshot"] = _shapes_only(snapshot)`
+Code: `out.pop("snapshot", None)`
 
-> The accessibility tree is 27MB of this deployment's 59MB evidence
-> plane -- every string a page rendered, which is where a key shown on
-> screen would sit. Shapes only, never the name rule: the tree's own
-> vocabulary uses `token` and `tokenList` as CDP AXValue TYPE
-> descriptors, and a name rule would blank 2,573 of them here for no
-> protection at all. Measured across 70,636 real nodes: zero shapes,
-> so this costs nothing today and covers the day a page renders one.
+> An accessibility tree is never kept. The extension no longer takes one
+> (E6 replaced it with the screen outline, which rides on the gesture), but
+> an older extension may still send a `snapshot` event. The event is still
+> admitted and counted in `snapshots_ignored`; its tree is removed here,
+> before the blob is written, unread. The tree's names carried whatever the
+> operator typed -- an editable node's name, its `StaticText` children, a
+> mirror, a `?token=` in a link's url property -- and no per-string rule
+> made that safe (the E6 tree review, 2026-09-25).
 
-## `_event`, [line 40](../../../../../../../backend/src/sro/application/observation/redact.py#L40): Comment
+## `_event`, [line 70](../../../../../../../backend/src/sro/application/observation/redact.py#L70): Comment
 
 Code: `out["detail"] = redact_body(detail, content_type=None)[0]`
 
@@ -128,7 +138,7 @@ Code: `out["detail"] = redact_body(detail, content_type=None)[0]`
 > said -- so it gets the body rule with no content type to go on. A
 > `?magic_link_token=` landed here in the rig's audit.
 
-## `_gesture`, [line 68](../../../../../../../backend/src/sro/application/observation/redact.py#L68): Comment
+## `_gesture`, [line 102](../../../../../../../backend/src/sro/application/observation/redact.py#L102): Comment
 
 Code: `out["value"] = None`
 
@@ -136,7 +146,7 @@ Code: `out["value"] = None`
 > marked: `null` is what the extension already sends for one of these,
 > so the stored shape is the same whether or not the browser obeyed.
 
-## `_gesture`, [line 70](../../../../../../../backend/src/sro/application/observation/redact.py#L70): Comment
+## `_gesture`, [line 104](../../../../../../../backend/src/sro/application/observation/redact.py#L104): Comment
 
 Code: `out["value"] = redact_shapes(value)`
 
@@ -144,7 +154,7 @@ Code: `out["value"] = redact_shapes(value)`
 > search box is not typed into an `input[type=password]`, so nothing
 > upstream marks it. The shape does.
 
-## `_body`, [line 139](../../../../../../../backend/src/sro/application/observation/redact.py#L139): Comment
+## `_body`, [line 197](../../../../../../../backend/src/sro/application/observation/redact.py#L197): Comment
 
 Code: `already = out.get("redacted_fields")`
 
@@ -152,3 +162,30 @@ Code: `already = out.get("redacted_fields")`
 > reports a shape as `«shape: jwt»` rather than as a field name,
 > because "this went because it looked like a JWT" is a different fact
 > from "this went because it was called password".
+
+## `_made`, [line 48](../../../../../../../backend/src/sro/application/observation/redact.py#L48): Docstring
+
+> Which gesture a `ref` names: the same tab, the same frame path, the same
+> `ref`, as `correlate` joins them. A string key because the values are the
+> client's raw JSON and a hostile one need not be hashable.
+
+## `_state`, [line 110](../../../../../../../backend/src/sro/application/observation/redact.py#L110): Docstring
+
+> What is kept of a gesture's `prior`, the after-state of the gesture before
+> it. Written to the evidence blob before `correlate` runs, so this is where
+> it is judged -- the wire `AfterState` validator only ever sees the copy
+> `correlate` reads. Only the three fields of an after-state survive, and
+> `visible` / `enabled` only as booleans.
+
+## `_setting`, [line 121](../../../../../../../backend/src/sro/application/observation/redact.py#L121): Docstring
+
+> The server's half of the E5 ruling (2026-09-25): an after-state never holds
+> free text, whatever the client sent. A value is kept only when the gesture
+> it claims to describe (`prior_of`) is in this batch, on the same tab and
+> frame, is not secret, and its target is a state control: a checkbox, radio
+> or switch, and then only as `checked` / `unchecked`; or a select, as the
+> label of what is chosen, with credential shapes redacted. Anything else --
+> a text field, a password field, a custom control, a value whose gesture was
+> dropped or never sent -- stores `None`. Judged by the target the backend
+> received with that gesture, not by anything in the `prior` itself.
+

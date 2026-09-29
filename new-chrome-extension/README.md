@@ -1,6 +1,9 @@
 # SRO Chrome extension
 
-Continuous observation and in-browser execution, in the operator's own Chrome.
+Continuous observation, in the operator's own Chrome. It records, recognises
+the job the operator is doing, offers it, and watches the run. It never drives
+a step: every press -- a card's Yes, Run it here, Try it again, Undo it -- is a
+call to the backend, which starts the run and has Steel do it.
 
 Read first:
 
@@ -74,8 +77,10 @@ failed attempts and the picture is dropped, loudly — the options page says so.
 
 Clicking the toolbar button opens a panel docked beside the tab. It is not a
 second console: it renders natively only what needs `chrome.*` or the current
-tab -- the REC state, pause, a run performing in this browser with a way to
-stop it, purge, and "tasks you keep doing here" narrowed to the tab's host --
+tab -- the REC state, pause, offers for the job on the page and the requests
+mail brought in, the run the backend is performing with a way to stop it and a
+link to watch it on Steel, purge, and what was learned narrowed to the tab's
+host --
 and links out to the console for everything else, so no review screen exists
 twice.
 
@@ -92,20 +97,6 @@ Set the console's address in Settings; leave it empty and the panel still does
 everything only it can do, and says so rather than opening nothing when asked
 for a console with no address set.
 
-## Accessibility trees
-
-Passive capture is cheap and invisible on purpose, and by default it sees only
-what the DOM offers. A tenant may turn on `capture_snapshots` in its policy, and
-when it does, `trees.js` attaches `chrome.debugger` to a watched tab and takes
-an accessibility tree at every gesture -- the one view that says what a control
-*is* rather than where it sits today, and what induction needs to build a
-locator that survives a re-render.
-
-Chrome banners the tab for as long as it is attached, which here is as long as
-the tab stays watched, so this is off unless a tenant's policy turns it on --
-the cost is real and belongs to an administrator's decision, not an operator's
-surprise.
-
 ## Deleting your own evidence
 
 The options page has a "Delete the last hour" button, and it does both halves:
@@ -117,48 +108,20 @@ It asks twice before doing it, in the page rather than in a modal — a dialog
 raised from an extension page blocks the very service worker being asked to do
 the deleting — and forgets it was asked after five seconds.
 
-## The command channel
+## No command channel
 
-The extension dials `WS /v1/agents/{device_id}/commands` and answers what comes
-down it: `ui.perform` and `ui.perform_at`, `ui.url`, `screenshot`, `navigate`,
-`http.send`, `abort`. Every command is answered exactly once, including with an
-error — a command left unanswered reads to the backend as a device that went
-away, which fails the run by blaming the browser rather than the page.
+This extension used to dial `WS /v1/agents/{device_id}/commands` and perform
+runs in the operator's own tab -- `ui.perform`, `http.send`, `navigate`. That
+was a second engine beside the backend's, and on QA (2026-09-28) it stopped
+most of its own runs by losing the tab. It is gone, with the `debugger`
+permission.
 
-A run that may take the screen says so. `allow_focus` on the payload is the
-trigger's decision, never this browser's: with it, a tab on the run's origin is
-brought forward so it can be photographed and driven; without it, a command that
-would move the operator's screen is refused as `focus_not_permitted`.
-
-The run names the page. Every command that acts on one carries `origin`, and the
-extension drives a tab on that origin rather than whatever is frontmost — a
-browser has a dozen tabs and only one of them is the system a skill was taught
-on. No tab on it is `no_tab_for_system`, which the backend counts as a device
-problem rather than a skill that has drifted.
-
-Three things are worth knowing before changing any of it:
-
-- **`ui.perform` runs in the page's realm**, because the component locator is a
-  question only the application's own framework can answer. `http.send` runs in
-  the isolated world instead: same origin and the same cookies, but not the
-  page's patched `fetch`, so a replayed request is never captured as the
-  operator's own.
-- **A tab being driven is not captured.** Gestures and requests from it are
-  dropped for the length of the command plus a settle window. Without that, the
-  miner learns a task from this extension replaying that task.
-- **The socket is the worker's lifetime.** Chrome evicts an idle service worker
-  after 30 seconds and takes the socket with it, so a keepalive goes up every
-  20 seconds and every alarm tick re-dials.
-
-While the operator is making gestures the extension sends `busy`, and the
-backend holds new commands for the shorter of that window and half the
-command's deadline — enough that a replay does not land in the middle of
-somebody typing, not enough for a browser to veto the work.
-
-The operator's own pause does not close the channel. That switch means "stop
-watching me"; running a skill they asked for is not watching, and a device that
-goes unreachable whenever somebody pauses observation is a device nobody can
-schedule work on. An administrator's pause does close it.
+What stays is the offer. A recognised walk, a page a rule is about and a mail
+the backend read each become a card that asks; nothing starts without a press.
+A press goes to `POST /v1/workflow-runs` naming its offer -- the card's own, or
+the reply's or the mail's where the conversation asks about the same thing --
+and the backend starts one run per offer, so a card and a yes in the thread
+are one run.
 
 ## Working without the backend
 

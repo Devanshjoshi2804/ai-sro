@@ -4,25 +4,32 @@ import logging
 from collections import defaultdict
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import CursorResult, delete, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sro.application.ports.repositories import WorkflowRepository
 from sro.domain.execution.belts import RunProof, state_verified
+from sro.domain.execution.compose import normal
+from sro.domain.execution.lanes import K_BROKEN_COOL_DOWN, Broken, Lane
 from sro.domain.execution.learned_step import LearnedStep, Taught, changed_by
+from sro.domain.execution.mail_job import JobRecipient, built_in
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.observation.identity import ShapeKey
 from sro.domain.observation.mining import MiningPass
 from sro.domain.shared.errors import Conflict, NotFound
 from sro.domain.shared.identifiers import TenantId
+from sro.domain.skill.aliases import JobAlias
 from sro.domain.skill.repeats import Repeat
 from sro.domain.skill.workflow import Noticed, Step, Workflow
 from sro.infrastructure.db.codec import when
 from sro.infrastructure.db.models import (
+    JobAliasRow,
+    JobRecipientRow,
+    KnownBrokenRow,
     LearnedWriteRow,
     MiningPassRow,
     WorkflowEffectRow,
@@ -47,7 +54,6 @@ def _workflow_values(workflow: Workflow) -> dict[str, Any]:
         "systems": list(workflow.systems),
         "parameters": list(workflow.parameters),
         "shape_key": [list(entry) for entry in workflow.shape_key],
-        "same_as": workflow.same_as,
         "repeat": (
             None
             if workflow.repeat is None
@@ -57,6 +63,7 @@ def _workflow_values(workflow: Workflow) -> dict[str, Any]:
             }
         ),
         "signs_in": workflow.signs_in,
+        "signs_out": workflow.signs_out,
         "created_at": datetime.now(tz=UTC),
     }
 
@@ -70,6 +77,7 @@ def _step_values(workflow_id: str, step: Step) -> dict[str, Any]:
         "cites": list(step.cites),
         "parameters": list(step.parameters),
         "uses": list(step.uses),
+        "tab": step.tab,
     }
 
 
@@ -81,6 +89,7 @@ def _row_to_step(row: WorkflowStepRow) -> Step:
         cites=list(row.cites),
         parameters=list(row.parameters),
         uses=list(row.uses or []),
+        tab=row.tab,
     )
 
 
@@ -94,7 +103,6 @@ def _row_to_workflow(row: WorkflowRow, steps: list[Step]) -> Workflow:
         steps=steps,
         parameters=list(row.parameters),
         shape_key=[list(entry) for entry in row.shape_key],
-        same_as=row.same_as,
         pass_id=row.pass_id,
         repeat=(
             Repeat(
@@ -105,7 +113,29 @@ def _row_to_workflow(row: WorkflowRow, steps: list[Step]) -> Workflow:
             else None
         ),
         signs_in=row.signs_in,
+        signs_out=row.signs_out,
     )
+
+
+def workflow_json(workflow: Workflow) -> dict[str, Any]:
+    columns = _workflow_values(workflow)
+    del columns["created_at"]
+    return {
+        "workflow": columns,
+        "steps": [_step_values(workflow.id, step) for step in workflow.steps],
+    }
+
+
+def workflow_from_json(held: dict[str, Any]) -> Workflow:
+    return _row_to_workflow(
+        WorkflowRow(**_known(WorkflowRow, held["workflow"])),
+        [_row_to_step(WorkflowStepRow(**_known(WorkflowStepRow, step))) for step in held["steps"]],
+    )
+
+
+def _known(table: type[Any], columns: dict[str, Any]) -> dict[str, Any]:
+    names = table.__table__.columns.keys()
+    return {name: value for name, value in columns.items() if name in names}
 
 
 def _row_to_pass(row: MiningPassRow) -> MiningPass:
@@ -128,6 +158,7 @@ def _row_to_pass(row: MiningPassRow) -> MiningPass:
         window_size=row.window_size,
         left_out=row.left_out,
         unplaced=row.unplaced,
+        dropped=row.dropped,
         error=row.error,
     )
 
@@ -140,26 +171,28 @@ class SqlWorkflowRepository(WorkflowRepository):
         self._session = session
 
     async def save(self, workflow: Workflow) -> None:
-        statement = pg_insert(WorkflowRow).values(**_workflow_values(workflow))
-        await self._session.execute(
-            statement.on_conflict_do_update(
-                index_elements=["id"],
-                set_={
-                    column.name: statement.excluded[column.name]
-                    for column in WorkflowRow.__table__.columns
-                    if column.name not in ("id", "retired_at", "created_at")
-                },
-            )
-        )
-        await self._session.execute(
-            delete(WorkflowStepRow).where(WorkflowStepRow.workflow_id == workflow.id)
-        )
-        if workflow.steps:
+        async with self._session.begin_nested():
+            values = _workflow_values(workflow)
+            statement = pg_insert(WorkflowRow).values(**values)
             await self._session.execute(
-                pg_insert(WorkflowStepRow).values(
-                    [_step_values(workflow.id, step) for step in workflow.steps]
+                statement.on_conflict_do_update(
+                    index_elements=["id"],
+                    set_={
+                        name: statement.excluded[name]
+                        for name in values
+                        if name not in ("id", "retired_at", "created_at", "signs_in", "signs_out")
+                    },
                 )
             )
+            await self._session.execute(
+                delete(WorkflowStepRow).where(WorkflowStepRow.workflow_id == workflow.id)
+            )
+            if workflow.steps:
+                await self._session.execute(
+                    pg_insert(WorkflowStepRow).values(
+                        [_step_values(workflow.id, step) for step in workflow.steps]
+                    )
+                )
 
     async def known(self, tenant_id: TenantId) -> tuple[Workflow, ...]:
         query = (
@@ -205,7 +238,9 @@ class SqlWorkflowRepository(WorkflowRepository):
             for row in (await self._session.execute(query)).all()
         )
 
-    async def get(self, tenant_id: TenantId, workflow_id: str) -> Workflow:
+    async def get(self, tenant_id: TenantId, workflow_id: str, *, lock: bool = False) -> Workflow:
+        if (made := built_in(workflow_id, tenant_id.value)) is not None:
+            return made
         query = (
             select(WorkflowRow)
             .where(
@@ -215,6 +250,8 @@ class SqlWorkflowRepository(WorkflowRepository):
             )
             .execution_options(populate_existing=True)
         )
+        if lock:
+            query = query.with_for_update()
         row = (await self._session.execute(query)).scalar_one_or_none()
         if row is None:
             raise NotFound(f"workflow {workflow_id} was not found")
@@ -273,6 +310,112 @@ class SqlWorkflowRepository(WorkflowRepository):
             .values(shape_key=[list(entry) for entry in key])
         )
 
+    async def undecided(self) -> tuple[Workflow, ...]:
+        query = (
+            select(WorkflowRow)
+            .where(
+                or_(WorkflowRow.signs_in.is_(None), WorkflowRow.signs_out.is_(None)),
+                WorkflowRow.retired_at.is_(None),
+            )
+            .order_by(WorkflowRow.tenant_id, WorkflowRow.created_at, WorkflowRow.id)
+            .execution_options(populate_existing=True)
+        )
+        rows = (await self._session.execute(query)).scalars().all()
+        if not rows:
+            return ()
+        steps = await self._steps_of([row.id for row in rows])
+        return tuple(_row_to_workflow(row, steps[row.id]) for row in rows)
+
+    async def decide(
+        self, tenant_id: TenantId, workflow: Workflow, *, signs_in: bool, signs_out: bool
+    ) -> bool:
+        try:
+            stored = await self.get(tenant_id, workflow.id, lock=True)
+        except NotFound:
+            return False
+        if (stored.steps, stored.signs_in, stored.signs_out) != (
+            workflow.steps,
+            workflow.signs_in,
+            workflow.signs_out,
+        ):
+            return False
+        await self._session.execute(
+            update(WorkflowRow)
+            .where(WorkflowRow.tenant_id == tenant_id.value, WorkflowRow.id == workflow.id)
+            .values(signs_in=signs_in, signs_out=signs_out)
+        )
+        return True
+
+    async def placed_on(self, tenant_id: TenantId, workflow_id: str) -> tuple[str, ...]:
+        rows = await self._session.execute(
+            select(WorkflowPlacementRow.gesture_id)
+            .where(
+                WorkflowPlacementRow.tenant_id == tenant_id.value,
+                WorkflowPlacementRow.workflow_id == workflow_id,
+            )
+            .order_by(WorkflowPlacementRow.gesture_id)
+        )
+        return tuple(rows.scalars())
+
+    async def behind_the_rule(self, rule: int) -> tuple[Workflow, ...]:
+        query = (
+            select(WorkflowRow)
+            .where(
+                WorkflowRow.retired_at.is_(None),
+                WorkflowRow.signs_in.is_not(None),
+                WorkflowRow.signs_out.is_not(None),
+                or_(WorkflowRow.parameters_rule.is_(None), WorkflowRow.parameters_rule < rule),
+            )
+            .order_by(WorkflowRow.tenant_id, WorkflowRow.created_at, WorkflowRow.id)
+            .execution_options(populate_existing=True)
+        )
+        rows = (await self._session.execute(query)).scalars().all()
+        if not rows:
+            return ()
+        steps = await self._steps_of([row.id for row in rows])
+        return tuple(_row_to_workflow(row, steps[row.id]) for row in rows)
+
+    async def tabs_undecided(self) -> tuple[Workflow, ...]:
+        untabbed = select(WorkflowStepRow.workflow_id).where(WorkflowStepRow.tab.is_(None))
+        query = (
+            select(WorkflowRow)
+            .where(WorkflowRow.id.in_(untabbed), WorkflowRow.retired_at.is_(None))
+            .order_by(WorkflowRow.tenant_id, WorkflowRow.created_at, WorkflowRow.id)
+            .execution_options(populate_existing=True)
+        )
+        rows = (await self._session.execute(query)).scalars().all()
+        if not rows:
+            return ()
+        steps = await self._steps_of([row.id for row in rows])
+        return tuple(_row_to_workflow(row, steps[row.id]) for row in rows)
+
+    async def ruled(self, tenant_id: TenantId, workflow_id: str, rule: int) -> bool:
+        moved = await self._session.execute(
+            update(WorkflowRow)
+            .where(
+                WorkflowRow.tenant_id == tenant_id.value,
+                WorkflowRow.id == workflow_id,
+                or_(WorkflowRow.parameters_rule.is_(None), WorkflowRow.parameters_rule < rule),
+            )
+            .values(parameters_rule=rule)
+        )
+        return cast(CursorResult[Any], moved).rowcount > 0
+
+    async def decide_tab(self, tenant_id: TenantId, workflow_id: str, order: int, tab: str) -> bool:
+        owned = select(WorkflowRow.id).where(
+            WorkflowRow.tenant_id == tenant_id.value, WorkflowRow.id == workflow_id
+        )
+        decided = await self._session.execute(
+            update(WorkflowStepRow)
+            .where(
+                WorkflowStepRow.workflow_id.in_(owned),
+                WorkflowStepRow.ord == order,
+                WorkflowStepRow.tab.is_(None),
+            )
+            .values(tab=tab)
+        )
+        return cast(CursorResult[Any], decided).rowcount > 0
+
     async def add_pass(self, mining_pass: MiningPass) -> None:
         try:
             await self._session.execute(
@@ -295,6 +438,7 @@ class SqlWorkflowRepository(WorkflowRepository):
                     window_size=mining_pass.window_size,
                     left_out=mining_pass.left_out,
                     unplaced=mining_pass.unplaced,
+                    dropped=mining_pass.dropped,
                     error=mining_pass.error,
                 )
             )
@@ -376,6 +520,7 @@ class SqlWorkflowRepository(WorkflowRepository):
             strategy=learned.strategy,
             query=learned.query,
             found_by=learned.found_by,
+            frame_path=learned.frame_path,
             learned_at=datetime.now(tz=UTC),
         )
         await self._session.execute(
@@ -385,6 +530,7 @@ class SqlWorkflowRepository(WorkflowRepository):
                     "strategy": statement.excluded.strategy,
                     "query": statement.excluded.query,
                     "found_by": statement.excluded.found_by,
+                    "frame_path": statement.excluded.frame_path,
                     "learned_at": statement.excluded.learned_at,
                 },
             )
@@ -437,6 +583,129 @@ class SqlWorkflowRepository(WorkflowRepository):
             for row in rows
         )
 
+    async def break_lane(
+        self, tenant_id: TenantId, workflow_id: str, broken: Broken, *, cites: str, at: datetime
+    ) -> None:
+        statement = pg_insert(KnownBrokenRow).values(
+            tenant_id=tenant_id.value,
+            workflow_id=workflow_id,
+            ord=broken.step,
+            lane=broken.lane.value,
+            fingerprint=broken.fingerprint,
+            cites=cites,
+            at=at,
+        )
+        await self._session.execute(
+            statement.on_conflict_do_update(
+                index_elements=["tenant_id", "workflow_id", "ord", "lane", "fingerprint"],
+                set_={"cites": statement.excluded.cites, "at": statement.excluded.at},
+            )
+        )
+
+    async def broken_for(
+        self, tenant_id: TenantId, workflow_id: str, cites: Mapping[int, str], *, now: datetime
+    ) -> tuple[Broken, ...]:
+        rows = (
+            await self._session.execute(
+                select(KnownBrokenRow)
+                .where(
+                    KnownBrokenRow.tenant_id == tenant_id.value,
+                    KnownBrokenRow.workflow_id == workflow_id,
+                    KnownBrokenRow.at > now - K_BROKEN_COOL_DOWN,
+                )
+                .order_by(KnownBrokenRow.ord, KnownBrokenRow.lane, KnownBrokenRow.fingerprint)
+            )
+        ).scalars()
+        return tuple(
+            Broken(row.ord, Lane(row.lane), row.fingerprint)
+            for row in rows
+            if cites.get(row.ord) == row.cites
+        )
+
+    async def mend_lane(self, tenant_id: TenantId, workflow_id: str, step: int, lane: Lane) -> None:
+        await self._session.execute(
+            delete(KnownBrokenRow).where(
+                KnownBrokenRow.tenant_id == tenant_id.value,
+                KnownBrokenRow.workflow_id == workflow_id,
+                KnownBrokenRow.ord == step,
+                KnownBrokenRow.lane == lane.value,
+            )
+        )
+
+    async def recipients_for(
+        self, tenant_id: TenantId, workflow_id: str
+    ) -> tuple[JobRecipient, ...]:
+        rows = (
+            await self._session.execute(
+                select(JobRecipientRow)
+                .where(
+                    JobRecipientRow.tenant_id == tenant_id.value,
+                    JobRecipientRow.workflow_id == workflow_id,
+                )
+                .order_by(JobRecipientRow.at, JobRecipientRow.address)
+            )
+        ).scalars()
+        return tuple(JobRecipient(row.address, row.confirmed_by, row.at) for row in rows)
+
+    async def confirm_recipient(
+        self, tenant_id: TenantId, workflow_id: str, recipient: JobRecipient
+    ) -> None:
+        statement = pg_insert(JobRecipientRow).values(
+            tenant_id=tenant_id.value,
+            workflow_id=workflow_id,
+            address=recipient.address,
+            confirmed_by=recipient.confirmed_by,
+            at=recipient.at,
+        )
+        await self._session.execute(
+            statement.on_conflict_do_update(
+                index_elements=["tenant_id", "workflow_id", "address"],
+                set_={
+                    "confirmed_by": statement.excluded.confirmed_by,
+                    "at": statement.excluded.at,
+                },
+            )
+        )
+
+    async def aliases_for(self, tenant_id: TenantId, workflow_id: str) -> tuple[JobAlias, ...]:
+        rows = (
+            await self._session.execute(
+                select(JobAliasRow)
+                .where(
+                    JobAliasRow.tenant_id == tenant_id.value,
+                    JobAliasRow.workflow_id == workflow_id,
+                )
+                .order_by(JobAliasRow.at, JobAliasRow.wording_key)
+            )
+        ).scalars()
+        return tuple(
+            JobAlias(row.wording, row.field, row.confirmed_by, row.at, row.role) for row in rows
+        )
+
+    async def confirm_alias(self, tenant_id: TenantId, workflow_id: str, alias: JobAlias) -> None:
+        statement = pg_insert(JobAliasRow).values(
+            tenant_id=tenant_id.value,
+            workflow_id=workflow_id,
+            wording_key=normal(alias.wording),
+            wording=alias.wording,
+            field=alias.field,
+            role=alias.role,
+            confirmed_by=alias.confirmed_by,
+            at=alias.at,
+        )
+        await self._session.execute(
+            statement.on_conflict_do_update(
+                index_elements=["tenant_id", "workflow_id", "wording_key"],
+                set_={
+                    "wording": statement.excluded.wording,
+                    "field": statement.excluded.field,
+                    "role": statement.excluded.role,
+                    "confirmed_by": statement.excluded.confirmed_by,
+                    "at": statement.excluded.at,
+                },
+            )
+        )
+
     async def learned_for(self, workflow_id: str) -> tuple[LearnedStep, ...]:
         rows = (
             await self._session.execute(
@@ -450,6 +719,7 @@ class SqlWorkflowRepository(WorkflowRepository):
                 query=row.query,
                 found_by=row.found_by,
                 holds=row.holds,
+                frame_path=row.frame_path,
             )
             for row in rows
         )
@@ -474,6 +744,7 @@ class SqlWorkflowRepository(WorkflowRepository):
             WorkflowLearnedRow,
             WorkflowStaleRow,
             WorkflowLearnedHistoryRow,
+            KnownBrokenRow,
         )
         for table in keyed_by_ord:
             rows = (

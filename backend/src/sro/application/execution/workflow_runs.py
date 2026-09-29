@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import logging
+import math
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import datetime
+from urllib.parse import urlencode
 
 from sro.application.chat.announce import SayWhatHappened
+from sro.application.chat.mailbox import SERVER
+from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
 from sro.application.execution.declared import declared_limits, names_of, screen_for
@@ -14,6 +18,7 @@ from sro.application.execution.mail_job import (
     MailHand,
     Written,
     draft_the_mail_job,
+    redraft_the_mail_job,
     send_the_mail,
     write_the_mail,
 )
@@ -24,34 +29,58 @@ from sro.application.execution.run_workflow import GatherValues, KnownFields, ru
 from sro.application.execution.stops import Stops
 from sro.application.intent.spend import over_cap
 from sro.application.knowledge.retrieve import Question, Retrieve
+from sro.application.observation.register import refuse_unless_itself
 from sro.application.ports.channel import Channel
+from sro.application.ports.durable import DurableExecution
 from sro.application.ports.model import Asker, asker_or_refuse
+from sro.application.ports.pool import BrowserPool
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.vault import CredentialVault
-from sro.application.shared.refusals import OverCap
-from sro.domain.chat.asking import NEEDS, Pending, also_set, question
+from sro.application.shared.refusals import OverCap, RunRefused
+from sro.application.skill.job_facts import job_facts
+from sro.domain.chat.asking import (
+    NEEDS,
+    Pending,
+    also_set,
+    asking_state,
+    cannot_without,
+    question,
+    still_to_ask,
+)
 from sro.domain.chat.thread import Speaker
-from sro.domain.execution.evidence import unperformable
+from sro.domain.execution.account import LIVE
+from sro.domain.execution.compiled import why_not
+from sro.domain.execution.field_classes import field_classes
 from sro.domain.execution.gathering import Gathered
 from sro.domain.execution.learned_step import limits_for
-from sro.domain.execution.mail_job import is_mail_only
+from sro.domain.execution.mail_job import built_in, is_mail_only
+from sro.domain.execution.progress import Progress, run_budget
+from sro.domain.execution.takeover import Took, take_over
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.execution.waiting import as_said, waiting_on
 from sro.domain.execution.workflow_run import (
     RunStep,
     WorkflowRun,
     already_running,
+    answers_for,
     new_run_id,
+    pin,
 )
 from sro.domain.execution.write_plan import begins_again_at, seen_values
 from sro.domain.knowledge.entry import EntryKind
+from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.errors import Conflict, DomainError, NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId
-from sro.domain.skill.learned import offerable
+from sro.domain.skill.learned import demanded, offerable
 from sro.domain.skill.reversals import addresses, asks_for, identifies, undoes
 from sro.domain.skill.shape import resumes_at
-from sro.domain.skill.workflow import Workflow, cited_ids, ordered_cites
+from sro.domain.skill.workflow import MAIN, Workflow, cited_ids, ordered_cites
+
+
+def _on_the_mail(server: str, thread: str) -> dict[str, str]:
+    return {"thread": thread.strip()} if server == SERVER and thread.strip() else {}
+
 
 __all__ = [
     "AbortWorkflowRun",
@@ -69,10 +98,6 @@ logger = logging.getLogger(__name__)
 DraftsForTheAsker = Callable[[RequestContext, str, Pending], Awaitable[bool]]
 
 
-class RunRefused(Exception):
-    code = "run_refused"
-
-
 K_EVERY_FORM = 400
 
 
@@ -87,6 +112,9 @@ def _asking(needs: Sequence[str], title: str, limits: Mapping[str, int]) -> str:
     )
 
 
+STILL_UPLOADING = "your recent work is still uploading; press again in a moment"
+
+
 class StartWorkflowRun:
     def __init__(
         self,
@@ -94,8 +122,6 @@ class StartWorkflowRun:
         *,
         channel: Channel,
         asker: Asker | None,
-        plan_model: str,
-        rescue_model: str,
         clock: Clock,
         cap_usd: float,
         stops: Stops,
@@ -107,8 +133,12 @@ class StartWorkflowRun:
         gather: GatherContext | None = None,
         ids: IdFactory | None = None,
         asker_drafts: DraftsForTheAsker | None = None,
+        durable: DurableExecution | None = None,
+        steel_tenants: frozenset[str] = frozenset(),
     ) -> None:
         self._uow = uow
+        self._durable = durable
+        self._steel_tenants = steel_tenants
         self._asker_drafts: DraftsForTheAsker | None = asker_drafts
         self._vault = vault
         self._one_time_secrets = one_time_secrets
@@ -117,20 +147,21 @@ class StartWorkflowRun:
         self._ids = ids
         self._channel = channel
         self._asker = asker
-        self._plan_model = plan_model
-        self._rescue_model = rescue_model
         self._clock = clock
         self._cap_usd = cap_usd
         self._stops = stops
         self._approvals = approvals
         self._verified_writes = verified_writes
 
+    def runs_on_steel(self, ctx: RequestContext) -> bool:
+        return self._durable is not None and ctx.tenant_id.value in self._steel_tenants
+
     async def execute(
         self,
         ctx: RequestContext,
         *,
         workflow_id: str,
-        device_id: DeviceId,
+        device_id: DeviceId | None,
         values: Mapping[str, str],
         live: bool,
         allow_focus: bool,
@@ -141,19 +172,29 @@ class StartWorkflowRun:
         run_id: str | None = None,
         conversation: tuple[str, str] = ("", ""),
         undoes_run: str = "",
+        offer: str = "",
+        mail: Mapping[str, str] | None = None,
+        took_over: Took | None = None,
+        device_secret: str = "",
+        then: Callable[[UnitOfWork, WorkflowRun], Awaitable[None]] | None = None,
     ) -> WorkflowRun:
         asker_or_refuse(self._asker)
         now: datetime = self._clock.now()
+        steel = self.runs_on_steel(ctx) and built_in(workflow_id, ctx.tenant_id.value) is None
         async with self._uow as uow:
             why = await over_cap(uow, ctx.tenant_id, now=now, cap_usd=self._cap_usd)
             if why is not None:
                 raise OverCap(why)
-            if device_id not in self._channel.online(ctx.tenant_id):
-                raise Conflict(f"{device_id.value} is not connected")
-            busy = await uow.workflow_runs.in_flight(ctx.tenant_id, device_id)
-            if busy is not None:
-                raise Conflict(already_running(device_id.value, busy))
+            if not steel and device_id is not None:
+                await self._free(uow, ctx, device_id)
             workflow = await uow.workflows.get(ctx.tenant_id, workflow_id)
+            cited = await uow.gestures.gestures_for(
+                ctx.tenant_id, ids=tuple(sorted(cited_ids(workflow)))
+            )
+            by_id = {gesture.id: gesture for gesture in cited}
+            if not steel and device_id is None and not is_mail_only(workflow, by_id):
+                device_id = await self._their_browser(uow, ctx)
+                await self._free(uow, ctx, device_id)
             given = {name: value.strip() for name, value in values.items() if value.strip()}
             things = (
                 [
@@ -163,11 +204,14 @@ class StartWorkflowRun:
                 if workflow.repeat is not None
                 else []
             )
+            if steel and things:
+                raise RunRefused("a Steel run does one thing per run; a list is not supported yet")
             supplied = [{**given, **thing} for thing in things] or [given]
             absent = sorted(
                 str(declared["name"])
                 for declared in workflow.parameters
                 if declared.get("name")
+                and demanded(declared)
                 and any(str(declared["name"]) not in one for one in supplied)
             )
             blank = sorted(
@@ -182,29 +226,60 @@ class StartWorkflowRun:
                 raise RunRefused(f"this job needs a value for: {', '.join(absent)}")
             if not workflow.steps:
                 raise RunRefused("this job has no steps")
-            cited = await uow.gestures.gestures_for(
-                ctx.tenant_id, ids=tuple(sorted(cited_ids(workflow)))
-            )
-            by_id = {gesture.id: gesture for gesture in cited}
             if matched is not None:
                 from_step = resumes_at(workflow, by_id, matched)
             last = max(step.order for step in workflow.steps)
             if isinstance(from_step, bool) or not 0 <= from_step <= last:
                 raise RunRefused(f"from_step must be a step of this job (0..{last})")
+            first_progress: dict[str, object] = {}
+            check_from = from_step
+            if steel and took_over is not None and device_id is not None:
+                device = await uow.devices.get(ctx.tenant_id, device_id)
+                refuse_unless_itself(device, device_secret, device_id)
+                if device.principal_id != ctx.principal_id:
+                    raise NotFound(f"device {device_id} was not found")
+                seen = await uow.gestures.gestures_for(
+                    ctx.tenant_id,
+                    stream_id=device_id.value,
+                    after=math.nextafter(took_over.since, -math.inf),
+                )
+                if not any(one.at >= took_over.newest for one in seen):
+                    raise RunRefused(STILL_UPLOADING)
+                took = take_over(
+                    workflow, by_id, matched=matched or 0, took=took_over, seen=seen, values=given
+                )
+                first_progress = took.progress().as_json()
+                ordered = sorted(workflow.steps, key=lambda step: step.order)
+                check_from = (
+                    ordered[took.replay_from].order if took.replay_from < len(ordered) else last + 1
+                )
+            elif steel and from_step and matched is None:
+                raise RunRefused(
+                    "this job stopped part-way in your browser, and a Steel run cannot tell "
+                    "what was already done there; ask for it afresh to run it from the start"
+                )
+            elif steel and from_step:
+                raise RunRefused(
+                    "this press did not say which of your gestures it counted, so a Steel run "
+                    "cannot tell what you already did; update the extension and press again"
+                )
             if undoes_run.strip():
                 already = await uow.workflow_runs.taken_back_by(ctx.tenant_id, undoes_run.strip())
                 if already is not None:
                     raise RunRefused(f"{undoes_run.strip()} was already taken back by {already}")
-            undoable = unperformable(workflow, by_id, from_step=from_step)
-            if undoable is not None:
+            (facts,) = await job_facts(
+                uow, ctx.tenant_id, [workflow], now=now, values=given, from_step=check_from
+            )
+            if not facts.compiled.runnable:
                 raise RunRefused(
-                    f"step {undoable.order} has no evidence a browser can act on: {undoable.says}"
+                    f"this job cannot run yet: {'; '.join(why_not(facts.compiled.reasons))}"
                 )
             run = WorkflowRun(
                 id=run_id or new_run_id(),
                 tenant=ctx.tenant_id.value,
                 workflow_id=workflow.id,
-                device_id=device_id.value,
+                device_id="" if device_id is None or steel else device_id.value,
+                executor="steel" if steel else "extension",
                 values=given,
                 started_by=ctx.principal_id.value,
                 live=live,
@@ -215,21 +290,94 @@ class StartWorkflowRun:
                 items=things,
                 awaiting=as_said(waiting_on(*conversation, now=now)),
                 undoes_run=undoes_run.strip() or None,
+                offer=offer.strip() or None,
+                progress=first_progress,
+                pinned=pin(workflow),
+                mail={**_on_the_mail(*conversation), **(mail or {})} or None,
             )
             await uow.workflow_runs.save(run)
+            if then is not None:
+                await then(uow, run)
             await uow.commit()
             return run
 
-    async def _a_mail_job(self, ctx: RequestContext, run: WorkflowRun) -> Workflow | None:
+    async def _free(self, uow: UnitOfWork, ctx: RequestContext, device_id: DeviceId) -> None:
+        if device_id not in self._channel.online(ctx.tenant_id):
+            raise Conflict(f"{device_id.value} is not connected")
+        busy = await uow.workflow_runs.in_flight(ctx.tenant_id, device_id)
+        if busy is not None:
+            raise Conflict(already_running(device_id.value, busy))
+
+    async def _their_browser(self, uow: UnitOfWork, ctx: RequestContext) -> DeviceId:
+        online = set(self._channel.online(ctx.tenant_id))
+        theirs = [
+            device
+            for device in await uow.devices.list_for_tenant(ctx.tenant_id)
+            if device.id in online
+            and device.principal_id == ctx.principal_id
+            and not device.revoked
+        ]
+        if not theirs:
+            raise Conflict("none of your browsers is connected")
+        return max(theirs, key=lambda device: device.last_seen_at).id
+
+    async def _a_mail_job(
+        self, ctx: RequestContext, run: WorkflowRun
+    ) -> tuple[Workflow, dict[str, Gesture]] | None:
         async with self._uow as uow:
             workflow = await uow.workflows.get(ctx.tenant_id, run.workflow_id)
             cited = await uow.gestures.gestures_for(
                 ctx.tenant_id, ids=tuple(ordered_cites(workflow))
             )
         by_id = {gesture.id: gesture for gesture in cited}
-        return workflow if is_mail_only(workflow, by_id) else None
+        return (workflow, by_id) if is_mail_only(workflow, by_id) else None
+
+    async def answered(self, ctx: RequestContext, run_id: str) -> None:
+        async with self._uow as uow:
+            run = await uow.workflow_runs.get(ctx.tenant_id, run_id)
+        mail = await self._a_mail_job(ctx, run) if run is not None else None
+        if run is None or mail is None or self._gather is None or self._ids is None:
+            return
+        await redraft_the_mail_job(
+            ctx,
+            run,
+            mail[0],
+            mail[1],
+            uow=self._uow,
+            tools=self._gather.tools,
+            asker=asker_or_refuse(self._asker),
+            clock=self._clock,
+            ids=self._ids,
+        )
+
+    async def start_on_steel(self, ctx: RequestContext, run: WorkflowRun) -> bool:
+        try:
+            if self._durable is None:
+                raise RunRefused("this process cannot start a Steel run")
+            async with self._uow as uow:
+                workflow = (
+                    run.pinned
+                    if run.pinned is not None
+                    else await uow.workflows.get(ctx.tenant_id, run.workflow_id)
+                )
+                cited = await uow.gestures.gestures_for(
+                    ctx.tenant_id, ids=tuple(sorted(cited_ids(workflow)))
+                )
+            await self._durable.start_run(
+                ctx,
+                run_id=run.id,
+                budget_s=run_budget(workflow, {one.id: one for one in cited}),
+            )
+        except Exception as error:
+            logger.exception("%s: a Steel run could not be handed to Temporal", run.id)
+            await self._close(ctx, run.id, f"{type(error).__name__}: {error}")
+            return False
+        return True
 
     async def perform(self, ctx: RequestContext, run: WorkflowRun) -> None:
+        if run.executor == "steel":
+            await self.start_on_steel(ctx, run)
+            return
         try:
             asker = asker_or_refuse(self._asker)
             mail = await self._a_mail_job(ctx, run)
@@ -237,11 +385,11 @@ class StartWorkflowRun:
                 await draft_the_mail_job(
                     ctx,
                     run,
-                    mail,
+                    mail[0],
+                    mail[1],
                     uow=self._uow,
                     tools=self._gather.tools,
                     asker=asker,
-                    model=self._plan_model,
                     clock=self._clock,
                     ids=self._ids,
                 )
@@ -260,8 +408,6 @@ class StartWorkflowRun:
                     channel=WatchingChannel(self._channel, secrets),
                     device_id=DeviceId(run.device_id),
                     asker=asker,
-                    plan_model=self._plan_model,
-                    rescue_model=self._rescue_model,
                     live=run.live,
                     allow_focus=run.allow_focus,
                     watched=run.watched,
@@ -301,6 +447,16 @@ class StartWorkflowRun:
             await uow.workflow_runs.save(saved)
             await uow.commit()
 
+    async def _no_longer_waiting(self, ctx: RequestContext, run_id: str) -> None:
+        async with self._uow as uow:
+            saved = await uow.workflow_runs.get(ctx.tenant_id, run_id)
+            if saved is None:
+                return
+            saved.needs = []
+            saved.awaiting = None
+            await uow.workflow_runs.save(saved)
+            await uow.commit()
+
     async def _ask_for_values(self, ctx: RequestContext, run: WorkflowRun, title: str) -> None:
         if not run.needs or self._ids is None:
             return
@@ -317,35 +473,54 @@ class StartWorkflowRun:
             )
         by_id = {gesture.id: gesture for gesture in cited}
         steps = workflow.steps if workflow else []
-        limits = limits_for(
-            steps,
-            learnt,
-            await declared_limits(
-                self._uow,
-                ctx.tenant_id,
-                names_of(workflow) if workflow else [],
-                await screen_for(self._uow, ctx.tenant_id, workflow) if workflow else "",
-            ),
+        declared = await declared_limits(
+            self._uow,
+            ctx.tenant_id,
+            names_of(workflow) if workflow else [],
+            await screen_for(self._uow, ctx.tenant_id, workflow) if workflow else "",
         )
-        pending = Pending(
-            workflow_id=run.workflow_id,
-            title=title,
-            values=dict(run.values),
-            missing=tuple(run.needs),
-            items=tuple(dict(one) for one in run.items),
-            watched=run.watched,
-            limits=limits,
-            offered=offerable(workflow.parameters, run.values) if workflow else (),
-            from_step=(
-                begins_again_at(workflow, by_id, stopped_at=run.steps[-1].order)
-                if workflow and run.steps
-                else 0
-            ),
+        limits = limits_for(steps, learnt, declared)
+        fields = (
+            field_classes(workflow, by_id, {one.ord: one for one in learnt}, declared)
+            if workflow
+            else ()
         )
+        operator = PrincipalId(run.started_by) if run.started_by else ctx.principal_id
+        thread = await ReadThreads(self._uow).current(RequestContext(ctx.tenant_id, operator))
+        pending = still_to_ask(
+            Pending(
+                workflow_id=run.workflow_id,
+                title=title,
+                values=dict(run.values),
+                missing=tuple(run.needs),
+                items=tuple(dict(one) for one in run.items),
+                watched=run.watched,
+                limits=limits,
+                offered=offerable(workflow.parameters, run.values) if workflow else (),
+                from_step=(
+                    begins_again_at(workflow, by_id, stopped_at=run.steps[-1].order)
+                    if workflow and run.steps
+                    else 0
+                ),
+                options={
+                    one.name: one.limits.options
+                    for one in fields
+                    if one.limits.options and one.name in run.needs
+                },
+            ),
+            thread.messages if thread else (),
+        )
+        if pending.without:
+            await self._no_longer_waiting(ctx, run.id)
+            said, noted = cannot_without(pending, ran=True)
+            await SayWhatHappened(self._uow, self._clock, self._ids).execute(
+                ctx, for_operator=operator, text=said, speaker=Speaker.ASSISTANT, decision=noted
+            )
+            return
         await SayWhatHappened(self._uow, self._clock, self._ids).execute(
             ctx,
-            for_operator=PrincipalId(run.started_by) if run.started_by else ctx.principal_id,
-            text=_asking(run.needs, title, limits)
+            for_operator=operator,
+            text=_asking(pending.missing, title, limits)
             + (f"{also} " if (also := also_set(pending)) else "")
             + question(pending),
             speaker=Speaker.ASSISTANT,
@@ -361,6 +536,7 @@ class StartWorkflowRun:
                 "offered": [list(one) for one in pending.offered],
                 "from_step": pending.from_step,
                 "from_run": run.id,
+                **asking_state(pending),
             },
         )
         if self._asker_drafts is not None:
@@ -375,10 +551,22 @@ class StartWorkflowRun:
         tools = self._gather.tools
 
         async def write(
-            workflow: Workflow, values: Mapping[str, str], thread: str
+            workflow: Workflow,
+            values: Mapping[str, str],
+            thread: str,
+            by_id: Mapping[str, Gesture],
+            request: Sequence[str],
         ) -> Written | str:
             return await write_the_mail(
-                ctx, workflow, values, thread, tools=tools, asker=asker, model=self._plan_model
+                ctx,
+                workflow,
+                values,
+                thread,
+                by_id=by_id,
+                request=request,
+                uow=self._uow,
+                tools=tools,
+                asker=asker,
             )
 
         async def send(mail: Written) -> tuple[str, str]:
@@ -492,6 +680,7 @@ class ListWorkflowRuns:
         workflow_id: str | None,
         limit: int,
         awaiting: bool,
+        mine: bool = False,
     ) -> tuple[WorkflowRun, ...]:
 
         async with self._uow as uow:
@@ -500,14 +689,38 @@ class ListWorkflowRuns:
                 parked = frozenset(
                     run_id for run_id, _, _ in await uow.workflow_runs.awaiting(ctx.tenant_id)
                 )
-            return await uow.workflow_runs.recent(
+            runs = await uow.workflow_runs.recent(
                 ctx.tenant_id, limit=limit, workflow_id=workflow_id, ids=parked
             )
+        return (
+            tuple(run for run in runs if answers_for(run, ctx.principal_id.value)) if mine else runs
+        )
 
 
 class GetWorkflowRun:
-    def __init__(self, uow: UnitOfWork) -> None:
+    def __init__(self, uow: UnitOfWork, *, pool: BrowserPool | None = None) -> None:
         self._uow = uow
+        self._pool = pool
+
+    async def live_view_for(self, ctx: RequestContext, run: WorkflowRun) -> str:
+        progress = Progress.of(run.progress)
+        tab = progress.tabs.get(MAIN, "")
+        if self._pool is None or run.executor != "steel" or run.outcome != "running" or not tab:
+            return ""
+        async with self._uow as uow:
+            lease = await uow.browser_sessions.get_lease(ctx.tenant_id, progress.lease)
+        if lease is None or lease.state not in LIVE:
+            return ""
+        try:
+            viewer = await self._pool.live_view_url(lease.container_url, lease.steel_session_id)
+        except Exception:
+            # A link to watch by is never worth failing the read of the run.
+            logger.warning("%s: no live view for its Steel session", run.id, exc_info=True)
+            return ""
+        if not viewer:
+            return ""
+        joiner = "&" if "?" in viewer else "?"
+        return f"{viewer}{joiner}{urlencode({'pageId': tab, 'interactive': 'false'})}"
 
     async def execute(self, ctx: RequestContext, *, run_id: str) -> WorkflowRun:
         async with self._uow as uow:
@@ -548,10 +761,13 @@ class GetWorkflowRun:
 
 
 class AbortWorkflowRun:
-    def __init__(self, uow: UnitOfWork, stops: Stops, approvals: Approvals) -> None:
+    def __init__(
+        self, uow: UnitOfWork, stops: Stops, approvals: Approvals, *, durable: DurableExecution
+    ) -> None:
         self._uow = uow
         self._stops = stops
         self._approvals = approvals
+        self._durable = durable
 
     async def execute(self, ctx: RequestContext, *, run_id: str) -> WorkflowRun:
         async with self._uow as uow:
@@ -560,6 +776,9 @@ class AbortWorkflowRun:
             raise NotFound("no such run")
         if run.outcome != "running":
             raise CannotStop(f"that run already {run.outcome}")
+        if run.executor == "steel":
+            await self._durable.cancel_run(run.id)
+            return run
         if not run.device_id:
             raise CannotStop(NOT_IN_A_BROWSER_HERE)
         self._stops.ask(run.id)

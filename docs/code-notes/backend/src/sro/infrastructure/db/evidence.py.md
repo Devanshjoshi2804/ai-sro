@@ -35,14 +35,15 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/db/evidenc
 > `fromisoformat` is strict: what it cannot read is a clock this cannot
 > reason about, which is not an error -- it is one gesture left alone.
 
-## `SqlPoolRepository`, [line 337](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L337): Docstring
+## `SqlPoolRepository`, [line 344](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L344): Docstring
 
 > The rig's ``pool`` module, one storage layer down.
 >
-> Live and retired are two reads because a retired entry is still a row: it
-> stops being offered ahead of fresh evidence and goes on being packed on its
-> own merits, so nothing here ever deletes one. The only entry that leaves is
-> one a pass cited, and it leaves because it was placed.
+> Live and retired are two reads because a retired entry is still a row. It
+> is the record that the gesture has been mined (read K_POOL_AGE + 1 times,
+> read and gone stale, or this browser's own driving), so no pass packs it
+> again, and nothing here ever deletes one. The only entry that leaves is one
+> a pass cited, and it leaves because it was placed.
 
 ## `SqlGestureRepository.add_batch`, [line 155](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L155): Comment
 
@@ -66,7 +67,7 @@ Code: `await self._session.flush()`
 > ``Conflict`` rather than as whatever the driver raises at commit
 > -- and that is the only shape a fake can be held to.
 
-## `SqlGestureRepository.gestures_for`, [line 183](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L183): Comment
+## `SqlGestureRepository.gestures_for`, [line 186](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L186): Comment
 
 Code: `rows = (`
 
@@ -76,7 +77,7 @@ Code: `rows = (`
 > which 200 are read, that is a different set rather than a different
 > order.
 
-## `SqlGestureRepository.uploads_for`, [line 210](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L210): Comment
+## `SqlGestureRepository.uploads_for`, [line 213](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L213): Comment
 
 Code: `ended_at=_when(row.ended_at),`
 
@@ -85,7 +86,7 @@ Code: `ended_at=_when(row.ended_at),`
 > batch that cannot say what its clock was doing is one nothing
 > here will guess about.
 
-## `SqlGestureRepository.unread`, [line 217](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L217): Comment
+## `SqlGestureRepository.unread`, [line 220](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L220): Comment
 
 Code: `query = (`
 
@@ -93,7 +94,7 @@ Code: `query = (`
 > model was asked, it answered, and it was billed. Re-asking the same
 > evidence with the same prompt bills again for the same likely answer.
 
-## `SqlGestureRepository.newest_arrival`, [line 228](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L228): Comment
+## `SqlGestureRepository.newest_arrival`, [line 231](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L231): Comment
 
 Code: `carried = (`
 
@@ -103,7 +104,7 @@ Code: `carried = (`
 > anything, and counting an empty heartbeat would keep a tenant
 > looking busy while nobody worked.
 
-## `SqlGestureRepository.tenants_since`, [line 239](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L239): Comment
+## `SqlGestureRepository.tenants_since`, [line 242](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L242): Comment
 
 Code: `carried = (`
 
@@ -126,15 +127,24 @@ Code: `carried = (`
 > join would multiply by the gestures before the `distinct` took them
 > away again.
 
-## `SqlGestureRepository.save_intent`, [line 250](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L250): Comment
+## `SqlGestureRepository.save_intent`, [line 253](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L253): Comment
 
-Code: `statement = pg_insert(IntentRow).values(`
+Code: `values = _intent_values(intent, created_at=datetime.now(tz=UTC))`
 
 > ``created_at`` is the server's, taken here rather than carried on the
 > record: it is when the reading was stored, and the spend window is
 > summed over it.
 
-## `SqlGestureRepository.save_intent`, [line 256](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L256): Comment
+## `SqlGestureRepository.save_intent`, [line 260](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L260): Comment
+
+Code: `for attribute in IntentRow.__mapper__.column_attrs`
+
+> Only the columns the insert supplied are replaced. `intents.continues`
+> stays in the schema with nothing mapping it (GC 17); replacing every
+> column wrote NULL over what it held. By mapped attribute, because
+> `object_` is the attribute and `object` the column.
+
+## `SqlGestureRepository.save_intent`, [line 258](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L258): Comment
 
 Code: `set_={`
 
@@ -142,14 +152,14 @@ Code: `set_={`
 > is what INSERT OR REPLACE did: a second reading of one
 > gesture supersedes the first rather than sitting beside it.
 
-## `SqlGestureRepository.intents_for`, [line 268](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L268): Comment
+## `SqlGestureRepository.intents_for`, [line 273](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L273): Comment
 
 Code: `.execution_options(populate_existing=True)`
 
 > The upsert above is a Core statement, so a row this session had
 > already loaded would otherwise come back at its old reading.
 
-## `SqlGestureRepository.intents_since`, [line 277](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L277): Comment
+## `SqlGestureRepository.intents_since`, [line 284](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L284): Comment
 
 Code: `.order_by(IntentRow.created_at.desc(), IntentRow.gesture_id.desc())`
 
@@ -159,7 +169,7 @@ Code: `.order_by(IntentRow.created_at.desc(), IntentRow.gesture_id.desc())`
 > -- and an order that is not total is one that changes between
 > reads of the same rows.
 
-## `SqlGestureRepository.intents_since`, [line 278](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L278): Comment
+## `SqlGestureRepository.intents_since`, [line 285](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L285): Comment
 
 Code: `.execution_options(populate_existing=True)`
 
@@ -168,7 +178,7 @@ Code: `.execution_options(populate_existing=True)`
 > statement -- so, as in ``intents_for``, the identity map must not
 > hand back the reading this session superseded.
 
-## `SqlGestureRepository.add_orphan_page`, [line 305](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L305): Comment
+## `SqlGestureRepository.add_orphan_page`, [line 312](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L312): Comment
 
 Code: `self._session.add(`
 
@@ -176,14 +186,14 @@ Code: `self._session.add(`
 > share a batch, an instant and a payload, and the batch's own primary
 > key already makes re-ingesting a batch a no-op.
 
-## `SqlGestureRepository.streams`, [line 331](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L331): Comment
+## `SqlGestureRepository.streams`, [line 338](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L338): Comment
 
 Code: `.order_by(last.desc(), GestureRow.stream_id)`
 
 > The stream id breaks the tie: two streams whose last gesture
 > shares an instant would otherwise swap places between reads.
 
-## `SqlPoolRepository.add_unclaimed`, [line 345](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L345): Comment
+## `SqlPoolRepository.add_unclaimed`, [line 352](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L352): Comment
 
 Code: `await self._session.execute(`
 
@@ -193,7 +203,7 @@ Code: `await self._session.execute(`
 > intersection would leave that citation to age out and retire
 > despite having been placed.
 
-## `SqlPoolRepository.add_unclaimed`, [line 348](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L348): Comment
+## `SqlPoolRepository.add_unclaimed`, [line 355](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L355): Comment
 
 Code: `.execution_options(synchronize_session=False)`
 
@@ -202,7 +212,7 @@ Code: `.execution_options(synchronize_session=False)`
 > there is no session state to keep in step and asking for one
 > only buys a SELECT of the rows about to go.
 
-## `SqlPoolRepository.add_unclaimed`, [line 370](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L370): Comment
+## `SqlPoolRepository.add_unclaimed`, [line 377](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L377): Comment
 
 Code: `added = await self._session.execute(`
 
@@ -213,14 +223,14 @@ Code: `added = await self._session.execute(`
 > RETURNING rather than rowcount, because how many actually entered is
 > the answer, and it is what the caller reports.
 
-## `SqlPoolRepository.age`, [line 383](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L383): Comment
+## `SqlPoolRepository.age`, [line 392](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L392): Comment
 
 Code: `await self._session.execute(`
 
 > No window named is not the same as an empty one: a caller with no
 > window is not claiming nothing was read.
 
-## `SqlPoolRepository.age`, [line 389](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L389): Comment
+## `SqlPoolRepository.age`, [line 398](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L398): Comment
 
 Code: `await self._session.execute(self._bump(*live, waited=PoolRow.waited + 1))`
 
@@ -232,13 +242,13 @@ Code: `await self._session.execute(self._bump(*live, waited=PoolRow.waited + 1))
 > reads. A pass that packs nothing is exactly when the pool
 > most needs to record that nobody was seen.
 
-## `SqlPoolRepository.age`, [line 391](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L391): Comment
+## `SqlPoolRepository.age`, [line 400](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L400): Comment
 
 Code: `await self._session.execute(`
 
 > Shown: one reading older, and its waiting starts again.
 
-## `SqlPoolRepository.age`, [line 399](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L399): Comment
+## `SqlPoolRepository.age`, [line 412](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L412): Comment
 
 Code: `await self._session.execute(`
 
@@ -246,7 +256,7 @@ Code: `await self._session.execute(`
 > time. Ageing was doing both jobs, so an entry read six times
 > outranked one never seen at all and the day did not rotate.
 
-## `SqlPoolRepository.age`, [line 403](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L403): Comment
+## `SqlPoolRepository.age`, [line 416](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L416): Comment
 
 Code: `passes = await self._session.execute(`
 
@@ -255,12 +265,17 @@ Code: `passes = await self._session.execute(`
 > retires an entry a busy tenant has already reconsidered fifty times.
 > Whichever comes first, and the row says which -- both filtered on
 > `retired = 0`, so nothing is retired twice or re-reported by the
-> other cap.
+> other cap. A failed reading (`failed=True`) moves nothing but `failed`:
+> `waited` is untouched, so the next pass packs the same window and
+> K_MINE_ATTEMPTS counts per window rather than over whichever entries the
+> waiting bonus rotates in (M1 round 3).
+> The stale cap takes only what has been read (`age > 0`):
+> retired is never mined again, and an unread entry is backlog.
 > RETURNING rather than ``rowcount``, as in ``add_unclaimed``: which
 > rows actually retired is the answer, and it is one shape everywhere
 > rather than the driver's own count.
 
-## `SqlPoolRepository._bump`, [line 429](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L429): Comment
+## `SqlPoolRepository._bump`, [line 465](../../../../../../../backend/src/sro/infrastructure/db/evidence.py#L465): Comment
 
 Code: `return (`
 

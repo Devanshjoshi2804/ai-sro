@@ -13,21 +13,42 @@ import copy
 import hashlib
 import json
 
-from sro.domain.observation.window import K_ENDS, K_WINDOW_TOKENS, Packed, Window, pack, tokens
+from sro.domain.observation.window import (
+    K_ENDS,
+    K_WINDOW_TOKENS,
+    Packed,
+    Window,
+    arrange,
+    pack,
+    tokens,
+)
+from sro.domain.prompts.mine import MINE
 from sro.domain.skill.umbrella import (
-    _PROBE,
-    INSTRUCTIONS,
+    _PROBE_DAY,
     K_MAX_CROSSING_TOKENS,
-    WORKFLOW_SCHEMA,
     bounded_crossings,
-    build_prompt,
+    mining_blocks,
     workflow_from,
 )
 from tests.unit.domain.rig.conftest import gestures as _gestures
 
+ROLE_AND_TASK = MINE.role + "\n\n" + MINE.task
+
+
+def _blocks(
+    window: Window, crossings: dict[str, list[str]], known: list[dict[str, object]], kb: str
+) -> dict[str, str]:
+    return mining_blocks([item.evidence for item in arrange(window.items)], crossings, known, kb)
+
+
+def _shown(
+    window: Window, crossings: dict[str, list[str]], known: list[dict[str, object]], kb: str
+) -> str:
+    return "\n".join(_blocks(window, crossings, known, kb).values())
+
 
 def _map(value: object) -> dict[str, object]:
-    """WORKFLOW_SCHEMA is `dict[str, object]` -- `Any` is banned in the domain --
+    """MINE.output_schema is `dict[str, object]` -- `Any` is banned in the domain --
     so walking into it needs a narrowing step per level."""
     assert isinstance(value, dict)
     return value
@@ -44,7 +65,7 @@ def _window() -> Window:
 def test_the_schema_puts_the_citations_before_the_sentence() -> None:
     """Identifying the relevant evidence before composing the answer measurably
     beats composing first."""
-    workflows = _map(_map(WORKFLOW_SCHEMA["properties"])["workflows"])
+    workflows = _map(_map(MINE.output_schema["properties"])["workflows"])
     step = _map(_map(workflows["items"])["properties"])["steps"]
     keys = list(_map(_map(_map(step)["items"])["properties"]).keys())
 
@@ -52,10 +73,10 @@ def test_the_schema_puts_the_citations_before_the_sentence() -> None:
 
 
 def test_the_prompt_the_model_is_given_is_the_one_the_rig_measured() -> None:
-    """The prompt IS the product, and nothing pinned INSTRUCTIONS beyond its
+    """The prompt IS the product, and nothing pinned ROLE_AND_TASK beyond its
     first and last 40 characters -- a reworded middle instruction shipped green.
     The hash was the rig's own, sha256 of `new_agent_arch/src/rig/umbrella.py`'s
-    INSTRUCTIONS, and it is what the port's parity was proved with in review;
+    ROLE_AND_TASK, and it is what the port's parity was proved with in review;
     proved-once in a review that is now gone is not a guarantee.
 
     It is no longer the rig's, and this is why the model reads something else:
@@ -92,17 +113,21 @@ def test_the_prompt_the_model_is_given_is_the_one_the_rig_measured() -> None:
     doing is the only thing `learn_parameters` can widen a parameter from, so
     skipping repeats also starved the one mechanism that makes a job general.
 
+    And it no longer asks which values look like the same thing appearing in
+    two systems. No field carried the answer and nothing read it; the code
+    computes those values itself and shows them as the `crossings` block.
+
     Changing the wording is allowed. Changing it silently is not: update this
     hash in the same commit and say why the model should read something else."""
     assert (
-        hashlib.sha256(INSTRUCTIONS.encode()).hexdigest()
-        == "9f381f4e57479495f76045256a307d8d2c39b09d2666376ee440e7807320fa84"
+        hashlib.sha256(ROLE_AND_TASK.encode()).hexdigest()
+        == "cd3d9fee825886d5c15884c3abe2787c75188311238cfb9e3012e084f21cdeed"
     )
-    assert '"Create a Customer Type", never' in INSTRUCTIONS
-    assert "A stretch that only looked at things goes\nunder `unplaced`." in INSTRUCTIONS
-    assert "once, at the top level\nbeside `workflows`" in INSTRUCTIONS
-    assert "That is ONE job done four times." in INSTRUCTIONS
-    assert "so you can RECOGNISE work, not so\nyou can skip it" in INSTRUCTIONS
+    assert '"Create a Customer Type", never' in ROLE_AND_TASK
+    assert "A stretch that only looked at things goes\nunder `unplaced`." in ROLE_AND_TASK
+    assert "once, at the top level\nbeside `workflows`" in ROLE_AND_TASK
+    assert "That is ONE job done four times." in ROLE_AND_TASK
+    assert "so you can RECOGNISE work, not so\nyou can skip it" in ROLE_AND_TASK
 
 
 def test_the_schema_asks_for_the_parameter_shape_the_rest_of_the_code_reads() -> None:
@@ -120,7 +145,7 @@ def test_the_schema_asks_for_the_parameter_shape_the_rest_of_the_code_reads() ->
     A field the code reads and the schema does not ask for is a field that
     arrives by luck.
     """
-    shape = WORKFLOW_SCHEMA["properties"]
+    shape = MINE.output_schema["properties"]
     assert isinstance(shape, dict)
     workflows = shape["workflows"]
     assert isinstance(workflows, dict)
@@ -146,7 +171,7 @@ def test_what_the_pass_could_not_place_is_asked_for_once_beside_the_jobs() -> No
     The prompt and the schema asking for the same thing at two different levels
     is the defect, so both ends are asserted here.
     """
-    shape = WORKFLOW_SCHEMA["properties"]
+    shape = MINE.output_schema["properties"]
     assert isinstance(shape, dict)
     workflows = shape["workflows"]
     assert isinstance(workflows, dict)
@@ -162,29 +187,29 @@ def test_what_the_pass_could_not_place_is_asked_for_once_beside_the_jobs() -> No
 def test_the_task_is_stated_at_both_ends_of_the_prompt() -> None:
     """Question-first was strongest at long context, and restating the
     constraints after the evidence costs almost nothing."""
-    prompt = build_prompt(_window(), {}, [], "")
+    evidence = MINE.evidence({}, _blocks(_window(), {}, [], ""))
 
-    # The whole of INSTRUCTIONS at both ends, not the first and last 40
+    # The whole of the task at both ends, not the first and last 40
     # characters: the prompt IS the product, and reworded middle instructions
     # shipped green while only the ends were pinned.
-    assert prompt.startswith(INSTRUCTIONS)
-    assert prompt.rstrip().endswith(INSTRUCTIONS.strip())
+    assert ROLE_AND_TASK in MINE.instructions
+    assert evidence.rstrip().endswith(MINE.task.strip())
 
 
 def test_the_overhead_probe_still_counts_the_crossings_heading_it_pays_for() -> None:
-    """`_PROBE` holds the two ids its crossing names because build_prompt renders
+    """`_PROBE_DAY` holds the two ids its crossing names because mining_blocks renders
     only crossings whose gestures are IN the window. Shrink it to one and the
     block disappears from the probe, PROMPT_OVERHEAD_TOKENS stops counting a
     heading the real prompt still pays for, and every window silently gains ~19
     tokens of budget it does not have. Five lines of comment exist to prevent
     exactly that drift; this is the thing that fails when it happens."""
-    probed = build_prompt(Window(items=_PROBE), {"x": ["y", "z"]}, [{"x": "y"}], "x")
+    probed = mining_blocks(_PROBE_DAY, {"x": ["y", "z"]}, [{"x": "y"}], "x")
 
-    assert "## Values appearing in more than one system" in probed
+    assert "crossings" in probed
 
 
 def test_the_evidence_is_in_the_prompt_in_window_order() -> None:
-    prompt = build_prompt(_window(), {}, [], "")
+    prompt = _shown(_window(), {}, [], "")
 
     assert prompt.index("ges_1") < prompt.index("ges_2")
 
@@ -192,7 +217,7 @@ def test_the_evidence_is_in_the_prompt_in_window_order() -> None:
 def test_a_crossing_is_labelled_but_never_called_important() -> None:
     """Telling a model which context is most relevant was measured to REDUCE
     accuracy in all five languages tested."""
-    prompt = build_prompt(_window(), {"TestYonder2": ["ges_1", "ges_2"]}, [], "")
+    prompt = _shown(_window(), {"TestYonder2": ["ges_1", "ges_2"]}, [], "")
 
     assert "TestYonder2" in prompt
     assert "most relevant" not in prompt.lower()
@@ -202,14 +227,14 @@ def test_a_crossing_is_labelled_but_never_called_important() -> None:
 def test_strength_never_reaches_the_prompt() -> None:
     """Telling a model which evidence is most relevant was measured to reduce
     accuracy, so strength orders the window and is never stated. That was held
-    structurally -- build_prompt serialises item.evidence and never the Packed
+    structurally -- mining_blocks serialises item.evidence and never the Packed
     -- and structure is not a regression test."""
     window = _window()
     for item in window.items:
         item.strength = 99.0
         item.tokens = 4242
 
-    prompt = build_prompt(window, {}, [], "")
+    prompt = _shown(window, {}, [], "")
 
     assert "99.0" not in prompt
     assert "4242" not in prompt
@@ -231,7 +256,7 @@ def test_the_strongest_evidence_is_at_both_ends_of_the_prompt() -> None:
 
     order = [
         int(line.split("ges_")[1].rstrip('",'))
-        for line in build_prompt(window, {}, [], "").splitlines()
+        for line in _shown(window, {}, [], "").splitlines()
         if "ges_" in line
     ]
 
@@ -244,8 +269,8 @@ def test_the_strongest_evidence_is_at_both_ends_of_the_prompt() -> None:
 def test_a_window_packed_to_the_budget_still_fits_the_budget() -> None:
     """The assertion nobody wrote, and the only one that catches this.
 
-    pack() budgeted each item as compact JSON while build_prompt ships the list
-    at indent=1, and subtracted neither INSTRUCTIONS (twice), nor the response
+    pack() budgeted each item as compact JSON while mining_blocks ships the list
+    at indent=1, and subtracted neither ROLE_AND_TASK (twice), nor the response
     schema, nor the crossings block. Measured on the real 83-gesture acme
     window the item ratio alone is 1.176, so a window filled to
     K_WINDOW_TOKENS shipped ~177,000 tokens -- over the 200K boundary this
@@ -271,8 +296,10 @@ def test_a_window_packed_to_the_budget_still_fits_the_budget() -> None:
     window = pack(gestures, {}, [], known, kb)
 
     assert window.left_out, "the budget must actually bite, or this proves nothing"
-    shipped = tokens(build_prompt(window, crossings, known, kb)) + tokens(
-        json.dumps(WORKFLOW_SCHEMA)
+    shipped = (
+        tokens(MINE.instructions)
+        + tokens(MINE.evidence({}, _blocks(window, crossings, known, kb)))
+        + tokens(json.dumps(dict(MINE.output_schema)))
     )
     assert shipped <= K_WINDOW_TOKENS, f"prompt is {shipped} tokens against {K_WINDOW_TOKENS}"
 
@@ -280,15 +307,12 @@ def test_a_window_packed_to_the_budget_still_fits_the_budget() -> None:
 def test_the_crossings_block_cannot_outgrow_the_window_it_hints_at() -> None:
     """`crossings` is computed over the whole store, so it grows with capture
     rather than with the window -- and nothing bounded it or budgeted it."""
-    # Every id is one of the window's own: build_prompt names only what the
+    # Every id is one of the window's own: mining_blocks names only what the
     # model may cite, so a crossing over ids outside it is not a block this cap
     # could ever have to bound.
     crossings = {f"ACME-{n:05d}": ["ges_1", "ges_2"] * 3 for n in range(5_000)}
 
-    prompt = build_prompt(_window(), crossings, [], "")
-    # json.dumps(indent=1) never writes a blank line, so the blank line between
-    # sections is where the block ends.
-    block = prompt.split("## Values appearing in more than one system\n")[1].split("\n\n")[0]
+    block = _blocks(_window(), crossings, [], "")["crossings"]
 
     assert tokens(block) <= K_MAX_CROSSING_TOKENS
     assert "ACME-00000" in block, "the crossings that fit are still there"
@@ -308,20 +332,20 @@ def test_every_section_adds_to_the_prompt_rather_than_replacing_it() -> None:
         {"id": "wfl_1", "title": "a job already proven", "shape_key": ["x"]}
     ]
 
-    prompt = build_prompt(_window(), crossings, known, "the knowledge base")
+    prompt = MINE.evidence({}, _blocks(_window(), crossings, known, "the knowledge base"))
 
     for section in (
-        INSTRUCTIONS,
-        "## The day",
+        '<untrusted name="day">',
         "ges_1",
-        "## Values appearing in more than one system",
-        "## Jobs already proven",
+        '<untrusted name="crossings">',
+        '<untrusted name="known">',
         "a job already proven",
-        "## What is known about these systems",
+        '<untrusted name="knowledge">',
         "the knowledge base",
     ):
         assert section in prompt, section
-    assert prompt.rstrip().endswith(INSTRUCTIONS.strip()), "and the task is still restated"
+    assert ROLE_AND_TASK in MINE.instructions
+    assert prompt.rstrip().endswith(MINE.task.strip()), "and the task is still restated"
 
 
 def test_a_crossing_too_big_to_fit_does_not_take_the_smaller_ones_with_it() -> None:
@@ -340,8 +364,8 @@ def test_a_crossing_too_big_to_fit_does_not_take_the_smaller_ones_with_it() -> N
 
 
 def test_a_proposal_missing_its_optional_fields_is_still_a_workflow() -> None:
-    """Everything here came off the model. `systems`, `parameters` and
-    `same_as` are all optional in practice -- a model that returned only the
+    """Everything here came off the model. `systems` and `parameters`
+    are both optional in practice -- a model that returned only the
     required fields would have crashed the parse on a missing key rather than
     being read as a workflow with none of them."""
     bare = {
@@ -355,25 +379,7 @@ def test_a_proposal_missing_its_optional_fields_is_still_a_workflow() -> None:
     assert workflow is not None
     assert workflow.title == "a job"
     assert (workflow.systems, workflow.parameters) == ([], [])
-    assert workflow.same_as is None
     assert workflow.steps[0].parameters == []
-
-
-def test_the_model_saying_which_job_this_already_is_survives_the_parse() -> None:
-    """`same_as` is how a proposal says it recognised an existing workflow, and
-    identity reads it. Dropped, every re-reading of a known job looks new."""
-    said = {
-        "title": "a job",
-        "narrative": "what happened",
-        "same_as": "wfl_already_known",
-        "steps": [{"order": 0, "says": "did a thing", "cites": ["ges_1"]}],
-    }
-
-    workflow = workflow_from(said, tenant="acme")
-
-    assert workflow is not None and workflow.same_as == "wfl_already_known"
-    also = workflow_from({**said, "same_as": 7}, tenant="acme")
-    assert also is not None and also.same_as is None, "and only a string"
 
 
 def _one(**over: object) -> dict[str, object]:
@@ -397,7 +403,6 @@ def _one(**over: object) -> dict[str, object]:
             }
         ],
         "parameters": [{"name": "code", "seen_values": ["ACME"]}],
-        "same_as": None,
     }
     return {**base, **over}
 
@@ -455,14 +460,13 @@ def test_a_junk_field_inside_a_step_falls_back_to_nothing() -> None:
 
 
 def test_a_junk_field_beside_the_steps_falls_back_to_nothing() -> None:
-    """title, narrative, systems and same_as."""
-    workflow = workflow_from(_one(title=7, narrative=7, systems="wms", same_as=7), tenant="acme")
+    """title, narrative and systems."""
+    workflow = workflow_from(_one(title=7, narrative=7, systems="wms"), tenant="acme")
     assert workflow is not None
 
     assert workflow.title == ""
     assert workflow.narrative == ""
     assert workflow.systems == []
-    assert workflow.same_as is None
 
     also = workflow_from(_one(systems=["a", 7]), tenant="acme")
     assert also is not None
@@ -470,20 +474,46 @@ def test_a_junk_field_beside_the_steps_falls_back_to_nothing() -> None:
     assert also.systems == ["a"]
 
 
-def test_steps_the_model_numbered_itself_keep_their_numbering() -> None:
-    """Renumbering is for a repeated order, not for every answer."""
+def test_a_step_order_is_a_sort_key_and_the_steps_are_numbered_by_position() -> None:
+    """A model's order past a Postgres integer failed in the driver, before the
+    server, so the transaction lived on and the pass committed a job row with
+    no steps. The order only says where a step goes."""
     workflow = workflow_from(
         _one(
             steps=[
+                {"order": 2**40, "cites": ["ges_2"], "says": "second"},
                 {"order": 5, "cites": ["ges_1"], "says": "first"},
-                {"order": 9, "cites": ["ges_2"], "says": "second"},
+                {"order": 2**31, "cites": ["ges_3"], "says": "between"},
             ]
         ),
         tenant="acme",
     )
     assert workflow is not None
 
-    assert [step.order for step in workflow.steps] == [5, 9]
+    assert [(step.order, step.says) for step in workflow.steps] == [
+        (0, "first"),
+        (1, "between"),
+        (2, "second"),
+    ]
+
+
+def test_a_job_carrying_a_control_character_is_refused_and_only_that_job() -> None:
+    """A NUL in a model's answer is refused by Postgres on insert, which killed
+    the pass's save. It is not text anybody reads, so the job carrying it is
+    dropped, wherever in it the character sits; a newline or a tab is text."""
+    assert workflow_from(_one(title="Create\x00 a type"), tenant="acme") is None
+    assert (
+        workflow_from(
+            _one(steps=[{"order": 0, "cites": ["ges_1"], "says": "save\x1bit"}]), tenant="acme"
+        )
+        is None
+    )
+    assert (
+        workflow_from(_one(parameters=[{"name": "code", "seen_values": ["A\x07"]}]), tenant="acme")
+        is None
+    )
+    kept = workflow_from(_one(narrative="first line\n\tsecond"), tenant="acme")
+    assert kept is not None and kept.narrative == "first line\n\tsecond"
 
 
 def test_a_step_order_of_true_is_not_a_step_order() -> None:
@@ -556,5 +586,5 @@ def test_a_step_parameter_is_judged_by_the_same_rule() -> None:
 def test_the_schema_asks_for_nothing_nobody_reads() -> None:
     """`same_as` was the model's opinion that a proposal was one it had seen
     before. It decided nothing (identity is arithmetic) and every proposal paid
-    for it; the parser still takes it from an answer that carries it."""
-    assert '"same_as"' not in json.dumps(WORKFLOW_SCHEMA)
+    for it, so the field is gone from the schema and the parse alike."""
+    assert '"same_as"' not in json.dumps(dict(MINE.output_schema))

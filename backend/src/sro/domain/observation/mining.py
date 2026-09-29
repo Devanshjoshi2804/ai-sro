@@ -25,5 +25,6 @@ class MiningPass:
     window_size: int = 0
     left_out: int = 0
     unplaced: int = 0
+    dropped: int = 0
 
     error: str | None = None

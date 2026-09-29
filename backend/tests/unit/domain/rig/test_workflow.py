@@ -26,7 +26,6 @@ def _workflow(**over: object) -> Workflow:
         ],
         "parameters": [{"name": "supplier_name", "seen_values": ["TestYonder2"]}],
         "shape_key": [["https://wms.example", "clientCode", "type"]],
-        "same_as": None,
         "pass_id": "pas_1",
     }
     return Workflow(**{**base, **over})

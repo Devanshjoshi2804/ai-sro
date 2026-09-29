@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime
 
 from sro.application.capture.rig_wire import Batch, GestureEvent, RequestEvent, SnapshotEvent
@@ -9,10 +10,16 @@ from sro.application.capture.rig_wire import PageEvent as WirePageEvent
 from sro.application.capture.rig_wire import Request as WireRequest
 from sro.domain.observation.gesture import (
     Action,
+    AfterState,
     Body,
     Call,
     Component,
+    FrameHop,
     Gesture,
+    Landmark,
+    Outline,
+    OutlineField,
+    OutlineMessage,
     PageMark,
     Target,
     new_gesture_id,
@@ -31,6 +38,8 @@ __all__ = [
 
 ATTRIBUTION_SECONDS = 10.0
 
+_Made = tuple[int | None, tuple[FrameHop, ...] | None, str]
+
 
 def _epoch(rfc3339: str) -> float:
     return datetime.fromisoformat(rfc3339).timestamp()
@@ -41,31 +50,43 @@ def correlate(batch: Batch, tenant: str) -> tuple[list[Gesture], list[Call], lis
     requests: list[RequestEvent] = []
     pages: list[tuple[float, WirePageEvent]] = []
     snapshots_ignored = 0
+    made: dict[_Made, Gesture] = {}
+    priors: list[tuple[_Made, AfterState]] = []
 
     for event in batch.events:
         if isinstance(event, SnapshotEvent):
             snapshots_ignored += 1
         elif isinstance(event, GestureEvent):
-            gestures.append(
-                Gesture(
-                    id=new_gesture_id(),
-                    tenant=tenant,
-                    stream_id=batch.device_id,
-                    batch_id=batch.batch_id,
-                    at=event.gesture.at,
-                    url=event.gesture.url,
-                    system=system_of(event.gesture.url),
-                    tab_id=event.tab_id,
-                    frame_url=event.frame_url,
-                    action=as_action(event.gesture),
-                    page_url=event.page_url,
-                )
+            gesture = Gesture(
+                id=new_gesture_id(),
+                tenant=tenant,
+                stream_id=batch.device_id,
+                batch_id=batch.batch_id,
+                at=event.gesture.at,
+                url=event.gesture.url,
+                system=system_of(event.gesture.url),
+                tab_id=event.tab_id,
+                frame_url=event.frame_url,
+                action=as_action(event.gesture),
+                page_url=event.page_url,
             )
+            gestures.append(gesture)
+            frame = (event.tab_id, gesture.action.frame_path)
+            if event.gesture.ref is not None:
+                made[(*frame, event.gesture.ref)] = gesture
+            prior = event.gesture.prior
+            if prior is not None and event.gesture.prior_of is not None:
+                after = AfterState(prior.value, prior.visible, prior.enabled)
+                priors.append(((*frame, event.gesture.prior_of), after))
         elif isinstance(event, RequestEvent):
             requests.append(event)
         elif isinstance(event, WirePageEvent):
             pages.append((_epoch(event.at), event))
 
+    for key, after in priors:
+        before = made.get(key)
+        if before is not None:
+            before.action = replace(before.action, after=after)
     gestures.sort(key=lambda gesture: gesture.at)
 
     orphan_requests: list[Call] = []
@@ -148,7 +169,35 @@ def as_action(wire: WireGesture) -> Action:
                 name=component.name,
                 xtype=component.xtype,
                 required=component.required,
+                chain=tuple(component.chain),
             ),
+            bounds=dict(target.bounds),
+            attributes=dict(target.attributes),
+            landmarks=tuple(Landmark(role=one.role, name=one.name) for one in target.landmarks),
+        ),
+        modifiers=tuple(wire.modifiers),
+        frame_path=None
+        if wire.frame_path is None
+        else tuple(FrameHop(index=hop.index, url=hop.url) for hop in wire.frame_path),
+        detail=wire.detail,
+        trusted=wire.trusted,
+        outlines=tuple(
+            Outline(
+                headings=tuple(one.headings),
+                landmarks=tuple(Landmark(role=mark.role, name=mark.name) for mark in one.landmarks),
+                fields=tuple(
+                    OutlineField(
+                        field.role,
+                        field.label,
+                        field.required,
+                        None if field.options is None else tuple(field.options),
+                    )
+                    for field in one.fields
+                ),
+                buttons=tuple(one.buttons),
+                messages=tuple(OutlineMessage(said.role) for said in one.messages),
+            )
+            for one in wire.outlines
         ),
     )
 
@@ -188,4 +237,5 @@ def as_mark(event: WirePageEvent) -> PageMark:
         url=event.url,
         detail=event.detail,
         tab_id=event.tab_id,
+        opener_tab_id=event.opener_tab_id,
     )

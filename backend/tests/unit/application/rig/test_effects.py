@@ -129,11 +129,13 @@ async def _ran(
     workflows: FakeWorkflowRepository,
     runs: FakeWorkflowRunRepository,
     run: WorkflowRun,
+    *,
+    recorded: str | None = None,
 ) -> WorkflowRun:
     """One finished run: stored, then every step offered to the register."""
     await runs.save(run)
     for step in run.steps:
-        await record_effect(workflows, run, step, at=_AT)
+        await record_effect(workflows, run, step, at=_AT, recorded=recorded)
     await forget_effects(workflows, run)
     return run
 
@@ -616,13 +618,50 @@ def _sent_a_call(
     return step
 
 
+RECORDED = "https://wms.example/data/WM/wm/customerTypes/GZ1"
+
+
 async def test_a_write_this_deployment_watched_may_be_replayed_next_time() -> None:
     workflows, runs = _store()
 
-    await _ran(workflows, runs, _run("run_1", [_sent_a_call()], values={"Customer Type": "GZ5"}))
+    await _ran(
+        workflows,
+        runs,
+        _run("run_1", [_sent_a_call()], values={"Customer Type": "GZ5"}),
+        recorded=RECORDED,
+    )
 
     assert await workflows.learned_writes(_TENANT) == (
         VerifiedWrite(method="DELETE", path_pattern="/data/WM/wm/customerTypes/{id}"),
+    )
+
+
+async def test_a_write_with_no_recording_teaches_the_ledger_nothing() -> None:
+    """Without a recording no segment can be known fixed: a template would
+    keep a raw run value or cover calls nobody watched."""
+    workflows, runs = _store()
+    url = "https://wms.example/api/users/jane.doe@acme.com/roles"
+
+    await _ran(workflows, runs, _run("run_1", [_sent_a_call(url=url)], values={}))
+
+    assert await workflows.learned_writes(_TENANT) == ()
+
+
+async def test_a_segment_the_recording_holds_fixed_stays_fixed_in_the_ledger() -> None:
+    workflows, runs = _store()
+    run = _run(
+        "run_1",
+        [_sent_a_call(url="https://wms.example/orders/42/approve")],
+        values={"Decision": "approve"},
+    )
+    await runs.save(run)
+
+    await record_effect(
+        workflows, run, run.steps[0], at=_AT, recorded="https://wms.example/orders/17/approve"
+    )
+
+    assert await workflows.learned_writes(_TENANT) == (
+        VerifiedWrite(method="DELETE", path_pattern="/orders/{id}/approve"),
     )
 
 
@@ -647,7 +686,12 @@ async def test_a_click_teaches_the_ledger_too() -> None:
         },
     }
 
-    await _ran(workflows, runs, _run("run_1", [clicked]))
+    await _ran(
+        workflows,
+        runs,
+        _run("run_1", [clicked]),
+        recorded="https://wms.example/data/WM/wm/customerTypes",
+    )
 
     assert await workflows.learned_writes(_TENANT) == (
         VerifiedWrite(method="POST", path_pattern="/data/WM/wm/customerTypes"),
@@ -664,6 +708,7 @@ async def test_a_picture_never_earns_an_endpoint() -> None:
         workflows,
         runs,
         _run("run_1", [_sent_a_call(by="screen")], values={"Customer Type": "GZ5"}),
+        recorded=RECORDED,
     )
 
     assert await workflows.learned_writes(_TENANT) == ()
@@ -676,6 +721,7 @@ async def test_a_dry_run_earns_no_endpoint_because_it_sent_nothing() -> None:
         workflows,
         runs,
         _run("run_1", [_sent_a_call()], live=False, values={"Customer Type": "GZ5"}),
+        recorded=RECORDED,
     )
 
     assert await workflows.learned_writes(_TENANT) == ()
@@ -686,6 +732,12 @@ async def test_one_tenant_does_not_earn_an_endpoint_for_another() -> None:
     another's, whatever the path looks like."""
     workflows, runs = _store()
 
-    await _ran(workflows, runs, _run("run_1", [_sent_a_call()], values={"Customer Type": "GZ5"}))
+    await _ran(
+        workflows,
+        runs,
+        _run("run_1", [_sent_a_call()], values={"Customer Type": "GZ5"}),
+        recorded=RECORDED,
+    )
 
+    assert await workflows.learned_writes(_TENANT), "the run's own tenant earned it"
     assert await workflows.learned_writes(TenantId("someone-else")) == ()

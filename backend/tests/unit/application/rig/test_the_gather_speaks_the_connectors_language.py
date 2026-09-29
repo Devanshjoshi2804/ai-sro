@@ -14,11 +14,14 @@ was a spelling.
 
 from __future__ import annotations
 
+import base64
 import importlib.util
 import json
 from pathlib import Path
 from types import ModuleType
 from typing import Any
+
+import pytest
 
 from sro.application.execution.gather import SERVER
 
@@ -102,6 +105,39 @@ def test_a_conversation_carries_each_mail_s_own_id() -> None:
     assert one["id"] == "1a0b5053"
 
 
+def test_a_conversation_says_who_each_mail_went_to() -> None:
+    """A draft may go only to the conversation's participants, and a
+    participant is a recipient as much as a sender."""
+    module = _connector()
+    module.httpx = _Answers(
+        {
+            "id": "t-1",
+            "messages": [
+                {
+                    "id": "1a0b5053",
+                    "labelIds": ["INBOX"],
+                    "internalDate": "1789057093399",
+                    "payload": {
+                        "headers": [
+                            {"name": "From", "value": "asker@example.com"},
+                            {"name": "To", "value": "ops@example.com"},
+                            {"name": "Cc", "value": "lead@example.com"},
+                            {"name": "Bcc", "value": "audit@example.com"},
+                        ],
+                        "body": {},
+                    },
+                }
+            ],
+        }
+    )
+
+    (one,) = json.loads(module._thread("token", {"id": "t-1"}))["messages"]
+
+    assert (one["to"], one["cc"], one["sent"]) == ("ops@example.com", "lead@example.com", False)
+    # Bcc is on the sender's own copy only; when it was sent is Gmail's own clock.
+    assert (one["bcc"], one["sent_at"]) == ("audit@example.com", 1789057093.399)
+
+
 class _Answers:
     """`httpx`, answering one body. The connector calls `httpx.get` directly."""
 
@@ -120,3 +156,139 @@ class _Said:
 
     def json(self) -> dict[str, Any]:
         return self._body
+
+
+class _Routed:
+    """`httpx` answering the profile and one message, counting profile reads."""
+
+    def __init__(self, message: dict[str, Any]) -> None:
+        self._message = message
+        self.profiles = 0
+
+    def get(self, url: str, *_args: Any, **_kwargs: Any) -> Any:
+        if url.endswith("/profile"):
+            self.profiles += 1
+            return _Said({"emailAddress": "Operator@Example.com"})
+        return _Said(self._message)
+
+
+def test_a_message_says_whose_mailbox_it_is_and_who_it_went_to() -> None:
+    module = _connector()
+    routed = _Routed(
+        {
+            "id": "m-1",
+            "threadId": "t-1",
+            "labelIds": ["SENT"],
+            "payload": {
+                "headers": [
+                    {"name": "From", "value": "Operator <operator@example.com>"},
+                    {"name": "To", "value": "Colleague <colleague@example.com>"},
+                    {"name": "Cc", "value": "boss@example.com"},
+                    {"name": "In-Reply-To", "value": "<req@mail>"},
+                    {"name": "References", "value": "<first@mail> <req@mail>"},
+                ],
+                "body": {},
+            },
+        }
+    )
+    module.httpx = routed
+    grant = {"tenant": "acme", "operator": "op", "refresh_token": "r"}
+
+    first = json.loads(module._get("token", {"id": "m-1"}, module._mailbox(grant, "token")))
+    module._mailbox(grant, "token")
+
+    assert first["mailbox"] == "Operator@Example.com"
+    assert first["to"] == "Colleague <colleague@example.com>"
+    assert first["cc"] == "boss@example.com"
+    # SENT says it is the operator's own copy; the reply headers say it is a reply.
+    assert first["sent"] is True
+    assert (first["in_reply_to"], first["references"]) == ("<req@mail>", "<first@mail> <req@mail>")
+    assert routed.profiles == 1
+
+
+class _Listed:
+    """`httpx` answering a message list with a next page, recording what it was asked."""
+
+    def __init__(self) -> None:
+        self.asked: list[dict[str, Any]] = []
+
+    def get(self, url: str, *_args: Any, params: dict[str, Any], **_kwargs: Any) -> Any:
+        self.asked.append(params)
+        if url.endswith("/messages"):
+            return _Said({"messages": [{"id": "m-9"}], "nextPageToken": "p-2"})
+        return _Said({"id": "m-9", "payload": {"headers": []}})
+
+
+def test_a_search_turns_the_page_the_look_asks_for() -> None:
+    """`_recent` pages back with `page` until a page brings nothing new; the
+    connector hands Gmail's token over and back under those names."""
+    module = _connector()
+    listed = _Listed()
+    module.httpx = listed
+
+    said = json.loads(module._search("token", {"query": "q", "limit": "8", "page": "p-1"}))
+
+    assert "page" in module.TOOLS[0]["inputSchema"]["properties"]
+    assert listed.asked[0]["pageToken"] == "p-1"
+    assert said["next_page"] == "p-2"
+
+
+def test_a_page_token_the_connector_did_not_mint_is_refused() -> None:
+    module = _connector()
+    listed = _Listed()
+    module.httpx = listed
+
+    try:
+        module._search("token", {"query": "q", "page": "p-1&q=in:anywhere"})
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("a page token of another shape reached Gmail")
+    assert listed.asked == []
+
+
+class _Posted:
+    """`httpx` taking one send, keeping the raw mail it was given."""
+
+    def __init__(self) -> None:
+        self.raw = b""
+
+    def post(self, *_args: Any, json: dict[str, Any], **_kwargs: Any) -> Any:
+        self.raw = base64.urlsafe_b64decode(json["raw"])
+        return _Said({"id": "gm-1"})
+
+
+def test_a_bcc_goes_out_as_bcc_and_the_console_line_names_nobody(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    module = _connector()
+    posted = _Posted()
+    module.httpx = posted
+
+    module._send("token", {"to": "a@example.com", "bcc": "b@example.com", "body": "hi"})
+
+    assert b"To: a@example.com" in posted.raw and b"Bcc: b@example.com" in posted.raw
+    assert "@" not in capsys.readouterr().out
+
+
+def test_a_mail_this_system_sends_carries_its_claimed_marker_back() -> None:
+    """`send_as_this_system` claims a marker before it sends and passes it in
+    `marker`; the connector writes it as a header, and a message and a
+    conversation read it back, so a look that sees the mail before the send
+    answered knows it as this system's own."""
+    module = _connector()
+    posted = _Posted()
+    module.httpx = posted
+
+    module._send("token", {"to": "a@example.com", "body": "hi", "marker": "mk-1"})
+
+    assert "marker" in module.TOOLS[-1]["inputSchema"]["properties"]
+    assert b"X-SRO-Marker: mk-1" in posted.raw
+    headers = [{"name": "X-SRO-Marker", "value": "mk-1"}]
+    module.httpx = _Answers({"id": "m-1", "payload": {"headers": headers}})
+    assert json.loads(module._get("token", {"id": "m-1"}))["marker"] == "mk-1"
+    module.httpx = _Answers(
+        {"id": "t-1", "messages": [{"id": "m-1", "payload": {"headers": headers}}]}
+    )
+    (one,) = json.loads(module._thread("token", {"id": "t-1"}))["messages"]
+    assert one["marker"] == "mk-1"

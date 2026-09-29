@@ -165,7 +165,6 @@ def _wanted(events: list[dict[str, Any]]) -> dict[str, dict[str, Any] | None]:
         "gesture-upload": _one(events, "gesture", {"kind": "upload"}),
         "gesture-secret": _one(events, "gesture", {"secret": True}),
         "page-navigated": _one(events, "page", {"page_kind": "navigated"}),
-        "snapshot": _one(events, "snapshot"),
     }
     requests = [event for event in events if event["kind"] == "request"]
     found["request-get"] = next(

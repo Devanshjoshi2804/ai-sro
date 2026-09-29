@@ -9,6 +9,8 @@ decides whether the day's bill sees it.
 
 from __future__ import annotations
 
+import asyncio
+import gc
 import json
 from datetime import UTC, datetime
 from types import SimpleNamespace
@@ -23,8 +25,10 @@ from sro.application.connection.session_life import SessionLife
 from sro.application.connection.sign_in import EnsureSignedIn, SignIn
 from sro.application.knowledge.record_claim import RecordClaims
 from sro.application.ports.vision import Screen
+from sro.application.runtime.answer_run import AnswerRun
 from sro.application.shared.refusals import OverCap
 from sro.domain.connection.connection import Connection, ConnectionId
+from sro.domain.prompts.sight import SIGHT
 from sro.domain.recording.events import ActionKind
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.shared.prices import ModelSpend, price
@@ -32,7 +36,7 @@ from sro.infrastructure.gemini.asker import GeminiAsker
 from sro.infrastructure.gemini.computer_use import GeminiVisionDriver
 from sro.infrastructure.gemini.intent import GeminiIntentParser
 from sro.infrastructure.gemini.interpreter import GeminiInterpreter
-from sro.infrastructure.gemini.metered import Meter, Metered, Unattributed
+from sro.infrastructure.gemini.metered import Meter, Metered, Unattributed, metered_client
 from sro.infrastructure.knowledge.embedding import GeminiEmbedder
 from sro.infrastructure.transcription.gemini import GeminiTranscriber
 from sro.whose import about
@@ -40,6 +44,7 @@ from tests.unit.fakes import (
     FakeBrowserProvider,
     FakeClock,
     FakeCredentialVault,
+    FakeDurableExecution,
     FakeHttpCaller,
     FakeIdFactory,
     FakeSignInDriver,
@@ -112,8 +117,9 @@ async def test_an_asked_question_is_billed_to_the_tenant_it_was_asked_for() -> N
 
 
 async def test_the_intent_parser_is_billed() -> None:
-    client, uow = _metered(_Models('{"wants": "ask", "verb": "list", "confidence": 1}'))
-    parser = GeminiIntentParser(MODEL, client=client)
+    said = '{"wants": "ask", "verb": "list", "entity": "wave", "continues": false,'
+    client, uow = _metered(_Models(said + ' "confidence": 1, "items": []}'))
+    parser = GeminiIntentParser(client=client)
 
     with about(tenant="acme"):
         await parser.read("show the waves")
@@ -126,7 +132,7 @@ async def test_the_interpreter_is_capped_and_billed() -> None:
     """A pursue reaches it (pursue_goal -> understand_recording), on a pro model."""
     models = _Models('{"steps": []}')
     client, uow = _metered(models)
-    interpreter = GeminiInterpreter(MODEL, client=client)
+    interpreter = GeminiInterpreter(client=client)
 
     with about(tenant="acme"):
         await interpreter.read("evidence")
@@ -138,13 +144,13 @@ async def test_the_interpreter_is_capped_and_billed() -> None:
     await capped.spend.record(_spent("acme", 6.0))
     over, _ = _metered(models, cap_usd=5.0, uow=capped)
     with about(tenant="acme"):
-        await GeminiInterpreter(MODEL, client=over).read("evidence")
+        await GeminiInterpreter(client=over).read("evidence")
     assert models.called == 2
 
 
 async def test_the_vision_driver_is_billed() -> None:
     client, uow = _metered(_Models())
-    driver = GeminiVisionDriver(MODEL, client=client)
+    driver = GeminiVisionDriver(SIGHT, client=client)
 
     with about(tenant="acme"):
         await driver.propose(
@@ -161,7 +167,7 @@ async def test_the_transcriber_is_billed() -> None:
     client, uow = _metered(_Models('{"segments": []}'))
 
     with about(tenant="acme"):
-        await GeminiTranscriber(MODEL, client=client).transcribe(b"ogg", content_type="audio/ogg")
+        await GeminiTranscriber(client=client).transcribe(b"ogg", content_type="audio/ogg")
 
     [row] = _rows(uow)
     assert row.in_tokens == 100
@@ -270,8 +276,8 @@ async def test_a_look_in_the_mail_and_its_gather_are_billed() -> None:
     not carry with it too; both used to return their spend and drop it."""
     from sro.application.chat.from_the_mail import FromTheMail
     from sro.application.context import RequestContext
-    from sro.application.execution.gather import INSTRUCTIONS as GATHERING
     from sro.application.execution.gather import GatherContext
+    from sro.domain.prompts.gather import GATHER
     from sro.domain.shared.identifiers import PrincipalId
     from tests.unit.application.rig.test_from_the_mail import (
         JOB,
@@ -292,7 +298,7 @@ async def test_a_look_in_the_mail_and_its_gather_are_billed() -> None:
         async def generate_content(self, **kw: Any) -> Any:
             contents = kw["contents"]
             self.called += 1
-            self.gathered += GATHERING in contents
+            self.gathered += GATHER.instructions in contents
             text = self._said.pop(0) if self._said else "{}"
             return SimpleNamespace(text=text, usage_metadata=_usage(), candidates=[])
 
@@ -306,8 +312,8 @@ async def test_a_look_in_the_mail_and_its_gather_are_billed() -> None:
         uow,
         mailbox,
         asker,
-        model=MODEL,
-        gather=GatherContext(tools=mailbox, asker=asker, model=MODEL),
+        answer=AnswerRun(uow, FakeDurableExecution()),
+        gather=GatherContext(tools=mailbox, asker=asker),
         clock=FakeClock(NOW),
         ids=FakeIdFactory(),
     )
@@ -341,15 +347,20 @@ async def test_a_call_nobody_is_named_for_is_refused_and_not_billed() -> None:
     models = _Models("{}")
     client, uow = _metered(models, cap_usd=5.0)
 
+    from sro.application.shared.asking import ask
+    from sro.domain.prompts.write_mail import WRITE_MAIL
+
     with about():
         with pytest.raises(Unattributed):
             await GeminiEmbedder("gemini-embedding-001", client=client).embed(("x",))
-        answer = await GeminiAsker(client=client).ask(
-            model=MODEL, instructions="i", evidence="e", schema={}
-        )
+        with pytest.raises(Unattributed):
+            await GeminiAsker(client=client).ask(
+                model=MODEL, instructions="i", evidence="e", schema={}
+            )
+        with pytest.raises(Unattributed):
+            await ask(GeminiAsker(client=client), WRITE_MAIL, trusted={})
 
     assert models.called == 0
-    assert answer.error is not None and "no tenant" in answer.error
     assert _rows(uow) == []
 
 
@@ -430,3 +441,83 @@ async def test_a_keeper_sweep_embeds_its_session_claim_and_bills_the_connections
 
     assert [row.tenant for row in _rows(uow)] == ["acme"]
     assert [bool(entry.embedding) for entry in uow.knowledge.rows.values()] == [True]
+
+
+async def test_a_metered_client_built_inside_a_running_loop_stays_open() -> None:
+    """The container is built inside the API's lifespan and inside
+    `asyncio.run` for the scripts. Holding only `client.aio.models` let the
+    genai client be collected at once, and its AsyncClient's finaliser scheduled
+    `aclose()` on the running loop: every later call failed with "Cannot send a
+    request, as the client has been closed", before the meter or the model."""
+    metered = metered_client("not-a-key", Meter(FakeUnitOfWork, clock=FakeClock(), cap_usd=-1.0))
+    gc.collect()
+    await asyncio.gather(*(one for one in asyncio.all_tasks() if one is not asyncio.current_task()))
+
+    assert not metered._models._api_client._async_httpx_client.is_closed
+
+
+class _ByModel(_Models):
+    """3.8-flash writes an empty draft, as it did on QA; 3.7-flash writes one."""
+
+    async def generate_content(self, **asked: Any) -> Any:
+        self.called += 1
+        body = "" if asked["model"] == "gemini-3.8-flash" else "Done."
+        text = json.dumps({"to": "", "subject": "s", "body": body, "cited": []})
+        return SimpleNamespace(text=text, usage_metadata=self._usage, candidates=[])
+
+
+async def test_a_fallback_is_billed_to_each_model_that_was_called() -> None:
+    from sro.application.shared.asking import ask
+    from sro.domain.prompts.write_mail import WRITE_MAIL
+
+    client, uow = _metered(_ByModel())
+
+    with about(tenant="acme"):
+        got = await ask(
+            GeminiAsker(client=client), WRITE_MAIL, trusted={}, untrusted={"conversation": "y"}
+        )
+
+    assert got.data is not None and got.data["body"] == "Done."
+    assert [row.model for row in _rows(uow)] == ["gemini-3.8-flash", "gemini-3.7-flash"]
+    assert not any(row.unpriced for row in _rows(uow))
+    assert got.cost_usd == pytest.approx(sum(row.cost_usd for row in _rows(uow)))
+
+
+async def test_a_call_on_the_older_flash_is_priced_and_counts_toward_the_cap() -> None:
+    """Measured on QA: a 3.7-flash call of 925 in and 1029 + 997 out came back
+    billed at $0.00 -- the price table had no row for it."""
+    usage = _usage(prompt=925, out=1029, thoughts=997)
+    client, uow = _metered(_Models("{}", usage), cap_usd=1.0)
+
+    with about(tenant="acme"):
+        await GeminiAsker(client=client).ask(
+            model="gemini-3.7-flash", instructions="i", evidence="e", schema={}
+        )
+
+    [row] = _rows(uow)
+    assert not row.unpriced and row.cost_usd == pytest.approx(price("gemini-3.7-flash", 925, 2026))
+    assert row.cost_usd > 0
+    day = await uow.spend.today(TenantId("acme"), now=NOW)
+    assert day.cost_usd == pytest.approx(row.cost_usd) and day.blind == 0
+
+    full, _ = _metered(_Models("{}", usage), cap_usd=row.cost_usd, uow=uow)
+    with about(tenant="acme"), pytest.raises(OverCap, match="daily cap reached"):
+        await GeminiAsker(client=full).ask(
+            model="gemini-3.7-flash", instructions="i", evidence="e", schema={}
+        )
+
+
+async def test_a_primary_call_that_fills_the_days_cap_is_not_followed_by_the_fallback() -> None:
+    """The cap is asked before every call, the fallback's too: a 3.8 call that
+    spends past the cap stops the day there, and 3.7 is never called."""
+    from sro.application.shared.asking import ask
+    from sro.domain.prompts.write_mail import WRITE_MAIL
+
+    models = _ByModel()
+    client, uow = _metered(models, cap_usd=price("gemini-3.8-flash", 100, 25) / 2)
+
+    with about(tenant="acme"), pytest.raises(OverCap, match="daily cap reached"):
+        await ask(GeminiAsker(client=client), WRITE_MAIL, trusted={})
+
+    assert models.called == 1
+    assert [row.model for row in _rows(uow)] == ["gemini-3.8-flash"]

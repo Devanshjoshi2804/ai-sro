@@ -8,10 +8,11 @@ the failure this port exists to avoid.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.domain.observation.gesture import (
@@ -21,6 +22,10 @@ from sro.domain.observation.gesture import (
     Gesture,
     GestureBatch,
     Intent,
+    Landmark,
+    Outline,
+    OutlineField,
+    OutlineMessage,
     PageMark,
     Target,
     ValueSeen,
@@ -148,6 +153,31 @@ class TestGestures:
         assert call.request_body.redacted_fields == ("password",)
         assert loaded.page_events[0].page_kind == "navigated"
 
+    async def test_the_screen_a_gesture_was_made_on_survives_the_round_trip(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        screen = Outline(
+            headings=("New Customer Type",),
+            landmarks=(Landmark("form", "New"),),
+            fields=(
+                OutlineField("combobox", "Department", True, ("Finance", "Operations")),
+                OutlineField("textbox", "Code"),
+            ),
+            buttons=("Save",),
+            messages=(OutlineMessage("alert"),),
+        )
+        gesture = _gesture("ges_1")
+        gesture.action = replace(gesture.action, outlines=(screen, Outline(buttons=("Close",))))
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.gestures.add_gestures((gesture,))
+            await uow.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            loaded = (await uow.gestures.gestures_for(TENANT))[0]
+
+        assert loaded.action.outlines == (screen, Outline(buttons=("Close",)))
+
     async def test_the_device_clock_is_kept_against_the_servers_own(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
@@ -249,6 +279,27 @@ class TestGestures:
             cited = await uow.gestures.gestures_for(TENANT, ids=("ges_3", "ges_1"))
 
         assert [gesture.id for gesture in cited] == ["ges_1", "ges_3"], "ordered by at"
+
+    async def test_a_new_reading_keeps_a_column_nothing_maps_any_more(
+        self, session_factory: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """`intents.continues` stays in the schema with nothing writing it
+        (GC 17). A re-reading replaces what it supplies, and only that."""
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.gestures.add_gestures((_gesture("ges_1"),))
+            await uow.gestures.save_intent(Intent(gesture_id="ges_1", tenant="acme", act="a"))
+            await uow.commit()
+        async with session_factory() as session:
+            await session.execute(text("UPDATE intents SET continues = 'ges_0'"))
+            await session.commit()
+
+        async with SqlUnitOfWork(session_factory) as uow:
+            await uow.gestures.save_intent(Intent(gesture_id="ges_1", tenant="acme", act="b"))
+            await uow.commit()
+
+        async with session_factory() as session:
+            kept = await session.scalar(text("SELECT continues FROM intents"))
+        assert kept == "ges_0"
 
     async def test_an_intent_replaces_the_reading_before_it(
         self, session_factory: async_sessionmaker[AsyncSession]
@@ -555,17 +606,16 @@ class TestPool:
             ("ges_1", RETIRED_PASSES, K_POOL_AGE + 1)
         ]
 
-    async def test_an_entry_older_than_the_stale_window_retires_as_stale(
+    async def test_an_entry_read_and_older_than_the_stale_window_retires_as_stale(
         self, session_factory: async_sessionmaker[AsyncSession]
     ) -> None:
-        """Two caps, because a pool that only counts passes keeps an entry
-        forever in a tenant nobody is mining. Whichever comes first, and the
-        row says which.
+        """Two caps, because a pool that only counts readings keeps an entry
+        forever in a tenant whose passes never show it again. Whichever comes
+        first, and the row says which.
 
-        The starved entry is the one the two clocks exist for: never once
-        shown, so `age` is 0 and only `waited` records that it was there at
-        all. A retired read that reported `waited=0` would hide exactly the
-        loss the pool was built to make visible."""
+        Only what has been read goes stale. A retired entry is never mined
+        again, so an entry never once shown -- `age` 0, only `waited` records
+        it -- is backlog the next pass reads first, however old it is."""
         async with SqlUnitOfWork(session_factory) as uow:
             await uow.pool.add_unclaimed(
                 TENANT, window_ids=("ges_starved", "ges_seen"), claimed=frozenset()
@@ -578,7 +628,9 @@ class TestPool:
             # The other tenant's entry is exactly as old, so only the tenant
             # predicate can keep this sweep out of that pool.
             rows = await session.execute(
-                select(PoolRow).where(PoolRow.gesture_id.in_(("ges_starved", "ges_old")))
+                select(PoolRow).where(
+                    PoolRow.gesture_id.in_(("ges_starved", "ges_seen", "ges_old"))
+                )
             )
             for row in rows.scalars():
                 row.entered_at = long_ago
@@ -590,12 +642,12 @@ class TestPool:
 
         async with SqlUnitOfWork(session_factory) as uow:
             entries = await uow.pool.retired(TENANT)
-            assert await uow.pool.ids(TENANT) == ("ges_seen",)
+            assert await uow.pool.ids(TENANT) == ("ges_starved",)
             assert await uow.pool.ids(OTHER_TENANT) == ("ges_old",), "the sweep is per tenant"
             assert await uow.pool.retired(OTHER_TENANT) == ()
 
         assert [(entry.gesture_id, entry.reason, entry.age, entry.waited) for entry in entries] == [
-            ("ges_starved", RETIRED_STALE, 0, 1)
+            ("ges_seen", RETIRED_STALE, 1, 0)
         ]
 
     async def test_a_retired_entry_is_not_offered_and_is_still_readable_with_its_reason(

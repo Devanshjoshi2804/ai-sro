@@ -140,6 +140,84 @@ test("two jobs it could have meant are drawn as a question, not started", () => 
   ]);
 });
 
+test("a mail the server will not run by itself asks do it or leave it", () => {
+  // The press says the answer back into the conversation, the way a typed
+  // "yes" would: the door turns it into the same start a press makes.
+  const pressed = [];
+  const item = messages(
+    ledger(
+      {
+        id: "thr-1",
+        messages: [
+          {
+            id: "m1",
+            speaker: "assistant",
+            said_at: WHEN,
+            text: "Create a Customer Type. You sent this to colleague@example.com. Should our system do it?",
+            decision: {
+              kind: "job",
+              confirm: true,
+              workflow_id: "wfl_1",
+              sent_to: ["colleague@example.com"],
+            },
+          },
+        ],
+      },
+      {},
+      {
+        onPress: (answer, _message, _where, _button, values) =>
+          pressed.push([answer, values]),
+      },
+    ),
+  )[0];
+
+  assert.deepEqual(
+    of(item, "button").map((one) => one.textContent),
+    ["Do it", "Leave it"],
+  );
+  of(item, "button")[0].listeners.click[0]();
+  of(item, "button")[1].listeners.click[0]();
+  assert.deepEqual(pressed, [
+    ["say", { said: "yes", answering: "m1" }],
+    ["say", { said: "no", answering: "m1" }],
+  ]);
+});
+
+test("a mail's question whose offer already ran says so and offers nothing", () => {
+  // The user, 2026-09-29: the mail reader started the run itself, and the
+  // same request was still offered with a live yes. One mail, one offer, one
+  // run: the question keeps its words and loses its buttons once a message
+  // further down names a run of its offer.
+  const item = messages(
+    ledger(
+      {
+        id: "thr-1",
+        messages: [
+          {
+            id: "m1",
+            speaker: "assistant",
+            said_at: WHEN,
+            text: "Create a Customer Type. You sent this to colleague@example.com. Should our system do it?",
+            decision: { kind: "job", confirm: true, workflow_id: "wfl_1", offer: "mail:m-5" },
+          },
+          {
+            id: "m2",
+            speaker: "assistant",
+            said_at: WHEN,
+            text: "A mail arrived: 'new type'. It asks for Create a Customer Type, so it is running now.",
+            decision: { kind: "run", run_id: "run_7", offer: "mail:m-5", mail_thread: "t-5" },
+          },
+        ],
+      },
+      {},
+      { onPress: () => {} },
+    ),
+  )[0];
+
+  assert.deepEqual(of(item, "button"), []);
+  assert.match(words(item), /Already started/);
+});
+
 test("a decision this panel does not know renders its words and no buttons", () => {
   // Forward compatibility. The backend can reach a kind this copy of the
   // extension has never heard of, and every browser in the field is a copy
@@ -167,6 +245,32 @@ test("a decision this panel does not know renders its words and no buttons", () 
     /A run of “Resolve a short ship” finished in 48s\./,
   );
   assert.equal(of(message, "button").length, 0);
+});
+
+test("the run a yes started is drawn under the message that names it", () => {
+  // The backend starts the run on a yes and says so on the `job` message it
+  // answers with; there is no separate `run` announcement any more (S2).
+  const drawn = document.createElement("div");
+  drawn.className = "live-run";
+  const node_ = ledger(
+    {
+      id: "thr-1",
+      messages: [
+        {
+          id: "m1",
+          speaker: "assistant",
+          text: "Running Create a Customer Type now.",
+          said_at: WHEN,
+          decision: { kind: "job", resume: true, run_id: "run_9" },
+        },
+      ],
+    },
+    {},
+    { runs: new Map([["run_9", drawn]]) },
+  );
+
+  const [message] = messages(node_);
+  assert.ok(message.kids.includes(drawn), "the running job has no run card");
 });
 
 test("message text is never parsed as markup", () => {
@@ -924,6 +1028,27 @@ test("a request this job can write whole says nothing about fields", () => {
   });
 
   assert.doesNotMatch(words(item), /cannot set/);
+});
+
+test("a request the operator sent somebody else names them and asks", () => {
+  const item = renderNudge({
+    id: "n_15",
+    state: "open",
+    source: "rig",
+    title: "Create a Customer Type",
+    startsOn: "wms.test/portal",
+    workflowId: "wfl_1",
+    k: 0,
+    values: { "Customer Type": "GT2" },
+    missing: [],
+    sentTo: ["colleague@example.com", "boss@example.com"],
+  });
+
+  assert.match(
+    words(item),
+    /You sent this to colleague@example\.com, boss@example\.com\. Should we do it\?/,
+  );
+  assert.ok(labelled(item, /Yes, do it/));
 });
 
 test("the card says what the press would write, before it is pressed", () => {

@@ -15,7 +15,7 @@ Code: `K_MIN_VALUE_LENGTH = 3`
 > equipment type; a voice code of `2` is a value too, and a title is allowed to
 > contain the word "3".
 
-## module, [line 13](../../../../../../../backend/src/sro/domain/skill/workflow.py#L13): Note on the line above
+## module, [line 15](../../../../../../../backend/src/sro/domain/skill/workflow.py#L15): Note on the line above
 
 Code: `_DANGLING = frozenset(`
 
@@ -23,7 +23,7 @@ Code: `_DANGLING = frozenset(`
 > Carrier Cross Reference for Test Drive LLC" loses the customer and keeps the
 > `for`.
 
-## `Step`, [line 30](../../../../../../../backend/src/sro/domain/skill/workflow.py#L30): Note on the line above
+## `Step`, [line 32](../../../../../../../backend/src/sro/domain/skill/workflow.py#L32): Note on the line above
 
 Code: `uses: list[int] = field(default_factory=list)`
 
@@ -49,7 +49,7 @@ Code: `uses: list[int] = field(default_factory=list)`
 > comes to it: a value typed in step five that equals what step two's
 > response returned IS this edge, and the recorded calls hold both halves.
 
-## `Workflow`, [line 46](../../../../../../../backend/src/sro/domain/skill/workflow.py#L46): Note on the line above
+## `Workflow`, [line 53](../../../../../../../backend/src/sro/domain/skill/workflow.py#L53): Note on the line above
 
 Code: `repeat: Repeat | None = None`
 
@@ -61,7 +61,7 @@ Code: `repeat: Repeat | None = None`
 > given one item performs exactly like a run of a job with no repeat at all.
 > See `domain/skill/repeats`.
 
-## `ordered_cites`, [line 83](../../../../../../../backend/src/sro/domain/skill/workflow.py#L83): Docstring
+## `ordered_cites`, [line 95](../../../../../../../backend/src/sro/domain/skill/workflow.py#L95): Docstring
 
 > Every gesture the workflow cites, in step order.
 >
@@ -71,7 +71,7 @@ Code: `repeat: Repeat | None = None`
 > caller: the mining pass writes a shape key and `rekey_workflows` rewrites
 > one, and two spellings of "in step order" is two shapes for one job.
 
-## `Workflow.generalise_title`, [line 50](../../../../../../../backend/src/sro/domain/skill/workflow.py#L50): Docstring
+## `Workflow.generalise_title`, [line 62](../../../../../../../backend/src/sro/domain/skill/workflow.py#L62): Docstring
 
 > This job's own parameter values taken out of its name.
 >
@@ -101,7 +101,7 @@ Code: `from sro.domain.skill.repeats import Repeat`
 > either way -- `from __future__ import annotations` is the first line of
 > this file -- and nothing here resolves it at runtime.
 
-## `Step`, [line 27](../../../../../../../backend/src/sro/domain/skill/workflow.py#L27): Comment
+## `Step`, [line 29](../../../../../../../backend/src/sro/domain/skill/workflow.py#L29): Comment
 
 Code: `cites: list[str] = field(default_factory=list)`
 
@@ -109,19 +109,7 @@ Code: `cites: list[str] = field(default_factory=list)`
 > hallucinated up to 21% of steps; forced to select from real evidence, that
 > fell below 7.5%. An uncited step is a rejected step -- see checks.py.
 
-## `Workflow`, [line 43](../../../../../../../backend/src/sro/domain/skill/workflow.py#L43): Comment
-
-Code: `same_as: str | None = None`
-
-> The model's opinion about whether this is one it has proposed before. It is
-> recorded and it decides nothing: a model re-judging its own earlier verdict
-> disagrees with itself at roughly 90%. identity.py decides.
->
-> No longer asked of the model (2026-09-23): the mining schema dropped it.
-> `workflow_from` still takes it from an answer that carries it, and the
-> field and its column stay.
-
-## `Workflow`, [line 44](../../../../../../../backend/src/sro/domain/skill/workflow.py#L44): Comment
+## `Workflow`, [line 51](../../../../../../../backend/src/sro/domain/skill/workflow.py#L51): Comment
 
 Code: `pass_id: str = ""`
 
@@ -131,9 +119,9 @@ Code: `pass_id: str = ""`
 > times. Empty for a workflow saved outside a pass, which today is only a
 > test.
 
-## `Workflow`, [line 48](../../../../../../../backend/src/sro/domain/skill/workflow.py#L48): Note on the line above
+## `Workflow`, [line 55](../../../../../../../backend/src/sro/domain/skill/workflow.py#L55): Note on the line above
 
-Code: `signs_in: bool = False`
+Code: `signs_in: bool | None = None`
 
 > Whether this job signs in: set by the mining pass from its evidence
 > (`checks.signs_in`) and healed onto stored jobs, never guessed at run time.
@@ -141,4 +129,45 @@ Code: `signs_in: bool = False`
 > through a sign-in page, and the only jobs whose run may end `held` because
 > the browser has moved past their page -- and by anything that later has to
 > know which jobs sign in to a system.
+>
+> `None` is undecided: never evaluated against its evidence. Every reader
+> treats it as "not known yet" -- never as a sign-in job -- and every mining
+> sweep decides it (`chores.decide_sign_ins`). A job starts undecided;
+> the mining pass decides a proposal before it is stored.
+
+## `field_key`, [line 99](../../../../../../../backend/src/sro/domain/skill/workflow.py#L99): Docstring
+
+> The body key of a learned field step (X10, `with_field`), or "". Such a step
+> cites no gesture and fills one parameter that the job declares with the
+> `body_key` the save's own call confirmed it by -- `body_key` exists nowhere
+> else, so it is what tells a field nobody demonstrated from a step with its
+> evidence missing. Not `key`: the miner writes `key` as the control's id and
+> folds parameters by it (K1). Whether the API lane may carry the key is
+> `learned_slots`' question, not this one: a slot taken out leaves the field a
+> field.
+
+## `Step.role`, [line 37](../../../../../../../backend/src/sro/domain/skill/workflow.py#L37): Note on the function
+
+> `tab` is None only for a step stored before 0086 and not yet decided by the
+> sweep (`tabs.undecided`). Every reader -- the wire, the compile view,
+> `unresolved`, the runtime -- asks `role`, which takes that NULL as `main`:
+> the one tab every job ran in before steps knew theirs.
+
+## `Workflow`, [line 56](../../../../../../../backend/src/sro/domain/skill/workflow.py#L56): Note on the line above
+
+Code: `signs_out: bool | None = None`
+
+> Whether this job signs out (`checks.signs_out`), decided beside `signs_in`
+> by the same decider and written with it (`WorkflowRepository.decide`).
+> `None` is undecided, and read as "not known yet" -- never as a chore. 0087
+> added it NULL on every stored job, so the sweep decides each one.
+
+## `Workflow.chore`, [line 59](../../../../../../../backend/src/sro/domain/skill/workflow.py#L59): Note on the function
+
+> A sign-in or a sign-out: the session broker's work, never a request's.
+> The one place the rule lives, so the candidate list and the chore check
+> cannot disagree about which verdict counts.
+> The typed-values rule mints a chore no parameters (`learn_parameters`)
+> and the mining eval builds no case from one (M3 reads this, not a hook
+> of its own).
 

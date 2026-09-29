@@ -1,9 +1,17 @@
 from __future__ import annotations
 
 import secrets
+from copy import deepcopy
 from dataclasses import dataclass, field
+from typing import Literal
+
+from sro.domain.shared.errors import Conflict
+from sro.domain.skill.workflow import Workflow
 
 OUTCOMES = ("running", "held", "stopped", "refused", "aborted", "failed")
+ENDED = ("held", "aborted", "failed")
+
+Executor = Literal["extension", "steel"]
 
 VERDICTS = (
     "held",
@@ -20,6 +28,14 @@ VERDICTS = (
 
 def already_running(device_id: str, run_id: str | None) -> str:
     return f"{device_id} is already running {run_id or 'a run this press cannot see'}"
+
+
+class OfferTaken(Conflict):
+    """A second start of one offer. The run the first start made is the answer."""
+
+    def __init__(self, offer: str, run_id: str) -> None:
+        super().__init__(f"the offer {offer} has already started a run")
+        self.run_id = run_id
 
 
 def new_run_id() -> str:
@@ -100,3 +116,35 @@ class WorkflowRun:
     awaiting: dict[str, str] | None = None
 
     wrong_because: str | None = None
+
+    progress: dict[str, object] = field(default_factory=dict)
+
+    executor: Executor = "extension"
+
+    offer: str | None = None
+
+    pinned: Workflow | None = None
+
+    mail: dict[str, str] | None = None
+
+
+SETTLED = frozenset({"done", "skipped", "not_needed"})
+
+
+def end_the_steps(steps: list[RunStep], reason: str) -> None:
+    last = steps[-1] if steps else None
+    if last is None or last.verdict in SETTLED:
+        order = 0 if last is None else last.order + 1
+        steps.append(
+            RunStep(order=order, says="", verdict="failed", verdict_by="none", reason=reason)
+        )
+    else:
+        last.verdict, last.verdict_by, last.reason = "failed", "none", reason
+
+
+def answers_for(run: WorkflowRun, principal: str, *, opened_by: str = "") -> bool:
+    return principal in {run.started_by, opened_by} - {""}
+
+
+def pin(workflow: Workflow) -> Workflow:
+    return deepcopy(workflow)

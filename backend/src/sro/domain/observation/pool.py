@@ -8,6 +8,10 @@ K_POOL_DAYS = 7
 
 RETIRED_PASSES = "passes"
 RETIRED_STALE = "stale"
+RETIRED_DRIVING = "own driving"
+RETIRED_UNMINABLE = "unminable"
+
+K_MINE_ATTEMPTS = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,3 +22,4 @@ class PoolEntry:
     entered_at: str
     reason: str = ""
     waited: int = 0
+    failed: int = 0

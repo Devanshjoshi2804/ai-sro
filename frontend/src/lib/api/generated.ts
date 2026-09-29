@@ -15,7 +15,8 @@ export interface paths {
          * Health
          * @description Liveness: the process answers, and says which code it is answering with.
          *
-         *     Still touches no dependency: the revision was resolved once at startup.
+         *     Still touches no live dependency: the revision was resolved once at
+         *     startup and the page code's hash is cached on first read.
          */
         get: operations["health_health_get"];
         put?: never;
@@ -541,9 +542,8 @@ export interface paths {
          *
          *     200 and no run. This is the card handing a decision to the place decisions
          *     are made here: the question lands in the thread, the operator answers it in
-         *     words, and when the last answer lands the existing conversation path emits
-         *     the `job` decision the browser starts. Nothing about the job is settled by
-         *     this call.
+         *     words, and when the last answer lands the conversation starts the run
+         *     itself. Nothing about the job is settled by this call.
          */
         post: operations["ask_about_an_offer_v1_chat_about_an_offer_post"];
         delete?: never;
@@ -570,30 +570,6 @@ export interface paths {
          *     was put in front of a person, read back from their own thread.
          */
         post: operations["send_the_draft_v1_chat_send_the_draft_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/chat/run-started": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Run Started
-         * @description Say, in this operator's conversation, which run came of it.
-         *
-         *     204 and nothing back: the caller already holds the run, and what this does
-         *     is put it where the rest of the decision already lives. Nothing is started
-         *     or changed by it.
-         */
-        post: operations["run_started_v1_chat_run_started_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1380,6 +1356,9 @@ export interface paths {
          *     The same run as `/v1/skills/{id}/runs`, kept where it belongs: an operator
          *     who filled in a card and pressed the button has had a conversation, and a
          *     result that lives only in the browser's memory is gone on the next render.
+         *
+         *     409 when the caller did not open the thread, checked before any run
+         *     starts: a run written into somebody else's thread stands over their offer.
          */
         post: operations["run_from_thread_v1_threads__thread_id__runs_post"];
         delete?: never;
@@ -1422,6 +1401,9 @@ export interface paths {
          *     a screenshot to a hosted model and back, and running it inside this request
          *     held the whole API until it finished -- which is not a slow endpoint, it is
          *     an outage with a good excuse. What comes back is an address to watch.
+         *
+         *     409 when the caller did not open the thread, checked before anything is
+         *     driven: the pursuit's note is written into this thread when it ends.
          */
         post: operations["pursue_v1_threads__thread_id__pursue_post"];
         delete?: never;
@@ -1463,9 +1445,11 @@ export interface paths {
          * Say
          * @description Say something and get the whole thread back, decision included.
          *
-         *     Nothing is performed here. A matched skill is offered; starting it is the
-         *     operator's next request, and that is what makes their confirmation the
-         *     authorisation an assisted run records.
+         *     A matched skill is offered; starting it is the operator's next request,
+         *     and that is what makes their confirmation the authorisation an assisted
+         *     run records. A yes (or the last answer) to a job offer is that request: it
+         *     starts the run here, through the same start `POST /v1/workflow-runs` uses,
+         *     and the reply names the run -- or says in words why nothing was started.
          */
         post: operations["say_v1_threads__thread_id__messages_post"];
         delete?: never;
@@ -1835,6 +1819,10 @@ export interface paths {
          *     The rig did `max(1, min(limit, 200))`; a caller that asks for 5000 and
          *     silently gets 200 cannot tell a cap from a truncated answer, and FastAPI
          *     says this once, in the place the generated client reads.
+         *
+         *     `mine` keeps only the runs the caller started, out of the `limit` newest:
+         *     the panel's Home draws a card per mail-started run, and a colleague's mail
+         *     is not this operator's to be shown.
          */
         get: operations["list_workflow_runs_v1_workflow_runs_get"];
         put?: never;
@@ -1859,6 +1847,10 @@ export interface paths {
          *     itself -- nobody is awaiting this, so a run left `running` would be swept
          *     only by `fail_orphans` at the next process start, which is a restart away
          *     and not a moment away.
+         *
+         *     A second start of one `offer` -- the chat's yes and the panel's card, two
+         *     panels, a double press -- answers 200 with the run the first one made, and
+         *     starts nothing.
          */
         post: operations["start_workflow_run_v1_workflow_runs_post"];
         delete?: never;
@@ -1924,12 +1916,60 @@ export interface paths {
          *     also what a tap is: a route that 422s one is a Stop-shaped button that
          *     sometimes does nothing.
          *
+         *     **A run on Steel** is stopped by cancelling its workflow: the step it is in
+         *     finishes its current action, and the run is recorded `aborted` before its
+         *     browser tab is released.
+         *
          *     A run of another tenant is a 404 and never a 403, for `get_workflow_run`'s
          *     reason. A run that is not `running`, or one naming no browser, is the 409
          *     `CannotStop` already carries -- it subclasses `Conflict`, so `errors` maps
          *     it through the MRO walk without a table entry of its own.
          */
         post: operations["abort_workflow_run_v1_workflow_runs__run_id__abort_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workflow-runs/{run_id}/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer Workflow Run
+         * @description Answer the question a Steel run is waiting on.
+         *
+         *     A run that asks lets go of its browser tab and waits; this hands it the
+         *     answer and it takes a browser again and carries on from the step that
+         *     asked, never from the start. 202 because the run carries on after this
+         *     returns, in its own workflow.
+         *
+         *     A one-time code is the one question a run waits on while keeping its page,
+         *     because the code belongs to that page: the person types it there, then
+         *     answers here with an empty value. A password question is answered the
+         *     same way, after the password is stored with `PUT /v1/secrets`. A question
+         *     about a write the run sent and could not confirm needs the operator's
+         *     `verdict`: `done` settles it, `not_done` lets the run try it again.
+         *
+         *     Only the operator who started the run answers its questions, of every
+         *     kind; a run with no recorded starter takes no answer from anybody.
+         *
+         *     A run of another tenant is a 404. A 409 `Conflict` for: a run no longer
+         *     running; no question standing, or another one than `question_id`; an
+         *     answer from anybody but the run's starter; a question already answered
+         *     differently; a value on anything but a value, field or recipient
+         *     question; a field answer that is not one of its choices; a recipient
+         *     answer that is not an address; a missing verdict on a write in doubt.
+         *     Only the question id reaches the run's workflow; the answer itself is
+         *     kept on the run.
+         */
+        post: operations["answer_workflow_run_v1_workflow_runs__run_id__answer_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2011,6 +2051,65 @@ export interface components {
             /** Chosen */
             chosen: string;
         };
+        /**
+         * AnswerRunRequest
+         * @description The operator's answer to the question a Steel run is waiting on.
+         *
+         *     `question_id` is the one the run is asking now (`decision.question_id` on
+         *     the `run_asks` message in the operator's thread); any other id, or an
+         *     answer when nothing is asked, is a 409. The first answer to a question is
+         *     the one kept: a different second answer is a 409, the same one again is
+         *     accepted.
+         *
+         *     `value` is given only for a question that asks for a value; for any other
+         *     it must be empty, or the answer is a 409. A password is stored with
+         *     `PUT /v1/secrets`, a one-time code is typed on the page, and a step is
+         *     answered by its `verdict`, so no secret or free text ever rides along.
+         *
+         *     A field question (`asks: "field"`, about a value the job has no field
+         *     for) carries the value's `name` and its `choices` on the `run_asks`
+         *     message: the form's fields (each choice names exactly one), a dropdown's
+         *     options, or -- after a fill that failed -- the field itself, to try it
+         *     again. It is answered with one of `choices`, or an empty `value` to leave
+         *     the value out; anything else is a 409.
+         *
+         *     A recipient question (`asks: "recipient"`) is a mail job whose draft named
+         *     somebody neither in the conversation nor an address the job was shown
+         *     sending to; its text quotes the draft's address, which came from a model
+         *     reading untrusted mail. It is answered with the address(es) to send to --
+         *     only by the operator who started the run, and only with addresses that
+         *     read cleanly (anything else is a 409). The answer is kept on the job, so
+         *     its next run writes to that address without asking. On a mail job drafted
+         *     for a press (not on Steel) the run waits `stopped`, holding no browser, and
+         *     this answer redrafts it.
+         *
+         *     A mail-body question (`asks: "mail_body"`, "What should the mail say?") is
+         *     a mail job whose mail could not be written: the model wrote no body,
+         *     failed, or put in a value nobody gave. It is answered with the words the
+         *     mail should say (up to 2000 characters; every other answer takes 500), only
+         *     by the operator who started the run; an empty answer is a 409. The words
+         *     are the operator's own, trusted: the mail is written again with them. On a
+         *     mail job drafted for a press the refused draft is shown in the question,
+         *     and `yes` uses exactly that draft, checked again, its recipients still
+         *     ones the mail may go to; either way it is shown again as a draft and
+         *     nothing is sent until its Send is pressed. On Steel the mail is written
+         *     again and sent as the step's write.
+         */
+        AnswerRunRequest: {
+            /** Question Id */
+            question_id: string;
+            /**
+             * Value
+             * @default
+             */
+            value: string;
+            /**
+             * Verdict
+             * @default
+             * @enum {string}
+             */
+            verdict: "" | "done" | "not_done";
+        };
         /** AnsweredModel */
         AnsweredModel: {
             /** Confirmation Id */
@@ -2078,6 +2177,11 @@ export interface components {
              * @default true
              */
             watched: boolean;
+            /**
+             * Offer
+             * @default
+             */
+            offer: string;
         };
         /**
          * AskAboutOfferResponse
@@ -2103,11 +2207,6 @@ export interface components {
              * @default true
              */
             execute: boolean;
-            /**
-             * Allow Focus
-             * @default false
-             */
-            allow_focus: boolean;
         };
         /**
          * AskResponse
@@ -2441,6 +2540,8 @@ export interface components {
             cost_usd: number;
             /** Unpriced */
             unpriced: boolean;
+            /** Cannot Run */
+            cannot_run: string[];
         };
         /**
          * ChoiceModel
@@ -2778,6 +2879,8 @@ export interface components {
             status: string;
             /** Revision */
             revision: string;
+            /** Page Code */
+            page_code: string;
             /** Checks */
             checks: {
                 [key: string]: boolean;
@@ -2957,11 +3060,6 @@ export interface components {
              * @default true
              */
             execute: boolean;
-            /**
-             * Allow Focus
-             * @default false
-             */
-            allow_focus: boolean;
         };
         /**
          * LookupResponse
@@ -3041,6 +3139,11 @@ export interface components {
             /** Missing */
             missing: string[];
             /**
+             * Offer
+             * @default
+             */
+            offer: string;
+            /**
              * Subject
              * @default
              */
@@ -3072,6 +3175,16 @@ export interface components {
              * @default false
              */
             started: boolean;
+            /**
+             * Sent To
+             * @default []
+             */
+            sent_to: string[];
+            /**
+             * Asked
+             * @default false
+             */
+            asked: boolean;
         };
         /**
          * Medium
@@ -3134,6 +3247,8 @@ export interface components {
             field: string;
             /** Value */
             value: string;
+            /** Username */
+            username?: string | null;
             /** Run Id */
             run_id: string;
         };
@@ -3151,6 +3266,8 @@ export interface components {
             field: string;
             /** Value */
             value: string;
+            /** Username */
+            username?: string | null;
         };
         /** NewTriggerRequest */
         NewTriggerRequest: {
@@ -3293,16 +3410,6 @@ export interface components {
             capture_screenshots: boolean;
             /** Screenshot Max Per Minute */
             screenshot_max_per_minute: number;
-            /**
-             * Capture Snapshots
-             * @default false
-             */
-            capture_snapshots: boolean;
-            /**
-             * Snapshot Max Per Minute
-             * @default 20
-             */
-            snapshot_max_per_minute: number;
             /** Capture Response Bodies */
             capture_response_bodies: boolean;
             /** Max Body Bytes */
@@ -3444,6 +3551,18 @@ export interface components {
             skill_id: string;
         };
         /**
+         * ReasonModel
+         * @description One reason a job cannot run: what is missing, and at which step (None for the job).
+         */
+        ReasonModel: {
+            /** Code */
+            code: string;
+            /** Step */
+            step: number | null;
+            /** Detail */
+            detail: string;
+        };
+        /**
          * RecordOfferRequest
          * @description What a browser showed, and what became of it.
          *
@@ -3561,6 +3680,42 @@ export interface components {
             /** Version */
             version: number;
         };
+        /**
+         * RunMailModel
+         * @description The mail a run came from: who sent it, what it was called, when it
+         *     arrived and where to open it. Never its body -- the subject is as much of
+         *     the mail as leaves the mailbox.
+         *
+         *     A run a person started in answer to a mail's question knows only the
+         *     conversation, so everything but `thread` and `link` may be empty.
+         */
+        RunMailModel: {
+            /**
+             * Subject
+             * @default
+             */
+            subject: string;
+            /**
+             * Sender
+             * @default
+             */
+            sender: string;
+            /**
+             * Arrived
+             * @default
+             */
+            arrived: string;
+            /**
+             * Thread
+             * @default
+             */
+            thread: string;
+            /**
+             * Link
+             * @default
+             */
+            link: string;
+        };
         /** RunModel */
         RunModel: {
             /** Id */
@@ -3634,24 +3789,6 @@ export interface components {
             /** Authorized By */
             authorized_by?: string | null;
         };
-        /**
-         * RunStartedRequest
-         * @description A run this browser has just started, said into the conversation.
-         *
-         *     Reported by the browser because the browser is what started it -- the
-         *     credential to drive a run lives in the worker, so the id exists there
-         *     first. What it buys is a thread that holds the whole piece of work rather
-         *     than everything up to the moment it began.
-         */
-        RunStartedRequest: {
-            /** Run Id */
-            run_id: string;
-            /**
-             * Title
-             * @default
-             */
-            title: string;
-        };
         /** SayRequest */
         SayRequest: {
             /** Text */
@@ -3664,6 +3801,8 @@ export interface components {
             };
             /** Run Id */
             run_id?: string | null;
+            /** Answering */
+            answering?: string | null;
         };
         /**
          * SecretHeldModel
@@ -3749,6 +3888,11 @@ export interface components {
              * @default false
              */
             can_find: boolean;
+            /**
+             * Takes Over
+             * @default false
+             */
+            takes_over: boolean;
         };
         /**
          * ShotModel
@@ -3892,10 +4036,9 @@ export interface components {
          *     * **`device_id` stays in the body**, unlike `/v1/offers`, which dropped it
          *       because a browser proves itself with `X-Device-Secret`. An offer is
          *       evidence *about* the browser that showed it, so a browser it merely named
-         *       would be a shift nobody worked. A press *names the browser to drive*, and
-         *       the screen somebody presses on is not always the browser the job runs in
-         *       -- a supervisor's console holds the tenant's credential and no extension
-         *       of its own. The tenant's browsers are the tenant's to drive.
+         *       would be a shift nobody worked. A press *names the browser that pressed*
+         *       -- which a Steel tenant's run never drives: `StartWorkflowRun` picks the
+         *       executor by tenant, and the device only records who pressed.
          *
          *     `live` defaults to false and `allow_focus` to true, both the rig's: a
          *     missing `live` is not a caller who forgot, it is the default this system
@@ -3925,7 +4068,7 @@ export interface components {
             /** Workflow Id */
             workflow_id: string;
             /** Device Id */
-            device_id: string;
+            device_id?: string | null;
             /** Values */
             values?: {
                 [key: string]: string;
@@ -3944,6 +4087,11 @@ export interface components {
              * @default
              */
             mail_thread: string;
+            /**
+             * Offer
+             * @default
+             */
+            offer: string;
             /**
              * Live
              * @default false
@@ -3966,6 +4114,7 @@ export interface components {
             from_step: number;
             /** Matched */
             matched?: number | null;
+            took_over?: components["schemas"]["TookOverModel"] | null;
         };
         /** StepModel */
         StepModel: {
@@ -4176,6 +4325,31 @@ export interface components {
             target_system: string;
             /** Held */
             held: boolean;
+        };
+        /**
+         * TookOverModel
+         * @description The operator's own doing a Steel run takes over: the browser tab it
+         *     happened in and the recorder times of the first and last gesture the
+         *     match used.
+         *
+         *     The server reads the operator's uploaded gestures from that tab in that
+         *     span, and a write counts as theirs only when its own call is among them
+         *     and confirmed it. Anything the uploads cannot prove is left in doubt and
+         *     settled by a read-back or a question, never sent again.
+         *
+         *     Whose uploads is proven, not claimed: the press carries the browser's own
+         *     `X-Device-Secret` for the `device_id` it names, and that browser must be
+         *     the pressing operator's. Otherwise it is the 404 an unknown browser gets.
+         */
+        TookOverModel: {
+            /** Tab Id */
+            tab_id: number;
+            /** Since */
+            since: number;
+            /** Through */
+            through: number;
+            /** Newest */
+            newest: number;
         };
         /** ToolPlanModel */
         ToolPlanModel: {
@@ -4411,6 +4585,14 @@ export interface components {
             /** Steps */
             steps: components["schemas"]["WorkflowStepModel"][];
             runs: components["schemas"]["WorkflowHistoryModel"];
+            /** Runnable */
+            runnable: boolean;
+            /** Reasons */
+            reasons: components["schemas"]["ReasonModel"][];
+            /** Offered */
+            offered: boolean;
+            /** Warnings */
+            warnings: components["schemas"]["ReasonModel"][];
         };
         /**
          * WorkflowRunModel
@@ -4533,6 +4715,11 @@ export interface components {
             try_again: boolean;
             /** Undoes Run */
             undoes_run?: string | null;
+            /** Live View Url */
+            live_view_url?: string | null;
+            /** Offer */
+            offer?: string | null;
+            mail?: components["schemas"]["RunMailModel"] | null;
         };
         /**
          * WorkflowRunStepModel
@@ -4640,6 +4827,8 @@ export interface components {
             cites: string[];
             /** Parameters */
             parameters: string[];
+            /** Tab */
+            tab: string;
         };
         /** WorkflowsResponse */
         WorkflowsResponse: {
@@ -7133,133 +7322,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SentTheDraftResponse"];
                 };
-            };
-            /** @description No credential, or one this deployment rejects. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-            /** @description No such thing, or not yours. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-            /** @description The system's state says no, not the request. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-            /** @description The request cannot be processed as asked. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-            /** @description Something this depends on is unavailable. */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": {
-                        /** Type */
-                        type: string;
-                        /** Title */
-                        title: string;
-                        /** Status */
-                        status: number;
-                        /** Detail */
-                        detail: string;
-                        /** Instance */
-                        instance?: string | null;
-                    };
-                };
-            };
-        };
-    };
-    run_started_v1_chat_run_started_post: {
-        parameters: {
-            query?: {
-                device_id?: string | null;
-            };
-            header?: {
-                "X-Device-Secret"?: string;
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RunStartedRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             /** @description No credential, or one this deployment rejects. */
             401: {
@@ -14447,6 +14509,7 @@ export interface operations {
                 workflow_id?: string | null;
                 limit?: number;
                 awaiting?: boolean;
+                mine?: boolean;
             };
             header?: {
                 authorization?: string | null;
@@ -14571,6 +14634,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                "X-Device-Secret"?: string;
                 authorization?: string | null;
             };
             path?: never;
@@ -14837,6 +14901,134 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkflowRunModel"];
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    answer_workflow_run_v1_workflow_runs__run_id__answer_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswerRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description No credential, or one this deployment rejects. */

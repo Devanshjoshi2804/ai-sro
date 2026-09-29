@@ -3,20 +3,31 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
-from sqlalchemy import Select, delete, func, select
+from sqlalchemy import Select, and_, case, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sro.application.ports.repositories import WorkflowRunRepository
-from sro.domain.execution.workflow_run import RunStep, WorkflowRun, already_running
+from sro.domain.execution.mail_job import MAIL_BODY
+from sro.domain.execution.workflow_run import (
+    ENDED,
+    SETTLED,
+    Executor,
+    OfferTaken,
+    RunStep,
+    WorkflowRun,
+    already_running,
+    end_the_steps,
+)
 from sro.domain.observation.driving import Driving
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import DeviceId, TenantId
 from sro.infrastructure.db.codec import when
 from sro.infrastructure.db.models import ApprovalRow, WorkflowRunRow, WorkflowRunStepRow
+from sro.infrastructure.db.workflows import workflow_from_json, workflow_json
 
 
 def _run_values(run: WorkflowRun) -> dict[str, Any]:
@@ -49,6 +60,11 @@ def _run_values(run: WorkflowRun) -> dict[str, Any]:
         "asked_the_asker": run.asked_the_asker,
         "undoes_run": run.undoes_run,
         "unpriced": run.unpriced,
+        "progress": dict(run.progress),
+        "executor": run.executor,
+        "offer": run.offer,
+        "pinned": None if run.pinned is None else workflow_json(run.pinned),
+        "mail": dict(run.mail) if run.mail else None,
     }
 
 
@@ -144,10 +160,21 @@ def _row_to_run(row: WorkflowRunRow, steps: list[RunStep]) -> WorkflowRun:
         thought_tokens=row.thought_tokens,
         cost_usd=row.cost_usd,
         unpriced=row.unpriced,
+        progress=dict(row.progress or {}),
+        executor=cast(Executor, row.executor),
+        offer=row.offer,
+        pinned=None if row.pinned is None else workflow_from_json(row.pinned),
+        mail=(
+            {str(key): str(value) for key, value in row.mail.items()}
+            if isinstance(row.mail, dict)
+            else None
+        ),
     )
 
 
 _ONE_RUNNING = "uq_workflow_runs_one_running_per_device"
+
+_ONE_PER_OFFER = "uq_workflow_runs_one_per_offer"
 
 
 class SqlWorkflowRunRepository(WorkflowRunRepository):
@@ -156,32 +183,71 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
 
     async def save(self, run: WorkflowRun) -> None:
         statement = pg_insert(WorkflowRunRow).values(**_run_values(run))
+        ended = WorkflowRunRow.outcome.in_(ENDED)
+        kept = {
+            "outcome": case((ended, WorkflowRunRow.outcome), else_=statement.excluded.outcome),
+            "finished_at": case(
+                (ended, func.coalesce(WorkflowRunRow.finished_at, statement.excluded.finished_at)),
+                else_=statement.excluded.finished_at,
+            ),
+        }
         try:
             await self._session.execute(
                 statement.on_conflict_do_update(
                     index_elements=["id"],
                     set_={
-                        column.name: statement.excluded[column.name]
+                        column.name: kept.get(column.name, statement.excluded[column.name])
                         for column in WorkflowRunRow.__table__.columns
-                        if column.name != "id"
+                        if column.name not in ("id", "progress", "pinned", "mail")
                     },
                 )
             )
         except IntegrityError as clash:
+            if _ONE_PER_OFFER in str(getattr(clash, "orig", clash)):
+                await self._session.rollback()
+                taken = await self._session.scalar(
+                    select(WorkflowRunRow.id).where(
+                        WorkflowRunRow.tenant_id == run.tenant, WorkflowRunRow.offer == run.offer
+                    )
+                )
+                raise OfferTaken(str(run.offer), str(taken)) from clash
             if _ONE_RUNNING not in str(getattr(clash, "orig", clash)):
                 raise
             await self._session.rollback()
             busy = await self.in_flight(TenantId(run.tenant), DeviceId(run.device_id))
             raise Conflict(already_running(run.device_id, busy)) from clash
-        await self._session.execute(
-            delete(WorkflowRunStepRow).where(WorkflowRunStepRow.run_id == run.id)
-        )
         if run.steps:
+            step_statement = pg_insert(WorkflowRunStepRow).values(
+                [_step_values(run.id, step) for step in run.steps]
+            )
             await self._session.execute(
-                pg_insert(WorkflowRunStepRow).values(
-                    [_step_values(run.id, step) for step in run.steps]
+                step_statement.on_conflict_do_update(
+                    index_elements=["run_id", "ord"],
+                    set_={
+                        column.name: step_statement.excluded[column.name]
+                        for column in WorkflowRunStepRow.__table__.columns
+                        if column.name not in ("run_id", "ord")
+                    },
                 )
             )
+
+    async def record_progress(
+        self,
+        tenant_id: TenantId,
+        run_id: str,
+        progress: dict[str, object],
+        *,
+        was: Mapping[str, object] | None = None,
+    ) -> bool:
+        query = update(WorkflowRunRow).where(
+            WorkflowRunRow.id == run_id, WorkflowRunRow.tenant_id == tenant_id.value
+        )
+        if was is not None:
+            query = query.where(WorkflowRunRow.progress == dict(was))
+        result = await self._session.execute(
+            query.values(progress=dict(progress)).returning(WorkflowRunRow.id)
+        )
+        return result.first() is not None
 
     async def get(self, tenant_id: TenantId, run_id: str) -> WorkflowRun | None:
         query = self._rows().where(
@@ -305,6 +371,7 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
                 WorkflowRunRow.tenant_id == tenant_id.value,
                 WorkflowRunRow.device_id == device_id.value,
                 WorkflowRunRow.outcome == "running",
+                WorkflowRunRow.executor == "extension",
             )
             .order_by(WorkflowRunRow.started_at, WorkflowRunRow.id)
             .limit(1)
@@ -323,6 +390,19 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
                 WorkflowRunRow.awaiting.isnot(None),
                 WorkflowRunRow.awaiting["server"].astext == server.strip(),
                 WorkflowRunRow.awaiting["thread"].astext == thread.strip(),
+                or_(
+                    func.jsonb_array_length(WorkflowRunRow.needs) > 0,
+                    and_(
+                        WorkflowRunRow.outcome == "running",
+                        WorkflowRunRow.progress["asking"]["id"].astext != "",
+                    ),
+                    and_(
+                        WorkflowRunRow.outcome == "stopped",
+                        WorkflowRunRow.progress["asking"]["kind"].astext.in_(
+                            ("recipient", MAIL_BODY)
+                        ),
+                    ),
+                ),
             )
             .order_by(WorkflowRunRow.started_at.desc(), WorkflowRunRow.id.desc())
             .limit(1)
@@ -330,6 +410,21 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
         rows = (await self._session.execute(query)).scalars().all()
         found = await self._with_steps(rows)
         return found[0] if found else None
+
+    async def started_on(self, tenant_id: TenantId, *, server: str, thread: str) -> bool:
+        if not server.strip() or not thread.strip():
+            return False
+        found = await self._session.scalar(
+            select(WorkflowRunRow.id)
+            .where(
+                WorkflowRunRow.tenant_id == tenant_id.value,
+                WorkflowRunRow.awaiting.isnot(None),
+                WorkflowRunRow.awaiting["server"].astext == server.strip(),
+                WorkflowRunRow.awaiting["thread"].astext == thread.strip(),
+            )
+            .limit(1)
+        )
+        return found is not None
 
     async def awaiting(self, tenant_id: TenantId) -> tuple[tuple[str, int, str], ...]:
         query = (
@@ -365,7 +460,9 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
 
     async def fail_orphans(self, reason: str) -> int:
         now = datetime.now(tz=UTC).isoformat()
-        query = self._rows().where(WorkflowRunRow.outcome == "running")
+        query = self._rows().where(
+            WorkflowRunRow.outcome == "running", WorkflowRunRow.executor == "extension"
+        )
         rows = (
             await self._session.execute(
                 query.order_by(WorkflowRunRow.started_at, WorkflowRunRow.id)
@@ -373,17 +470,81 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
         ).scalars()
         orphans = await self._with_steps(rows.all())
         for run in orphans:
-            if run.steps:
-                last = run.steps[-1]
-                last.verdict, last.verdict_by, last.reason = "failed", "none", reason
-            else:
-                run.steps.append(
-                    RunStep(order=0, says="", verdict="failed", verdict_by="none", reason=reason)
-                )
+            end_the_steps(run.steps, reason)
             run.outcome = "failed"
             run.finished_at = now
             await self.save(run)
         return len(orphans)
+
+    async def running(self) -> tuple[WorkflowRun, ...]:
+        query = self._rows().where(WorkflowRunRow.outcome == "running")
+        rows = (
+            await self._session.execute(
+                query.order_by(WorkflowRunRow.started_at, WorkflowRunRow.id)
+            )
+        ).scalars()
+        return await self._with_steps(rows.all())
+
+    async def close_stuck(
+        self,
+        tenant_id: TenantId,
+        run_id: str,
+        *,
+        reason: str,
+        at: str,
+        was: Mapping[str, object],
+    ) -> bool:
+        won = await self._session.execute(
+            update(WorkflowRunRow)
+            .where(
+                WorkflowRunRow.id == run_id,
+                WorkflowRunRow.tenant_id == tenant_id.value,
+                WorkflowRunRow.outcome == "running",
+                WorkflowRunRow.progress == dict(was),
+            )
+            .values(
+                outcome="failed",
+                finished_at=when(at),
+                awaiting=case(
+                    (func.jsonb_array_length(WorkflowRunRow.needs) > 0, WorkflowRunRow.awaiting),
+                    else_=None,
+                ),
+            )
+            .returning(WorkflowRunRow.id)
+        )
+        if won.first() is None:
+            return False
+        last_row = (
+            await self._session.execute(
+                select(WorkflowRunStepRow.ord, WorkflowRunStepRow.verdict)
+                .where(WorkflowRunStepRow.run_id == run_id)
+                .order_by(WorkflowRunStepRow.ord.desc())
+                .limit(1)
+            )
+        ).first()
+        last = None if last_row is None else last_row.ord
+        if last_row is None or last_row.verdict in SETTLED:
+            await self._session.execute(
+                pg_insert(WorkflowRunStepRow).values(
+                    _step_values(
+                        run_id,
+                        RunStep(
+                            order=0 if last is None else last + 1,
+                            says="",
+                            verdict="failed",
+                            verdict_by="none",
+                            reason=reason,
+                        ),
+                    )
+                )
+            )
+        else:
+            await self._session.execute(
+                update(WorkflowRunStepRow)
+                .where(WorkflowRunStepRow.run_id == run_id, WorkflowRunStepRow.ord == last)
+                .values(verdict="failed", verdict_by="none", reason=reason)
+            )
+        return True
 
     @staticmethod
     def _rows() -> Select[tuple[WorkflowRunRow]]:

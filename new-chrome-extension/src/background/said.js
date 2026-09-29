@@ -10,10 +10,9 @@
 //
 // Two things are added here and nothing is taken away.
 //
-// **The command surface can say things now.** `say` lived in the worker, and
-// `commands.js` -- which is where every refusal and every fault actually
-// happens -- cannot import the module that imports it. Eleven command cases
-// each refused in silence.
+// **Any module can say things now.** `say` lived in the worker, and a module
+// the worker imports cannot import the worker back -- so whatever refused
+// there refused in silence.
 //
 // **A line says what it is about.** It was free text, so a refusal read
 // `no tab for https://keycloak...` and a reader had to guess which run, which

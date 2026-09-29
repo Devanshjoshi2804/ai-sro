@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 import pytest
 
 from sro.application.connection.browsers import Browsers
-from sro.application.connection.check_session import CheckSession, SessionHealth, _is_login
+from sro.application.connection.check_session import CheckSession, SessionHealth, is_login
 from sro.application.connection.connect_system import RefreshSession
 from sro.application.context import RequestContext
 from sro.domain.connection.connection import Connection, ConnectionId
@@ -221,7 +221,7 @@ class TestALoginPageServedAsTwoHundred:
     """
 
     def test_a_page_with_a_password_field_is_a_login_page(self) -> None:
-        assert _is_login(
+        assert is_login(
             200,
             None,
             "https://wms.test/portal",
@@ -229,13 +229,13 @@ class TestALoginPageServedAsTwoHundred:
         )
 
     def test_an_ordinary_answer_is_not(self) -> None:
-        assert not _is_login(200, None, "https://wms.test/portal", '{"suppliers": [], "total": 0}')
+        assert not is_login(200, None, "https://wms.test/portal", '{"suppliers": [], "total": 0}')
 
     def test_a_screen_that_merely_mentions_passwords_is_not(self) -> None:
         """Any heuristic on words fires on the WMS page explaining its password
         policy. A control the browser will autofill a credential into does not.
         """
-        assert not _is_login(
+        assert not is_login(
             200,
             None,
             "https://wms.test/portal",

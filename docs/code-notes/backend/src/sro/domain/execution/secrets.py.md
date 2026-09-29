@@ -32,7 +32,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/execution/secrets.
 > broken. The step says which key it wanted, and the key is readable: the
 > operator can see they never stored one.
 
-## module, [line 10](../../../../../../../backend/src/sro/domain/execution/secrets.py#L10): Note on the line above
+## module, [line 11](../../../../../../../backend/src/sro/domain/execution/secrets.py#L11): Note on the line above
 
 Code: `SECRET_MARK = "«from the vault»"  # noqa: S105 - a marker written INSTEAD of a password`
 
@@ -40,7 +40,7 @@ Code: `SECRET_MARK = "«from the vault»"  # noqa: S105 - a marker written INSTE
 > whose payload showed nothing at all would read as a step that types nothing,
 > and this one types the most important thing on the page.
 
-## `field_of`, [line 13](../../../../../../../backend/src/sro/domain/execution/secrets.py#L13): Docstring
+## `field_of`, [line 14](../../../../../../../backend/src/sro/domain/execution/secrets.py#L14): Docstring
 
 > The name of the control, as a person would recognise it.
 >
@@ -52,7 +52,7 @@ Code: `SECRET_MARK = "«from the vault»"  # noqa: S105 - a marker written INSTE
 > half of a vault key and a key with a space in it is a key somebody types
 > wrong once and then cannot find.
 
-## `_as_key`, [line 26](../../../../../../../backend/src/sro/domain/execution/secrets.py#L26): Docstring
+## `as_key`, [line 27](../../../../../../../backend/src/sro/domain/execution/secrets.py#L27): Docstring
 
 > A field's name as half a vault key: lowercase, letters, digits, dashes.
 >
@@ -61,7 +61,7 @@ Code: `SECRET_MARK = "«from the vault»"  # noqa: S105 - a marker written INSTE
 > have to spell it the same way or the value is invisible to the one thing
 > that needs it.
 
-## `secret_key_for`, [line 30](../../../../../../../backend/src/sro/domain/execution/secrets.py#L30): Docstring
+## `secret_key_for`, [line 31](../../../../../../../backend/src/sro/domain/execution/secrets.py#L31): Docstring
 
 > Where this control's value lives in the vault.
 >
@@ -74,7 +74,7 @@ Code: `SECRET_MARK = "«from the vault»"  # noqa: S105 - a marker written INSTE
 > host, not once per url, and a key per url would be a password they have to
 > store again the first time the login page carries a different query.
 
-## `secret_key_of`, [line 35](../../../../../../../backend/src/sro/domain/execution/secrets.py#L35): Docstring
+## `secret_key_of`, [line 36](../../../../../../../backend/src/sro/domain/execution/secrets.py#L36): Docstring
 
 > The same key, from the parts a person types when they store one.
 >
@@ -85,7 +85,7 @@ Code: `SECRET_MARK = "«from the vault»"  # noqa: S105 - a marker written INSTE
 > way, or the key stored under is not the key asked for and the value is
 > invisible to the only thing that needs it.
 
-## `connector_key`, [line 39](../../../../../../../backend/src/sro/domain/execution/secrets.py#L39): Docstring
+## `connector_key`, [line 40](../../../../../../../backend/src/sro/domain/execution/secrets.py#L40): Docstring
 
 > Where ONE operator's grant for one connector lives.
 >
@@ -94,18 +94,18 @@ Code: `SECRET_MARK = "«from the vault»"  # noqa: S105 - a marker written INSTE
 > everybody in the tenant, which is the same bug one scope smaller.
 >
 > The principal is HASHED into the field rather than spelled, and that is the
-> whole care of this function. `_as_key` collapses every run of punctuation
+> whole care of this function. `as_key` collapses every run of punctuation
 > to a single dash, so `devansh.j` and `devansh_j` and `devansh j` are one
 > key -- and `PrincipalId` constrains nothing but blankness, so all three are
 > ids somebody can be issued. A collision here is one operator reading
 > another's mail, which is precisely what `secret_manager`'s own docstring
 > warns about one segment to the left.
 >
-> Hex, so `_as_key` passes it through untouched and there is still exactly
+> Hex, so `as_key` passes it through untouched and there is still exactly
 > one function shaping vault keys. Unreadable on purpose, and answered by the
 > connector printing the key beside the bearer it mints.
 
-## `needs_a_secret`, [line 44](../../../../../../../backend/src/sro/domain/execution/secrets.py#L44): Docstring
+## `needs_a_secret`, [line 45](../../../../../../../backend/src/sro/domain/execution/secrets.py#L45): Docstring
 
 > Whether this step types something the recording was not allowed to keep.
 >
@@ -113,6 +113,10 @@ Code: `SECRET_MARK = "«from the vault»"  # noqa: S105 - a marker written INSTE
 > the two answers differ now: `value_for` still refuses to take a credential
 > from the RECORDING, and this says the value may come from the vault
 > instead.
+>
+> It is `trim.is_secret`, the recorder's mark on the action or on the
+> target, so the sign-in chain and a run agree on which field is the
+> password (S7 round 1, M3).
 
 ## `without_secrets`, [line 49](../../../../../../../backend/src/sro/domain/execution/secrets.py#L49): Docstring
 

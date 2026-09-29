@@ -1,6 +1,6 @@
 """The rest of a conversation, once `POST /v1/ask` has named a job or a mail
 has offered one: asking what an offer still needs, sending a drafted reply,
-saying which run an offer became, and looking for what the mail asks for.
+and looking for what the mail asks for.
 
 Nothing here catches a refusal: `sro.interface.http.errors` maps
 `AskerUnavailable` to 503 and `OverCap` to 429 once, for every route.
@@ -18,7 +18,6 @@ from sro.interface.http.schemas import (
     AskAboutOfferRequest,
     AskAboutOfferResponse,
     FromTheMailResponse,
-    RunStartedRequest,
     SendTheDraftRequest,
     SentTheDraftResponse,
 )
@@ -34,9 +33,8 @@ async def ask_about_an_offer(
 
     200 and no run. This is the card handing a decision to the place decisions
     are made here: the question lands in the thread, the operator answers it in
-    words, and when the last answer lands the existing conversation path emits
-    the `job` decision the browser starts. Nothing about the job is settled by
-    this call.
+    words, and when the last answer lands the conversation starts the run
+    itself. Nothing about the job is settled by this call.
     """
     pending = Pending(
         workflow_id=body.workflow_id,
@@ -50,7 +48,7 @@ async def ask_about_an_offer(
     )
     return AskAboutOfferResponse(
         asked=await container.ask_about_the_offer().execute(
-            ctx, pending, about=body.about, mail_thread=body.mail_thread
+            ctx, pending, about=body.about, mail_thread=body.mail_thread, offer=body.offer
         )
     )
 
@@ -70,17 +68,6 @@ async def send_the_draft(
             ctx, ThreadId(body.thread_id), body.message_id
         )
     )
-
-
-@router.post("/chat/run-started", status_code=status.HTTP_204_NO_CONTENT)
-async def run_started(body: RunStartedRequest, container: ContainerDep, ctx: ContextDep) -> None:
-    """Say, in this operator's conversation, which run came of it.
-
-    204 and nothing back: the caller already holds the run, and what this does
-    is put it where the rest of the decision already lives. Nothing is started
-    or changed by it.
-    """
-    await container.say_the_run_started().execute(ctx, run_id=body.run_id, title=body.title)
 
 
 @router.post("/chat/from-the-mail", status_code=status.HTTP_200_OK)

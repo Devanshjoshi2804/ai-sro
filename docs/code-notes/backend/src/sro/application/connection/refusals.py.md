@@ -28,14 +28,14 @@ Code: `MARK = "#refused"`
 > the thing whose lifecycle it follows. `#` never occurs in a key
 > `secret_key_of` builds, so no real secret can be mistaken for a mark.
 
-## `fingerprint`, [line 16](../../../../../../../backend/src/sro/application/connection/refusals.py#L16): Function
+## `fingerprint`, [line 17](../../../../../../../backend/src/sro/application/connection/refusals.py#L17): Function
 
 > The first 12 hex of sha256 over the vault key and the value. It binds a
 > failed count and a refusal to the password they were about (task 10, fix
 > rounds 1 and 2), is the run's in-run mark for a handed-out value, and is
 > stored in the vault beside the password -- the same trust boundary.
 
-## `RefusedCredentials.standing`, [line 35](../../../../../../../backend/src/sro/application/connection/refusals.py#L35): Docstring
+## `RefusedCredentials.standing`, [line 36](../../../../../../../backend/src/sro/application/connection/refusals.py#L36): Docstring
 
 > The standing refusal for this key, or None. A mark that cannot be parsed
 > still counts as a refusal: the safe reading of a latch nobody can read is
@@ -55,7 +55,7 @@ Code: `FAILED = "#failed"`
 > record holds a decimal count and a truncated keyed-hash fingerprint of the
 > password it counted, in the same vault as the password itself.
 
-## `FailedAttempts`, [line 52](../../../../../../../backend/src/sro/application/connection/refusals.py#L52): Class
+## `FailedAttempts`, [line 73](../../../../../../../backend/src/sro/application/connection/refusals.py#L73): Class
 
 > Failed sign-in attempts for one vault key, across runs, recorded as
 > `"<count> <fingerprint>"`. The fingerprint is `fingerprint(key, value)` of
@@ -67,7 +67,7 @@ Code: `FAILED = "#failed"`
 > same password at the same moment can lose one increment, making the latch
 > one attempt late.
 
-## `ForgetsRefusalOnWrite`, [line 66](../../../../../../../backend/src/sro/application/connection/refusals.py#L66): Class
+## `ForgetsRefusalOnWrite`, [line 87](../../../../../../../backend/src/sro/application/connection/refusals.py#L87): Class
 
 > The vault, wrapped so that writing a key lifts any refusal against it and
 > clears its failed-attempt count (`#failed`, task 10). Writing or deleting a
@@ -82,3 +82,15 @@ Code: `FAILED = "#failed"`
 > It costs two extra deletes per write, including the session cookies a
 > refresh stores. Deleting a missing key is a no-op in the file vault and a
 > handled NotFound in Secret Manager.
+
+## `CodeAsked`, [line 53](../../../../../../../backend/src/sro/application/connection/refusals.py#L53): Note
+
+> When a system last asked this account for a one-time code: a mark beside
+> the password in the vault, `#code`, built like the `#refused` latch. `ask`
+> records the latest prompt: every prompt is a code the identity provider
+> really sent, so the window restarts from it. Keeping only the first one
+> let the latch go stale for good -- a code nobody answered, and eleven
+> minutes later every lookup typed the password and sent another push (L1
+> re-review N3). A caller with `park=False` never types inside the window,
+> so it cannot push the window out itself; at most one password per
+> `K_CODE_WAIT` per account. `clear` is a sign-in that landed. The broker reads it (`_sign_in`).

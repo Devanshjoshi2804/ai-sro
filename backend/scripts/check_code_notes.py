@@ -16,6 +16,31 @@ HEADING_RE = re.compile(
     r"(?P<suffix>\):.*)$"
 )
 CODE_RE = re.compile(r"^Code: `(?P<code>.*)`\s*$")
+JS_NOT_A_DEFINITION = (
+    "if",
+    "for",
+    "while",
+    "switch",
+    "catch",
+    "return",
+    "do",
+    "else",
+    "case",
+    "with",
+    "throw",
+    "yield",
+    "await",
+    "delete",
+    "void",
+    "typeof",
+)
+JS_DEF_RE = re.compile(
+    r"^(?P<indent>[ \t]*)(?:export\s+)?(?:default\s+)?(?:async\s+)?"
+    r"(?P<fn>function\s+)?(?:(?P<decl>const|let|var)\s+)?"
+    r"(?!(?:" + "|".join(JS_NOT_A_DEFINITION) + r")\b)"
+    r"(?P<name>[A-Za-z_$][\w$]*)\s*(?P<op>[(=])"
+)
+JS_METHOD_TAIL_RE = re.compile(r"\)\s*\{\s*$")
 
 
 @dataclass
@@ -31,6 +56,13 @@ class Anchor:
 class SourceInfo:
     tree: ast.Module | None
     lines: list[str]
+    is_python: bool
+
+
+@dataclass
+class JsSymbol:
+    lineno: int
+    end_lineno: int
 
 
 @dataclass
@@ -85,13 +117,14 @@ def parse_anchors(note_path: Path, lines: list[str]) -> tuple[list[Anchor], list
 
 def load_source(path: Path, cache: dict[Path, SourceInfo]) -> SourceInfo:
     if path not in cache:
+        is_python = path.suffix == ".py"
         try:
             text = path.read_text(encoding="utf-8")
-            tree: ast.Module | None = ast.parse(text, filename=str(path))
+            tree: ast.Module | None = ast.parse(text, filename=str(path)) if is_python else None
         except (OSError, SyntaxError):
             tree = None
             text = ""
-        cache[path] = SourceInfo(tree=tree, lines=text.splitlines())
+        cache[path] = SourceInfo(tree=tree, lines=text.splitlines(), is_python=is_python)
     return cache[path]
 
 
@@ -164,6 +197,41 @@ def resolve_symbol(tree: ast.Module, dotted_name: str) -> tuple[ast.stmt | None,
     return node, None
 
 
+def _js_definitions(lines: list[str], start: int, end: int) -> list[tuple[int, int, str]]:
+    found: list[tuple[int, int, str]] = []
+    for line_no in range(start, min(end, len(lines)) + 1):
+        match = JS_DEF_RE.match(lines[line_no - 1])
+        if match is None:
+            continue
+        if match.group("op") == "=" and match.group("decl") is None:
+            continue
+        declared = match.group("decl") or match.group("fn")
+        if not declared and not JS_METHOD_TAIL_RE.search(lines[line_no - 1]):
+            continue
+        found.append((line_no, len(match.group("indent")), match.group("name")))
+    return found
+
+
+def resolve_symbol_js(lines: list[str], dotted_name: str) -> tuple[JsSymbol | None, str | None]:
+    scope_start, scope_end = 1, len(lines)
+    node: JsSymbol | None = None
+    for part in dotted_name.split("."):
+        defs = _js_definitions(lines, scope_start, scope_end)
+        hits = [(line_no, indent) for line_no, indent, name in defs if name == part]
+        if not hits:
+            return None, "missing"
+        if len(hits) > 1:
+            return None, "ambiguous"
+        line_no, indent = hits[0]
+        later = [
+            other for other, other_indent, _ in defs if other > line_no and other_indent <= indent
+        ]
+        scope_start = line_no
+        scope_end = (min(later) - 1) if later else scope_end
+        node = JsSymbol(lineno=line_no, end_lineno=scope_end)
+    return node, None
+
+
 def find_hits(lines: list[str], code: str, start: int, end: int) -> list[int]:
     target = code.strip()
     return [
@@ -174,7 +242,7 @@ def find_hits(lines: list[str], code: str, start: int, end: int) -> list[int]:
 
 
 def evaluate_anchor(anchor: Anchor, source: SourceInfo) -> AnchorEval:
-    if source.tree is None:
+    if source.is_python and source.tree is None:
         return AnchorEval(
             anchor, anchor.name, "dead", None, dead_reason="source file does not parse"
         )
@@ -184,8 +252,8 @@ def evaluate_anchor(anchor: Anchor, source: SourceInfo) -> AnchorEval:
         if anchor.code is None:
             return AnchorEval(anchor, None, "certain", 1, floor_default=floor_default)
         scope_start, scope_end = 1, len(source.lines)
-    else:
-        node, error = resolve_symbol(source.tree, anchor.name)
+    elif source.is_python:
+        node, error = resolve_symbol(cast(ast.Module, source.tree), anchor.name)
         if node is None:
             return AnchorEval(
                 anchor, anchor.name, "dead", None, dead_reason=f"symbol `{anchor.name}` {error}"
@@ -197,6 +265,19 @@ def evaluate_anchor(anchor: Anchor, source: SourceInfo) -> AnchorEval:
             )
         scope_start = floor_default
         scope_end = getattr(node, "end_lineno", scope_start)
+    else:
+        js_node, js_error = resolve_symbol_js(source.lines, anchor.name)
+        if js_node is None:
+            return AnchorEval(
+                anchor, anchor.name, "dead", None, dead_reason=f"symbol `{anchor.name}` {js_error}"
+            )
+        floor_default = js_node.lineno
+        if anchor.code is None:
+            return AnchorEval(
+                anchor, anchor.name, "certain", js_node.lineno, floor_default=floor_default
+            )
+        scope_start = js_node.lineno
+        scope_end = js_node.end_lineno
 
     hits = find_hits(source.lines, anchor.code, scope_start, scope_end)
     if not hits:

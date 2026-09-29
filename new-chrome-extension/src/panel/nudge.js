@@ -49,19 +49,37 @@ export function endOfDay(now) {
   return midnight.getTime();
 }
 
-/** Host and path, no query -- the same shape the miner records `starts_on` in.
+/** The screen: host and path, no query, and the fragment's route -- the same
+ * screen `identity.py`'s `screen_of` keys a job's steps by and `starts_on` is
+ * served as, lowercased like it.
  *
  * Without the query, because that is where a warehouse system puts session ids
- * and timestamps: a page addressed with one is never the same page twice.
+ * and timestamps: a page addressed with one is never the same page twice. With
+ * the route, because Blue Yonder routes on the fragment: without it every
+ * config screen was `.../portal`, and the warehouse equipment job was offered
+ * on the transport equipment page (QA 2026-09-29). The route is the fragment's
+ * dotted segments only -- the trailing `////` are empty positional slots.
+ * Idempotent, and a scheme-less screen reads as https, so `page(page(x))` is
+ * `page(x)`.
  */
 export function page(url) {
   try {
-    const parsed = new URL(url);
-    return `${parsed.host}${parsed.pathname}`.replace(/\/$/, "");
+    const said = String(url || "");
+    const parsed = new URL(said.includes("://") ? said : `https://${said}`);
+    const where = `${parsed.host}${parsed.pathname}`.replace(/\/+$/, "");
+    const route = parsed.hash
+      .slice(1)
+      .split("/")
+      .filter((part) => part.includes("."))
+      .join("/");
+    return (route ? `${where}#${route}` : where).toLowerCase();
   } catch {
     return "";
   }
 }
+
+/** The host a `page()` names. */
+export const hostOfPage = (screen) => screen.split(/[/#]/)[0];
 
 /**
  * The task worth offering here, or `null`.
@@ -70,11 +88,7 @@ export function page(url) {
  * means an operator who comes back in the afternoon is asked again, and one who
  * is standing on the page is asked once.
  */
-export function shouldFire({ url, visit, candidates, nudges, performing }) {
-  // The browser is already being driven. Offering to drive it again is the
-  // panel talking over itself.
-  if (performing) return null;
-
+export function shouldFire({ url, visit, candidates, nudges }) {
   const here = page(url);
   if (!here) return null;
   // One at a time, anywhere. Two open at once is a queue, and a queue of
@@ -128,6 +142,11 @@ export function fire(candidate, now, { tabId = null, visit = "" } = {}) {
     source: candidate.source || "backend",
     workflowId: candidate.workflow_id || null,
     k: candidate.k || 0,
+    // The span of the operator's own gestures the match used, so a Steel run
+    // that takes the job over reads only this doing's uploads. Null for an
+    // offer that was not made from gestures.
+    since: candidate.since ?? null,
+    through: candidate.through ?? null,
     values: candidate.values || {},
     missing: candidate.missing || [],
     // Whether a run can go and find what nobody typed. The deployment's
@@ -142,6 +161,9 @@ export function fire(candidate, now, { tabId = null, visit = "" } = {}) {
     // of one. Sent back when the job starts, so a run that comes up short can
     // be found again by a reply to that mail.
     mailThread: candidate.thread || "",
+    // The offer's own name where it already has one: the reply's question or
+    // the mail's key. A press sends it, so a card and a yes are one run.
+    offer: candidate.offer || "",
     // What the request was called, so a conversation about it can name which.
     mailSubject: candidate.subject || "",
     tooLong: candidate.too_long || {},
@@ -158,6 +180,8 @@ export function fire(candidate, now, { tabId = null, visit = "" } = {}) {
     // because a mail supplying everything required produces no question, and
     // the question is the only other place these are offered.
     offers: candidate.offers || [],
+    // Who the operator sent this request to, when it was somebody else.
+    sentTo: candidate.sent_to || [],
     parameters: candidate.parameters || [],
     // What pressing this would WRITE, read off the job's own evidence: one
     // entry per writing step, `{does, record, on}`. The card names the values
@@ -176,11 +200,11 @@ export function fire(candidate, now, { tabId = null, visit = "" } = {}) {
  * the task: looking something up is most of what anybody does on a page.
  */
 export function onCall(nudges, { url, method }, now) {
-  const host = page(url).split("/")[0];
+  const host = hostOfPage(page(url));
   const mutating = /^(POST|PUT|PATCH|DELETE)$/i.test(method || "");
   if (!mutating || !host) return nudges;
   return nudges.map((nudge) =>
-    nudge.state === "open" && nudge.startsOn.split("/")[0] === host
+    nudge.state === "open" && hostOfPage(page(nudge.startsOn)) === host
       ? { ...nudge, state: "by-hand", endedAt: now }
       : nudge,
   );

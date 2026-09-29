@@ -1,0 +1,308 @@
+"""The page driver against real local Steel: one container, two account
+contexts from `SteelPool.open`, the `cdp_url` the pool hands out, and a rig
+Steel's Chrome reaches through `host.docker.internal`.
+
+Every case here failed live in the S5 review. Skipped when Steel is not
+running. Run each test alone: they share the container's one browser.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+from collections.abc import AsyncIterator, Iterator
+
+import pytest
+
+from sro.application.ports.page import PageGone, SessionRef
+from sro.config import get_settings
+from sro.domain.shared.hosts import origin_of
+from sro.domain.skill.signing_in import a_sign_in_page
+from sro.infrastructure.steel.client import SteelClient
+from sro.infrastructure.steel.driver import SteelDriver
+from sro.infrastructure.steel.pool import SteelPool
+from tests.browser.steel_rig import Rig, driver  # noqa: F401
+from tests.browser.test_the_steel_driver import in_the_app_frame, signed_in_on_the_framed_page
+from tests.browser.test_the_steel_pool_against_local_steel import (  # noqa: F401
+    STEEL_URL,
+    client,
+)
+
+pytestmark = pytest.mark.browser
+
+Accounts = tuple[SteelPool, str, SessionRef, SessionRef]
+
+
+@pytest.fixture
+def steel_rig() -> Iterator[Rig]:
+    made = Rig(for_steel=True)
+    try:
+        yield made
+    finally:
+        made.close()
+
+
+@pytest.fixture
+async def accounts(client: SteelClient) -> AsyncIterator[Accounts]:  # noqa: F811
+    pool = SteelPool({STEEL_URL: client}, per_container=2)
+    url, _, first = await pool.open("greyorange", {})
+    _, _, second = await pool.open("greyorange", {STEEL_URL: 1})
+    cdp = await pool.cdp_url(url)
+    try:
+        yield pool, url, SessionRef(first, cdp), SessionRef(second, cdp)
+    finally:
+        for context_id in (first, second):
+            await pool.close(url, context_id)
+
+
+async def test_a_tab_closed_right_after_it_opens_leaves_steel_and_its_neighbour_up(
+    client: SteelClient,  # noqa: F811
+    accounts: Accounts,
+    steel_rig: Rig,
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    pool, url, a, b = accounts
+
+    for _ in range(5):
+        target = await driver.open_tab(a, steel_rig.url("/public"))
+        await driver.close_tab(a, target)
+
+    assert await client.health()
+    assert {a.context_id, b.context_id} <= await pool.contexts(url), "Chrome went down"
+    sibling = await driver.open_tab(b, steel_rig.url("/public"))
+    assert (await driver.url_of(b, sibling)).endswith("/public")
+
+
+async def test_two_accounts_in_one_container_never_meet(
+    accounts: Accounts,
+    steel_rig: Rig,
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    _, _, a, b = accounts
+    heard: list[str] = []
+    await driver.on(a, "request", lambda request: heard.append(request.url))
+
+    signed = await driver.open_tab(a, steel_rig.url("/"))
+    await steel_rig.sign_in_in(driver, a, signed)
+    heard_from_a = len(heard)
+    assert heard_from_a > 0
+
+    other = await driver.open_tab(b, steel_rig.url("/app"))
+    assert "/idp/authorize" in await driver.url_of(b, other)
+    assert len(heard) == heard_from_a, "account a heard account b's traffic"
+
+    names_a = {c["name"] for c in json.loads(await driver.storage_state(a))["cookies"]}
+    names_b = {c["name"] for c in json.loads(await driver.storage_state(b))["cookies"]}
+    assert "sid" in names_a
+    assert "sid" not in names_b
+
+    with pytest.raises(PageGone):
+        await driver.url_of(b, signed)
+
+    both = [a, b] * 3
+    targets = await asyncio.gather(
+        *(driver.open_tab(who, steel_rig.url(f"/public?{n}")) for n, who in enumerate(both))
+    )
+    for n, (who, target) in enumerate(zip(both, targets, strict=True)):
+        assert (await driver.url_of(who, target)).endswith(f"/public?{n}")
+        with pytest.raises(PageGone):
+            await driver.url_of(b if who is a else a, target)
+
+
+async def test_saved_state_moves_to_another_account_across_a_restart(
+    accounts: Accounts,
+    steel_rig: Rig,
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    _, _, a, b = accounts
+    signed = await driver.open_tab(a, steel_rig.url("/"))
+    await steel_rig.sign_in_in(driver, a, signed)
+    await driver.evaluate(a, signed, "localStorage.setItem('kept', 'yes')")
+    state = await driver.storage_state(a)
+
+    restorer = SteelDriver(get_settings().page_code_path)
+    await restorer.restore_state(b, state)
+    await restorer.aclose()
+    landed = await driver.open_tab(b, steel_rig.url("/app"))
+
+    assert (await driver.url_of(b, landed)).endswith("/app")
+    assert await driver.evaluate(b, landed, "localStorage.getItem('kept')") == "yes"
+
+
+async def test_a_restarted_worker_finds_its_tab_with_the_page_code(
+    accounts: Accounts,
+    steel_rig: Rig,
+) -> None:
+    _, _, a, _ = accounts
+    first = SteelDriver(get_settings().page_code_path)
+    target = await first.open_tab(a, steel_rig.url("/public"))
+    await first.aclose()
+
+    again = SteelDriver(get_settings().page_code_path)
+    try:
+        await again.goto(a, target, steel_rig.url("/public?next"))
+        assert await again.evaluate(a, target, "typeof globalThis.sroPage") == "object"
+    finally:
+        await again.aclose()
+
+
+async def test_a_closed_context_is_page_gone_even_when_none_is_left(
+    accounts: Accounts,
+    steel_rig: Rig,
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    pool, url, a, b = accounts
+    target = await driver.open_tab(a, steel_rig.url("/public"))
+
+    await pool.close(url, a.context_id)
+    with pytest.raises(PageGone):
+        await driver.url_of(a, target)
+
+    await pool.close(url, b.context_id)
+    with pytest.raises(PageGone):
+        await driver.open_tab(a, steel_rig.url("/public"))
+    with pytest.raises(PageGone):
+        await driver.restore_state(a, '{"cookies": []}')
+    with pytest.raises(PageGone):
+        await driver.storage_state(a)
+    with pytest.raises(PageGone):
+        await driver.storage_state(SessionRef("some-other-account", a.cdp_url))
+
+
+async def test_steel_s_http_cdp_url_connects_and_a_stale_one_is_page_gone(
+    accounts: Accounts,
+    steel_rig: Rig,
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    _, _, a, _ = accounts
+    by_name = SessionRef(a.context_id, get_settings().steel_cdp_url)
+    target = await driver.open_tab(by_name, steel_rig.url("/public"))
+    assert (await driver.url_of(by_name, target)).endswith("/public")
+
+    stale = SessionRef(a.context_id, a.cdp_url.rsplit("/", 1)[0] + "/not-this-browser")
+    with pytest.raises(PageGone):
+        await driver.url_of(stale, target)
+
+
+async def test_one_account_never_sees_the_calls_another_account_makes_in_the_same_container(
+    accounts: Accounts,
+    steel_rig: Rig,
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    _, _, a, b = accounts
+    mine = await driver.open_tab(a, steel_rig.url("/public"))
+    mark = await driver.mark(a, mine)
+    theirs = await signed_in_on_the_framed_page(steel_rig, driver, b)
+    their_mark = await driver.mark(b, theirs)
+
+    await driver.evaluate(a, mine, "fetch('/api/ping', {method: 'POST'})")
+    await driver.act(b, theirs, in_the_app_frame(steel_rig, "type", "#ct", "B"))
+    await driver.act(b, theirs, in_the_app_frame(steel_rig, "click", "#save"))
+
+    assert await driver.wait_for_call(
+        b, theirs, method="POST", shape="/api/customer-types", since=their_mark, deadline_s=10.0
+    )
+    assert await driver.wait_for_call(
+        a, mine, method="POST", shape="/api/ping", since=mark, deadline_s=10.0
+    )
+    assert [(c.method, c.url, c.status) for c in await driver.calls_since(a, mine, mark)] == [
+        ("POST", steel_rig.url("/api/ping"), 201)
+    ]
+    theirs_calls = await driver.calls_since(b, theirs, their_mark)
+    assert any(c.url == steel_rig.url("/api/customer-types") for c in theirs_calls)
+    assert all(c.url != steel_rig.url("/api/ping") for c in theirs_calls)
+    assert not await driver.wait_for_call(
+        a, mine, method="POST", shape="/api/customer-types", since=mark, deadline_s=1.0
+    )
+    with pytest.raises(PageGone):
+        await driver.calls_since(a, theirs, 0)
+
+
+async def test_a_s_csrf_token_and_cookie_are_never_b_s(
+    accounts: Accounts,
+    steel_rig: Rig,
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    _, _, a, b = accounts
+    app_url = steel_rig.url("/app")
+    said: dict[str, dict[str, str]] = {}
+    cookie: dict[str, str] = {}
+    for who in (a, b):
+        tab = await driver.open_tab(who, steel_rig.url("/"))
+        await steel_rig.sign_in_in(driver, who, tab)
+        since = await driver.mark(who, tab)
+        await driver.evaluate(who, tab, "document.getElementById('save').click()")
+        assert await driver.wait_for_call(
+            who, tab, method="POST", shape="/api/customer-types", since=since, deadline_s=10.0
+        )
+
+    for name, who in (("a", a), ("b", b)):
+        said[name] = await driver.headers_for(
+            who, origin_of(app_url), 10.0, needs=("x-csrf-token",)
+        )
+        cookie[name] = await driver.cookies_for(who, app_url)
+
+    assert set(said["a"]) == set(said["b"]) == {"x-csrf-token"}
+    assert said["a"]["x-csrf-token"] != said["b"]["x-csrf-token"]
+    assert cookie["a"].startswith("sid=")
+    assert cookie["b"].startswith("sid=")
+    assert cookie["a"] != cookie["b"]
+
+
+async def test_a_tab_s_calls_are_forgotten_body_and_all(
+    accounts: Accounts,
+    steel_rig: Rig,
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    _, _, a, _ = accounts
+    tab = await driver.open_tab(a, steel_rig.url("/public"))
+    mark = await driver.mark(a, tab)
+    await driver.evaluate(a, tab, "fetch('/api/ping', {method: 'POST', body: 'password=x'})")
+    assert await driver.wait_for_call(
+        a, tab, method="POST", shape="/api/ping", since=mark, deadline_s=10.0
+    )
+
+    await driver.forget_calls(a, tab)
+
+    assert await driver.calls_since(a, tab, 0) == ()
+
+
+async def test_act_through_the_recorded_iframe_is_confirmed_on_steel(
+    accounts: Accounts,
+    steel_rig: Rig,
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    _, _, a, _ = accounts
+    target = await signed_in_on_the_framed_page(steel_rig, driver, a)
+    typing = in_the_app_frame(steel_rig, "type", "#ct", "GT2")
+    mark = await driver.mark(a, target)
+
+    typed = await driver.act(a, target, typing)
+    assert (typed.ok, typed.matched_by, typed.repaired) == (True, "css_path", False)
+    assert await driver.wait_for(
+        a, target, {**typing, "pin": typed.pin, "expect": {"value": "GT2"}}, 10.0
+    )
+
+    assert (await driver.act(a, target, in_the_app_frame(steel_rig, "click", "#save"))).ok
+    assert await driver.wait_for_call(
+        a, target, method="POST", shape="/api/customer-types", since=mark, deadline_s=10.0
+    )
+    assert [c.status for c in await driver.calls_since(a, target, mark) if c.method == "POST"] == [
+        201
+    ]
+
+
+async def test_the_round_trip_alone_marks_an_identifier_first_page_and_ends_at_its_return(
+    accounts: Accounts,
+    steel_rig: Rig,
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    _, _, a, b = accounts
+
+    asking = await driver.open_tab(a, steel_rig.url("/?acr_values=identifier"))
+    signals = await driver.signals(a, asking)
+    assert not signals.password and a_sign_in_page(signals)
+
+    returned = await driver.open_tab(b, steel_rig.url("/?response_mode=form_post"))
+    await steel_rig.sign_in_in(driver, b, returned)
+    assert not a_sign_in_page(await driver.signals(b, returned))

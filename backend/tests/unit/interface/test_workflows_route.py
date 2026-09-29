@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator
+from dataclasses import replace
 
 import httpx
 import pytest
@@ -50,6 +51,7 @@ from sro.interface.http.deps import get_container
 from tests import factories as f
 from tests.unit.fakes import FakeUnitOfWork
 from tests.unit.interface.test_http import _FakeContainer, token_for
+from tests.unit.runtime_support import proven_write_step
 
 LAPTOP = DeviceId("dev-1")
 HERS = "the-secret-the-laptop-was-minted"
@@ -214,7 +216,6 @@ def _workflow(
         ],
         parameters=[{"name": "clientCode", "evidence": "proven"}],
         shape_key=[["wms.test", "clientCode", "type"]],
-        same_as=None,
         pass_id="pas_7",  # noqa: S106 -- the mining pass that found it, not a password
     )
 
@@ -433,6 +434,7 @@ async def test_a_mined_job_reaches_the_wire_whole(
                 "system": "wms.test",
                 "cites": ["ges_3", "ges_1"],
                 "parameters": [],
+                "tab": "main",
             },
             {
                 "order": 1,
@@ -440,6 +442,7 @@ async def test_a_mined_job_reaches_the_wire_whole(
                 "system": "billing.test",
                 "cites": ["ges_6", "ges_5"],
                 "parameters": ["clientCode"],
+                "tab": "main",
             },
             {
                 "order": 2,
@@ -447,9 +450,16 @@ async def test_a_mined_job_reaches_the_wire_whole(
                 "system": "wms.test",
                 "cites": ["ges_7", "ges_2"],
                 "parameters": [],
+                "tab": "main",
             },
         ],
         "runs": {"total": 0, "held": 0, "stale": 0, "earned": False, "proven": 0, "needed": 3},
+        "runnable": True,
+        "reasons": [],
+        # Its calls started long after its gestures, so no step is seen to
+        # write: a fragment by the chat's rule, listed here but never offered.
+        "offered": False,
+        "warnings": [],
     }
 
 
@@ -637,8 +647,18 @@ async def test_a_cited_gesture_reaches_the_bridge_whole(
                     "name": "clientCode",
                     "xtype": "textfield",
                     "required": None,
+                    "chain": [],
                 },
+                "bounds": {},
+                "attributes": {},
+                "landmarks": [],
             },
+            "modifiers": [],
+            "frame_path": None,
+            "detail": None,
+            "trusted": None,
+            "after": None,
+            "outlines": [],
         },
     }
 
@@ -989,3 +1009,55 @@ async def test_a_browser_may_not_retire_a_job(
 
     assert answered.status_code == 403
     assert (await _listed(client)).json()["workflows"][0]["id"] == JOB
+
+
+async def test_a_job_that_cannot_run_says_why_on_the_wire(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """The compile check's reasons reach the console's job page."""
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_cannot",
+            tenant="acme",
+            title="t",
+            narrative="n",
+            steps=[Step(order=0, says="s", system=None, cites=["gone"])],
+            parameters=[{"name": "Department", "required": True}],
+        )
+    )
+
+    (row,) = (await _listed(client)).json()["workflows"]
+
+    assert row["runnable"] is False
+    assert row["reasons"] == [
+        {
+            "code": "unbound_parameter",
+            "step": None,
+            "detail": "Department is required and no step fills it",
+        },
+        {"code": "no_lane", "step": 0, "detail": "has no evidence a browser can act on: s"},
+    ]
+    assert row["warnings"] == []
+
+
+async def test_a_job_that_writes_fixed_values_runs_and_is_warned_on_the_wire(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork
+) -> None:
+    """User decision 2026-09-26: a job with no parameters whose write carries
+    captured values stays runnable, with a warning the console shows."""
+    step, by_id, _ = proven_write_step(read_back=None)
+    await uow.gestures.add_gestures(tuple(by_id.values()))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_fixed",
+            tenant="acme",
+            title="t",
+            narrative="n",
+            steps=[replace(step, parameters=[])],
+        )
+    )
+
+    (row,) = (await _listed(client)).json()["workflows"]
+
+    assert row["runnable"] is True
+    assert [one["code"] for one in row["warnings"]] == ["fixed_values"]

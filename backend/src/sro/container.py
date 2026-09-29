@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -7,14 +8,16 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, async_sessionmaker
+from sqlalchemy.pool import NullPool
 
 from sro.application.analytics.audit import ReadAudit
 from sro.application.analytics.summary import ReadSummary
 from sro.application.capture.devices import ReadRoster, RestoreDevice, RevokeDevice
-from sro.application.chat.about_an_offer import AskAboutTheOffer, SayTheRunStarted
+from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.ask_the_asker import DraftForTheAsker, SendTheDraft
 from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.from_the_mail import FromTheMail
+from sro.application.chat.look_lately import LookInTheMailLately
 from sro.application.chat.read_chat import ReadChat
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.chat.reading_an_answer import IsItAnAnswer
@@ -49,6 +52,7 @@ from sro.application.execution.execute_skill import (
     StartRun,
 )
 from sro.application.execution.gather import GatherContext
+from sro.application.execution.mail_job import MailHand, Written, send_the_mail, write_the_mail
 from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.execution.pursue_goal import PursueGoal
 from sro.application.execution.pursuits import Pursuits
@@ -57,6 +61,7 @@ from sro.application.execution.run_from_preview import RunFromPreview
 from sro.application.execution.run_workflow import fail_orphans
 from sro.application.execution.self_heal import SelfHeal
 from sro.application.execution.stops import Stops
+from sro.application.execution.stuck_runs import CloseStuckRuns
 from sro.application.execution.vision_step import PerformWithVision
 from sro.application.execution.workflow_runs import (
     AbortWorkflowRun,
@@ -107,7 +112,10 @@ from sro.application.ports.embedding import Embedder
 from sro.application.ports.http import HttpCaller
 from sro.application.ports.intent import IntentParser
 from sro.application.ports.interpretation import WorkflowInterpreter
-from sro.application.ports.model import Asker
+from sro.application.ports.locks import AccountLocks
+from sro.application.ports.model import Asker, asker_or_refuse
+from sro.application.ports.page import PageDriver
+from sro.application.ports.pool import BrowserPool
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.schedule import Scheduler
 from sro.application.ports.sign_in import SignInDriver
@@ -122,6 +130,16 @@ from sro.application.recording.attach_artifact import AttachArtifact
 from sro.application.recording.finish_recording import FinishRecording
 from sro.application.recording.ingest_capture_events import IngestCaptureEvents
 from sro.application.recording.start_recording import StartRecording
+from sro.application.runtime.answer_run import AnswerRun
+from sro.application.runtime.api_lane import ApiLane
+from sro.application.runtime.broker import SessionBroker
+from sro.application.runtime.executor import StepExecutor
+from sro.application.runtime.fill_field import FillField
+from sro.application.runtime.run_steps import RunSteps
+from sro.application.runtime.sight_lane import SightLane
+from sro.application.runtime.teach import Teach
+from sro.application.runtime.tool_lane import ToolLane
+from sro.application.runtime.ui_lane import UiLane
 from sro.application.skill.describe_skill import DescribeSkill
 from sro.application.skill.read_skills import GetSkill, ListSkills
 from sro.application.skill.read_workflows import ReadEvidence, ReadWorkflows
@@ -140,13 +158,17 @@ from sro.application.trigger.read_triggers import DeleteTrigger, ReadTriggers, S
 from sro.application.trigger.receive_inbound import ReceiveInbound
 from sro.config import Settings, get_settings
 from sro.domain.chat.asking import Pending
+from sro.domain.observation.gesture import Gesture
+from sro.domain.prompts.sight import SIGHT, SIGHT_ESCALATED
 from sro.domain.shared.prices import DaySpend
+from sro.domain.skill.workflow import Workflow
 from sro.infrastructure.agent.channel import SocketChannel
 from sro.infrastructure.agent.drivers import RemoteAgents
 from sro.infrastructure.agent.sockets import DeviceSockets
 from sro.infrastructure.auth.keycloak import KeycloakTokens
 from sro.infrastructure.auth.signed_tokens import SignedTokens
 from sro.infrastructure.blob.minio_store import MinioBlobStore
+from sro.infrastructure.db.locks import K_LOCK_CONNECT_TIMEOUT_S, PostgresAccountLocks
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from sro.infrastructure.db.schema_version import SchemaVersion, announce, schema_version
 from sro.infrastructure.db.session import create_engine, create_session_factory
@@ -164,6 +186,8 @@ from sro.infrastructure.knowledge.write_endpoints import load_verified_writes
 from sro.infrastructure.mcp.client import McpServer, McpToolCaller
 from sro.infrastructure.mcp.server import SkillToolServer
 from sro.infrastructure.steel.client import SteelClient
+from sro.infrastructure.steel.driver import SteelDriver
+from sro.infrastructure.steel.pool import SteelPool
 from sro.infrastructure.steel.sign_in import PlaywrightSignIn
 from sro.infrastructure.steel.supervisor import CaptureSupervisor
 from sro.infrastructure.steel.ui_driver import PlaywrightUiDriver
@@ -203,6 +227,9 @@ class Container:
     tools: ToolCaller
     ui: UiDriver
     sign_in_driver: SignInDriver
+    locks: AccountLocks
+    pool: BrowserPool
+    driver: PageDriver
     tokens: TokenSource | None
     credentials: Credentials
     durable: DurableExecution
@@ -212,6 +239,8 @@ class Container:
     meter: Meter
 
     engine: AsyncEngine | None = None
+
+    lock_engine: AsyncEngine | None = None
 
     agent_sockets: DeviceSockets = field(default_factory=DeviceSockets)
 
@@ -226,6 +255,66 @@ class Container:
     capture: CaptureController = field(init=False)
 
     driving_runs: AsyncConnection | None = None
+
+    def api_lane(self) -> ApiLane:
+        return ApiLane(self.session_broker())
+
+    def ui_lane(self) -> UiLane:
+        return UiLane(self.driver)
+
+    def sight_lane(self) -> SightLane:
+        pro = (
+            None
+            if self.vision is None
+            else GeminiVisionDriver(
+                SIGHT_ESCALATED,
+                client=metered_client(self.settings.gemini_api_key, self.meter),
+            )
+        )
+        return SightLane(self.driver, self.vision, pro)
+
+    def session_broker(self) -> SessionBroker:
+        return SessionBroker(
+            self.unit_of_work(),
+            self.pool,
+            self.driver,
+            self.locks,
+            self.vault,
+            self.clock,
+            ui=self.ui_lane(),
+        )
+
+    def step_executor(self) -> StepExecutor:
+        return StepExecutor(
+            self.tool_lane(),
+            self.api_lane(),
+            self.ui_lane(),
+            self.sight_lane(),
+            self.session_broker(),
+        )
+
+    def teach(self) -> Teach:
+        return Teach(self.unit_of_work(), self.clock)
+
+    def fill_field(self) -> FillField:
+        return FillField(self.driver, self.sight_lane())
+
+    def run_steps(self) -> RunSteps:
+        return RunSteps(
+            self.unit_of_work(),
+            self.session_broker(),
+            self.step_executor(),
+            self.teach(),
+            self.api_lane(),
+            self.clock,
+            self.ids,
+            fill=self.fill_field(),
+        )
+
+    def answer_run(self) -> AnswerRun:
+        return AnswerRun(
+            self.unit_of_work(), self.durable, resume=self.start_workflow_run().answered
+        )
 
     def unit_of_work(self) -> UnitOfWork:
         return SqlUnitOfWork(self.session_factory)
@@ -283,7 +372,7 @@ class Container:
         return ServeShapes(self.unit_of_work(), self.clock)
 
     def read_workflows(self) -> ReadWorkflows:
-        return ReadWorkflows(self.unit_of_work())
+        return ReadWorkflows(self.unit_of_work(), self.clock)
 
     def retire_workflow(self) -> RetireWorkflow:
         return RetireWorkflow(self.unit_of_work(), self.clock)
@@ -301,7 +390,7 @@ class Container:
     def record_offer(self) -> RecordOffer:
         return RecordOffer(self.unit_of_work(), self.clock)
 
-    def _patient_asker(self) -> Asker | None:
+    def mining_asker(self) -> Asker | None:
         if self._mining_asker is None or self._mining_asker_from is not self.asker:
             self._mining_asker_from = self.asker
             self._mining_asker = _patient_asker_for(self.settings, self.asker, self.meter)
@@ -310,8 +399,8 @@ class Container:
     def mine_pass(self) -> MinePass:
         return MinePass(
             self.unit_of_work(),
-            asker=self._patient_asker(),
-            model=self.settings.gemini_mine_model,
+            asker=self.mining_asker(),
+            locks=self.locks,
             clock=self.clock,
             cap_usd=self.settings.daily_usd_cap,
             ours=frozenset(host_port for host_port, _ in self.settings.our_own_origins()),
@@ -322,6 +411,7 @@ class Container:
             self.unit_of_work(),
             self.mine_pass(),
             self.read_gestures(),
+            self.locks,
             window_hours=self.settings.mining_window_hours,
         )
 
@@ -329,7 +419,6 @@ class Container:
         return ReadGestures(
             self.unit_of_work(),
             asker=self.asker,
-            model=self.settings.gemini_read_model,
             clock=self.clock,
             cap_usd=self.settings.daily_usd_cap,
             blobs=self.blobs,
@@ -341,7 +430,6 @@ class Container:
         return ReadChat(
             self.unit_of_work(),
             asker=self.asker,
-            model=self.settings.gemini_plan_model,
             clock=self.clock,
             cap_usd=self.settings.daily_usd_cap,
         )
@@ -351,13 +439,12 @@ class Container:
             self.unit_of_work(),
             self.retrieve_knowledge(),
             self.asker,
-            model=self.settings.gemini_plan_model,
             clock=self.clock,
             cap_usd=self.settings.daily_usd_cap,
         )
 
     def run_lookups(self) -> RunLookups:
-        return RunLookups(self.unit_of_work(), SocketChannel(self.agent_sockets))
+        return RunLookups(self.unit_of_work(), self.session_broker(), self.http)
 
     def create_trigger(self) -> CreateTrigger:
         return CreateTrigger(
@@ -366,6 +453,7 @@ class Container:
             self.ids,
             self.scheduler,
             can_gather=self.can_gather,
+            start_run=self.start_workflow_run(),
         )
 
     def read_triggers(self) -> ReadTriggers:
@@ -405,6 +493,15 @@ class Container:
 
     def read_confirmations(self) -> ReadConfirmations:
         return ReadConfirmations(self.unit_of_work())
+
+    def close_stuck_runs(self) -> CloseStuckRuns:
+        return CloseStuckRuns(
+            self.unit_of_work(),
+            durable=self.durable,
+            release=self.run_steps().release,
+            clock=self.clock,
+            ids=self.ids,
+        )
 
     def expire_confirmations(self) -> ExpireConfirmations:
         return ExpireConfirmations(self.unit_of_work(), self.clock)
@@ -509,7 +606,7 @@ class Container:
             self.unit_of_work(),
             self.browser,
             self.watch_browsers(),
-            self.pursuits,
+            self.session_broker(),
             self.clock,
         )
 
@@ -573,8 +670,8 @@ class Container:
             self.vision,
             self.clock,
             egress_enabled=self.settings.vision_enabled,
-            destination=f"gemini:{self.settings.gemini_vision_model}",
-            model=self.settings.gemini_vision_model,
+            destination=f"gemini:{SIGHT.model}",
+            model=SIGHT.model,
         )
 
     def execute_skill(self) -> ExecuteSkill:
@@ -613,7 +710,7 @@ class Container:
             self.understand_recording(),
             self.browsers(),
             egress_enabled=self.settings.vision_enabled,
-            model=self.settings.gemini_vision_model,
+            model=SIGHT.model,
         )
 
     def self_heal(self) -> SelfHeal:
@@ -680,7 +777,12 @@ class Container:
             can_gather=self.can_gather,
             plan_lookups=self.plan_lookups(),
             run_lookups=self.run_lookups(),
-            answers=IsItAnAnswer(self.asker, model=self.settings.gemini_plan_model),
+            answers=IsItAnAnswer(self.asker),
+            answer_run=self.answer_run(),
+            start=self.start_workflow_run(),
+            spawn=self.pursuits.spawn,
+            attempts=self.record_attempt(),
+            look=self.from_the_mail(),
         )
 
     def ask_about_the_offer(self) -> AskAboutTheOffer:
@@ -692,23 +794,26 @@ class Container:
     def send_the_draft(self) -> SendTheDraft:
         return SendTheDraft(self.unit_of_work(), self.tools, self.clock, self.ids)
 
-    def say_the_run_started(self) -> SayTheRunStarted:
-        return SayTheRunStarted(self.unit_of_work(), self.clock, self.ids)
-
     def from_the_mail(self) -> FromTheMail:
         return FromTheMail(
             self.unit_of_work(),
             self.tools,
             self.asker,
-            model=self.settings.gemini_plan_model,
             clock=self.clock,
             ids=self.ids,
             cap_usd=self.settings.daily_usd_cap,
-            gather=GatherContext(
-                tools=self.tools, asker=self.asker, model=self.settings.gemini_plan_model
-            )
+            answer=self.answer_run(),
+            gather=GatherContext(tools=self.tools, asker=self.asker)
             if self.asker is not None
             else None,
+            start=self.start_workflow_run(),
+            attempts=self.record_attempt(),
+            asks=self.ask_about_the_offer(),
+        )
+
+    def look_in_the_mail_lately(self) -> LookInTheMailLately:
+        return LookInTheMailLately(
+            self.unit_of_work(), self.from_the_mail(), self.settings.steel_tenants
         )
 
     @property
@@ -752,8 +857,6 @@ class Container:
             self.unit_of_work(),
             channel=SocketChannel(self.agent_sockets),
             asker=self.asker,
-            plan_model=self.settings.gemini_plan_model,
-            rescue_model=self.settings.gemini_rescue_model,
             clock=self.clock,
             cap_usd=self.settings.daily_usd_cap,
             stops=self.stops,
@@ -762,14 +865,44 @@ class Container:
             verified_writes=load_verified_writes(),
             vault=self.vault,
             retrieve=self.retrieve_knowledge(),
-            gather=GatherContext(
-                tools=self.tools, asker=self.asker, model=self.settings.gemini_plan_model
-            )
+            gather=GatherContext(tools=self.tools, asker=self.asker)
             if self.asker is not None
             else None,
             ids=self.ids,
             asker_drafts=self._drafting,
+            durable=self.durable,
+            steel_tenants=frozenset(self.settings.steel_tenants),
         )
+
+    def tool_lane(self) -> ToolLane:
+        return ToolLane(self._mail_hand)
+
+    def _mail_hand(self, ctx: RequestContext) -> MailHand:
+        asker = asker_or_refuse(self.asker)
+
+        async def write(
+            workflow: Workflow,
+            values: Mapping[str, str],
+            thread: str,
+            by_id: Mapping[str, Gesture],
+            request: Sequence[str],
+        ) -> Written | str:
+            return await write_the_mail(
+                ctx,
+                workflow,
+                values,
+                thread,
+                by_id=by_id,
+                request=request,
+                uow=self.unit_of_work(),
+                tools=self.tools,
+                asker=asker,
+            )
+
+        async def send(mail: Written) -> tuple[str, str]:
+            return await send_the_mail(ctx, self.unit_of_work(), self.tools, mail, clock=self.clock)
+
+        return MailHand(write=write, send=send)
 
     async def _drafting(self, ctx: RequestContext, run_id: str, pending: Pending) -> bool:
         return await self.draft_for_the_asker().execute(ctx, pending, run_id=run_id)
@@ -781,10 +914,12 @@ class Container:
         return ListWorkflowRuns(self.unit_of_work())
 
     def get_workflow_run(self) -> GetWorkflowRun:
-        return GetWorkflowRun(self.unit_of_work())
+        return GetWorkflowRun(self.unit_of_work(), pool=self.pool)
 
     def abort_workflow_run(self) -> AbortWorkflowRun:
-        return AbortWorkflowRun(self.unit_of_work(), self.stops, self.approvals)
+        return AbortWorkflowRun(
+            self.unit_of_work(), self.stops, self.approvals, durable=self.durable
+        )
 
     def approve_workflow_step(self) -> ApproveWorkflowStep:
         return ApproveWorkflowStep(self.unit_of_work(), self.approvals, self.clock)
@@ -808,7 +943,6 @@ class Container:
 def _build_transcriber(settings: Settings, meter: Meter) -> Transcriber:
     if settings.transcription_enabled and settings.gemini_api_key:
         return GeminiTranscriber(
-            settings.gemini_transcription_model,
             client=metered_client(settings.gemini_api_key, meter),
         )
     return NullTranscriber()
@@ -817,7 +951,6 @@ def _build_transcriber(settings: Settings, meter: Meter) -> Transcriber:
 def _build_intent_parser(settings: Settings, meter: Meter) -> IntentParser:
     if settings.interpretation_enabled and settings.gemini_api_key:
         return GeminiIntentParser(
-            settings.gemini_intent_model,
             client=metered_client(settings.gemini_api_key, meter),
         )
     return NoIntentParser()
@@ -826,7 +959,6 @@ def _build_intent_parser(settings: Settings, meter: Meter) -> IntentParser:
 def _build_interpreter(settings: Settings, meter: Meter) -> WorkflowInterpreter:
     if settings.interpretation_enabled and settings.gemini_api_key:
         return GeminiInterpreter(
-            settings.gemini_interpreter_model,
             client=metered_client(settings.gemini_api_key, meter),
         )
     return NoInterpreter()
@@ -851,7 +983,7 @@ def _build_asker(settings: Settings, meter: Meter) -> Asker | None:
 def _build_vision(settings: Settings, meter: Meter) -> VisionDriver | None:
     if settings.vision_enabled and settings.gemini_api_key:
         return GeminiVisionDriver(
-            settings.gemini_vision_model,
+            SIGHT,
             client=metered_client(settings.gemini_api_key, meter),
         )
     return None
@@ -864,6 +996,31 @@ def _build_embedder(settings: Settings, meter: Meter) -> Embedder:
             client=metered_client(settings.gemini_api_key, meter),
         )
     return NoEmbedder()
+
+
+def _build_pool(settings: Settings) -> SteelPool:
+    pairs = {pair for urls in settings.steel_urls.values() for pair in urls}
+    pairs.add((settings.steel_base_url, settings.steel_cdp_url))
+    clients = {
+        api: SteelClient(
+            api,
+            cdp,
+            capacity=settings.steel_sessions_per_container,
+            public_base_url=settings.steel_public_base_url,
+            session_timeout_seconds=settings.steel_session_timeout_seconds,
+            dimensions=(settings.browser_width, settings.browser_height),
+        )
+        for api, cdp in pairs
+    }
+    containers_by_tenant = {
+        tenant: tuple(api for api, _ in urls) for tenant, urls in settings.steel_urls.items()
+    }
+    return SteelPool(
+        clients,
+        containers_by_tenant=containers_by_tenant,
+        fallback=(settings.steel_base_url,),
+        per_container=settings.steel_sessions_per_container,
+    )
 
 
 def _build_vault(settings: Settings) -> CredentialVault:
@@ -908,6 +1065,11 @@ def build_container(settings: Settings | None = None) -> Container:
     sessions = create_session_factory(engine)
     clock = SystemClock()
     meter = Meter(lambda: SqlUnitOfWork(sessions), clock=clock, cap_usd=settings.daily_usd_cap)
+    lock_engine = create_engine(
+        settings.database_url,
+        poolclass=NullPool,
+        connect_args={"timeout": K_LOCK_CONNECT_TIMEOUT_S},
+    )
 
     container = Container(
         settings=settings,
@@ -939,6 +1101,9 @@ def build_container(settings: Settings | None = None) -> Container:
         tools=McpToolCaller(_servers(settings.mcp_servers), vault=built_vault),
         ui=PlaywrightUiDriver(settings.ui_debugger_url),
         sign_in_driver=PlaywrightSignIn(),
+        locks=PostgresAccountLocks(lock_engine),
+        pool=_build_pool(settings),
+        driver=SteelDriver(settings.page_code_path),
         tokens=(
             KeycloakTokens(
                 built_vault,
@@ -959,6 +1124,7 @@ def build_container(settings: Settings | None = None) -> Container:
         ),
         session_factory=sessions,
         engine=engine,
+        lock_engine=lock_engine,
         meter=meter,
     )
     container.capture = CaptureSupervisor(

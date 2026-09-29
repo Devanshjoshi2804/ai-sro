@@ -13,7 +13,7 @@ from sro.application.execution.pursuits import PursuitProgress, PursuitState
 from sro.application.intent.pursue import compose
 from sro.domain.chat.thread import ThreadId
 from sro.domain.execution.run import Medium, RunId
-from sro.domain.observation.attempts import DONE, NOTHING
+from sro.domain.observation.attempts import DONE, NOTHING, REFUSED
 from sro.domain.shared.errors import Conflict, InvariantViolation, NotFound
 from sro.domain.shared.identifiers import SkillId
 from sro.interface.http.deps import AboutThread, ContainerDep, ContextDep
@@ -76,9 +76,13 @@ async def run_from_thread(
     The same run as `/v1/skills/{id}/runs`, kept where it belongs: an operator
     who filled in a card and pressed the button has had a conversation, and a
     result that lives only in the browser's memory is gone on the next render.
+
+    409 when the caller did not open the thread, checked before any run
+    starts: a run written into somebody else's thread stands over their offer.
     """
     if not body.skill_id:
         raise InvariantViolation("a run started from a thread must name a skill_id")
+    await container.converse().may_start(ctx, thread_id=ThreadId(thread_id))
     skill_id = SkillId(body.skill_id)
     skill = await container.get_skill().execute(ctx, skill_id=skill_id)
     await container.start_run().check(
@@ -127,7 +131,11 @@ async def pursue(
     a screenshot to a hosted model and back, and running it inside this request
     held the whole API until it finished -- which is not a slow endpoint, it is
     an outage with a good excuse. What comes back is an address to watch.
+
+    409 when the caller did not open the thread, checked before anything is
+    driven: the pursuit's note is written into this thread when it ends.
     """
+    await container.converse().may_start(ctx, thread_id=ThreadId(thread_id))
     if (busy := container.pursuits.working()) is not None:
         raise Conflict(
             f"a pursuit is already working on {busy.goal!r}; there is one browser, "
@@ -203,9 +211,11 @@ async def say(
 ) -> ThreadDetail:
     """Say something and get the whole thread back, decision included.
 
-    Nothing is performed here. A matched skill is offered; starting it is the
-    operator's next request, and that is what makes their confirmation the
-    authorisation an assisted run records.
+    A matched skill is offered; starting it is the operator's next request,
+    and that is what makes their confirmation the authorisation an assisted
+    run records. A yes (or the last answer) to a job offer is that request: it
+    starts the run here, through the same start `POST /v1/workflow-runs` uses,
+    and the reply names the run -- or says in words why nothing was started.
     """
     thread = await container.converse().execute(
         ctx,
@@ -214,14 +224,22 @@ async def say(
         system=body.system,
         parameters=body.parameters,
         run_id=RunId(body.run_id) if body.run_id else None,
+        answering=body.answering,
     )
     last = thread.messages[-1] if thread.messages else None
-    decided = str((last.decision or {}).get("kind") or "") if last else ""
+    said = (last.decision or {}) if last else {}
+    decided = str(said.get("kind") or "")
+    started = str(said.get("run_id") or "")
+    refused = decided == "job" and not started
     await container.record_attempt().execute(
         ctx,
         asked_for="say something in a conversation",
-        came_of=DONE if decided else NOTHING,
-        why="" if decided else "nothing was made of what was said",
-        about={"thread": thread_id, "run": body.run_id or ""},
+        came_of=REFUSED if refused else DONE if decided else NOTHING,
+        why=last.text
+        if last is not None and refused
+        else ""
+        if decided
+        else "nothing was made of what was said",
+        about={"thread": thread_id, "run": started or body.run_id or ""},
     )
     return ThreadDetail.of_thread(thread)

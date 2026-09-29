@@ -15,7 +15,12 @@ def wrote(step: RunStep) -> bool:
 
 
 async def record_effect(
-    workflows: WorkflowRepository, run: WorkflowRun, step: RunStep, *, at: str
+    workflows: WorkflowRepository,
+    run: WorkflowRun,
+    step: RunStep,
+    *,
+    at: str,
+    recorded: str | None = None,
 ) -> None:
     if not (run.live and step.verdict == "held" and wrote(step)):
         return
@@ -26,23 +31,29 @@ async def record_effect(
         verified_by=step.verdict_by,
         at=at,
     )
-    await _remember_the_write(workflows, run, step, at=at)
+    await _remember_the_write(workflows, run, step, at=at, recorded=recorded)
 
 
 async def _remember_the_write(
-    workflows: WorkflowRepository, run: WorkflowRun, step: RunStep, *, at: str
+    workflows: WorkflowRepository,
+    run: WorkflowRun,
+    step: RunStep,
+    *,
+    at: str,
+    recorded: str | None,
 ) -> None:
     watched = (step.result or {}).get("called")
     sent = (step.sent or {}).get("payload")
     call = watched if isinstance(watched, dict) else sent
     url = str(call.get("url", "")) if isinstance(call, dict) else ""
     method = str(call.get("method", "")) if isinstance(call, dict) else ""
-    if not url or not method:
+    pattern = learned_pattern(url, run.values, recorded) if url and method else None
+    if pattern is None:
         return
     await workflows.remember_write(
         TenantId(run.tenant),
         method=method,
-        path_pattern=learned_pattern(url, run.values),
+        path_pattern=pattern,
         origin=origin_of(url),
         run_id=run.id,
         workflow_id=run.workflow_id,

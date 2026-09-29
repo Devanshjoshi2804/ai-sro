@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { became, money, outcomeLabel, when, startOfToday } from "@/features/workflow/format";
+import {
+  became,
+  money,
+  outcomeLabel,
+  when,
+  startOfToday,
+  whyNotRunnable,
+} from "@/features/workflow/format";
 
 describe("money", () => {
   it("says unpriced rather than inventing a free call", () => {
@@ -23,9 +30,9 @@ describe("became", () => {
   it("pluralises more than one", () => {
     expect(became({ total: 3, held: 2, stale: 0, earned: false })).toBe("3 runs · 2 held");
   });
-  it("says writes unasked once the job has earned it", () => {
+  it("says proven once the job has earned it", () => {
     expect(became({ total: 3, held: 2, stale: 0, earned: true })).toBe(
-      "3 runs · 2 held · writes unasked",
+      "3 runs · 2 held · proven",
     );
   });
   it("warns that the page is moving under the job", () => {
@@ -65,5 +72,22 @@ describe("outcomeLabel", () => {
   });
   it("leaves a live run unmarked — the mark means the writes were withheld", () => {
     expect(outcomeLabel({ outcome: "completed", live: true })).toBe("completed");
+  });
+});
+
+describe("whyNotRunnable", () => {
+  it("says nothing for a runnable job, and each reason once for one that is not", () => {
+    expect(whyNotRunnable([])).toEqual([]);
+    expect(
+      whyNotRunnable([
+        {
+          code: "unbound_parameter",
+          step: null,
+          detail: "Department is required and no step fills it",
+        },
+        { code: "no_locator", step: 2, detail: "nothing finds the control" },
+        { code: "no_locator", step: 2, detail: "nothing finds the control" },
+      ]),
+    ).toEqual(["Department is required and no step fills it", "Step 2: nothing finds the control"]);
   });
 });

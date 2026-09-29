@@ -148,6 +148,12 @@ services:
       # credentials -- to everything that can route to this VM.
       DOMAIN: ${STEEL_DOMAIN:?set STEEL_DOMAIN, the address a browser reaches the proxy on, e.g. 10.11.9.25:8088}
       CDP_DOMAIN: steel:9223
+      # A tab that closes before Steel's own new-target handler finishes its
+      # awaited CDP calls (a self-closing sign-in popup, for one) leaves an
+      # unhandled rejection Steel never catches, and Node exits -- killing
+      # every account in this container. Logging the rejection instead of
+      # dying is the fix; see task-S5-rereview-1.md's "Second crash path".
+      NODE_OPTIONS: --unhandled-rejections=warn
     # No published port: the proxy serves `/ui`, `/v1/sessions*` and the
     # root websocket from this container. 9223 was never published and still
     # is not.
@@ -257,6 +263,10 @@ services:
       # string this system hands out built from a Steel address.
       SRO_STEEL_PUBLIC_BASE_URL: ${SRO_STEEL_PUBLIC_BASE_URL:?set SRO_STEEL_PUBLIC_BASE_URL, e.g. http://10.11.9.25:8088}
       SRO_STEEL_CDP_URL: http://steel:9223
+      # Tenants whose runs the server starts on Steel, as a JSON list, e.g.
+      # '["greyorange"]'. Empty until rollout step 2: every tenant stays on the
+      # extension. The api and the worker read the same list.
+      SRO_STEEL_TENANTS: ${SRO_STEEL_TENANTS:-[]}
       SRO_TEMPORAL_ADDRESS: temporal:7233
       SRO_OTLP_ENDPOINT: http://otel-collector:4318
       # Signs this deployment's credentials. Unset, every authenticated
@@ -344,6 +354,16 @@ services:
       # `StartWorkflowRun` loads the ledger when the worker builds it.
       - ../knowledge-base:/knowledge-base:ro
     command: ["python", "-m", "sro.infrastructure.temporal.worker"]
+    # Must exceed the runs worker's `graceful_shutdown_timeout`, which is
+    # `K_STEP_HEARTBEAT_S` (30 s, domain/execution/progress.py): a deploy gives
+    # a running step that long to finish before it is cancelled as a shutdown.
+    # Docker's default of 10 s would kill it first. Raise this with the constant.
+    stop_grace_period: 45s
+    # Python as PID 1 gets no default signal handling, and nothing reaps its
+    # children. An init in front forwards the SIGTERM that `docker stop` sends to
+    # the worker's own handler (`until_signalled`), which starts the graceful
+    # shutdown.
+    init: true
     # The image's healthcheck curls the API's port, and this container serves
     # no HTTP -- so it reported `unhealthy` from the moment it started while
     # polling Temporal correctly. A check that is always red is worse than no

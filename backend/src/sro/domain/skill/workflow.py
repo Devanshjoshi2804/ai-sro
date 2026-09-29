@@ -10,6 +10,8 @@ if TYPE_CHECKING:
 
 K_MIN_VALUE_LENGTH = 3
 
+MAIN = "main"
+
 _DANGLING = frozenset(
     {"a", "an", "the", "and", "at", "by", "for", "from", "in", "of", "on", "to", "with"}
 )
@@ -29,6 +31,12 @@ class Step:
 
     uses: list[int] = field(default_factory=list)
 
+    tab: str | None = MAIN
+
+    @property
+    def role(self) -> str:
+        return self.tab or MAIN
+
 
 @dataclass
 class Workflow:
@@ -40,12 +48,16 @@ class Workflow:
     steps: list[Step] = field(default_factory=list)
     parameters: list[dict[str, object]] = field(default_factory=list)
     shape_key: list[list[str]] = field(default_factory=list)
-    same_as: str | None = None
     pass_id: str = ""
 
     repeat: Repeat | None = None
 
-    signs_in: bool = False
+    signs_in: bool | None = None
+    signs_out: bool | None = None
+
+    @property
+    def chore(self) -> bool:
+        return bool(self.signs_in or self.signs_out)
 
     def generalise_title(self) -> None:
         seen: list[str] = []
@@ -82,3 +94,16 @@ def cited_ids(workflow: Workflow) -> set[str]:
 
 def ordered_cites(workflow: Workflow) -> list[str]:
     return [cited for step in sorted(workflow.steps, key=lambda s: s.order) for cited in step.cites]
+
+
+def field_key(workflow: Workflow, step: Step) -> str:
+    if step.cites or len(step.parameters) != 1:
+        return ""
+    return next(
+        (
+            str(one["body_key"])
+            for one in workflow.parameters
+            if one.get("name") == step.parameters[0] and one.get("body_key")
+        ),
+        "",
+    )

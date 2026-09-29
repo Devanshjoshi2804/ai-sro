@@ -36,7 +36,8 @@ Both images are built from the repo root, tagged with the commit:
 ```bash
 REV=$(git rev-parse --short HEAD)
 
-docker build -t ai-sro-backend:$REV --build-arg REVISION=$REV backend/
+docker build --build-context page=new-chrome-extension/src/page \
+  -t ai-sro-backend:$REV --build-arg REVISION=$REV backend/
 
 docker build -t ai-sro-web:$REV \
   --build-arg NEXT_PUBLIC_API_URL=http://10.11.9.25:8000 \
@@ -127,6 +128,24 @@ volume made after that. One that already exists keeps the ownership it has:
 $C run --rm --user root --entrypoint sh api -c 'chown -R 10001:10001 /var/lib/sro'
 ```
 
+## Migrating QA's vault keys to the S1 scheme (one shot)
+
+S1 moved vault keys from `{tenant}/{credential origin}/password` to
+`{tenant}/{credential origin}/{username}/password`. QA's existing passwords
+are under the old key, so `backend/scripts/migrate_vault_keys.py` copies each
+one to the new key it belongs at, read off the tenant's recorded sign-in job.
+It never deletes the old key on its own and never prints a secret value.
+
+```bash
+make migrate-vault-keys                       # dry-run: prints what it would do
+make migrate-vault-keys apply=1                # copies old keys to new ones on QA
+make migrate-vault-keys apply=1 delete-old=1   # only after QA-1 has passed
+```
+
+Run the dry-run first, read its output, then `apply=1`. Run `apply=1
+delete-old=1` only once QA-1 has passed on the copied keys — it is a separate
+run so the old keys stay in place as a rollback until then.
+
 ## After every deploy
 
 ```bash
@@ -149,6 +168,28 @@ Every defect found on the first day of deploying was on one of those edges,
 and every one looked correct in the code and worked on a laptop. Read the
 docstring in `backend/scripts/smoke.py` for the list; it is the argument for
 the script.
+
+## Steel needs a container recreate, once
+
+`steel`'s compose definition now sets `NODE_OPTIONS=--unhandled-rejections=warn`
+(see `.superpowers/sdd/2026-09-24-execution-runtime/task-S5-rereview-1.md`,
+"Second crash path"): a tab that closes before Steel's own new-target handler
+finishes its awaited CDP calls -- a self-closing sign-in popup can trigger
+this the same way our own `close_tab` can -- otherwise leaves an unhandled
+rejection Steel never catches, and Node exits, killing every account sharing
+that container. Docker only applies an environment change to a container it
+recreates, not one it restarts, so QA's `steel` service needs one recreate at
+the next deploy:
+
+```bash
+docker compose -f infra/docker-compose.deploy.yml up -d --no-deps steel
+```
+
+Never add `-f docker-compose.yml` to that command: the QA box uses only the
+deploy file, and the base file's ports collide with the box's own Postgres.
+Every live QA session on that container is lost when it recreates, same as
+any Steel restart; release it and start over once the new container is
+healthy.
 
 ## Five things that are quiet when wrong
 

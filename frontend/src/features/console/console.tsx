@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { PursuitCard } from "@/features/console/pursuit-card";
+import { PursuitCard, offersToExplore } from "@/features/console/pursuit-card";
 import { listSkills, skillKeys } from "@/features/skill/api";
 import { ApiError } from "@/lib/api/client";
 import { ink, mono } from "@/features/console/theme";
@@ -643,7 +643,7 @@ function Choices({ ids, onPick }: { ids: string[]; onPick: (text: string) => voi
   );
 }
 
-function ChatTurn({
+export function ChatTurn({
   message,
   onAsk,
   threadId,
@@ -663,6 +663,7 @@ function ChatTurn({
   const decision = message.decision as {
     matched_skill_id?: string | null;
     matched_skill_name?: string | null;
+    workflow_id?: string | null;
     run_id?: string | null;
     matched_version?: number | null;
     confident?: boolean;
@@ -705,14 +706,25 @@ function ChatTurn({
           </div>
         )}
 
-        {/* Nothing taught for this, but the knowledge base knows the screen.
+        {/* Only under "nothing has been taught for that" (`pursuable`).
             Offered rather than taken: driving somebody's warehouse is theirs
             to authorise, and this button is that authorisation. */}
-        {!decision.matched_skill_id && threadId && system && askedFor && (
+        {offersToExplore(message.decision) && threadId && system && askedFor && (
           <PursuitCard threadId={threadId} intent={askedFor} system={system} />
         )}
 
         {decision.note && <div style={{ fontSize: 12, color: ink.textSoft }}>{decision.note}</div>}
+
+        {/* The run a yes here started on the backend: without this the
+            thread says "Running" and the operator has nowhere to watch it. */}
+        {decision.workflow_id && decision.run_id && (
+          <Link
+            href={`/jobs/runs/${decision.run_id}`}
+            style={{ color: ink.accentDeep, fontSize: 12 }}
+          >
+            Watch the run
+          </Link>
+        )}
 
         {/* A question with the answers next to it. Printing "which did you
             mean: A or B?" and then leaving the operator to retype one of them

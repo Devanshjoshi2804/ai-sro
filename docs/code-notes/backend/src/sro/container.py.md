@@ -10,7 +10,7 @@ Comments and docstrings moved out of [`backend/src/sro/container.py`](../../../.
 > or Steel is made here and nowhere else. Swapping an adapter is an edit to this
 > file, which is the whole point of the dependency rule.
 
-## module, [line 179](../../../../../backend/src/sro/container.py#L179): Note on the line above
+## module, [line 203](../../../../../backend/src/sro/container.py#L203): Note on the line above
 
 Code: `RUNS_LOCK = 5721966`
 
@@ -19,28 +19,28 @@ Code: `RUNS_LOCK = 5721966`
 > Any constant would do; this one is arbitrary and only has to differ from
 > whatever else ever takes an advisory lock on this database.
 
-## `Container`, [line 183](../../../../../backend/src/sro/container.py#L183): Docstring
+## `Container`, [line 207](../../../../../backend/src/sro/container.py#L207): Docstring
 
 > Long-lived adapters, built once per process.
 >
 > Use cases are cheap objects built per call: they hold a unit of work, which
 > must not be shared between concurrent requests.
 
-## `Container`, [line 184](../../../../../backend/src/sro/container.py#L184): Note on the line above
+## `Container`, [line 208](../../../../../backend/src/sro/container.py#L208): Note on the line above
 
 Code: `_schema_announced: bool = field(default=False, init=False, repr=False)`
 
 > Whether the schema line has been written this process. See
 > `_announce_once`: the fact is worth saying, and worth saying once.
 
-## `Container`, [line 186](../../../../../backend/src/sro/container.py#L186): Note on the line above
+## `Container`, [line 210](../../../../../backend/src/sro/container.py#L210): Note on the line above
 
 Code: `_mining_asker: Asker | None = field(default=None, init=False, repr=False)`
 
 > The mining pass's own client, built on the first pass that needs one.
-> See `_patient_asker`: same model, its own patience.
+> See `mining_asker`: same model, its own patience.
 
-## `Container`, [line 188](../../../../../backend/src/sro/container.py#L188): Note on the line above
+## `Container`, [line 212](../../../../../backend/src/sro/container.py#L212): Note on the line above
 
 Code: `_mining_asker_from: Asker | None = field(default=None, init=False, repr=False)`
 
@@ -48,7 +48,7 @@ Code: `_mining_asker_from: Asker | None = field(default=None, init=False, repr=F
 > replaces it too. A cache keyed on nothing is a cache that answers with the
 > thing it was built from after somebody changed it.
 
-## `Container`, [line 199](../../../../../backend/src/sro/container.py#L199): Note on the line above
+## `Container`, [line 223](../../../../../backend/src/sro/container.py#L223): Note on the line above
 
 Code: `asker: Asker | None`
 
@@ -81,7 +81,7 @@ Code: `asker: Asker | None`
 > a deployment with no model still builds every factory and fails at use
 > rather than at construction.
 
-## `Container`, [line 214](../../../../../backend/src/sro/container.py#L214): Note on the line above
+## `Container`, [line 241](../../../../../backend/src/sro/container.py#L241): Note on the line above
 
 Code: `engine: AsyncEngine | None = None`
 
@@ -95,7 +95,7 @@ Code: `engine: AsyncEngine | None = None`
 > the orphan sweep connects, and it surfaced as `TooManyConnectionsError`
 > inside a contract test that had nothing to do with it.
 
-## `Container`, [line 216](../../../../../backend/src/sro/container.py#L216): Note on the line above
+## `Container`, [line 245](../../../../../backend/src/sro/container.py#L245): Note on the line above
 
 Code: `agent_sockets: DeviceSockets = field(default_factory=DeviceSockets)`
 
@@ -105,7 +105,7 @@ Code: `agent_sockets: DeviceSockets = field(default_factory=DeviceSockets)`
 > survive a restart, so a durable record of which browser was connected would
 > only ever be a record of which browser used to be.
 
-## `Container`, [line 218](../../../../../backend/src/sro/container.py#L218): Note on the line above
+## `Container`, [line 247](../../../../../backend/src/sro/container.py#L247): Note on the line above
 
 Code: `stops: Stops = field(default_factory=Stops)`
 
@@ -114,7 +114,7 @@ Code: `stops: Stops = field(default_factory=Stops)`
 > process, so an intention that outlived the process would outlive the only
 > thing able to act on it.
 
-## `Container`, [line 222](../../../../../backend/src/sro/container.py#L222): Note on the line above
+## `Container`, [line 251](../../../../../backend/src/sro/container.py#L251): Note on the line above
 
 Code: `approvals: Approvals = field(default_factory=Approvals)`
 
@@ -125,7 +125,7 @@ Code: `approvals: Approvals = field(default_factory=Approvals)`
 > one-worker assumption the sockets above already make, and
 > `application/execution/approvals.py` is where its end is written down.
 
-## `Container`, [line 224](../../../../../backend/src/sro/container.py#L224): Note on the line above
+## `Container`, [line 253](../../../../../backend/src/sro/container.py#L253): Note on the line above
 
 Code: `pursuits: Pursuits = field(default_factory=Pursuits)`
 
@@ -133,14 +133,14 @@ Code: `pursuits: Pursuits = field(default_factory=Pursuits)`
 > was driving does not survive a restart either, and a half-finished pursuit
 > resumed against a screen nobody can see is worse than one that stopped.
 
-## `Container`, [line 226](../../../../../backend/src/sro/container.py#L226): Note on the line above
+## `Container`, [line 255](../../../../../backend/src/sro/container.py#L255): Note on the line above
 
 Code: `capture: CaptureController = field(init=False)`
 
 > Set by ``build_container``: the supervisor is built from the container's
 > own use-case factories, so it cannot be a constructor argument.
 
-## `Container`, [line 228](../../../../../backend/src/sro/container.py#L228): Note on the line above
+## `Container`, [line 257](../../../../../backend/src/sro/container.py#L257): Note on the line above
 
 Code: `driving_runs: AsyncConnection | None = None`
 
@@ -150,19 +150,19 @@ Code: `driving_runs: AsyncConnection | None = None`
 > released when `lifespan` disposes the engine. One connection out of the
 > pool, permanently, which is the price of the guarantee.
 
-## `_build_transcriber`, [line 808](../../../../../backend/src/sro/container.py#L808): Docstring
+## `_build_transcriber`, [line 943](../../../../../backend/src/sro/container.py#L943): Docstring
 
 > Narration leaves the deployment, so it takes two switches, not one.
 >
 > A key on its own is not consent to send a customer's operators' voices to a
 > hosted model; `transcription_enabled` is that decision, made per deployment.
 
-## `_build_intent_parser`, [line 817](../../../../../backend/src/sro/container.py#L817): Docstring
+## `_build_intent_parser`, [line 951](../../../../../backend/src/sro/container.py#L951): Docstring
 
 > Reading values out of an operator's sentence. Same switch as the rest:
 > the words they type are theirs, and sending them is a decision.
 
-## `_build_interpreter`, [line 826](../../../../../backend/src/sro/container.py#L826): Docstring
+## `_build_interpreter`, [line 959](../../../../../backend/src/sro/container.py#L959): Docstring
 
 > Reading a demonstration sends its calls and bodies to a hosted model.
 >
@@ -172,7 +172,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > assumed Task 6 deleted its callers; it did not (final review I-1,
 > 2026-09-24).
 
-## `_patient_asker_for`, [line 835](../../../../../backend/src/sro/container.py#L835): Docstring
+## `_patient_asker_for`, [line 967](../../../../../backend/src/sro/container.py#L967): Docstring
 
 > The same asker, given the mining call's own patience.
 >
@@ -186,7 +186,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > asker a future deployment injects -- is handed back untouched, because
 > only this one has a timeout to set.
 
-## `_build_asker`, [line 845](../../../../../backend/src/sro/container.py#L845): Docstring
+## `_build_asker`, [line 977](../../../../../backend/src/sro/container.py#L977): Docstring
 
 > The same two switches as its neighbours: a key is not consent to send.
 >
@@ -194,16 +194,16 @@ Code: `driving_runs: AsyncConnection | None = None`
 > that switch is about -- a tenant's captured gestures and the bodies of
 > their calls, read by a hosted model.
 
-## `_build_vision`, [line 851](../../../../../backend/src/sro/container.py#L851): Docstring
+## `_build_vision`, [line 983](../../../../../backend/src/sro/container.py#L983): Docstring
 
 > Two switches again, and the more consequential pair: this one sends a
 > picture of a customer's live warehouse system.
 
-## `_build_embedder`, [line 860](../../../../../backend/src/sro/container.py#L860): Docstring
+## `_build_embedder`, [line 992](../../../../../backend/src/sro/container.py#L992): Docstring
 
 > Same two-switch rule as transcription: a key is not consent to send.
 
-## `_build_vault`, [line 869](../../../../../backend/src/sro/container.py#L869): Docstring
+## `_build_vault`, [line 1026](../../../../../backend/src/sro/container.py#L1026): Docstring
 
 > A vault that refuses to start beats one that writes plaintext.
 >
@@ -212,7 +212,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > nobody has generated a key yet is worse than one that says so when a
 > connection is attempted.
 
-## `instrument`, [line 892](../../../../../backend/src/sro/container.py#L892): Docstring
+## `instrument`, [line 1049](../../../../../backend/src/sro/container.py#L1049): Docstring
 
 > Make the API's requests produce spans.
 >
@@ -224,7 +224,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > Guarded on the endpoint by the caller, so a deployment that has not asked
 > for telemetry installs nothing.
 
-## `_servers`, [line 978](../../../../../backend/src/sro/container.py#L978): Docstring
+## `_servers`, [line 1144](../../../../../backend/src/sro/container.py#L1144): Docstring
 
 > `name=url, name=url` into connectors.
 >
@@ -241,7 +241,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > honoured -- a setting that silently kept working would be a shared
 > credential nobody meant to still have.
 
-## `Container.claim_the_runs`, [line 233](../../../../../backend/src/sro/container.py#L233): Docstring
+## `Container.claim_the_runs`, [line 322](../../../../../backend/src/sro/container.py#L322): Docstring
 
 > Whether this process is the one that owns every run.
 >
@@ -264,7 +264,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > `True` for a container with no engine of its own: a test brings its
 > own store and is alone in it.
 
-## `Container.readiness`, [line 251](../../../../../backend/src/sro/container.py#L251): Docstring
+## `Container.readiness`, [line 340](../../../../../backend/src/sro/container.py#L340): Docstring
 
 > Both halves of "can this process serve", on ONE connection.
 >
@@ -281,7 +281,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > Lives here so the interface layer stays free of SQL, and returns plain
 > booleans so it stays free of the infrastructure's types as well.
 
-## `Container._announce_once`, [line 261](../../../../../backend/src/sro/container.py#L261): Docstring
+## `Container._announce_once`, [line 350](../../../../../backend/src/sro/container.py#L350): Docstring
 
 > Write the schema line to the log the first time anybody probes.
 >
@@ -297,7 +297,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > within seconds of starting, and a developer sees the line the first
 > time they or their tooling ask.
 
-## `Container.read_spend`, [line 297](../../../../../backend/src/sro/container.py#L297): Docstring
+## `Container.read_spend`, [line 386](../../../../../backend/src/sro/container.py#L386): Docstring
 
 > What this tenant has been billed since midnight, on this clock.
 >
@@ -317,7 +317,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > is being asked about is a decision no route may make: one that read a
 > clock would answer for the server's day.
 
-## `Container.record_offer`, [line 301](../../../../../backend/src/sro/container.py#L301): Docstring
+## `Container.record_offer`, [line 390](../../../../../backend/src/sro/container.py#L390): Docstring
 
 > A factory, where ``read_spend`` above is a method, and not because
 > this one has more to hold: ``record_offer`` is a bare function like
@@ -327,14 +327,14 @@ Code: `driving_runs: AsyncConnection | None = None`
 > instead, and the clock ``clamped`` needs comes from here so that no
 > route reads one.
 
-## `Container._patient_asker`, [line 304](../../../../../backend/src/sro/container.py#L304): Docstring
+## `Container.mining_asker`, [line 393](../../../../../backend/src/sro/container.py#L393): Docstring
 
 > Built on the first pass that needs it -- a second SDK client is a
 > socket pool, and a deployment that never mines should not open one --
 > and rebuilt whenever `asker` is replaced, which is how a suite drives
 > two different answers through one container.
 
-## `Container.mine_pass`, [line 310](../../../../../backend/src/sro/container.py#L310): Docstring
+## `Container.mine_pass`, [line 399](../../../../../backend/src/sro/container.py#L399): Docstring
 
 > The model-first rig's pass, which until now had no caller in `src/`.
 >
@@ -347,7 +347,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > into task candidates with no model in the loop at all; this one packs
 > one window, makes one call and writes one `mining_passes` row.
 
-## `Container.mine_lately`, [line 320](../../../../../backend/src/sro/container.py#L320): Docstring
+## `Container.mine_lately`, [line 409](../../../../../backend/src/sro/container.py#L409): Docstring
 
 > The rig's miner, on a loop rather than on a person's press.
 >
@@ -361,7 +361,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > late still gets mined, and mining the same window twice is what the
 > pass is built to survive.
 
-## `Container.read_gestures`, [line 328](../../../../../backend/src/sro/container.py#L328): Docstring
+## `Container.read_gestures`, [line 418](../../../../../backend/src/sro/container.py#L418): Docstring
 
 > This tenant's unread gestures, which until now had no caller in
 > `src/`. Same shape as `mine_pass` above and the same reason: `asker`
@@ -373,16 +373,14 @@ Code: `driving_runs: AsyncConnection | None = None`
 > upload's screenshots into -- the one source `read_new_gestures` reads
 > a thin gesture's picture back from.
 
-## `Container.read_chat`, [line 340](../../../../../backend/src/sro/container.py#L340): Docstring
+## `Container.read_chat`, [line 429](../../../../../backend/src/sro/container.py#L429): Docstring
 
 > The chat door's reader, which until now had no caller in `src/`.
 >
-> `gemini_plan_model` and NOT `gemini_mine_model` beside it. A chat door
-> and a mining door look like they should share a model and must not: an
-> operator is standing at a screen waiting for this answer, so it is the
-> fast one -- the same trade `gemini_intent_model` records having
-> measured at ~2.3s against ~4.8s for the pro model. This is the rig's
-> own wiring: `api.py:1507` hands `understand` `settings().plan_model`.
+> Its model is `READ_REQUEST.model`, on the prompt record, and not a
+> setting. An operator is standing at a screen waiting for this answer,
+> so it is the fast one -- the same trade `READ_SENTENCE`'s notes record
+> having measured at ~2.3s against ~4.8s for the pro model.
 >
 > Not `resolve_intent`. That one resolves an utterance over this tenant's
 > *skills* with no model in the loop at all; this one resolves it over
@@ -394,58 +392,63 @@ Code: `driving_runs: AsyncConnection | None = None`
 > would fail at construction instead of at the one call that needs a
 > model.
 
-## `Container.plan_lookups`, [line 349](../../../../../backend/src/sro/container.py#L349): Docstring
+## `Container.plan_lookups`, [line 437](../../../../../backend/src/sro/container.py#L437): Docstring
 
 > Where to look for the answer to one question.
 >
-> `gemini_plan_model` for `read_chat`'s reason, which applies harder
+> `PLAN_LOOKUP.model`, the fast one, for `read_chat`'s reason, which applies harder
 > here: somebody is waiting on an answer, and a read that takes the slow
 > model has spent the difference before the first system is even asked.
 
-## `Container.run_lookups`, [line 359](../../../../../backend/src/sro/container.py#L359): Docstring
+## `Container.run_lookups`, [line 446](../../../../../backend/src/sro/container.py#L446): Docstring
 
 > Going and looking, through the operator's own browser.
 
-## `Container.record_attempt`, [line 380](../../../../../backend/src/sro/container.py#L380): Docstring
+## `Container.record_attempt`, [line 468](../../../../../backend/src/sro/container.py#L468): Docstring
 
 > What somebody asked for, and what came of it. See
 > `sro.domain.observation.attempts` for what belongs there.
 
-## `Container.fire_trigger`, [line 383](../../../../../backend/src/sro/container.py#L383): Docstring
+## `Container.fire_trigger`, [line 471](../../../../../backend/src/sro/container.py#L471): Docstring
 
 > `start_run` and `pursuits` are the job half, beside the skill half's
 > `dispatcher`: a trigger can name a mined workflow now, and one that
 > does is started through the same use case `POST /v1/workflow-runs`
 > uses, spawned the same way.
 
-## `Container.agents`, [line 415](../../../../../backend/src/sro/container.py#L415): Docstring
+## `Container.agents`, [line 512](../../../../../backend/src/sro/container.py#L512): Docstring
 
 > Drivers that perform in an operator's own browser.
 
-## `Container.browsers`, [line 418](../../../../../backend/src/sro/container.py#L418): Docstring
+## `Container.browsers`, [line 515](../../../../../backend/src/sro/container.py#L515): Docstring
 
 > The only way to open, find or release a browser.
 >
 > Everything that used to take ``self.browser`` takes this instead, so
 > an unowned session cannot be produced by anything this system runs.
 
-## `Container.ask_about_the_offer`, [line 686](../../../../../backend/src/sro/container.py#L686): Docstring
+## `Container.converse`, [line 783](../../../../../backend/src/sro/container.py#L783): Comment
+
+Code: `spawn=self.pursuits.spawn,`
+
+> A chat yes starts the run (S2) and hands it on the way the press route
+> does: `pursuits.spawn`, held so the loop cannot collect it mid-gesture,
+> never awaited inside the chat request -- a run in the operator's browser
+> is driven for its whole length by `perform`.
+
+## `Container.ask_about_the_offer`, [line 788](../../../../../backend/src/sro/container.py#L788): Docstring
 
 > The card's way into the conversation the chat door already runs.
 
-## `Container.draft_for_the_asker`, [line 689](../../../../../backend/src/sro/container.py#L689): Docstring
+## `Container.draft_for_the_asker`, [line 791](../../../../../backend/src/sro/container.py#L791): Docstring
 
 > Write the mail to whoever asked. It cannot send one.
 
-## `Container.send_the_draft`, [line 692](../../../../../backend/src/sro/container.py#L692): Docstring
+## `Container.send_the_draft`, [line 794](../../../../../backend/src/sro/container.py#L794): Docstring
 
 > Send the mail a person read and pressed. It cannot write one.
 
-## `Container.say_the_run_started`, [line 695](../../../../../backend/src/sro/container.py#L695): Docstring
-
-> The other half of the spine: what came of the answer.
-
-## `Container.from_the_mail`, [line 698](../../../../../backend/src/sro/container.py#L698): Docstring
+## `Container.from_the_mail`, [line 797](../../../../../backend/src/sro/container.py#L797): Docstring
 
 > The rung that reads an arriving mail for what it asks.
 >
@@ -454,7 +457,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > unbuildable on a deployment with no key, instead of refusing at the one
 > call that needs a model. The guard is in `FromTheMail.execute`.
 
-## `Container.can_gather`, [line 715](../../../../../backend/src/sro/container.py#L715): Docstring
+## `Container.can_gather`, [line 820](../../../../../backend/src/sro/container.py#L820): Docstring
 
 > Whether a run of a mined job can go and find a value nobody typed.
 >
@@ -468,7 +471,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > to read and a model to read it with. A deployment missing either still
 > asks for the values, because on that one nothing can go and find them.
 
-## `Container.start_workflow_run`, [line 750](../../../../../backend/src/sro/container.py#L750): Docstring
+## `Container.start_workflow_run`, [line 855](../../../../../backend/src/sro/container.py#L855): Docstring
 
 > The press on a mined job. Not `start_run` above, which mints the row
 > for a skill run keyed on a `RunId`.
@@ -481,34 +484,34 @@ Code: `driving_runs: AsyncConnection | None = None`
 > the stop button arrive on routes in this process, and a second register
 > is a tap nothing is waiting on.
 >
-> `gemini_plan_model` plans and `gemini_rescue_model` rescues: a clean
-> step never touches the expensive one, and the wiring is the rig's own
-> (`api.py:1140`).
+> No model is handed over: `PLAN_STEP` plans and `PLAN_STEP_ESCALATED`
+> rescues, each on its own record's model, so a clean step never touches the
+> expensive one -- the rig's own split (`api.py:1140`), kept on the records.
 >
 > `verified_writes` reads `knowledge-base/index/write-endpoints.json`,
 > cached by `load_verified_writes` -- an empty ledger where the
 > knowledge base is not checked out beside this deployment, never an
 > error.
 
-## `Container._drafting`, [line 774](../../../../../backend/src/sro/container.py#L774): Docstring
+## `Container._drafting`, [line 907](../../../../../backend/src/sro/container.py#L907): Docstring
 
 > Bound to one request, so the mailbox is read as the right person.
 
-## `Container._drafting_for`, [line 777](../../../../../backend/src/sro/container.py#L777): Docstring
+## `Container._drafting_for`, [line 910](../../../../../backend/src/sro/container.py#L910): Docstring
 
 > The same, for an offer -- which names its mail before any run has
 > been started to hang one on.
 
-## `Container.list_workflow_runs`, [line 780](../../../../../backend/src/sro/container.py#L780): Docstring
+## `Container.list_workflow_runs`, [line 913](../../../../../backend/src/sro/container.py#L913): Docstring
 
 > The runs of mined jobs, newest first. Not `list_runs` above, which
 > lists skill runs keyed on a `RunId`.
 
-## `Container.get_workflow_run`, [line 783](../../../../../backend/src/sro/container.py#L783): Docstring
+## `Container.get_workflow_run`, [line 916](../../../../../backend/src/sro/container.py#L916): Docstring
 
 > One run of a mined job. Not `get_run` above, for the same reason.
 
-## `Container.abort_workflow_run`, [line 786](../../../../../backend/src/sro/container.py#L786): Docstring
+## `Container.abort_workflow_run`, [line 919](../../../../../backend/src/sro/container.py#L919): Docstring
 
 > The stop button on a run of a mined job. Not `stop_run` above, which
 > reaches a skill run through `uow.runs` on a `RunId`.
@@ -518,7 +521,7 @@ Code: `driving_runs: AsyncConnection | None = None`
 > handed it, and a use case built with registers of its own would set a
 > flag nothing ever reads and release a wait nobody is holding.
 
-## `Container.approve_workflow_step`, [line 789](../../../../../backend/src/sro/container.py#L789): Docstring
+## `Container.approve_workflow_step`, [line 924](../../../../../backend/src/sro/container.py#L924): Docstring
 
 > The Yes on a run of a mined job, and the other half of the seam
 > `abort_workflow_run` above opens.
@@ -531,14 +534,14 @@ Code: `driving_runs: AsyncConnection | None = None`
 > The clock, because the row says WHEN the write was let out. A route
 > never reads one.
 
-## `Container.mcp_server`, [line 795](../../../../../backend/src/sro/container.py#L795): Docstring
+## `Container.mcp_server`, [line 930](../../../../../backend/src/sro/container.py#L930): Docstring
 
 > A tool per runnable skill. One server per process: tenant comes from
 > the bearer token on each MCP request, not from how this is built --
 > and the use cases are passed as factories, not instances, so each
 > request gets its own `UnitOfWork` the same way an HTTP route does.
 
-## `Container.claim_the_runs`, [line 236](../../../../../backend/src/sro/container.py#L236): Comment
+## `Container.claim_the_runs`, [line 325](../../../../../backend/src/sro/container.py#L325): Comment
 
 Code: `connection = await self.engine.connect()`
 
@@ -555,7 +558,7 @@ Code: `connection = await self.engine.connect()`
 > store sat on `wait_event = virtualxid` behind exactly this session
 > and never finished.
 
-## `Container.restore_device`, [line 277](../../../../../backend/src/sro/container.py#L277): Comment
+## `Container.restore_device`, [line 366](../../../../../backend/src/sro/container.py#L366): Comment
 
 Code: `return RestoreDevice(self.unit_of_work())`
 
@@ -563,7 +566,7 @@ Code: `return RestoreDevice(self.unit_of_work())`
 > back in opens no socket, and a use case with no `AgentDrivers` cannot
 > grow one by accident.
 
-## `Container.read_spend`, [line 298](../../../../../backend/src/sro/container.py#L298): Comment
+## `Container.read_spend`, [line 387](../../../../../backend/src/sro/container.py#L387): Comment
 
 Code: `async with self.unit_of_work() as uow:`
 
@@ -571,27 +574,27 @@ Code: `async with self.unit_of_work() as uow:`
 > repositories until its session opens, and ``over_cap``'s other
 > callers pass one that is already open.
 
-## `Container.mine_pass`, [line 317](../../../../../backend/src/sro/container.py#L317): Comment
+## `Container.mine_pass`, [line 406](../../../../../backend/src/sro/container.py#L406): Comment
 
 Code: `ours=frozenset(host_port for host_port, _ in self.settings.our_own_origins()),`
 
 > `work_only` reads a workflow's own systems, which have no path --
 > so only the host:port half of `our_own_origins` applies here.
 
-## `Container.create_trigger`, [line 368](../../../../../backend/src/sro/container.py#L368): Comment
+## `Container.create_trigger`, [line 455](../../../../../backend/src/sro/container.py#L455): Comment
 
 Code: `can_gather=self.can_gather,`
 
 > The same pair `start_workflow_run` builds its gather out of, so
 > this door and the run door agree about what a job needs typed.
 
-## `Container.register_device`, [line 434](../../../../../backend/src/sro/container.py#L434): Comment
+## `Container.register_device`, [line 531](../../../../../backend/src/sro/container.py#L531): Comment
 
 Code: `def register_device(self) -> RegisterDevice:`
 
 > -- observation ---------------------------------------------------------
 
-## `Container.converse`, [line 679](../../../../../backend/src/sro/container.py#L679): Comment
+## `Container.converse`, [line 776](../../../../../backend/src/sro/container.py#L776): Comment
 
 Code: `self.read_chat(),`
 
@@ -599,7 +602,7 @@ Code: `self.read_chat(),`
 > typing at a browser whose rig holds the job they mean was being
 > answered out of a skills library that does not.
 
-## `Container.converse`, [line 680](../../../../../backend/src/sro/container.py#L680): Comment
+## `Container.converse`, [line 777](../../../../../backend/src/sro/container.py#L777): Comment
 
 Code: `can_gather=self.can_gather,`
 
@@ -608,7 +611,7 @@ Code: `can_gather=self.can_gather,`
 > actually do: a deployment with no connector still demands the
 > values, because on that one nothing can go and find them.
 
-## `Container.converse`, [line 681](../../../../../backend/src/sro/container.py#L681): Comment
+## `Container.converse`, [line 778](../../../../../backend/src/sro/container.py#L778): Comment
 
 Code: `plan_lookups=self.plan_lookups(),`
 
@@ -616,16 +619,16 @@ Code: `plan_lookups=self.plan_lookups(),`
 > which of the two worlds a sentence belongs to; this door never
 > asked, and answered questions with proposals to open screens.
 
-## `Container.converse`, [line 683](../../../../../backend/src/sro/container.py#L683): Comment
+## `Container.converse`, [line 780](../../../../../backend/src/sro/container.py#L780): Comment
 
-Code: `answers=IsItAnAnswer(self.asker, model=self.settings.gemini_plan_model),`
+Code: `answers=IsItAnAnswer(self.asker),`
 
 > Whether what somebody typed while a question stands is the answer
 > to it. The fast model, for `read_chat`'s reason: an operator is
 > standing at the panel waiting to find out what happens to the
 > sentence they just pressed Enter on.
 
-## `Container.from_the_mail`, [line 704](../../../../../backend/src/sro/container.py#L704): Comment
+## `Container.from_the_mail`, [line 802](../../../../../backend/src/sro/container.py#L802): Comment
 
 Code: `clock=self.clock,`
 
@@ -635,7 +638,7 @@ Code: `clock=self.clock,`
 > For the one thing this door says in the operator's own thread:
 > that a reply has answered the question standing there.
 
-## `Container.start_workflow_run`, [line 763](../../../../../backend/src/sro/container.py#L763): Comment
+## `Container.start_workflow_run`, [line 866](../../../../../backend/src/sro/container.py#L866): Comment
 
 Code: `vault=self.vault,`
 
@@ -643,7 +646,7 @@ Code: `vault=self.vault,`
 > never held it: the recorder struck the field out, and this is the
 > only place a run can get one.
 
-## `Container.start_workflow_run`, [line 764](../../../../../backend/src/sro/container.py#L764): Comment
+## `Container.start_workflow_run`, [line 867](../../../../../backend/src/sro/container.py#L867): Comment
 
 Code: `retrieve=self.retrieve_knowledge(),`
 
@@ -651,21 +654,21 @@ Code: `retrieve=self.retrieve_knowledge(),`
 > so the person who taps Approve is shown it. Built here and not
 > in the runner, which never learns what a vector store is.
 
-## `Container.start_workflow_run`, [line 765](../../../../../backend/src/sro/container.py#L765): Comment
+## `Container.start_workflow_run`, [line 868](../../../../../backend/src/sro/container.py#L868): Comment
 
-Code: `gather=GatherContext(`
+Code: `gather=GatherContext(tools=self.tools, asker=self.asker)`
 
 > Where a value comes from when nobody typed one: the operator's
 > own mailbox, reached as them.
 
-## `Container.start_workflow_run`, [line 770](../../../../../backend/src/sro/container.py#L770): Comment
+## `Container.start_workflow_run`, [line 871](../../../../../backend/src/sro/container.py#L871): Comment
 
 Code: `ids=self.ids,`
 
 > What names the message a run writes when it comes up short and
 > asks the operator for what it could not find.
 
-## `Container.start_workflow_run`, [line 771](../../../../../backend/src/sro/container.py#L771): Comment
+## `Container.start_workflow_run`, [line 872](../../../../../backend/src/sro/container.py#L872): Comment
 
 Code: `asker_drafts=self._drafting,`
 
@@ -675,7 +678,7 @@ Code: `asker_drafts=self._drafting,`
 > request's own tenant and operator, and the runner has no
 > `RequestContext` to give it.
 
-## `_build_vault`, [line 871](../../../../../backend/src/sro/container.py#L871): Comment
+## `_build_vault`, [line 1028](../../../../../backend/src/sro/container.py#L1028): Comment
 
 Code: `if settings.vault_project:`
 
@@ -685,7 +688,7 @@ Code: `if settings.vault_project:`
 > an environment name, so a developer pointing at a real project gets
 > the real thing and nobody has to remember a second switch.
 
-## `build_container`, [line 939](../../../../../backend/src/sro/container.py#L939): Comment
+## `build_container`, [line 1101](../../../../../backend/src/sro/container.py#L1101): Comment
 
 Code: `tools=McpToolCaller(_servers(settings.mcp_servers), vault=built_vault),`
 
@@ -693,16 +696,34 @@ Code: `tools=McpToolCaller(_servers(settings.mcp_servers), vault=built_vault),`
 > there. Without it `McpToolCaller` refuses rather than calling with
 > no credential.
 
-## `build_container`, [line 956](../../../../../backend/src/sro/container.py#L956): Comment
+## `build_container`, [line 1121](../../../../../backend/src/sro/container.py#L1121): Comment
 
 Code: `dispatcher=ApiRunDispatcher(settings.api_url, credentials),`
 
 > Mints its own short-lived credential for the trigger's principal, so
 > a scheduled run is asked for by the person who put it on the clock.
 
-## `build_container`, [line 937](../../../../../backend/src/sro/container.py#L937): Comment
+## `build_container`, [line 1099](../../../../../backend/src/sro/container.py#L1099): Comment
 
 Code: `vault=(built_vault := ForgetsRefusalOnWrite(_build_vault(settings))),`
 
 > Every write to the vault lifts a standing credential refusal on that key.
 > Wrapped here, once, so no door that stores a password can forget to.
+
+## `Container.ui_lane`, [line 262](../../../../../backend/src/sro/container.py#L262): Comment
+
+Code: `def ui_lane(self) -> UiLane:`
+
+> No route calls this yet -- wiring a lane into `execute_skill`'s ladder is
+> D-stream's job, not X4's. This factory exists so the UI lane is reachable
+> the same way every other use case is, the day something calls it, rather
+> than being built ad hoc at the call site. `driver` is S5's required field,
+> wired in `build_container` to `SteelDriver(settings.page_code_path)`; the
+> reconcile onto S5's merged tip dropped X4's `Optional`/defaulted placeholder
+> and the assertion that guarded it, since S5 had already wired the real
+> adapter by then.
+
+## `Container.fill_field`, [line 299](../../../../../backend/src/sro/container.py#L299): Note
+
+> A field nobody demonstrated is filled by the page code on the run's own page,
+> and by sight when the control will not take the value.

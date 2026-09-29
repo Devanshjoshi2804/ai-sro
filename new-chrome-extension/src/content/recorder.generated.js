@@ -43,62 +43,318 @@
   // Losing the tail of one field beats losing the fact that it was edited.
   const MAX_VALUE = 4096;
 
-  // A credential field is recognised where it is typed, not later. Anything
-  // matched here has its value dropped before it leaves the page: the evidence
-  // plane keeps everything a demonstration did, and a password is not that --
-  // it is a key to the customer's system.
-  // Whole words, not substrings. Matched loosely this ate ordinary business
-  // data -- an address search box came back as «secret», so the demonstration
-  // could not say what was searched for, the model narrating it described a
-  // hole, and the value that would have become a parameter was gone. A
-  // redaction that eats business data is how people learn to switch it off.
-  // Substituted from sensitivity.SECRET_TOKENS when this file is injected --
-  // there is one list, on the Python side, and this used to be a second copy of
-  // it that drifted. Injection fails loudly rather than shipping the marker.
-  const SECRET_WORDS = new Set(["accesskey", "accesstoken", "apikey", "apisecret", "appsecret", "authkey", "authorization", "authtoken", "backupcode", "bearer", "clientsecret", "connectionstring", "consumerkey", "consumersecret", "cookie", "credential", "credentials", "csrf", "csrftoken", "cvv", "encryptionkey", "hotp", "htpasswd", "idrsa", "idtoken", "jsessionid", "jwt", "keystore", "machinekey", "mfa", "oauthtoken", "onetimecode", "onetimepasscode", "otp", "pass", "passcode", "passphrase", "passwd", "password", "phpsessid", "pin", "privatekey", "privkey", "pwd", "recoverycode", "refreshtoken", "relaystate", "resettoken", "rsakey", "saml", "samlrequest", "samlresponse", "secret", "secretaccesskey", "secretanswer", "secretkey", "securityanswer", "securitycode", "sessionid", "sessionkey", "sessiontoken", "sshkey", "ssn", "sso", "token", "totp", "truststore", "verificationcode", "xapikey", "xauthtoken", "xsrf", "xsrftoken"]);
-  // `([A-Z]{2,})([A-Z][a-z])` and not `([A-Z]+)(...)`: the wider rule splits
-  // the lone N off `pickNPassAutoDropLocation` and leaves `Pass` bare, blanking
-  // a real warehouse field. Two-or-more needs three capitals in a row before it
-  // cuts, so `SAMLResponse` splits and `NPass` does not. Measured over 3,270
-  // real field, header and query names: this rule changes none of them.
-  const wordsOf = (text) =>
-    (text || '')
-      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-      .replace(/([A-Z]{2,})([A-Z][a-z])/g, '$1 $2')
-      .split(/[^A-Za-z]+/)
-      .filter(Boolean)
-      .map((word) => word.toLowerCase());
-  const isSecretName = (name) => {
-    const words = wordsOf(name);
-    return words.some((word) => SECRET_WORDS.has(word)) || SECRET_WORDS.has(words.join(''));
-  };
-  const isSecretField = (el) => {
-    if (!el || el.nodeType !== 1) return false;
-    // What the page itself says is a credential, which is the only signal here
-    // that is a decision rather than a guess.
-    if ((el.type || '').toLowerCase() === 'password') return true;
-    const autocomplete = (el.getAttribute('autocomplete') || '').toLowerCase();
-    if (autocomplete.includes('password') || autocomplete === 'one-time-code') return true;
-    if (autocomplete === 'cc-csc' || autocomplete === 'cc-number') return true;
-    const named = [el.name, el.id, el.getAttribute('aria-label'), el.getAttribute('placeholder')]
-      .filter(Boolean)
-      .join(' ');
-    return isSecretName(named);
+  // How a control is named, placed, scoped and pathed. Spliced in from
+  // page-code.js's `readers` by `_recorder_script` (capture.py): what this
+  // records and what page-code.js later resolves it against are one text, so
+  // the two cannot disagree about a control. Reasoning lives in
+  // docs/code-notes/new-chrome-extension/src/page/page-code.js.md.
+  const {
+    roleOf, nameOf, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf, requiredOf, outlineOf,
+    isSecretField,
+  } = (() => {
+    const MAX_TEXT = 200;
+    const SECRET_WORDS = new Set(["accesskey", "accesstoken", "apikey", "apisecret", "appsecret", "authkey", "authorization", "authtoken", "backupcode", "bearer", "clientsecret", "connectionstring", "consumerkey", "consumersecret", "cookie", "credential", "credentials", "csrf", "csrftoken", "cvv", "encryptionkey", "hotp", "htpasswd", "idrsa", "idtoken", "jsessionid", "jwt", "keystore", "machinekey", "mfa", "oauthtoken", "onetimecode", "onetimepasscode", "otp", "pass", "passcode", "passphrase", "passwd", "password", "phpsessid", "pin", "privatekey", "privkey", "pwd", "recoverycode", "refreshtoken", "relaystate", "resettoken", "rsakey", "saml", "samlrequest", "samlresponse", "secret", "secretaccesskey", "secretanswer", "secretkey", "securityanswer", "securitycode", "sessionid", "sessionkey", "sessiontoken", "sshkey", "ssn", "sso", "token", "totp", "truststore", "verificationcode", "xapikey", "xauthtoken", "xsrf", "xsrftoken"]);
+    const wordsOf = (text) =>
+      (text || "")
+        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+        .replace(/([A-Z]{2,})([A-Z][a-z])/g, "$1 $2")
+        .split(/[^A-Za-z]+/)
+        .filter(Boolean)
+        .map((word) => word.toLowerCase());
+    const isSecretName = (name) => {
+      const words = wordsOf(name);
+      return words.some((word) => SECRET_WORDS.has(word)) || SECRET_WORDS.has(words.join(""));
+    };
+    const isSecretField = (el) => {
+      if (!el || el.nodeType !== 1) return false;
+      if ((el.type || "").toLowerCase() === "password") return true;
+      const autocomplete = (el.getAttribute("autocomplete") || "").toLowerCase();
+      if (autocomplete.includes("password") || autocomplete === "one-time-code") return true;
+      if (autocomplete === "cc-csc" || autocomplete === "cc-number") return true;
+      const named = [el.name, el.id, el.getAttribute("aria-label"), el.getAttribute("placeholder")]
+        .filter(Boolean)
+        .join(" ");
+      return isSecretName(named);
+    };
+    const roleOf = (el) => {
+      const written = el.getAttribute("role");
+      if (written) return written;
+      const tag = el.tagName.toLowerCase();
+      if (tag === "button") return "button";
+      if (tag === "a") return el.hasAttribute("href") ? "link" : null;
+      if (tag === "select") return "combobox";
+      if (tag === "textarea") return "textbox";
+      if (tag === "summary") return "button";
+      if (tag !== "input") return null;
+      const type = (el.getAttribute("type") || "text").toLowerCase();
+      if (type === "checkbox") return "checkbox";
+      if (type === "radio") return "radio";
+      if (type === "range") return "slider";
+      if (["button", "submit", "reset", "image"].includes(type)) return "button";
+      if (["text", "search", "email", "tel", "url", "password", "number"].includes(type))
+        return "textbox";
+      return null;
+    };
+    const ownName = (el) => {
+      const aria = (el.getAttribute("aria-label") || "").trim();
+      if (aria) return aria.slice(0, MAX_TEXT);
+      const by = el.getAttribute("aria-labelledby");
+      if (!by) return null;
+      const doc = el.ownerDocument || document;
+      const said = by
+        .split(/\s+/)
+        .map((id) => (doc.getElementById(id) || {}).innerText || "")
+        .join(" ")
+        .trim();
+      return said ? said.slice(0, MAX_TEXT) : null;
+    };
+    const NOT_LABEL = "input, select, textarea, [contenteditable], script, style";
+    const textBeside = (node) =>
+      node.nodeType === 3
+        ? node.data
+        : node.nodeType === 1 && !node.matches(NOT_LABEL) && node.getClientRects().length
+          ? [...node.childNodes].map(textBeside).join("")
+          : " ";
+    const labelled = (el) => {
+      const label = el.labels[0];
+      const said = label.querySelector(NOT_LABEL)
+        ? [...label.childNodes].map(textBeside).join("").replace(/\s+/g, " ")
+        : label.innerText || "";
+      return said.trim().slice(0, MAX_TEXT);
+    };
+    const nameOf = (el) => {
+      const own = ownName(el);
+      if (own) return own;
+      if (el.labels && el.labels.length) return labelled(el);
+      const pressed = el.tagName.toLowerCase() === "input" && roleOf(el) === "button" ? el.value : "";
+      const said = el.getAttribute("placeholder") || el.getAttribute("title") || el.innerText || pressed || "";
+      return said.trim().slice(0, MAX_TEXT);
+    };
+    const landmarkRole = (el) => {
+      const written = el.getAttribute("role");
+      const named = ["region", "dialog", "alertdialog", "grid", "treegrid", "form"];
+      if (written) return named.includes(written) ? written : null;
+      const tag = el.tagName.toLowerCase();
+      if (tag === "form") return "form";
+      if (tag === "dialog") return "dialog";
+      if (tag === "section") return "region";
+      return null;
+    };
+    const landmarksOf = (el) => {
+      const found = [];
+      for (let node = el.parentElement; node && node.nodeType === 1; node = node.parentElement) {
+        const role = landmarkRole(node);
+        const name = role ? ownName(node) : null;
+        if (role && name) found.unshift({ role, name });
+      }
+      return found;
+    };
+    const cmpOf = (el) => {
+      const Ext = (el.ownerDocument?.defaultView || window).Ext;
+      if (!Ext?.getCmp) return null;
+      for (let node = el; node && node.nodeType === 1; node = node.parentElement) {
+        const cmp = node.id && (Ext.getCmp(node.id) || Ext.getCmp(node.id.replace(/-[a-zA-Z]+El$/, "")));
+        if (cmp) return cmp;
+      }
+      return null;
+    };
+    const chainOf = (el) => {
+      const chain = [];
+      for (let k = cmpOf(el); k && chain.length < 10; k = k.ownerCt || k.floatParent) {
+        const xtype = k.getXType ? k.getXType() : k.xtype;
+        if (!xtype) continue;
+        chain.unshift(k.itemId && !/^ext-/.test(k.itemId) ? `${xtype}#${k.itemId}` : xtype);
+      }
+      return chain;
+    };
+    const xpathOf = (el) => {
+      const parts = [];
+      for (let node = el; node && node.nodeType === 1; node = node.parentElement) {
+        const parent = node.parentElement;
+        if (!parent) {
+          parts.unshift(node.tagName.toLowerCase());
+          break;
+        }
+        const siblings = [...parent.children].filter((c) => c.tagName === node.tagName);
+        parts.unshift(`${node.tagName.toLowerCase()}[${siblings.indexOf(node) + 1}]`);
+      }
+      return `/${parts.join("/")}`;
+    };
+    const boundsOf = (el) => {
+      const box = el.getBoundingClientRect();
+      const view = el.ownerDocument?.defaultView || window;
+      return { x: box.x + (view.scrollX || 0), y: box.y + (view.scrollY || 0), width: box.width, height: box.height };
+    };
+    const framePathOf = (win) => {
+      const hops = [];
+      const origins = (win.location && win.location.ancestorOrigins) || [];
+      let depth = 0;
+      for (let here = win; here.parent && here !== here.parent; here = here.parent, depth += 1) {
+        const parent = here.parent;
+        let index = -1;
+        for (let i = 0; i < parent.frames.length; i += 1) {
+          if (parent.frames[i] === here) index = i;
+        }
+        let url = null;
+        try {
+          url = here.location.href;
+        } catch {
+          url = depth > 0 ? origins[depth - 1] || null : null;
+        }
+        hops.unshift({ index, url });
+      }
+      return hops;
+    };
+    const settingOf = (el) => {
+      if (["checkbox", "radio", "switch"].includes(roleOf(el))) {
+        const checked = typeof el.checked === "boolean" ? el.checked : el.getAttribute("aria-checked") === "true";
+        return checked ? "checked" : "unchecked";
+      }
+      if (el.tagName === "SELECT") {
+        return [...(el.selectedOptions || [])].map((option) => option.label).join(", ") || null;
+      }
+      return undefined;
+    };
+    const OUTLINE_OPTIONS = 25;
+    const OUTLINE_FIELDS = 80;
+    const OUTLINE_TEXT = 120;
+    const OUTLINE_MESSAGES = 10;
+    const OUTLINE_CHARS = 16384;
+    const FIELD_ROLES = ["textbox", "searchbox", "combobox", "listbox", "checkbox", "radio", "switch", "spinbutton", "slider"];
+    const NOT_VOCABULARY = /:\/\/|\w=\S|[0-9a-f]{16,}|[\w-]{32,}/i;
+    const labelOf = (el) => {
+      const own = ownName(el);
+      if (own) return own;
+      if (el.labels && el.labels.length) return labelled(el);
+      return (el.getAttribute("placeholder") || el.getAttribute("title") || "").trim().slice(0, MAX_TEXT);
+    };
+    const requiredOf = (el) => {
+      const said = el.getAttribute("aria-required");
+      if (said === "true") return true;
+      if (said === "false") return false;
+      if (el.required === true || el.hasAttribute("required")) return true;
+      return /\*\s*$/.test(labelOf(el)) ? true : null;
+    };
+    const plainOf = (text) => String(text || "").replace(/\s+/g, " ").trim();
+    const insideEditor = (el) => Boolean(el.parentElement && el.parentElement.isContentEditable);
+    const sizeOf = (value) => JSON.stringify(value).length;
+    const fitted = (outline) => {
+      let size = sizeOf(outline);
+      for (const field of [...outline.fields].reverse()) {
+        if (size <= OUTLINE_CHARS) break;
+        if (field.options !== null) {
+          size -= sizeOf(field.options) - sizeOf(null);
+          field.options = null;
+        }
+      }
+      for (const key of ["headings", "landmarks", "messages", "buttons", "fields"]) {
+        const items = outline[key];
+        while (items.length && size > OUTLINE_CHARS) size -= sizeOf(items.pop()) + (items.length ? 1 : 0);
+      }
+      return outline;
+    };
+    const outlineOf = (doc) => {
+      const say = (text) => {
+        const plain = plainOf(text);
+        if (!plain || NOT_VOCABULARY.test(plain)) return null;
+        return plain.slice(0, OUTLINE_TEXT);
+      };
+      const shownIn = (selector) =>
+        [...doc.querySelectorAll(selector)].filter((el) => el.getClientRects().length > 0 && !insideEditor(el));
+      const unique = (texts, cap) => [...new Set(texts.map(say).filter(Boolean))].slice(0, cap);
+      const optionsOf = (el) => {
+        const owned = el.getAttribute("aria-controls") || el.getAttribute("aria-owns");
+        const list =
+          el.tagName === "SELECT"
+            ? [...el.options].map((one) => one.label)
+            : roleOf(el) === "listbox"
+              ? [...el.querySelectorAll("[role=option]")].map((one) => one.innerText)
+              : owned && doc.getElementById(owned)
+                ? [...doc.getElementById(owned).querySelectorAll("[role=option]")].map((one) => one.innerText)
+                : null;
+        return list && list.length <= OUTLINE_OPTIONS ? list.map(say).filter(Boolean) : null;
+      };
+      const fields = shownIn("input, select, textarea, [role]")
+        .filter((el) => FIELD_ROLES.includes(roleOf(el)))
+        .map((el) => ({ role: roleOf(el), label: say(labelOf(el)), required: requiredOf(el), options: optionsOf(el) }))
+        .filter((one) => one.label)
+        .slice(0, OUTLINE_FIELDS);
+      const invalid = shownIn("[aria-invalid=true]").flatMap((el) =>
+        (el.getAttribute("aria-errormessage") || el.getAttribute("aria-describedby") || "")
+          .split(/\s+/)
+          .map((id) => id && doc.getElementById(id))
+          .filter(Boolean)
+          .map((said) => ({ role: "invalid", said })),
+      );
+      const messages = [
+        ...shownIn("[role=alert], [role=status]").map((said) => ({ role: said.getAttribute("role"), said })),
+        ...invalid,
+      ]
+        .filter((one) => plainOf(one.said.innerText))
+        .map((one) => ({ role: one.role }))
+        .slice(0, OUTLINE_MESSAGES);
+      return fitted({
+        headings: unique(shownIn("h1, h2, h3, h4, h5, h6, [role=heading]").map((el) => el.innerText), OUTLINE_FIELDS),
+        landmarks: shownIn("form, dialog, [role=dialog], [role=alertdialog], [role=form]")
+          .map((el) => ({ role: landmarkRole(el), name: say(ownName(el)) }))
+          .filter((one) => one.role && one.name),
+        fields,
+        buttons: unique(shownIn("button, [role=button], input[type=submit], input[type=button]").map(nameOf), OUTLINE_FIELDS),
+        messages,
+      });
+    };
+    return {
+      roleOf, ownName, nameOf, landmarkRole, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf,
+      labelOf, requiredOf, outlineOf, isSecretField,
+    };
+  })();
+
+  const stateOf = (el) => {
+    if (!el || el.nodeType !== 1 || el.isConnected === false) {
+      return { value: null, visible: false, enabled: null };
+    }
+    const box = el.getBoundingClientRect();
+    const style = window.getComputedStyle(el);
+    const visible =
+      box.width > 0 && box.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+    const enabled = !(el.disabled === true || el.getAttribute('aria-disabled') === 'true');
+    const setting = isSecretField(el) ? null : settingOf(el);
+    return { value: setting ? setting.slice(0, MAX_VALUE) : null, visible, enabled };
   };
 
-  // What the page says about whether this field is mandatory, or null where
-  // it says nothing. Read off the control and off the label that names it: a
-  // form marks the star on the label, not on the input.
-  const requiredOf = (el) => {
-    const said = el.getAttribute && el.getAttribute('aria-required');
-    if (said === 'true') return true;
-    if (said === 'false') return false;
-    if (el.required === true) return true;
-    if (el.hasAttribute && el.hasAttribute('required')) return true;
-    const named = label(el);
-    if (named && /\*\s*$/.test(named)) return true;
-    return null;
+  const REALM = Math.random().toString(36).slice(2);
+  let count = 0;
+  let last = null;
+  let lastRef = null;
+
+  const OUTLINES_PER_GESTURE = 3;
+  const OUTLINED = 'form, dialog, [role=dialog], [role=alertdialog], [role=form], [role=alert], [role=status]';
+  let seenOutline = null;
+  let outlines = [];
+  const takeOutline = () => {
+    let taken = null;
+    try {
+      taken = JSON.stringify(outlineOf(document));
+    } catch {
+      return;
+    }
+    if (taken === seenOutline) return;
+    seenOutline = taken;
+    outlines = [...outlines, JSON.parse(taken)].slice(-OUTLINES_PER_GESTURE);
   };
+  const appeared = (change) => {
+    const inside = change.target.nodeType === 1 ? change.target : change.target.parentElement;
+    if (inside && inside.closest('[role=alert], [role=status]')) return true;
+    return [...change.addedNodes].some(
+      (node) => node.nodeType === 1 && (node.matches(OUTLINED) || node.querySelector(OUTLINED)),
+    );
+  };
+  const WATCHING = '__sroOutlineWatch';
+  if (window[WATCHING]) window[WATCHING].disconnect();
+  window[WATCHING] = new MutationObserver((changes) => {
+    if (changes.some(appeared)) takeOutline();
+  });
+  window[WATCHING].observe(document, { childList: true, subtree: true, characterData: true });
 
   const cssPath = (el) => {
     const parts = [];
@@ -122,37 +378,9 @@
     return parts.join(' > ');
   };
 
-  const xpath = (el) => {
-    const parts = [];
-    let node = el;
-    while (node && node.nodeType === 1 && parts.length < 12) {
-      const parent = node.parentElement;
-      if (!parent) { parts.unshift(node.tagName.toLowerCase()); break; }
-      const siblings = [...parent.children].filter((c) => c.tagName === node.tagName);
-      const index = siblings.indexOf(node) + 1;
-      parts.unshift(`${node.tagName.toLowerCase()}[${index}]`);
-      node = parent;
-    }
-    return `/${parts.join('/')}`;
-  };
-
   // Best-effort label. The authoritative accessible name comes from the AX tree.
-  const label = (el) => {
-    // Never for a credential field: the last fallback below is `el.value`, so a
-    // password with no label would become its own accessible name.
-    if (isSecretField(el)) return null;
-    const aria = el.getAttribute('aria-label');
-    if (aria) return aria;
-    const labelledBy = el.getAttribute('aria-labelledby');
-    if (labelledBy) {
-      const target = document.getElementById(labelledBy);
-      if (target) return (target.innerText || '').trim().slice(0, MAX_TEXT);
-    }
-    if (el.labels && el.labels.length) return (el.labels[0].innerText || '').trim().slice(0, MAX_TEXT);
-    if (el.getAttribute('placeholder')) return el.getAttribute('placeholder');
-    if (el.getAttribute('title')) return el.getAttribute('title');
-    return (el.innerText || el.value || '').trim().slice(0, MAX_TEXT) || null;
-  };
+  // Never for a credential field.
+  const label = (el) => (isSecretField(el) ? null : nameOf(el) || null);
 
   // The component behind the element, when the page is built out of components.
   //
@@ -163,74 +391,10 @@
   // payload key. The component model is the only view that survives a reload:
   // `xtype` is what the application calls the control, and `itemId` is what its
   // own code uses to find it.
-  // What kind of control this is, whether or not the page bothered to say.
-  //
-  // `getAttribute('role')` reads only what an author wrote down, and almost
-  // nobody writes `role="button"` on a `<button>` -- the browser knows it
-  // implicitly. So the one identity this system has for a control that carries
-  // no framework component and no test id was `name|<label>`, which reads
-  // exactly the same as an accessible name on a `<div>` -- and a `<div>` in a
-  // mailbox is labelled with the mail.
-  //
-  // Measured on the deployment 2026-09-20 over 732 gestures: 132 identities
-  // came through that branch, and they are two different things wearing one
-  // shape. `Username or email` (30), `Sign In` (14), `Subject` (5) are
-  // controls on an `<input>` or a `<button>`. `Devansh Joshi` (17),
-  // `Tanisha Pradhan` (13), `104` (7), `2,486` are a sender, a subject and a
-  // message count -- content, on a div, changing with every mail, and every
-  // change mints another job. `Reply to Email` reached five rows that way.
-  //
-  // The implicit role separates them at the source: an `<input>` becomes
-  // `textbox|Username or email` and the `<div>` keeps no role at all, so the
-  // identity below falls past `name|` to the text and then to `anon`, which is
-  // what an unidentifiable click honestly is.
-  //
-  // Only the roles this system actually meets. A full implicit-role table is
-  // the ARIA spec's own, it is long, and every row of it that nothing here has
-  // ever seen is a row nobody can check.
-  const roleOf = (el) => {
-    const written = el.getAttribute('role');
-    if (written) return written;
-    const tag = el.tagName.toLowerCase();
-    if (tag === 'button') return 'button';
-    if (tag === 'a') return el.hasAttribute('href') ? 'link' : null;
-    if (tag === 'select') return 'combobox';
-    if (tag === 'textarea') return 'textbox';
-    if (tag === 'summary') return 'button';
-    if (tag !== 'input') return null;
-    const type = (el.getAttribute('type') || 'text').toLowerCase();
-    if (type === 'checkbox') return 'checkbox';
-    if (type === 'radio') return 'radio';
-    if (type === 'range') return 'slider';
-    if (['button', 'submit', 'reset', 'image'].includes(type)) return 'button';
-    // `password` deliberately included: it is a textbox, and what keeps the
-    // secret out is the redaction that already runs over the value, not a
-    // missing role on the element.
-    if (['text', 'search', 'email', 'tel', 'url', 'password', 'number'].includes(type))
-      return 'textbox';
-    return null;
-  };
-
   const component = (el) => {
-    if (!window.Ext || !Ext.getCmp) return null;
-    let node = el;
-    let cmp = null;
-    while (node && node.nodeType === 1 && !cmp) {
-      if (node.id) {
-        // Ext gives sub-elements suffixed ids (`-inputEl`, `-btnIconEl`); the
-        // component is registered under the stem.
-        cmp = Ext.getCmp(node.id) || Ext.getCmp(node.id.replace(/-[a-zA-Z]+El$/, ''));
-      }
-      node = node.parentElement;
-    }
+    const cmp = cmpOf(el);
     if (!cmp) return null;
-
-    const chain = [];
-    for (let k = cmp; k && chain.length < 10; k = k.ownerCt || k.floatParent) {
-      const xtype = k.getXType ? k.getXType() : k.xtype;
-      if (!xtype) continue;
-      chain.unshift(k.itemId && !/^ext-/.test(k.itemId) ? `${xtype}#${k.itemId}` : xtype);
-    }
+    const chain = chainOf(el);
     // Two segments: enough context to disambiguate, short enough to survive a
     // screen being re-parented, which happens whenever a dialog is involved.
     const query = chain.slice(-2).join(' ');
@@ -255,7 +419,6 @@
   const describe = (el) => {
     if (!el || el.nodeType !== 1) return null;
     const secret = isSecretField(el);
-    const box = el.getBoundingClientRect();
     const attributes = {};
     for (const attr of el.attributes || []) {
       // Values are captured; nothing here is filtered. Storage-side policy
@@ -298,10 +461,11 @@
       // to fill.
       required: requiredOf(el),
       cssPath: cssPath(el),
-      xpath: xpath(el),
-      bounds: { x: box.x, y: box.y, width: box.width, height: box.height },
+      xpath: xpathOf(el),
+      bounds: boundsOf(el),
       attributes,
       component: component(el),
+      landmarks: landmarksOf(el),
     };
   };
 
@@ -314,17 +478,58 @@
     return mods;
   };
 
-  const emit = (record) => {
+  const emit = (record, el = null) => {
+    count += 1;
+    const ref = `${REALM}.${count}`;
+    const prior = last ? stateOf(last) : null;
+    const prior_of = last ? lastRef : null;
+    takeOutline();
+    const sent = outlines;
+    outlines = [];
+    last = el;
+    lastRef = el ? ref : null;
     try {
-      window.__sroRecord(JSON.stringify({ ...record, at: Date.now() / 1000, url: location.href }));
+      window.__sroRecord(
+        JSON.stringify({
+          ...record,
+          ref,
+          prior,
+          prior_of,
+          outlines: sent,
+          frame_path: framePathOf(window),
+          at: Date.now() / 1000,
+          url: location.href,
+        }),
+      );
     } catch {
+      seenOutline = null;
       // The binding is not installed yet, or the frame is being torn down.
       // Losing a gesture is preferable to breaking the page the operator is using.
     }
   };
 
+  listen('sro:dropped', (e) => {
+    // `detail` names the dropped gesture's ref, or `null` when it was refused
+    // for size before it could be parsed and given one -- either way, it is
+    // always the gesture just recorded, so both mean "forget it".
+    if (e.detail === null || e.detail === lastRef) {
+      last = null;
+      lastRef = null;
+    }
+    seenOutline = null;
+  });
+
   listen('click', (e) =>
-    emit({ kind: 'click', target: describe(e.target), modifiers: modifiers(e) }),
+    emit(
+      {
+        kind: 'click',
+        target: describe(e.target),
+        modifiers: modifiers(e),
+        detail: e.detail,
+        trusted: e.isTrusted,
+      },
+      e.target,
+    ),
   );
 
   // One event per completed edit rather than per keystroke: `change` fires on
@@ -333,30 +538,39 @@
     const el = e.target;
     if (!el) return;
     if (el.type === 'file' && el.files) {
-      emit({
-        kind: 'upload',
-        target: describe(el),
-        value: [...el.files].map((file) => file.name).join(', ').slice(0, MAX_VALUE),
-        modifiers: [],
-      });
+      emit(
+        {
+          kind: 'upload',
+          target: describe(el),
+          value: [...el.files].map((file) => file.name).join(', ').slice(0, MAX_VALUE),
+          modifiers: [],
+        },
+        el,
+      );
       return;
     }
     const kind = el.tagName === 'SELECT' ? 'select' : 'type';
     const secret = isSecretField(el);
-    emit({
-      kind,
-      target: describe(el),
-      value: secret ? null : (el.value == null ? null : String(el.value).slice(0, MAX_VALUE)),
-      secret,
-      modifiers: [],
-    });
+    emit(
+      {
+        kind,
+        target: describe(el),
+        value: secret ? null : (el.value == null ? null : String(el.value).slice(0, MAX_VALUE)),
+        secret,
+        modifiers: [],
+      },
+      el,
+    );
   });
 
   listen('keydown', (e) => {
     // Only keys that commit or cancel. Every other keystroke arrives as the
     // `change` value above.
     if (!['Enter', 'Escape', 'Tab'].includes(e.key)) return;
-    emit({ kind: 'press', target: describe(e.target), value: e.key, modifiers: modifiers(e) });
+    emit(
+      { kind: 'press', target: describe(e.target), value: e.key, modifiers: modifiers(e) },
+      e.target,
+    );
   });
 
   let scrollTimer = null;

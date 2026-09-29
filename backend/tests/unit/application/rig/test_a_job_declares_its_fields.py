@@ -133,7 +133,11 @@ async def test_the_question_carries_the_limit_before_anybody_has_overflowed_it()
             title="Create a Customer Type",
             narrative="open the screen, type the code, save",
             steps=[Step(order=0, says="type the code", system=None, cites=["g"])],
-            parameters=[{"name": "Customer Type", "seen_values": ["GGD"]}],
+            # Required, as the form marks it: since F1 only a required field is
+            # asked for, and an optional one is offered.
+            parameters=[
+                {"name": "Customer Type", "names": ["Customer Type*"], "seen_values": ["GGD"]}
+            ],
         )
     )
 
@@ -171,6 +175,38 @@ async def test_another_screen_s_form_lends_this_one_nothing() -> None:
     limits = await declared_limits(uow, f.TENANT, ["Customer Type"], SCREEN)
 
     assert limits == {"Customer Type": 60}
+
+
+async def test_a_field_s_own_screens_list_keeps_it_off_a_job_it_does_not_belong_to() -> None:
+    """The real collision: a uniquely-labelled field the dictionary scopes to
+    other screens must not attach a limit here just because it shares no name
+    with anything on this one -- and a field the dictionary does scope to this
+    screen still attaches."""
+    uow = await _knows(
+        FakeUnitOfWork(),
+        _claim(
+            EntryKind.FORM,
+            "#wm.config/wm.config.partners.customers.types////",
+            {"label": "Customer Types"},
+            EvidenceLevel.OBSERVED,
+        ),
+        _claim(
+            EntryKind.FIELD,
+            "customerType",
+            {"labels": ["Customer Type"], "max_length": 4, "screens": ["Customer Types"]},
+            EvidenceLevel.ASSERTED,
+        ),
+        _claim(
+            EntryKind.FIELD,
+            "widgetCount",
+            {"labels": ["Widget Count"], "max_length": 9, "screens": ["Something Else"]},
+            EvidenceLevel.ASSERTED,
+        ),
+    )
+
+    limits = await declared_limits(uow, f.TENANT, ["Customer Type", "Widget Count"], SCREEN)
+
+    assert limits == {"Customer Type": 4}
 
 
 async def test_a_label_two_keys_answer_to_declares_nothing() -> None:
@@ -392,3 +428,48 @@ async def test_a_job_this_door_cannot_read_still_asks_its_question() -> None:
 
     assert "What should Customer Type be?" in asked
     assert "I can also set" not in asked
+
+
+# --- F1: optional fields are offered, never asked for ------------------------
+
+
+async def _customer_type_job(uow: FakeUnitOfWork) -> None:
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_1",
+            tenant=f.TENANT.value,
+            title="Create a Customer Type",
+            narrative="open the screen, type the code, save",
+            steps=[Step(order=0, says="type the code", system=None, cites=["g"])],
+            parameters=[
+                {"name": "Customer Type", "names": ["Customer Type*"], "seen_values": ["GGD"]},
+                {"name": "Manufacturer", "names": ["Manufacturer"], "seen_values": ["OUTSIDE"]},
+            ],
+        )
+    )
+
+
+async def test_an_optional_field_is_never_asked_for_even_with_a_value_it_cannot_take() -> None:
+    """thr_c563: Manufacturer "whatever we have" did not fit, and was asked for."""
+    uow = FakeUnitOfWork()
+    await _customer_type_job(uow)
+
+    asked = await AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()).execute(
+        CTX,
+        Pending(
+            workflow_id="wfl_1",
+            title="Create a Customer Type",
+            values={"Manufacturer": "whatever we have"},
+            missing=("Customer Type", "Manufacturer"),
+            limits={"Manufacturer": 10},
+        ),
+    )
+
+    assert "What should Customer Type be?" in asked
+    assert "What should Manufacturer" not in asked and "Manufacturer takes" not in asked
+    threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=CTX.principal_id, limit=1)
+    decision = threads[0].messages[-1].decision
+    assert decision is not None
+    assert decision["missing"] == ["Customer Type"]
+    assert decision["values"] == {}, "a value the box cannot take was carried into the run"
+    assert decision["offered"] == [["Manufacturer", "OUTSIDE"]]

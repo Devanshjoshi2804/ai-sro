@@ -65,6 +65,16 @@ class Component(BaseModel):
         return self
 
 
+class Landmark(BaseModel):
+    role: str
+    name: str
+
+    @model_validator(mode="after")
+    def a_credential_in_a_landmark_is_dropped_here(self) -> "Landmark":
+        self.name = redact_shapes(self.name)
+        return self
+
+
 class Target(BaseModel):
     tag: str | None = None
     role: str | None = None
@@ -79,6 +89,7 @@ class Target(BaseModel):
     bounds: dict[str, float] = Field(default_factory=dict)
     attributes: dict[str, Any] = Field(default_factory=dict)
     component: Component | None = None
+    landmarks: list[Landmark] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def must_carry_some_signal(self) -> "Target":
@@ -92,9 +103,53 @@ class Target(BaseModel):
             value = getattr(self, prose)
             if value:
                 setattr(self, prose, redact_shapes(value))
+        if self.secret:
+            self.attributes.pop("value", None)
         if self.attributes:
             self.attributes = redact_attributes(self.attributes)
         return self
+
+
+class FrameHop(BaseModel):
+    index: int
+    url: str | None = None
+
+    @model_validator(mode="after")
+    def a_credential_in_a_frame_url_is_dropped_here(self) -> "FrameHop":
+        if self.url:
+            self.url = redact_url(self.url)
+        return self
+
+
+class AfterState(BaseModel):
+    value: str | None = None
+    visible: bool | None = None
+    enabled: bool | None = None
+
+    @model_validator(mode="after")
+    def a_credential_in_a_state_is_dropped_here(self) -> "AfterState":
+        if self.value:
+            self.value = redact_shapes(self.value)
+        return self
+
+
+class OutlineField(BaseModel):
+    role: str
+    label: str
+    required: bool | None = None
+    options: list[str] | None = None
+
+
+class OutlineMessage(BaseModel):
+    role: str
+
+
+class Outline(BaseModel):
+    headings: list[str] = Field(default_factory=list)
+    landmarks: list[Landmark] = Field(default_factory=list)
+    fields: list[OutlineField] = Field(default_factory=list)
+    buttons: list[str] = Field(default_factory=list)
+    messages: list[OutlineMessage] = Field(default_factory=list)
 
 
 class Gesture(BaseModel):
@@ -105,8 +160,15 @@ class Gesture(BaseModel):
     value: str | None = None
     secret: bool = False
     modifiers: list[str] = Field(default_factory=list)
+    frame_path: list[FrameHop] | None = None
+    detail: int | None = None
+    trusted: bool | None = None
     at: float
     url: str | None = None
+    ref: str | None = None
+    prior: AfterState | None = None
+    prior_of: str | None = None
+    outlines: list[Outline] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def a_credential_value_is_dropped_here(self) -> "Gesture":
@@ -164,7 +226,7 @@ def redact_attributes(node: Any) -> Any:
     if isinstance(node, list):
         return [redact_attributes(item) for item in node]
     if isinstance(node, str):
-        return redact_url(node)
+        return redact_shapes(redact_url(node))
     return node
 
 
@@ -260,6 +322,7 @@ class PageEvent(BaseModel):
     url: str | None = None
     detail: str | None = None
     tab_id: int | None = None
+    opener_tab_id: int | None = None
 
     @model_validator(mode="after")
     def a_credential_on_a_page_event_is_dropped_here(self) -> "PageEvent":

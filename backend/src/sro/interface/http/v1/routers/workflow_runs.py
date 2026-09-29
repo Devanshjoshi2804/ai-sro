@@ -35,14 +35,17 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query, Response, status
 
-from sro.application.chat.from_the_mail import SERVER
+from sro.application.chat.mailbox import SERVER
+from sro.domain.execution.takeover import Took
+from sro.domain.execution.workflow_run import OfferTaken
 from sro.domain.observation.attempts import DONE, NOTHING
 from sro.domain.shared.identifiers import DeviceId
 from sro.interface.http.asking import AskingDeviceDep
-from sro.interface.http.deps import ContainerDep, ContextDep
+from sro.interface.http.deps import ContainerDep, ContextDep, DeviceSecretDep
 from sro.interface.http.schemas import (
+    AnswerRunRequest,
     StartWorkflowRunRequest,
     WorkflowRunModel,
     WorkflowStepApprovedModel,
@@ -98,7 +101,11 @@ in this file had drifted by a hunk or more.
 
 @router.post("/workflow-runs", status_code=status.HTTP_201_CREATED)
 async def start_workflow_run(
-    body: StartWorkflowRunRequest, container: ContainerDep, ctx: ContextDep
+    body: StartWorkflowRunRequest,
+    container: ContainerDep,
+    ctx: ContextDep,
+    response: Response,
+    x_device_secret: DeviceSecretDep = "",
 ) -> WorkflowRunModel:
     """Start one run of a mined job, and answer with the row it claimed.
 
@@ -119,22 +126,34 @@ async def start_workflow_run(
     itself -- nobody is awaiting this, so a run left `running` would be swept
     only by `fail_orphans` at the next process start, which is a restart away
     and not a moment away.
+
+    A second start of one `offer` -- the chat's yes and the panel's card, two
+    panels, a double press -- answers 200 with the run the first one made, and
+    starts nothing.
     """
     starter = container.start_workflow_run()
-    claimed = await starter.execute(
-        ctx,
-        workflow_id=body.workflow_id,
-        device_id=DeviceId(body.device_id),
-        values=body.values,
-        items=body.items,
-        live=body.live,
-        allow_focus=body.allow_focus,
-        watched=body.watched,
-        from_step=body.from_step,
-        matched=body.matched,
-        conversation=(SERVER, body.mail_thread),
-        undoes_run=body.undoes_run,
-    )
+    try:
+        claimed = await starter.execute(
+            ctx,
+            workflow_id=body.workflow_id,
+            device_id=DeviceId(body.device_id) if body.device_id else None,
+            values=body.values,
+            items=body.items,
+            live=body.live,
+            allow_focus=body.allow_focus,
+            watched=body.watched,
+            from_step=body.from_step,
+            matched=body.matched,
+            took_over=Took(**body.took_over.model_dump()) if body.took_over else None,
+            device_secret=x_device_secret,
+            conversation=(SERVER, body.mail_thread),
+            undoes_run=body.undoes_run,
+            offer=body.offer,
+        )
+    except OfferTaken as taken:
+        response.status_code = status.HTTP_200_OK
+        reader = container.get_workflow_run()
+        return WorkflowRunModel.of(await reader.execute(ctx, run_id=taken.run_id))
     container.pursuits.spawn(starter.perform(ctx, claimed))
     await container.record_attempt().execute(
         ctx,
@@ -143,7 +162,7 @@ async def start_workflow_run(
         about={
             "run": claimed.id,
             "workflow": body.workflow_id,
-            "device": body.device_id,
+            "device": body.device_id or "",
         },
     )
     return WorkflowRunModel.of(claimed)
@@ -156,6 +175,7 @@ async def list_workflow_runs(
     workflow_id: Annotated[str | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 20,
     awaiting: Annotated[bool, Query()] = False,
+    mine: Annotated[bool, Query()] = False,
 ) -> list[WorkflowRunModel]:
     """The most recent runs, newest first, as one row each.
 
@@ -183,9 +203,13 @@ async def list_workflow_runs(
     The rig did `max(1, min(limit, 200))`; a caller that asks for 5000 and
     silently gets 200 cannot tell a cap from a truncated answer, and FastAPI
     says this once, in the place the generated client reads.
+
+    `mine` keeps only the runs the caller started, out of the `limit` newest:
+    the panel's Home draws a card per mail-started run, and a colleague's mail
+    is not this operator's to be shown.
     """
     runs = await container.list_workflow_runs().execute(
-        ctx, workflow_id=workflow_id, limit=limit, awaiting=awaiting
+        ctx, workflow_id=workflow_id, limit=limit, awaiting=awaiting, mine=mine
     )
     return [WorkflowRunModel.of(run) for run in runs]
 
@@ -205,7 +229,9 @@ async def get_workflow_run(
     """
     reader = container.get_workflow_run()
     run = await reader.execute(ctx, run_id=run_id)
-    return WorkflowRunModel.of(run, await reader.undo_for(ctx, run))
+    return WorkflowRunModel.of(
+        run, await reader.undo_for(ctx, run), await reader.live_view_for(ctx, run)
+    )
 
 
 @router.post("/workflow-runs/{run_id}/abort", status_code=status.HTTP_202_ACCEPTED)
@@ -231,6 +257,10 @@ async def abort_workflow_run(
     also what a tap is: a route that 422s one is a Stop-shaped button that
     sometimes does nothing.
 
+    **A run on Steel** is stopped by cancelling its workflow: the step it is in
+    finishes its current action, and the run is recorded `aborted` before its
+    browser tab is released.
+
     A run of another tenant is a 404 and never a 403, for `get_workflow_run`'s
     reason. A run that is not `running`, or one naming no browser, is the 409
     `CannotStop` already carries -- it subclasses `Conflict`, so `errors` maps
@@ -241,6 +271,41 @@ async def abort_workflow_run(
         ctx, asked_for="stop a run", came_of=DONE, about={"run": run_id}
     )
     return WorkflowRunModel.of(stopped)
+
+
+@router.post("/workflow-runs/{run_id}/answer", status_code=status.HTTP_202_ACCEPTED)
+async def answer_workflow_run(
+    run_id: str, body: AnswerRunRequest, container: ContainerDep, ctx: ContextDep
+) -> None:
+    """Answer the question a Steel run is waiting on.
+
+    A run that asks lets go of its browser tab and waits; this hands it the
+    answer and it takes a browser again and carries on from the step that
+    asked, never from the start. 202 because the run carries on after this
+    returns, in its own workflow.
+
+    A one-time code is the one question a run waits on while keeping its page,
+    because the code belongs to that page: the person types it there, then
+    answers here with an empty value. A password question is answered the
+    same way, after the password is stored with `PUT /v1/secrets`. A question
+    about a write the run sent and could not confirm needs the operator's
+    `verdict`: `done` settles it, `not_done` lets the run try it again.
+
+    Only the operator who started the run answers its questions, of every
+    kind; a run with no recorded starter takes no answer from anybody.
+
+    A run of another tenant is a 404. A 409 `Conflict` for: a run no longer
+    running; no question standing, or another one than `question_id`; an
+    answer from anybody but the run's starter; a question already answered
+    differently; a value on anything but a value, field or recipient
+    question; a field answer that is not one of its choices; a recipient
+    answer that is not an address; a missing verdict on a write in doubt.
+    Only the question id reaches the run's workflow; the answer itself is
+    kept on the run.
+    """
+    await container.answer_run().execute(
+        ctx, run_id=run_id, question_id=body.question_id, value=body.value, verdict=body.verdict
+    )
 
 
 @router.post("/workflow-runs/{run_id}/approve")

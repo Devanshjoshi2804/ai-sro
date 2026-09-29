@@ -39,7 +39,6 @@ planner's own plural handling is held in `test_where_to_look_for_an_answer`,
 where it is the thing under test rather than a fixture detail."""
 HERS = "the-secret-the-laptop-was-minted"
 
-MODEL = "gemini-3.1-flash-preview"
 """Deliberately not the shipped default, so a route wired to a literal fails
 rather than agreeing with it."""
 
@@ -82,7 +81,7 @@ class _Container(_FakeContainer):
 
     def __init__(self, uow: FakeUnitOfWork, answers: Answers | None = None) -> None:
         super().__init__(uow)
-        self.settings = Settings(gemini_plan_model=MODEL, _env_file=None)
+        self.settings = Settings(_env_file=None)
         self.clock = FakeClock()
         self.asker = FakeAsker(_plan_answer())
         self.looked: list[Plan] = []
@@ -97,18 +96,15 @@ class _Container(_FakeContainer):
                 ctx: RequestContext,
                 *,
                 plan: Plan,
-                device_id: DeviceId | None = None,
-                allow_focus: bool = False,
                 # The deadline the conversation door passes. Named here only so
                 # this stands in for the real one: a fake whose signature has
                 # drifted from what it replaces is a test of nothing.
                 within: float = 0.0,
             ) -> Answers:
                 outer.looked.append(plan)
-                outer.allow_focus = allow_focus
                 return outer._answers or Answers(plan=plan)
 
-        return _Runs(self.unit_of_work(), self.agent_sockets)
+        return _Runs(self.unit_of_work(), self.session_broker(), self.http)
 
 
 @pytest.fixture

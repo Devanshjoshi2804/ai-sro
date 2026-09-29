@@ -137,11 +137,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             yield
         finally:
             await container.capture.stop_all()
+            await container.driver.aclose()
             if container.driving_runs is not None:
                 await container.driving_runs.close()
                 container.driving_runs = None
             if container.engine is not None:
                 await container.engine.dispose()
+            if container.lock_engine is not None:
+                await container.lock_engine.dispose()
 
 
 class Attributing:

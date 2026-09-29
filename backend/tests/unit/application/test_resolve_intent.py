@@ -6,16 +6,33 @@ confidently and performing it immediately.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+from typing import Any
+
+import pytest
+
 from sro.application.context import RequestContext
 from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
 from sro.application.knowledge.record_claim import Claim, RecordClaims
 from sro.application.knowledge.retrieve import Retrieve
+from sro.application.ports.intent import Reading
+from sro.application.shared.refusals import OverCap
 from sro.domain.knowledge.entry import EntryKind, EvidenceLevel
 from sro.domain.shared.identifiers import SkillId
+from sro.domain.shared.prices import price
 from sro.domain.skill.promotion import PromotionStage
+from sro.infrastructure.gemini.intent import GeminiIntentParser
+from sro.infrastructure.gemini.metered import Meter, Metered
+from sro.whose import about
 from tests import factories as f
-from tests.unit.fakes import FakeClock, FakeEmbedder, FakeIdFactory, FakeUnitOfWork
+from tests.unit.fakes import (
+    FakeClock,
+    FakeEmbedder,
+    FakeIdFactory,
+    FakeIntentParser,
+    FakeUnitOfWork,
+)
 
 CTX = RequestContext(tenant_id=f.TENANT, principal_id=f.OPERATOR)
 
@@ -236,3 +253,149 @@ async def test_two_skills_with_one_name_are_told_apart_by_their_key() -> None:
 
     assert resolution.matched is None
     assert "DC03" in (resolution.question or "") and "DC07" in (resolution.question or "")
+
+
+async def _stands() -> bool:
+    return True
+
+
+async def _check_in(uow: FakeUnitOfWork) -> None:
+    await RecordClaims(uow, FakeClock(), FakeIdFactory(), FakeEmbedder()).execute(
+        CTX,
+        (
+            Claim(
+                system="blue_yonder",
+                kind=EntryKind.SCREEN,
+                key="#check",
+                title="Inbound ▸ Check In",
+                body={"label": "Check In"},
+                source="index/app-map.json",
+                evidence=EvidenceLevel.OBSERVED,
+            ),
+        ),
+    )
+
+
+async def test_a_sentence_that_names_no_job_while_something_stands_is_about_what_stands() -> None:
+    """F2. "check now", typed under a standing run, was planned into Check In
+    and Check Out screens. The screen is known here too, so the planner WOULD
+    propose it -- and with something standing it is never asked."""
+    uow = FakeUnitOfWork()
+    await _check_in(uow)
+
+    nothing_standing = await _resolver(uow).execute(CTX, utterance="check now")
+    standing = await _resolver(uow).execute(CTX, utterance="check now", standing=_stands)
+
+    assert nothing_standing.pursuit is not None, "the fixture no longer reaches the explore"
+    assert not nothing_standing.about_what_stands
+    assert standing.about_what_stands
+    assert standing.proposal is None and standing.pursuit is None
+    assert standing.question is None
+
+
+async def test_a_sentence_that_names_a_job_is_that_job_even_while_something_stands() -> None:
+    uow = FakeUnitOfWork()
+    await _library(uow)
+    asked: list[str] = []
+
+    async def stands() -> bool:
+        asked.append("asked")
+        return True
+
+    resolution = await _resolver(uow).execute(
+        CTX, utterance="adjust inventory at SG", standing=stands
+    )
+
+    assert resolution.matched is not None
+    assert resolution.matched.skill.id == SkillId("skill-adjust")
+    assert not resolution.about_what_stands
+    assert asked == [], "what stands was worked out for a sentence that named a job"
+
+
+async def test_a_reading_sure_it_is_work_on_a_thing_is_never_a_status_question() -> None:
+    """The probe. The reader's own intent: act, with a verb and an entity, at
+    or above the floor. That sentence asks for work, so it falls to "nothing
+    has been taught" -- which only offers the explore -- and is never answered
+    with a status line."""
+    uow = FakeUnitOfWork()
+    parser = FakeIntentParser(
+        Reading(wants="act", verb="create", entity="warehouse zone", confidence=0.9)
+    )
+    resolver = ResolveIntent(uow, PlanTask(Retrieve(uow, FakeEmbedder())), parser)
+
+    resolution = await resolver.execute(
+        CTX, utterance="create a warehouse zone called Z1", standing=_stands
+    )
+
+    assert not resolution.about_what_stands
+    assert resolution.pursuable
+    assert "Nothing has been taught" in (resolution.question or ""), resolution.question
+
+
+async def test_a_reading_that_is_not_sure_or_names_no_thing_is_about_what_stands() -> None:
+    uow = FakeUnitOfWork()
+    for reading in (
+        Reading(wants="act", verb="create", entity="warehouse zone", confidence=0.3),
+        Reading(wants="act", verb="check", entity="", confidence=0.9),
+        Reading(wants="ask", verb="fetch", entity="mail", confidence=0.9),
+    ):
+        resolver = ResolveIntent(
+            uow, PlanTask(Retrieve(uow, FakeEmbedder())), FakeIntentParser(reading)
+        )
+
+        resolution = await resolver.execute(CTX, utterance="check now", standing=_stands)
+
+        assert resolution.about_what_stands, reading
+
+
+async def test_only_the_nothing_taught_reply_offers_to_explore() -> None:
+    uow = FakeUnitOfWork()
+    await _library(uow)
+    await _check_in(uow)
+
+    proposed = await _resolver(uow).execute(CTX, utterance="check now")
+    nothing_known = await _resolver(FakeUnitOfWork()).execute(CTX, utterance="do the thing")
+    matched = await _resolver(uow).execute(CTX, utterance="adjust inventory at SG")
+    status = await _resolver(uow).execute(CTX, utterance="check now", standing=_stands)
+
+    assert proposed.pursuable and nothing_known.pursuable
+    assert not matched.pursuable and not status.pursuable
+
+
+class _Models:
+    def __init__(self) -> None:
+        self.called = 0
+
+    async def generate_content(self, **_: Any) -> Any:
+        self.called += 1
+        usage = SimpleNamespace(
+            prompt_token_count=100,
+            candidates_token_count=25,
+            thoughts_token_count=0,
+            tool_use_prompt_token_count=None,
+        )
+        return SimpleNamespace(text="{}", usage_metadata=usage, candidates=[])
+
+
+async def test_a_tenant_at_the_days_cap_gets_the_cap_refusal_from_read() -> None:
+    """`ResolveIntent._read` used to swallow every exception from the parser,
+    built for a plain model failure. Now that `read()` goes through the shared
+    `ask`, a tenant at its daily cap must be refused here exactly as every
+    other `ask` caller is refused -- not silently degraded to word-matching."""
+    models = _Models()
+    client = SimpleNamespace(aio=SimpleNamespace(models=models))
+    spend_uow = FakeUnitOfWork()
+    meter = Meter(
+        lambda: spend_uow,
+        clock=FakeClock(),
+        cap_usd=price("gemini-3.8-flash", 100, 25) / 2,
+    )
+    parser = GeminiIntentParser(client=Metered(client, meter))
+    resolver = ResolveIntent(
+        FakeUnitOfWork(), PlanTask(Retrieve(FakeUnitOfWork(), FakeEmbedder())), parser
+    )
+
+    with about(tenant="acme"), pytest.raises(OverCap):
+        await resolver.execute(CTX, utterance="what waves are open")
+
+    assert models.called == 1

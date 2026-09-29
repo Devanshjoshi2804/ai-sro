@@ -11,6 +11,9 @@ from typing import Any, cast
 
 from sro.application.capture.rig_wire import Batch
 from sro.application.observation.correlate import ATTRIBUTION_SECONDS, correlate, system_of
+from sro.domain.observation.gesture import Outline, OutlineField
+from sro.domain.observation.outline import last_outline
+from sro.infrastructure.db.evidence import _gesture_to_row, _row_to_gesture
 from tests.unit.domain.rig.conftest import BATCH
 
 TENANT = "new"
@@ -282,3 +285,193 @@ def test_a_page_that_said_nothing_about_a_field_stores_nothing() -> None:
 
     target = gestures[0].action.target
     assert target is not None and target.required is None
+
+
+def _select(ref: str, hop: int = 0) -> dict[str, Any]:
+    event = copy.deepcopy(GESTURE_TYPE)
+    event["gesture"].update(kind="select", value="b", ref=ref)
+    event["gesture"]["target"].update(tag="select", role="combobox")
+    event["gesture"]["frame_path"] = [{"index": hop, "url": "https://wms.example/screen"}]
+    return event
+
+
+def _next(
+    before: dict[str, Any], ref: str, prior_of: str | None, value: str | None
+) -> dict[str, Any]:
+    event = copy.deepcopy(before)
+    event["gesture"].update(
+        kind="click",
+        at=before["gesture"]["at"] + 2,
+        ref=ref,
+        prior_of=prior_of,
+        prior={"value": value, "visible": True, "enabled": True},
+    )
+    return event
+
+
+def test_a_gesture_gets_the_state_its_target_was_in_when_the_next_one_came() -> None:
+    first = _select("r.1")
+    second = _next(first, "r.2", "r.1", "Second choice")
+
+    gestures, _, _, _ = correlate(_batch([first, second]), TENANT)
+
+    after = gestures[0].action.after
+    assert after is not None
+    assert (after.value, after.visible, after.enabled) == ("Second choice", True, True)
+    assert gestures[1].action.after is None
+
+
+def test_a_state_read_off_a_gesture_the_worker_dropped_joins_nothing() -> None:
+    # Paused between them: r.2 was typed and dropped, so r.3's prior is r.2's
+    # target, and r.1 -- the previous gesture that WAS kept -- is not it.
+    first = _select("r.1")
+    after_the_pause = _next(first, "r.3", "r.2", "Second choice")
+
+    gestures, _, _, _ = correlate(_batch([first, after_the_pause]), TENANT)
+
+    assert [one.action.after for one in gestures] == [None, None]
+
+
+def test_two_frames_on_the_same_url_never_hand_each_other_a_state() -> None:
+    in_one = _select("r.1", hop=0)
+    in_the_other = _next(_select("r.1", hop=1), "r.2", "r.1", "OTHER-FRAME")
+    assert in_one["frame_url"] == in_the_other["frame_url"]
+
+    gestures, _, _, _ = correlate(_batch([in_one, in_the_other]), TENANT)
+
+    assert [one.action.after for one in gestures] == [None, None]
+
+
+def test_a_popup_mark_keeps_the_tab_that_opened_it() -> None:
+    popup = {**copy.deepcopy(PAGE_NAVIGATED), "page_kind": "popup_opened", "opener_tab_id": 7}
+
+    _, _, marks, _ = correlate(_batch([popup]), TENANT)
+
+    assert marks[0].opener_tab_id == 7
+
+
+def test_every_captured_detail_of_the_control_is_kept_and_stored() -> None:
+    event = copy.deepcopy(GESTURE_TYPE)
+    target = event["gesture"]["target"]
+    target["bounds"] = {"x": 10.0, "y": 20.0, "width": 80.0, "height": 24.0}
+    target["attributes"] = {"name": "clientCode", "autocomplete": "off"}
+    target["component"] = {
+        "xtype": "textfield",
+        "itemId": "clientCode",
+        "query": "panel#clients textfield#clientCode",
+        "chain": ["panel#clients", "textfield#clientCode"],
+    }
+    target["landmarks"] = [{"role": "dialog", "name": "New Customer"}]
+    event["gesture"]["modifiers"] = ["shift"]
+    event["gesture"]["frame_path"] = [{"index": 1, "url": "https://wms.example/shell"}]
+    event["gesture"]["detail"] = 0
+    event["gesture"]["trusted"] = False
+    event["gesture"]["ref"] = "r.1"
+    chosen = _select("r.2", hop=1)
+    chosen["gesture"]["frame_path"] = event["gesture"]["frame_path"]
+    chosen["gesture"]["prior_of"] = "r.1"
+    chosen["gesture"]["prior"] = {"value": None, "visible": True, "enabled": False}
+    chosen["gesture"]["at"] = event["gesture"]["at"] + 2
+    last = _next(chosen, "r.3", "r.2", "Second choice")
+
+    gestures, _, _, _ = correlate(_batch([event, chosen, last]), TENANT)
+    stored = _row_to_gesture(_gesture_to_row(gestures[0]))
+    selected = _row_to_gesture(_gesture_to_row(gestures[1])).action.after
+
+    action = stored.action
+    assert action.target is not None and action.target.component is not None
+    assert action.target.bounds == {"x": 10.0, "y": 20.0, "width": 80.0, "height": 24.0}
+    assert action.target.attributes == {"name": "clientCode", "autocomplete": "off"}
+    assert action.target.component.chain == ("panel#clients", "textfield#clientCode")
+    assert [(one.role, one.name) for one in action.target.landmarks] == [("dialog", "New Customer")]
+    assert action.modifiers == ("shift",)
+    assert action.frame_path is not None
+    assert [(hop.index, hop.url) for hop in action.frame_path] == [(1, "https://wms.example/shell")]
+    assert action.detail == 0
+    assert action.trusted is False
+    assert action.after is not None
+    assert (action.after.value, action.after.visible, action.after.enabled) == (None, True, False)
+    assert selected is not None
+    assert (selected.value, selected.visible, selected.enabled) == ("Second choice", True, True)
+    assert hash(action)
+
+
+def test_the_labelled_ancestors_reach_the_stored_target() -> None:
+    event = copy.deepcopy(GESTURE_TYPE)
+    event["gesture"]["target"]["landmarks"] = [{"role": "dialog", "name": "New Customer"}]
+
+    gestures, _, _, _ = correlate(_batch([event]), TENANT)
+
+    target = gestures[0].action.target
+    assert target is not None
+    assert [(one.role, one.name) for one in target.landmarks] == [("dialog", "New Customer")]
+
+
+def test_the_frame_path_reaches_the_stored_action() -> None:
+    event = copy.deepcopy(GESTURE_TYPE)
+    event["gesture"]["frame_path"] = [{"index": 1, "url": "https://wms.example/shell"}]
+
+    gestures, _, _, _ = correlate(_batch([event]), TENANT)
+
+    hop = gestures[0].action.frame_path[0]
+    assert (hop.index, hop.url) == (1, "https://wms.example/shell")
+
+
+def test_evidence_recorded_before_frame_identity_stores_no_frame_path() -> None:
+    event = copy.deepcopy(GESTURE_TYPE)
+    assert "frame_path" not in event["gesture"]
+
+    gestures, _, _, _ = correlate(_batch([event]), TENANT)
+
+    assert gestures[0].action.frame_path is None
+
+
+def test_a_gesture_on_the_top_document_stores_an_empty_frame_path() -> None:
+    event = copy.deepcopy(GESTURE_TYPE)
+    event["gesture"]["frame_path"] = []
+
+    gestures, _, _, _ = correlate(_batch([event]), TENANT)
+
+    assert gestures[0].action.frame_path == ()
+
+
+def test_the_screen_a_gesture_was_made_on_is_stored_with_it() -> None:
+    event = copy.deepcopy(GESTURE_TYPE)
+    event["gesture"]["outlines"] = [
+        {
+            "headings": ["New Customer Type"],
+            "fields": [{"role": "combobox", "label": "Department", "options": ["Finance"]}],
+            "buttons": ["Save"],
+        }
+    ]
+
+    gestures, _, _, _ = correlate(_batch([event]), TENANT)
+
+    (outline,) = gestures[0].action.outlines
+    assert outline.headings == ("New Customer Type",)
+    assert outline.fields[0] == OutlineField("combobox", "Department", None, ("Finance",))
+
+
+def test_a_gesture_without_an_outline_was_made_on_the_last_outlined_screen() -> None:
+    first, second, elsewhere = (copy.deepcopy(GESTURE_TYPE) for _ in range(3))
+    first["gesture"]["outlines"] = [{"buttons": ["Save"]}]
+    second["gesture"]["at"] = first["gesture"]["at"] + 1
+    elsewhere["gesture"]["at"] = first["gesture"]["at"] + 2
+    elsewhere["gesture"]["frame_path"] = [{"index": 0, "url": "https://wms.example/other"}]
+
+    gestures, _, _, _ = correlate(_batch([first, second, elsewhere]), TENANT)
+
+    assert last_outline(gestures[1], gestures[:1]) == Outline(buttons=("Save",))
+    assert last_outline(gestures[2], gestures[:2]) is None
+
+
+def test_a_screen_from_another_document_in_the_same_frame_is_not_this_one() -> None:
+    first, second = (copy.deepcopy(GESTURE_TYPE) for _ in range(2))
+    first["gesture"]["outlines"] = [{"buttons": ["Save"]}]
+    first["gesture"]["url"] = "https://wms.example/customers?id=1"
+    second["gesture"]["url"] = "https://wms.example/orders?id=1"
+    second["gesture"]["at"] = first["gesture"]["at"] + 1
+
+    gestures, _, _, _ = correlate(_batch([first, second]), TENANT)
+
+    assert last_outline(gestures[1], gestures[:1]) is None

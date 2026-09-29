@@ -32,7 +32,7 @@ from sro.application.execution.workflow_runs import StartWorkflowRun
 from sro.application.trigger.answer_confirmation import AnswerConfirmation
 from sro.application.trigger.create_trigger import CreateTrigger, NewTrigger, TriggerRefused
 from sro.application.trigger.fire_trigger import FireTrigger
-from sro.domain.observation.gesture import Action, Gesture
+from sro.domain.observation.gesture import Action, Gesture, Target
 from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, SkillId, TenantId
 from sro.domain.skill.locator import ControlLocator, LocatorStrategy
@@ -107,7 +107,12 @@ def _gesture(gesture_id: str) -> Gesture:
         system=WMS,
         tab_id=7,
         frame_url=None,
-        action=Action(kind="click", at=1_739_314_800.0, url=f"{WMS}/work-areas"),
+        action=Action(
+            kind="click",
+            at=1_739_314_800.0,
+            url=f"{WMS}/work-areas",
+            target=Target(role="button", name="Save"),
+        ),
     )
 
 
@@ -121,25 +126,41 @@ async def _held(job: Workflow | None = None) -> FakeUnitOfWork:
     return uow
 
 
-def _starter(uow: FakeUnitOfWork) -> StartWorkflowRun:
+def _starter(
+    uow: FakeUnitOfWork,
+    *,
+    durable: FakeDurableExecution | None = None,
+    steel_tenants: frozenset[str] = frozenset(),
+) -> StartWorkflowRun:
     return StartWorkflowRun(
         uow,
         channel=FakeChannel(),
         asker=FakeAsker(),
-        plan_model="gemini-3.8-flash-preview",
-        rescue_model="gemini-3.1-pro-preview-rig",
         clock=FakeClock(NOW),
         cap_usd=5.0,
         stops=Stops(),
         approvals=Approvals(),
         one_time_secrets=OneTimeSecrets(),
+        durable=durable,
+        steel_tenants=steel_tenants,
     )
 
 
 def _create(
-    uow: FakeUnitOfWork, scheduler: FakeScheduler, *, can_gather: bool = False
+    uow: FakeUnitOfWork,
+    scheduler: FakeScheduler,
+    *,
+    can_gather: bool = False,
+    start_run: StartWorkflowRun | None = None,
 ) -> CreateTrigger:
-    return CreateTrigger(uow, FakeClock(NOW), FakeIdFactory(), scheduler, can_gather=can_gather)
+    return CreateTrigger(
+        uow,
+        FakeClock(NOW),
+        FakeIdFactory(),
+        scheduler,
+        can_gather=can_gather,
+        start_run=start_run,
+    )
 
 
 def _new(**over: object) -> NewTrigger:
@@ -191,11 +212,22 @@ async def test_a_proven_job_on_a_weekday_morning_is_a_write_with_a_name_on_it() 
 
 async def test_a_job_with_no_browser_named_is_refused_rather_than_run_headless() -> None:
     # A workflow is a recording of somebody's own window. There is no headless
-    # path for one, so a trigger without a device would fail every morning.
+    # path for one on the extension, so a trigger without a device would fail
+    # every morning.
     uow, scheduler = await _held(), FakeScheduler()
 
     with pytest.raises(TriggerRefused, match="browser"):
         await _create(uow, scheduler).execute(CTX, _new(device_id=None))
+
+
+async def test_a_steel_tenant_s_job_trigger_names_no_browser() -> None:
+    # Its runs start on the server and drive nobody's browser.
+    uow, scheduler = await _held(), FakeScheduler()
+    steel = _starter(uow, durable=FakeDurableExecution(), steel_tenants=frozenset({f.TENANT.value}))
+
+    trigger = await _create(uow, scheduler, start_run=steel).execute(CTX, _new(device_id=None))
+
+    assert trigger.device_id is None
 
 
 async def test_a_job_nobody_stood_behind_is_refused() -> None:
@@ -370,6 +402,42 @@ async def test_a_job_trigger_whose_browser_was_forgotten_disables_itself() -> No
     assert fired.run_id is None
     assert uow.triggers.rows[trigger.id.value].enabled is False
     assert "browser" in (fired.skipped or "")
+
+
+async def test_a_steel_tenant_s_trigger_fires_with_no_browser() -> None:
+    uow, scheduler, durable = await _held(), FakeScheduler(), FakeDurableExecution()
+    starter = _starter(uow, durable=durable, steel_tenants=frozenset({f.TENANT.value}))
+    trigger = await _create(uow, scheduler, start_run=starter).execute(
+        CTX, _new(auto_approve=True, device_id=None)
+    )
+
+    fired = await _fire(uow, starter=starter).execute(trigger.id)
+
+    assert fired.run_id is not None
+    run = await uow.workflow_runs.get(f.TENANT, fired.run_id.value)
+    assert (run.executor, run.device_id) == ("steel", "")
+    assert [one for one, _ in durable.runs_started] == [fired.run_id.value]
+
+
+async def test_a_steel_trigger_with_no_browser_is_dispatched_with_none() -> None:
+    uow, scheduler = await _held(), FakeScheduler()
+    steel = _starter(uow, durable=FakeDurableExecution(), steel_tenants=frozenset({f.TENANT.value}))
+    trigger = await _create(uow, scheduler, start_run=steel).execute(
+        CTX, _new(auto_approve=True, device_id=None)
+    )
+    elsewhere = FakeRunDispatcher()
+
+    await FireTrigger(
+        uow,
+        FakeClock(NOW),
+        FakeDurableExecution(),
+        ids=FakeIdFactory(),
+        dispatcher=elsewhere,
+        start_run=steel,
+        pursuits=_Dropped(),
+    ).execute(trigger.id)
+
+    assert elsewhere.asked == [("wfl_1", None)]
 
 
 async def test_another_tenants_job_is_not_found_rather_than_scheduled() -> None:

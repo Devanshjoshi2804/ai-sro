@@ -20,26 +20,26 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/reading_
 > here, not `True` -- `None` for "could not tell" -- so the caller re-asks
 > under the standing question rather than write down a guess.
 
-## `Read`, [line 20](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L20): Docstring
+## `Read`, [line 17](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L17): Docstring
 
 > What the sentence turned out to be.
 
-## `Read`, [line 24](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L24): Note on the line above
+## `Read`, [line 21](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L21): Note on the line above
 
 Code: `about: str = ""`
 
 > What it was instead, where it was not an answer: `the_wait`,
 > `another_task`, or `something_else`. Empty where nothing read it.
 
-## `IsItAnAnswer`, [line 27](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L27): Docstring
+## `IsItAnAnswer`, [line 24](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L24): Docstring
 
 > Whether to take this sentence as the value the conversation asked for.
 
-## `IsItAnAnswer.execute`, [line 32](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L32): Docstring
+## `IsItAnAnswer.execute`, [line 28](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L28): Docstring
 
 > Read it, or say it plainly is one without spending anything.
 
-## `IsItAnAnswer.execute`, [line 35](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L35): Comment
+## `IsItAnAnswer.execute`, [line 31](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L31): Comment
 
 Code: `if self._asker is None:`
 
@@ -48,7 +48,7 @@ Code: `if self._asker is None:`
 > than the sentence typed while nobody could read it going straight into the
 > warehouse system.
 
-## `IsItAnAnswer.execute`, [line 48](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L48): Comment
+## `IsItAnAnswer.execute`, [line 40](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L40): Comment
 
 Code: `except Exception:`
 
@@ -57,7 +57,7 @@ Code: `except Exception:`
 > question is re-asked, not answered with whatever was said while the model
 > was unreachable.
 
-## `IsItAnAnswer.execute`, [line 52](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L52): Comment
+## `IsItAnAnswer.execute`, [line 44](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L44): Comment
 
 Code: `if data is None:`
 
@@ -65,7 +65,7 @@ Code: `if data is None:`
 > spend -- the metered client billed it when it answered -- but it is not a
 > reading, so it is not taken as one either.
 
-## `IsItAnAnswer.execute`, [line 55](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L55): Comment
+## `IsItAnAnswer.execute`, [line 47](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L47): Comment
 
 Code: `value = str(data.get("value") or "").strip() or said.strip()`
 
@@ -73,7 +73,7 @@ Code: `value = str(data.get("value") or "").strip() or said.strip()`
 > named none. A reading that says "this answers" and then hands back
 > nothing has not read anything, and the sentence is what was said.
 
-## `IsItAnAnswer.execute`, [line 60](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L60): Comment
+## `IsItAnAnswer.execute`, [line 52](../../../../../../../backend/src/sro/application/chat/reading_an_answer.py#L52): Comment
 
 Code: `about=str(data.get("about") or "") or "the_wait",`
 

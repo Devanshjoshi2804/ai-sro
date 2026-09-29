@@ -1,43 +1,19 @@
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
 from sro.application.ports.transcription import TranscribedSegment
+from sro.application.shared.asking import ask
+from sro.domain.prompts.transcribe import TRANSCRIBE
+from sro.infrastructure.gemini.asker import GeminiAsker
 
 logger = logging.getLogger(__name__)
 
-_PROMPT = (
-    "Transcribe this narration of a warehouse operator demonstrating a task. "
-    "Return every utterance with its start and end offset in milliseconds. "
-    "Transcribe only what is said: do not summarise, infer, or add steps."
-)
-
-_SCHEMA: dict[str, object] = {
-    "type": "object",
-    "properties": {
-        "segments": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "start_ms": {"type": "integer"},
-                    "end_ms": {"type": "integer"},
-                    "text": {"type": "string"},
-                },
-                "required": ["start_ms", "end_ms", "text"],
-            },
-        }
-    },
-    "required": ["segments"],
-}
-
 
 class GeminiTranscriber:
-    def __init__(self, model: str, *, client: Any) -> None:
-        self._model = model
-        self._client = client
+    def __init__(self, *, client: Any) -> None:
+        self._asker = GeminiAsker(client=client)
 
     @property
     def available(self) -> bool:
@@ -46,41 +22,26 @@ class GeminiTranscriber:
     async def transcribe(
         self, audio: bytes, *, content_type: str
     ) -> tuple[TranscribedSegment, ...]:
-        from google.genai import types
-
-        response = await self._client.aio.models.generate_content(
-            model=self._model,
-            contents=[
-                _PROMPT,
-                types.Part.from_bytes(data=audio, mime_type=content_type.split(";")[0].strip()),
-            ],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=_SCHEMA,
-            ),
+        answer = await ask(
+            self._asker,
+            TRANSCRIBE,
+            trusted={},
+            audio=(audio, content_type.split(";")[0].strip()),
         )
-        return _parse(response.text)
-
-
-def _parse(text: str | None) -> tuple[TranscribedSegment, ...]:
-    try:
-        document = json.loads(text or "{}")
-        segments = document["segments"]
-    except (ValueError, KeyError, TypeError):
-        logger.warning("transcription returned something that is not segments")
-        return ()
-
-    kept: list[TranscribedSegment] = []
-    for segment in segments:
-        try:
-            if str(segment["text"]).strip():
-                kept.append(
-                    TranscribedSegment(
-                        start_ms=int(segment["start_ms"]),
-                        end_ms=int(segment["end_ms"]),
-                        text=str(segment["text"]).strip(),
-                    )
-                )
-        except (KeyError, TypeError, ValueError):
-            continue
-    return tuple(kept)
+        if answer.data is None:
+            raise RuntimeError(
+                answer.error or "transcription gave no usable segments on both models"
+            )
+        segments = answer.data["segments"]
+        if not isinstance(segments, list):
+            logger.warning("transcription returned something that is not segments")
+            return ()
+        return tuple(
+            TranscribedSegment(
+                start_ms=int(one["start_ms"]),
+                end_ms=int(one["end_ms"]),
+                text=str(one["text"]).strip(),
+            )
+            for one in segments
+            if str(one["text"]).strip()
+        )

@@ -13,6 +13,8 @@ needs it -- and the mark that goes into the run's own record instead.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from sro.domain.execution.secrets import (
@@ -62,6 +64,14 @@ def test_a_secret_field_is_what_makes_a_step_ask_the_vault() -> None:
     assert not needs_a_secret(_typed(secret=False))
 
 
+def test_a_gesture_marked_secret_on_its_action_alone_is_the_password_field_too() -> None:
+    """The sign-in chain takes such a gesture for the password; typing the
+    recorded, redacted value there instead would read as a refused password."""
+    typed = _typed(secret=False)
+
+    assert needs_a_secret(replace(typed, action=replace(typed.action, secret=True)))
+
+
 def test_the_key_is_the_system_and_the_field_and_not_the_page() -> None:
     """An operator signs in once for a host. A key per url is a password they
     would have to store again the first time the sign-in page carried a
@@ -97,6 +107,13 @@ def test_the_operator_and_the_run_spell_the_same_key() -> None:
 )
 def test_a_person_storing_one_does_not_have_to_type_it_perfectly(system: str, field: str) -> None:
     assert secret_key_of("new", system, field) == secret_key_for("new", _typed())
+
+
+def test_a_schemeless_system_does_not_leak_its_userinfo_into_the_key() -> None:
+    key = secret_key_of("new", "bob:hunter2@wms.example", "password")
+
+    assert key == "new/wms.example/password"
+    assert "hunter2" not in key
 
 
 # -- where the system half of the key comes from -------------------------------

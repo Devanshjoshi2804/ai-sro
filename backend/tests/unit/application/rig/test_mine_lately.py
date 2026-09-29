@@ -12,16 +12,27 @@ pre-rig sweep's.
 
 from __future__ import annotations
 
+import logging
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from sro.application.context import RequestContext
-from sro.application.observation.mine_lately import MineLately
-from sro.application.observation.mining_pass import MineResult
+from sro.application.observation.mine_lately import K_ERRORED_PASSES, MineLately
+from sro.application.observation.mining_pass import MineResult, mine
 from sro.application.shared.refusals import OverCap
-from sro.domain.observation.gesture import Action, Gesture, GestureBatch
+from sro.domain.observation.gesture import Action, Gesture, GestureBatch, PageMark, Target
 from sro.domain.observation.mining import MiningPass
+from sro.domain.shared.identifiers import TenantId
+from sro.domain.shared.prices import Answer
+from sro.domain.skill.learned import K_PARAMETERS_RULE
+from sro.domain.skill.workflow import Step, Workflow
 from sro.whose import about, whose
-from tests.unit.fakes import FakeUnitOfWork
+from tests.unit.domain.rig.conftest import gestures as _gestures
+from tests.unit.fakes import FakeAccountLocks, FakeAsker, FakeUnitOfWork
+from tests.unit.scripts.test_migrate_vault_keys import _job as _signing_in_job
+from tests.unit.scripts.test_migrate_vault_keys import _sign_in
 
 NOW = datetime(2026, 9, 13, 12, 0, tzinfo=UTC)
 
@@ -104,11 +115,13 @@ async def _swept(
     reads: _Reads | None = None,
     *,
     max_reads: int = 25,
+    locks: FakeAccountLocks | None = None,
 ) -> dict[str, MineResult]:
     lately = MineLately(
         uow,
         passes,
         reads or _Reads(),
+        locks or FakeAccountLocks(),
         window_hours=24,
         max_reads=max_reads,
     )
@@ -256,6 +269,7 @@ async def _mined(
     left_out: int,
     at: datetime,
     window_size: int = 0,
+    in_tokens: int = 0,
 ) -> None:
     await uow.workflows.add_pass(
         MiningPass(
@@ -264,6 +278,7 @@ async def _mined(
             started_at=at.isoformat(),
             left_out=left_out,
             window_size=window_size,
+            in_tokens=in_tokens,
         )
     )
 
@@ -296,14 +311,14 @@ async def test_evidence_that_arrived_since_the_last_pass_is_worth_paying_for() -
     assert mined["acme"].kept == 1
 
 
-async def test_a_pass_that_could_not_hold_the_day_is_worth_another_one() -> None:
-    """A day too big for one window is read across several passes, and the
-    carry-over pool rotates which part: ten simulated passes went 81% then 96%
-    coverage, with nineteen gestures never shown. So a pass with evidence it
-    could not hold has more to say about a day nobody added to."""
+async def test_a_pass_that_read_and_left_unread_work_is_worth_another_one() -> None:
+    """`left_out` is what the last pass left unread. A pass that read something
+    and left more is worth another, whatever came in since."""
     uow = FakeUnitOfWork()
     await _recorded(uow, "acme", taken=NOW - timedelta(hours=2))
-    await _mined(uow, "acme", left_out=1_204, at=NOW - timedelta(hours=1))
+    await _mined(
+        uow, "acme", left_out=75, window_size=25, in_tokens=900, at=NOW - timedelta(hours=1)
+    )
     passes = _Passes()
 
     mined = await _swept(uow, passes)
@@ -312,42 +327,93 @@ async def test_a_pass_that_could_not_hold_the_day_is_worth_another_one() -> None
     assert mined["acme"].kept == 1
 
 
-async def test_the_day_too_big_for_one_window_is_swept_once_and_then_left_alone() -> None:
-    """The loop this branch became, measured on the deployment 2026-09-21.
-
-    A store bigger than one window leaves evidence out of EVERY pass -- 1,981
-    of 2,066 there, an average of 444 gestures against a window of 154 -- so
-    `left_out` was permanently true, the "has anything new arrived" question
-    below it was never reached, and the sweep paid for a pass a minute over
-    evidence nobody had added to. 463 passes on a day that captured 56
-    gestures, $220.95 of them, every captured gesture read about 352 times.
-
-    Enough passes to sweep the store once is what "more to say" is worth. The
-    pool rotates which part of a day gets read; after it has been round once,
-    a further pass sees what an earlier one already saw.
-    """
-    uow = FakeUnitOfWork()
-    await _recorded(uow, "acme", taken=NOW - timedelta(hours=2))
-    # A window that holds a tenth of what there is: ten passes to sweep it.
-    for nth in range(9):
-        await _mined(
-            uow,
-            "acme",
-            left_out=90,
-            window_size=10,
-            at=NOW - timedelta(minutes=50 - nth),
+async def _a_long_day(uow: FakeUnitOfWork) -> None:
+    """100 unread gestures, received long enough ago to have settled."""
+    plain = next(g for g in _gestures("acme") if not g.requests and g.action.kind == "click")
+    await uow.gestures.add_batch(
+        GestureBatch(
+            batch_id=plain.batch_id,
+            tenant="acme",
+            device_id="dev_1",
+            mode="watch",
+            received_at=SETTLED.isoformat(),
         )
-    passes = _Passes()
+    )
+    await uow.gestures.add_gestures(
+        tuple(replace(plain, id=f"ges_{i:03d}", at=1000.0 + i * 1000) for i in range(100))
+    )
 
-    assert (await _swept(uow, passes))["acme"].kept == 1, "it stopped before one sweep"
 
-    # And the tenth closes it. Nothing has arrived since, so there is nothing
-    # left for an eleventh to see.
-    await _mined(uow, "acme", left_out=90, window_size=10, at=NOW - timedelta(minutes=40))
-    quiet = _Passes()
+class _Mines:
+    """The real pass over a window of 25, one second later each time, as
+    production's clock is."""
 
-    assert await _swept(uow, quiet) == {}
-    assert quiet.asked == [], "it went on paying for a day nobody added to"
+    def __init__(self, uow: FakeUnitOfWork, asker: FakeAsker) -> None:
+        self._uow, self._asker, self._ran = uow, asker, 0
+
+    async def execute(self, ctx: RequestContext) -> MineResult:
+        self._ran += 1
+        async with self._uow:
+            return await mine(
+                self._uow,
+                tenant_id=ctx.tenant_id,
+                asker=self._asker,
+                locks=FakeAccountLocks(),
+                now=NOW + timedelta(seconds=self._ran),
+                cap_usd=100.0,
+                kb="x" * 600_000,
+            )
+
+
+READ = Answer(data={"workflows": []}, in_tokens=900)
+CLOSED = Answer(error="RuntimeError: Cannot send a request, as the client has been closed")
+
+
+async def test_a_day_four_windows_long_is_read_in_four_passes_and_then_left_alone() -> None:
+    """Through the sweep and the real pass: 100 unread gestures, a window of
+    25. The gate once counted passes against a `left_out` it assumed constant;
+    once `left_out` shrank as the walk read it, that count stopped the walk
+    with a quarter of the day unread."""
+    uow = FakeUnitOfWork()
+    await _a_long_day(uow)
+    asker = FakeAsker(*[READ] * 10)
+    passes = _Mines(uow, asker)
+
+    swept = [await _swept(uow, passes) for _ in range(6)]
+
+    assert [one["acme"].left_out for one in swept[:4]] == [75, 50, 25, 0]
+    assert swept[4:] == [{}, {}]
+    assert len(asker.asked) == 4
+    assert all(entry.age > 0 for entry in await uow.pool.waiting(TenantId("acme")))
+
+
+async def test_an_outage_mid_walk_does_not_leave_the_day_unread() -> None:
+    """The QA box's shape: a backlog, and a model client that has been closed.
+    One pass that read nothing is an outage, not the end of the day."""
+    uow = FakeUnitOfWork()
+    await _a_long_day(uow)
+    asker = FakeAsker(READ, CLOSED, CLOSED, *[READ] * 10)
+    passes = _Mines(uow, asker)
+
+    swept = [await _swept(uow, passes) for _ in range(7)]
+
+    assert [one["acme"].left_out for one in swept[:5]] == [75, 75, 50, 25, 0]
+    assert swept[5:] == [{}, {}]
+    assert len(asker.asked) == 6, "the pass that read nothing asked the fallback too"
+
+
+async def test_errored_passes_in_a_row_stop_the_walk_until_something_arrives() -> None:
+    """A model that stays down is not asked on every sweep: K_ERRORED_PASSES
+    in a row that read nothing end the walk. New capture starts it again."""
+    uow = FakeUnitOfWork()
+    await _a_long_day(uow)
+    asker = FakeAsker(*[CLOSED] * 10)
+    passes = _Mines(uow, asker)
+
+    swept = [await _swept(uow, passes) for _ in range(K_ERRORED_PASSES + 2)]
+
+    assert len(asker.asked) == 2 * K_ERRORED_PASSES, "each pass tried the fallback once"
+    assert swept[K_ERRORED_PASSES:] == [{}, {}]
 
 
 async def test_evidence_arriving_starts_the_sweep_again() -> None:
@@ -356,8 +422,9 @@ async def test_evidence_arriving_starts_the_sweep_again() -> None:
     something new to read."""
     uow = FakeUnitOfWork()
     await _recorded(uow, "acme", taken=NOW - timedelta(hours=2))
-    for nth in range(12):
-        await _mined(uow, "acme", left_out=90, window_size=10, at=NOW - timedelta(minutes=50 - nth))
+    await _mined(
+        uow, "acme", left_out=0, window_size=10, in_tokens=900, at=NOW - timedelta(minutes=50)
+    )
     assert await _swept(uow, _Passes()) == {}, "the fixture was not swept out to begin with"
 
     # Somebody works. The batch is newer than every pass above it.
@@ -500,3 +567,239 @@ async def test_each_tenant_s_reading_and_pass_are_billed_to_that_tenant() -> Non
     assert sorted(seen) == sorted(
         [("read", "acme"), ("mine", "acme"), ("read", "new"), ("mine", "new")]
     )
+
+
+def _job_citing(tenant: str, *, signs_in: bool | None, signs_out: bool | None = None) -> Workflow:
+    return Workflow(
+        id=f"wfl_{tenant}",
+        tenant=tenant,
+        title="receive",
+        narrative="n",
+        steps=[Step(order=0, says="s", system=None, cites=[f"ges_{tenant}"])],
+        signs_in=signs_in,
+        signs_out=signs_out,
+    )
+
+
+def _log_out(tenant: str) -> dict[str, Gesture]:
+    def _click(gesture_id: str, at: float, name: str, **attributes: object) -> Gesture:
+        return Gesture(
+            id=gesture_id,
+            tenant=tenant,
+            stream_id="s",
+            batch_id="b",
+            at=at,
+            url="https://wms.example/portal/page",
+            system="https://wms.example",
+            tab_id=1,
+            frame_url=None,
+            action=Action(
+                kind="click",
+                at=at,
+                target=Target(role="menuitem", name=name, attributes=attributes),
+            ),
+        )
+
+    out = _click("ges_out", 2, "Log Out")
+    out.page_events.append(PageMark(at=2.5, page_kind="navigated", url="https://wms.example/login"))
+    return {
+        "ges_menu": _click("ges_menu", 1, "admin", **{"aria-haspopup": "menu"}),
+        "ges_out": out,
+    }
+
+
+async def test_a_quiet_sweep_decides_every_job_nobody_has_judged() -> None:
+    """QA's 23 jobs came out of the 0069 migration as `signs_in = false`,
+    and the flag was only ever decided when new gestures arrived. On a quiet
+    system that never happened, so the vault migration found no sign-in job to
+    move. An undecided job is decided on the next sweep, new gestures or not --
+    and a tenant quiet for longer than the mining window is still swept."""
+    uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", taken=NOW - timedelta(days=30))
+    await _mined(uow, "acme", left_out=0, at=NOW - timedelta(days=29))
+    await uow.workflows.save(_job_citing("acme", signs_in=None))
+
+    await _swept(uow, _Passes())
+
+    assert (await uow.workflows.get(TenantId("acme"), "wfl_acme")).signs_in is False
+
+
+async def test_a_decided_job_is_not_decided_again_without_new_evidence() -> None:
+    uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", taken=NOW - timedelta(hours=2))
+    await _mined(uow, "acme", left_out=0, at=NOW - timedelta(hours=1))
+    await uow.workflows.save(_job_citing("acme", signs_in=True, signs_out=False))
+
+    await _swept(uow, _Passes())
+
+    assert (await uow.workflows.get(TenantId("acme"), "wfl_acme")).signs_in is True
+
+
+async def test_a_quiet_sweep_decides_a_real_sign_in_job_true() -> None:
+    """The case QA's vault migration waits on: a recorded sign-in, stored
+    before the flag existed, and nothing uploaded since."""
+    uow = FakeUnitOfWork()
+    await uow.gestures.add_gestures(tuple(_sign_in("h", user="hana").values()))
+    await uow.workflows.save(_signing_in_job("h", signs_in=None))
+
+    await _swept(uow, _Passes())
+
+    assert (await uow.workflows.get(TenantId("acme"), "wfl_h")).signs_in is True
+
+
+async def test_a_job_whose_evidence_is_not_all_stored_is_never_decided() -> None:
+    """A verdict is a reading of the evidence; with a cited gesture missing
+    there is nothing to read, so nothing is written -- neither a `false` for
+    a job nobody has judged, nor over a `true` the evidence once gave."""
+    uow = FakeUnitOfWork()
+    await uow.workflows.save(_job_citing("acme", signs_in=None))
+    await uow.workflows.save(replace(_job_citing("acme", signs_in=None), id="wfl_bare", steps=[]))
+
+    await _swept(uow, _Passes())
+
+    for job_id in ("wfl_acme", "wfl_bare"):
+        job = await uow.workflows.get(TenantId("acme"), job_id)
+        assert (job.signs_in, job.signs_out) == (None, None)
+
+
+async def test_a_sign_in_job_missing_one_cited_gesture_keeps_its_verdict() -> None:
+    uow = FakeUnitOfWork()
+    gestures = _sign_in("h", user="hana")
+    del gestures["h-go"]
+    await uow.gestures.add_gestures(tuple(gestures.values()))
+    await uow.workflows.save(replace(_signing_in_job("h", signs_in=True), signs_out=None))
+
+    await _swept(uow, _Passes())
+
+    job = await uow.workflows.get(TenantId("acme"), "wfl_h")
+    assert (job.signs_in, job.signs_out) == (True, None)
+
+
+async def test_nothing_undecided_reads_no_gestures() -> None:
+    uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", taken=NOW - timedelta(hours=2))
+    await _mined(uow, "acme", left_out=0, at=NOW - timedelta(hours=1))
+    await uow.workflows.save(_job_citing("acme", signs_in=False, signs_out=False))
+    uow.workflows.rules["wfl_acme"] = K_PARAMETERS_RULE
+
+    await _swept(uow, _Passes())
+
+    assert uow.gestures.gestures_for_calls == 0
+
+
+async def test_a_job_whose_sign_out_is_undecided_is_decided_both_ways_by_the_sweep() -> None:
+    """0087 adds `signs_out` as NULL on every stored job. The sweep decides
+    each of them, and decides `signs_in` again with it: `Log Out` was stored
+    as not signing in, and nothing had ever asked whether it signs out."""
+    uow = FakeUnitOfWork()
+    await uow.gestures.add_gestures(tuple(_log_out("acme").values()))
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_out",
+            tenant="acme",
+            title="Log Out",
+            narrative="n",
+            steps=[
+                Step(order=0, says="open the user menu", system=None, cites=["ges_menu"]),
+                Step(order=1, says="click Log Out", system=None, cites=["ges_out"]),
+            ],
+            signs_in=False,
+        )
+    )
+
+    await _swept(uow, _Passes())
+
+    decided = await uow.workflows.get(TenantId("acme"), "wfl_out")
+    assert (decided.signs_in, decided.signs_out) == (False, True)
+    assert decided.chore
+    assert await uow.workflows.undecided() == ()
+
+
+async def test_a_tenant_busy_elsewhere_is_skipped_quietly(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Each tenant is decided in its own transaction, under its own mining
+    lock, which the sweep only tries for: another worker already doing that
+    tenant's work is the right outcome, not an error, so the tenant is
+    skipped at once with an info line and the tenant after it is decided."""
+    caplog.set_level(logging.INFO)
+    uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", "zeta")
+    await uow.workflows.save(_job_citing("acme", signs_in=None))
+    await uow.workflows.save(_job_citing("zeta", signs_in=None))
+    locks = FakeAccountLocks()
+    locks.busy.add("mining:acme")
+
+    await _swept(uow, _Passes(), locks=locks)
+
+    assert (await uow.workflows.get(TenantId("acme"), "wfl_acme")).signs_in is None
+    assert (await uow.workflows.get(TenantId("zeta"), "wfl_zeta")).signs_in is False
+    assert not [record for record in caplog.records if record.levelno >= logging.WARNING]
+    assert any("acme" in record.getMessage() for record in caplog.records)
+
+
+async def test_a_tenant_whose_write_fails_does_not_stop_another() -> None:
+    uow = FakeUnitOfWork()
+    await _recorded(uow, "acme", "zeta")
+    await uow.workflows.save(_job_citing("acme", signs_in=None))
+    await uow.workflows.save(_job_citing("zeta", signs_in=None))
+    deciding = uow.workflows.decide
+
+    async def _refuses_acme(
+        tenant_id: TenantId, workflow: Workflow, *, signs_in: bool, signs_out: bool
+    ) -> bool:
+        if tenant_id.value == "acme":
+            raise RuntimeError("the store refused")
+        return await deciding(tenant_id, workflow, signs_in=signs_in, signs_out=signs_out)
+
+    uow.workflows.decide = _refuses_acme  # type: ignore[method-assign]
+
+    await _swept(uow, _Passes())
+
+    assert (await uow.workflows.get(TenantId("zeta"), "wfl_zeta")).signs_in is False
+
+
+def _in_tab(gesture_id: str, at: float, tab: int, *marks: PageMark) -> Gesture:
+    return Gesture(
+        id=gesture_id,
+        tenant="acme",
+        stream_id="str_tabs",
+        batch_id="bat_tabs",
+        at=at,
+        url="https://wms.example/app",
+        system="https://wms.example",
+        tab_id=tab,
+        frame_url=None,
+        action=Action(kind="click", at=at, target=Target(role="button", name=gesture_id)),
+        page_events=list(marks),
+    )
+
+
+async def test_a_quiet_sweep_decides_the_tab_of_every_step_stored_before_steps_knew_it() -> None:
+    """Steps stored before 0086 are NULL -- undecided -- and are decided from
+    their cited gestures, one step at a time, never by saving the job whole."""
+    uow = FakeUnitOfWork()
+    opened = PageMark(at=1.5, page_kind="popup_opened", tab_id=9, opener_tab_id=7)
+    await uow.gestures.add_gestures(
+        (_in_tab("ges_a", 1.0, 7, opened), _in_tab("ges_b", 2.0, 9), _in_tab("ges_c", 3.0, 7))
+    )
+    await uow.workflows.save(
+        Workflow(
+            id="wfl_tabs",
+            tenant="acme",
+            title="t",
+            narrative="n",
+            signs_in=False,
+            steps=[
+                Step(order=0, says="a", system=None, cites=["ges_a"], tab=None),
+                Step(order=1, says="b", system=None, cites=["ges_b"], tab=None),
+                Step(order=2, says="c", system=None, cites=["ges_c"], tab="tab_2"),
+            ],
+        )
+    )
+
+    await _swept(uow, _Passes())
+
+    job = await uow.workflows.get(TenantId("acme"), "wfl_tabs")
+    assert [one.tab for one in job.steps] == ["main", "opened_from:main", "tab_2"]
+    assert await uow.workflows.tabs_undecided() == ()

@@ -7,6 +7,7 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     Float,
     Identity,
@@ -249,10 +250,40 @@ class BrowserSessionRow(Base):
 
     session_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    opened_by: Mapped[str] = mapped_column(String(64), nullable=False)
+    opened_by: Mapped[str | None] = mapped_column(String(64))
     opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
-    __table_args__ = (Index("ix_browser_sessions_tenant", "tenant_id"),)
+    account_key: Mapped[str | None] = mapped_column(Text)
+    origin: Mapped[str | None] = mapped_column(Text)
+    username: Mapped[str | None] = mapped_column(Text)
+    container_url: Mapped[str | None] = mapped_column(Text)
+    steel_session_id: Mapped[str | None] = mapped_column(String(128))
+    context_id: Mapped[str | None] = mapped_column(String(128))
+    holder: Mapped[str | None] = mapped_column(String(128))
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    state: Mapped[str | None] = mapped_column(String(16))
+    waits_for: Mapped[str | None] = mapped_column(String(16))
+
+    __table_args__ = (
+        Index("ix_browser_sessions_tenant", "tenant_id"),
+        Index(
+            "uq_browser_sessions_one_live_lease",
+            "tenant_id",
+            "account_key",
+            unique=True,
+            postgresql_where=text("state IN ('signing_in', 'ready', 'waiting')"),
+        ),
+        CheckConstraint(
+            "(state IS NULL OR ("
+            "account_key IS NOT NULL AND origin IS NOT NULL AND username IS NOT NULL AND "
+            "container_url IS NOT NULL AND steel_session_id IS NOT NULL AND "
+            "context_id IS NOT NULL AND holder IS NOT NULL AND "
+            "heartbeat_at IS NOT NULL AND expires_at IS NOT NULL"
+            ")) AND (state IS NOT NULL OR opened_by IS NOT NULL)",
+            name="ck_browser_sessions_row_is_whole",
+        ),
+    )
 
 
 class AgentDeviceRow(Base):
@@ -543,6 +574,7 @@ class PoolRow(Base):
 
     age: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     waited: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    failed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     retired: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
@@ -604,8 +636,26 @@ class WorkflowRunRow(Base):
 
     wrong_because: Mapped[str | None] = mapped_column(Text)
 
+    progress: Mapped[Any] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
+    executor: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="extension", server_default="extension"
+    )
+
+    offer: Mapped[str | None] = mapped_column(String(128))
+
+    pinned: Mapped[Any] = mapped_column(JSONB, nullable=True)
+
+    mail: Mapped[Any] = mapped_column(JSONB, nullable=True)
+
     __table_args__ = (
         Index("ix_workflow_runs_tenant_workflow", "tenant_id", "workflow_id", "started_at"),
+        Index(
+            "uq_workflow_runs_one_per_offer",
+            "tenant_id",
+            "offer",
+            unique=True,
+            postgresql_where=text("offer IS NOT NULL"),
+        ),
         Index("ix_workflow_runs_undoes", "undoes_run"),
         Index("ix_workflow_runs_tenant_device", "tenant_id", "device_id", "outcome"),
         Index(
@@ -613,7 +663,7 @@ class WorkflowRunRow(Base):
             "tenant_id",
             "device_id",
             unique=True,
-            postgresql_where=text("outcome = 'running'"),
+            postgresql_where=text("outcome = 'running' AND executor = 'extension'"),
         ),
         Index(
             "ix_workflow_runs_awaiting",
@@ -622,6 +672,7 @@ class WorkflowRunRow(Base):
             text("(awaiting ->> 'thread')"),
             postgresql_where=text("awaiting IS NOT NULL"),
         ),
+        CheckConstraint("executor IN ('extension', 'steel')", name="ck_workflow_runs_executor"),
     )
 
 
@@ -688,9 +739,10 @@ class WorkflowRow(Base):
 
     repeat: Mapped[Any] = mapped_column(JSONB, nullable=True)
 
-    signs_in: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default=text("false")
-    )
+    signs_in: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    signs_out: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+
+    parameters_rule: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     same_as: Mapped[str | None] = mapped_column(String(64))
 
@@ -720,6 +772,7 @@ class WorkflowStepRow(Base):
     cites: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
     parameters: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
     uses: Mapped[Any] = mapped_column(JSONB, nullable=False, default=list)
+    tab: Mapped[str | None] = mapped_column(Text)
 
 
 class WorkflowStaleRow(Base):
@@ -740,7 +793,44 @@ class WorkflowLearnedRow(Base):
     query: Mapped[str] = mapped_column(Text, nullable=False)
     found_by: Mapped[str] = mapped_column(Text, nullable=False)
     holds: Mapped[int | None] = mapped_column(Integer)
+    frame_path: Mapped[str | None] = mapped_column(Text)
     learned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class KnownBrokenRow(Base):
+    __tablename__ = "known_broken"
+    __table_args__ = (Index("ix_known_broken_job", "tenant_id", "workflow_id"),)
+
+    tenant_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    workflow_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    ord: Mapped[int] = mapped_column(Integer, primary_key=True)
+    lane: Mapped[str] = mapped_column(String(8), primary_key=True)
+    fingerprint: Mapped[str] = mapped_column(String(32), primary_key=True)
+    cites: Mapped[str] = mapped_column(String(32), nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class JobRecipientRow(Base):
+    __tablename__ = "job_recipients"
+
+    tenant_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    workflow_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    address: Mapped[str] = mapped_column(String(320), primary_key=True)
+    confirmed_by: Mapped[str] = mapped_column(String(128), nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class JobAliasRow(Base):
+    __tablename__ = "job_aliases"
+
+    tenant_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    workflow_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    wording_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    wording: Mapped[str] = mapped_column(Text, nullable=False)
+    field: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    confirmed_by: Mapped[str] = mapped_column(String(128), nullable=False)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class WorkflowLearnedHistoryRow(Base):
@@ -811,6 +901,7 @@ class MiningPassRow(Base):
     window_size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     left_out: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     unplaced: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    dropped: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     error: Mapped[str | None] = mapped_column(Text)
 

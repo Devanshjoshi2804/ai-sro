@@ -41,14 +41,11 @@ import pkgutil
 from dataclasses import replace
 
 import sro
-from sro.domain.execution.planning import (
-    PLAN_SCHEMA,
-    SIGHT_ACTIONS,
-    SIGHT_SCHEMA,
-    unreplayable,
-    value_for,
-)
+from sro.domain.execution.planning import unreplayable, value_for
 from sro.domain.observation.gesture import Body, Call, Gesture
+from sro.domain.prompts.plan_step import PLAN_STEP
+from sro.domain.prompts.record import Prompt
+from sro.domain.prompts.see_step import SEE_STEP
 from sro.domain.shared.hosts import REDACTED
 from sro.domain.skill.workflow import Step
 from tests.unit.domain.rig.conftest import gestures as _gestures
@@ -65,7 +62,7 @@ def _step(gesture: Gesture) -> Step:
 def test_the_schema_puts_why_last_and_kind_first() -> None:
     """Decide before explaining: identifying the command before composing the
     reason measurably beats composing first."""
-    properties = PLAN_SCHEMA["properties"]
+    properties = PLAN_STEP.output_schema["properties"]
     assert isinstance(properties, dict)
     assert list(properties) == ["kind", "action", "value", "url", "why"]
 
@@ -79,6 +76,31 @@ def test_the_runs_value_beats_the_models_word_which_beats_the_recorded_one() -> 
     assert value_for(step, gesture, {"clientCode": "THIRD"}, "SAID") == "THIRD"
     assert value_for(step, gesture, {}, "SAID") == "SAID"
     assert value_for(step, gesture, {}, None) == gesture.action.value
+
+
+def test_a_parameter_nobody_gave_is_never_typed_from_the_recording() -> None:
+    """The recorded value was somebody else's client code."""
+    gesture = _typed()
+    step = replace(_step(gesture), parameters=["clientCode"])
+
+    assert value_for(step, gesture, {}, None) is None
+    assert value_for(step, gesture, {}, "SAID") == "SAID"
+
+
+def test_a_control_whose_own_parameter_is_absent_takes_no_other_parameter() -> None:
+    gesture = _typed()
+    step = replace(_step(gesture), parameters=["clientCode", "clientName"])
+
+    assert value_for(step, gesture, {"clientName": "ACME"}, None) is None
+
+
+def test_a_label_that_differs_only_in_case_or_spacing_still_names_its_parameter() -> None:
+    gesture = _typed()
+    step = replace(_step(gesture), parameters=[" CLIENTcode *", "clientName"])
+
+    assert value_for(step, gesture, {" CLIENTcode *": "THIRD", "clientName": "ACME"}, None) == (
+        "THIRD"
+    )
 
 
 def test_a_secret_gesture_carries_no_value_from_anywhere() -> None:
@@ -124,16 +146,15 @@ def test_a_call_with_no_body_at_all_is_replayable() -> None:
 
 
 def test_the_sight_schema_offers_only_the_actions_a_point_can_take() -> None:
-    """No select: `performAtInPage` has no way to choose an option at a point,
-    and an action the browser cannot take is a step that stops. SIGHT_ACTIONS
-    is what the answer is checked against, so it has to be the same three."""
-    properties = SIGHT_SCHEMA["properties"]
+    """No select: `sroPage.performAt` has no way to choose an option at a point,
+    and an action the browser cannot take is a step that stops. `ask` holds
+    the answer to this schema, so these three are all a point is ever asked."""
+    properties = SEE_STEP.output_schema["properties"]
     assert isinstance(properties, dict)
     action = properties["action"]
     assert isinstance(action, dict)
 
     assert action["enum"] == ["click", "type", "press"]
-    assert frozenset(action["enum"]) == SIGHT_ACTIONS
 
 
 def test_no_schema_in_the_package_uses_what_the_developer_api_refuses() -> None:
@@ -166,9 +187,11 @@ def test_no_schema_in_the_package_uses_what_the_developer_api_refuses() -> None:
     for info in pkgutil.walk_packages(sro.__path__, prefix="sro."):
         module = importlib.import_module(info.name)
         for name in dir(module):
-            if name.endswith("_SCHEMA") and isinstance(getattr(module, name), dict):
+            value = getattr(module, name)
+            schema = value.output_schema if isinstance(value, Prompt) else value
+            if (name.endswith("_SCHEMA") or isinstance(value, Prompt)) and isinstance(schema, dict):
                 walked += 1
-                offenders += walk(getattr(module, name), f"{info.name}.{name}")
+                offenders += walk(schema, f"{info.name}.{name}")
     assert offenders == [], offenders
     # Not just truthy: narrowing the walk back to `sro.domain` still finds six
     # schemas and would pass a bare `assert walked`, which is how the widening

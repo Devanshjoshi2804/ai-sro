@@ -333,6 +333,12 @@ def asked_under(messages: Sequence[Message], answering: str | None = None) -> Me
     return None if closed else messages[at]
 
 
+def standing(messages: Sequence[Message]) -> Message | None:
+    """The question this chat is waiting on: its last decision, if that asks."""
+    asked = asked_under(messages)
+    return asked if asked is not None and (asked.decision or {}).get("kind") == NEEDS else None
+
+
 def waiting_on_mail(messages: Sequence[Message], mail_thread: str) -> Pending | None:
     last = next(
         (

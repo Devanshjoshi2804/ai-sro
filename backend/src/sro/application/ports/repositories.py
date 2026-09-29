@@ -177,6 +177,13 @@ class ThreadRepository(Protocol):
         offset: int = 0,
     ) -> tuple[Thread, ...]: ...
 
+    async def standing(
+        self, tenant_id: TenantId, *, opened_by: PrincipalId, limit: int
+    ) -> tuple[Thread, ...]:
+        """The ask chats whose question stands (`asking.standing`), newest
+        question first."""
+        ...
+
     async def naming(
         self, tenant_id: TenantId, *, opened_by: PrincipalId, run_id: str
     ) -> Thread | None: ...

@@ -83,6 +83,7 @@ from sro.application.ports.vision import (
     VisionDriver,
     VisionUnavailable,
 )
+from sro.domain.chat.asking import standing
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import K_ASKING, MessageId, Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
@@ -962,6 +963,16 @@ class FakeThreadRepository:
         ]
         rows.sort(key=lambda thread: thread.opened_at, reverse=True)
         return tuple(_copied(one) for one in rows[offset : offset + limit])
+
+    async def standing(
+        self, tenant_id: TenantId, *, opened_by: PrincipalId, limit: int
+    ) -> tuple[Thread, ...]:
+        mine = await self.list_for_tenant(
+            tenant_id, opened_by=opened_by, asking=True, limit=len(self.rows)
+        )
+        asked = [(said, one) for one in mine if (said := standing(one.messages)) is not None]
+        asked.sort(key=lambda pair: pair[0].said_at, reverse=True)
+        return tuple(one for _, one in asked[:limit])
 
     async def naming(
         self, tenant_id: TenantId, *, opened_by: PrincipalId, run_id: str

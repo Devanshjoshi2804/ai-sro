@@ -25,6 +25,8 @@ from sro.application.chat.announce import SayWhatHappened
 from sro.application.chat.ask_the_asker import DRAFTED, SENT, DraftForTheAsker, SendTheDraft
 from sro.application.chat.converse import StartThread
 from sro.application.chat.read_threads import ReadThreads
+from sro.application.ports.repositories import UnitOfWork
+from sro.application.ports.system import IdFactory
 from sro.application.ports.tools import ToolResult
 from sro.domain.chat.asking import NEEDS, Pending
 from sro.domain.chat.thread import Message, Speaker, Thread
@@ -363,3 +365,47 @@ async def test_a_run_answered_in_its_ask_chat_asks_again_in_that_chat() -> None:
     assert len(mine) == 2, "the resumed run asked in a chat of its own"
     chat = await world.uow.threads.get(f.TENANT, chat.id)
     assert _kinds(chat)[-1] == NEEDS
+
+
+async def home_holds_every_standing_question(uow: UnitOfWork, ids: IdFactory) -> None:
+    """Home reads the chats whose question STANDS, newest question first -- not
+    the newest chats opened. A chat keeps its first `opened_at`, so a fixed
+    window over it drops an old chat that was just asked something new."""
+    clock = FakeClock()
+    say = SayWhatHappened(uow, clock, ids)
+    asked = {"kind": NEEDS, "workflow_id": JOB, "missing": ["Customer Type"]}
+
+    async def ask(about: str) -> None:
+        clock.advance(60)
+        await say.execute(
+            CTX,
+            for_operator=CTX.principal_id,
+            text="What?",
+            decision={**asked, "mail_thread": about},
+            speaker=Speaker.ASSISTANT,
+            about=about,
+        )
+
+    for n in range(12):
+        await ask(f"t-{n}")
+    clock.advance(60)
+    await say.execute(
+        CTX,
+        for_operator=CTX.principal_id,
+        text="Running it now.",
+        decision={"kind": "job", "workflow_id": JOB, "mail_thread": "t-5", "run_id": "run_5"},
+        speaker=Speaker.ASSISTANT,
+        about="t-5",
+    )
+    await ask("t-0")
+
+    home = await ReadThreads(uow).asked(CTX)
+
+    about = [await ReadThreads(uow).asking(CTX, f"t-{n}") for n in range(12)]
+    names = {one.id: n for n, one in enumerate(about) if one is not None}
+    assert [names[one.id] for one in home] == [0, 11, 10, 9, 8, 7, 6, 4, 3, 2]
+
+
+async def test_home_holds_an_old_chat_asked_something_new() -> None:
+    world = await _World().ready()
+    await home_holds_every_standing_question(world.uow, world.wiring["ids"])

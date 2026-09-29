@@ -27,8 +27,8 @@ class ReadThreads:
 
     async def asked(self, ctx: RequestContext, *, limit: int = 10) -> tuple[Thread, ...]:
         async with self._uow as uow:
-            return await uow.threads.list_for_tenant(
-                ctx.tenant_id, opened_by=ctx.principal_id, asking=True, limit=limit
+            return await uow.threads.standing(
+                ctx.tenant_id, opened_by=ctx.principal_id, limit=limit
             )
 
     async def asking(self, ctx: RequestContext, about: str) -> Thread | None:

@@ -41,6 +41,7 @@ from sro.application.ports.repositories import (
     TriggerRepository,
     UnitOfWork,
 )
+from sro.domain.chat.asking import NEEDS
 from sro.domain.chat.thread import K_ASKING, Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
 from sro.domain.execution.account import K_LEASE_TTL, LIVE, Account, Lease, LeaseState
@@ -535,6 +536,39 @@ class SqlThreadRepository(ThreadRepository):
             asks = ThreadRow.id.startswith(K_ASKING, autoescape=True)
             query = query.where(asks if asking else ~asks)
         query = query.order_by(ThreadRow.opened_at.desc()).limit(limit).offset(offset)
+        rows = (await self._session.execute(query)).scalars().all()
+        return tuple(row_to_thread(row) for row in rows)
+
+    async def standing(
+        self, tenant_id: TenantId, *, opened_by: PrincipalId, limit: int
+    ) -> tuple[Thread, ...]:
+        # `asking.standing` in SQL: a chat's question is its last assistant
+        # message carrying a decision, and it stands while that asks.
+        query = select(ThreadRow).from_statement(
+            text(
+                """
+                SELECT t.* FROM threads t
+                CROSS JOIN LATERAL (
+                    SELECT e.m FROM jsonb_array_elements(t.messages) WITH ORDINALITY AS e(m, n)
+                    WHERE e.m->>'speaker' = 'assistant'
+                      AND jsonb_typeof(e.m->'decision') = 'object'
+                      AND e.m->'decision' <> '{}'::jsonb
+                    ORDER BY e.n DESC LIMIT 1
+                ) q
+                WHERE t.tenant_id = :tenant AND t.opened_by = :opened_by
+                  AND starts_with(t.id, :asking)
+                  AND q.m->'decision'->>'kind' = :needs
+                ORDER BY (q.m->>'said_at')::timestamptz DESC
+                LIMIT :limit
+                """
+            ).bindparams(
+                tenant=tenant_id.value,
+                opened_by=opened_by.value,
+                asking=K_ASKING,
+                needs=NEEDS,
+                limit=limit,
+            )
+        )
         rows = (await self._session.execute(query)).scalars().all()
         return tuple(row_to_thread(row) for row in rows)
 

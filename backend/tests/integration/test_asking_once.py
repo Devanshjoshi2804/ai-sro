@@ -21,10 +21,13 @@ from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
 from sro.application.knowledge.retrieve import Retrieve
 from sro.domain.chat.asking import NEEDS, Pending, pending_job
-from sro.domain.chat.thread import ThreadId
+from sro.domain.chat.thread import Speaker, ThreadId
 from sro.domain.shared.identifiers import PrincipalId
 from sro.infrastructure.db.repositories import SqlUnitOfWork
 from sro.infrastructure.system import UuidFactory
+from tests.unit.application.rig.test_an_ask_has_its_own_chat import (
+    home_holds_every_standing_question,
+)
 from tests.unit.application.rig.test_from_the_mail import CTX, JOB, _held_in
 from tests.unit.fakes import FakeClock, FakeEmbedder
 
@@ -153,7 +156,12 @@ async def test_a_question_s_chat_is_one_row_apart_from_the_operator_s_own(
     await asyncio.gather(
         *(
             say().execute(
-                CTX, for_operator=CTX.principal_id, text="What?", decision=asked, about="t-9"
+                CTX,
+                for_operator=CTX.principal_id,
+                text="What?",
+                decision=asked,
+                speaker=Speaker.ASSISTANT,
+                about="t-9",
             )
             for _ in range(2)
         )
@@ -176,3 +184,11 @@ async def test_a_question_s_chat_is_one_row_apart_from_the_operator_s_own(
             CTX.tenant_id, opened_by=CTX.principal_id, run_id="run_vet"
         )
     assert named is not None and named.id == chat.id
+
+
+async def test_home_holds_an_old_chat_asked_something_new(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    """The standing-question read, through the real rows and their JSONB."""
+    uow = await _held_in(SqlUnitOfWork(session_factory))
+    await home_holds_every_standing_question(uow, UuidFactory())

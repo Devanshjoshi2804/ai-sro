@@ -7,8 +7,14 @@ application layer -- the tests that exercise them are listed at the foot.
 """
 
 import copy
+import json
 from dataclasses import replace
+from pathlib import Path
 
+import pytest
+
+from sro.application.capture.rig_wire import Batch
+from sro.application.observation.correlate import correlate
 from sro.domain.observation.gesture import Action, Component, Gesture, Target
 from sro.domain.skill.offers import K_OFFER_AFTER, Counsel
 from sro.domain.skill.shape import (
@@ -206,6 +212,39 @@ def test_the_page_a_job_begins_on_keeps_the_screen_its_fragment_names() -> None:
 
     assert shape is not None
     assert shape.starts_on == f"{by}/portal#{screen}"
+
+
+BY = "https://bf56-kms-wms-web-np2.jdadelivers.com"
+CUSTOMER_TYPES = f"{BY}/portal?siteId=SG#wm.config/wm.config.partners.customers.types////"
+FIXTURES = Path(__file__).resolve().parents[5] / "new-chrome-extension/fixtures"
+SERVED = FIXTURES / "served-shape.json"
+CAPTURED_ON = "http://127.0.0.1:60989/"
+"""Where the extension's `batch.json` was captured. The recognition test there
+moves the same gestures onto Blue Yonder the same way."""
+
+
+def served_on_customer_types() -> dict[str, object]:
+    """The extension's own captured batch, done on Blue Yonder's customer types
+    screen and read the way `/v1/observations` reads it (`correlate`), as
+    `/v1/shapes` serves its job."""
+    said = (FIXTURES / "batch.json").read_text().replace(CAPTURED_ON, CUSTOMER_TYPES)
+    found, _, _, _ = correlate(Batch.model_validate(json.loads(said)), "acme")
+    by_id = {one.id: one for one in found}
+    workflow = replace(_workflow(by_id), title="Create a Customer Type")
+    shape = shape_of(workflow, cited_pairs(workflow, by_id), held=1, advice=QUIET)
+    assert shape is not None
+    return shape.as_json()
+
+
+def test_the_shape_the_extension_is_tested_against_is_the_one_this_serves() -> None:
+    """`served-shape.json` is what the extension's recognition test serves from
+    `/v1/shapes`. Held equal to `shape_of`'s own output, so that test cannot
+    drift onto a shape this side never makes -- which is how the tail keyed by
+    origin and the shape keyed by screen passed every test and never offered."""
+    if not SERVED.is_file():
+        # mutmut runs a copy of this package with no extension beside it.
+        pytest.skip("the served shape fixture is not in this checkout")
+    assert json.loads(SERVED.read_text()) == served_on_customer_types()
 
 
 def test_the_hosts_a_job_names_are_where_somebody_stood() -> None:

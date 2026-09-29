@@ -24,14 +24,16 @@ Comments and docstrings moved out of [`backend/src/sro/domain/trigger/arrival.py
 > and the only process that knows is the one with the tab open. A server that
 > tried would be asking the browser anyway.
 >
-> **A page, not a url.** `host/path`, lowercased, query and fragment dropped --
-> the same shape `TaskCandidate.starts_on` already carries, so the rule an
+> **A page, not a url.** `host/path#route`, lowercased, query dropped -- the
+> same screen `starts_on` is served as (without its scheme), so the rule an
 > operator makes from an offer is the offer's own page and not a second spelling
-> of it. A query string is one visit's parameters; a fragment is where they were
-> inside the page. Neither says which page they are on, and both would make a
-> rule that matched once and never again.
+> of it. A query string is one visit's parameters and would make a rule that
+> matched once and never again. A fragment is kept only as far as it is a route
+> (`hosts.route_of`): Blue Yonder routes on it, and a rule that dropped it was
+> about every screen of `/portal` (2026-09-29). A `#section` or an OAuth
+> callback's `#access_token=...` is not a route and is dropped.
 
-## module, [line 8](../../../../../../../backend/src/sro/domain/trigger/arrival.py#L8): Note on the line above
+## module, [line 9](../../../../../../../backend/src/sro/domain/trigger/arrival.py#L9): Note on the line above
 
 Code: `MAX_PAGE = 300`
 
@@ -42,19 +44,20 @@ Code: `MAX_PAGE = 300`
 > generous for `host/path` and short enough that a session token glued onto the
 > end of one does not fit.
 
-## `Arrival`, [line 12](../../../../../../../backend/src/sro/domain/trigger/arrival.py#L12): Docstring
+## `Arrival`, [line 13](../../../../../../../backend/src/sro/domain/trigger/arrival.py#L13): Docstring
 
 > The page whose arrival starts the job.
 
-## `Arrival`, [line 13](../../../../../../../backend/src/sro/domain/trigger/arrival.py#L13): Note on the line above
+## `Arrival`, [line 14](../../../../../../../backend/src/sro/domain/trigger/arrival.py#L14): Note on the line above
 
 Code: `page: str`
 
-> `host/path`, as `page_of` renders it. Never a scheme, never a query.
+> `host/path#route`, as `page_of` renders it. Never a scheme, never a query.
 
-## `page_of`, [line 31](../../../../../../../backend/src/sro/domain/trigger/arrival.py#L31): Docstring
+## `page_of`, [line 37](../../../../../../../backend/src/sro/domain/trigger/arrival.py#L37): Docstring
 
-> A url as the page it is: `host/path`, lowercased, nothing else.
+> A url as the page it is: `host/path` and the fragment's route, lowercased,
+> nothing else.
 >
 > Here rather than in the extension, even though the extension is what
 > evaluates the rule, because both sides have to agree on what "the same
@@ -62,7 +65,7 @@ Code: `page: str`
 > `nudge.js` renders it identically; `test_the_command_vocabulary` holds that
 > kind of pair together elsewhere in this codebase for the same reason.
 
-## `Arrival.matches`, [line 27](../../../../../../../backend/src/sro/domain/trigger/arrival.py#L27): Docstring
+## `Arrival.matches`, [line 33](../../../../../../../backend/src/sro/domain/trigger/arrival.py#L33): Docstring
 
 > Whether the operator is standing on this page.
 >
@@ -71,7 +74,7 @@ Code: `page: str`
 > deeper page is a different screen doing different work, whatever its
 > url has in common with this one.
 
-## `Arrival.__post_init__`, [line 25](../../../../../../../backend/src/sro/domain/trigger/arrival.py#L25): Comment
+## `Arrival.__post_init__`, [line 31](../../../../../../../backend/src/sro/domain/trigger/arrival.py#L31): Comment
 
 Code: `raise InvariantViolation("a page rule is lowercase; use `page_of` to make one")`
 
@@ -80,7 +83,7 @@ Code: `raise InvariantViolation("a page rule is lowercase; use `page_of` to make
 > the browser. A dataclass that quietly rewrote its own field
 > would make the two disagree on which of them is the rule.
 
-## `page_of`, [line 33](../../../../../../../backend/src/sro/domain/trigger/arrival.py#L33): Comment
+## `page_of`, [line 39](../../../../../../../backend/src/sro/domain/trigger/arrival.py#L39): Comment
 
 Code: `if parsed.scheme not in ("http", "https"):`
 

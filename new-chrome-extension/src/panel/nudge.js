@@ -22,6 +22,8 @@
 // Pure over an injected clock, which is what makes ninety seconds a test rather
 // than a wait.
 
+import { screenOf } from "../background/shape.generated.js";
+
 /** Long enough to read and decide, short enough not to outlive the task.
  *
  * The tasks this fires on take about 36 and 161 seconds where they were
@@ -49,33 +51,19 @@ export function endOfDay(now) {
   return midnight.getTime();
 }
 
-/** The screen: host and path, no query, and the fragment's route -- the same
- * screen `identity.py`'s `screen_of` keys a job's steps by and `starts_on` is
- * served as, lowercased like it.
+/** The screen, without its scheme: `screenOf` -- the generated twin of the
+ * backend's `screen_of`, which keys a job's steps and serves `starts_on` -- with
+ * `https://` read into anything that has none and dropped from what comes out.
  *
- * Without the query, because that is where a warehouse system puts session ids
- * and timestamps: a page addressed with one is never the same page twice. With
- * the route, because Blue Yonder routes on the fragment: without it every
- * config screen was `.../portal`, and the warehouse equipment job was offered
- * on the transport equipment page (QA 2026-09-29). The route is the fragment's
- * dotted segments only -- the trailing `////` are empty positional slots.
- * Idempotent, and a scheme-less screen reads as https, so `page(page(x))` is
- * `page(x)`.
+ * One definition, so the page a nudge, a rule and the recogniser compare is
+ * the screen the backend keyed: host and path, no query (where a warehouse
+ * system puts session ids and timestamps), and the fragment's route, because
+ * Blue Yonder routes on the fragment and without it every config screen was
+ * `.../portal` (QA 2026-09-29). Idempotent, so `page(page(x))` is `page(x)`.
  */
 export function page(url) {
-  try {
-    const said = String(url || "");
-    const parsed = new URL(said.includes("://") ? said : `https://${said}`);
-    const where = `${parsed.host}${parsed.pathname}`.replace(/\/+$/, "");
-    const route = parsed.hash
-      .slice(1)
-      .split("/")
-      .filter((part) => part.includes("."))
-      .join("/");
-    return (route ? `${where}#${route}` : where).toLowerCase();
-  } catch {
-    return "";
-  }
+  const said = String(url || "");
+  return screenOf(said.includes("://") ? said : `https://${said}`).replace(/^[^:]*:\/\//, "");
 }
 
 /** The host a `page()` names. */

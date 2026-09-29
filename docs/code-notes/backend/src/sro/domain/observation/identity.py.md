@@ -15,7 +15,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/observation/identi
 > Never cssPath or xpath: both encode document position, both change when the page
 > is restyled, and a key built on them is the brittleness this replaces.
 
-## module, [line 12](../../../../../../../backend/src/sro/domain/observation/identity.py#L12): Note on the line above
+## module, [line 13](../../../../../../../backend/src/sro/domain/observation/identity.py#L13): Note on the line above
 
 Code: `K_TEXT_IDENTITY_MAX = 40`
 
@@ -25,7 +25,7 @@ Code: `K_TEXT_IDENTITY_MAX = 40`
 > was touched, changes with the page, and would be served to every browser as a
 > shape.
 
-## module, [line 57](../../../../../../../backend/src/sro/domain/observation/identity.py#L57): Note on the line above
+## module, [line 58](../../../../../../../backend/src/sro/domain/observation/identity.py#L58): Note on the line above
 
 Code: `K_SAME_NAME = 0.5`
 
@@ -63,13 +63,13 @@ Code: `K_SAME_NAME = 0.5`
 > four, which is the same job named twice by a model that does not phrase things
 > identically. Half is between them, and comfortably.
 
-## module, [line 59](../../../../../../../backend/src/sro/domain/observation/identity.py#L59): Note on the line above
+## module, [line 60](../../../../../../../backend/src/sro/domain/observation/identity.py#L60): Note on the line above
 
 Code: `NOT_A_NAME = frozenset({"a", "an", "the", "to", "for", "of", "in", "on", "and"})`
 
 > Words that say nothing about which job this is.
 
-## module, [line 109](../../../../../../../backend/src/sro/domain/observation/identity.py#L109): Note on the line above
+## module, [line 110](../../../../../../../backend/src/sro/domain/observation/identity.py#L110): Note on the line above
 
 Code: `ANON = "anon|"`
 
@@ -78,11 +78,11 @@ Code: `ANON = "anon|"`
 > It is the ABSENCE of a name, not a different name, and two shapes that differ
 > only there are not two jobs. See `_shared`.
 
-## `target_identity`, [line 19](../../../../../../../backend/src/sro/domain/observation/identity.py#L19): Docstring
+## `target_identity`, [line 20](../../../../../../../backend/src/sro/domain/observation/identity.py#L20): Docstring
 
 > What to call the control this gesture touched, stably across occurrences.
 
-## `screen_of`, [line 41](../../../../../../../backend/src/sro/domain/observation/identity.py#L41): Docstring
+## `screen_of`, [line 42](../../../../../../../backend/src/sro/domain/observation/identity.py#L42): Docstring
 
 > Which SCREEN this happened on, not merely which system.
 >
@@ -110,16 +110,20 @@ Code: `ANON = "anon|"`
 > empty positional segments -- both change between two doings of one job,
 > and a screen that changed per doing would make every doing a new job,
 > which is the same bug pointing the other way. What is kept is the dotted
-> route, which is what the application calls the screen.
+> route, which is what the application calls the screen (`hosts.route_of`).
+>
+> The browser keys the operator's tail with the generated twin, `screenOf`.
+> Until 2026-09-29 it keyed it by origin, so no tail ever matched a shape
+> served in this key and the prefix offer never fired.
 >
 > `page_url` and not `url`: the tab's address, because a gesture inside an
 > iframe reports the frame's src, and the frame is not the screen.
 
-## `shape_key`, [line 51](../../../../../../../backend/src/sro/domain/observation/identity.py#L51): Docstring
+## `shape_key`, [line 52](../../../../../../../backend/src/sro/domain/observation/identity.py#L52): Docstring
 
 > The job's shape: which control, on which screen, touched how -- in order.
 
-## `named_alike`, [line 72](../../../../../../../backend/src/sro/domain/observation/identity.py#L72): Docstring
+## `named_alike`, [line 73](../../../../../../../backend/src/sro/domain/observation/identity.py#L73): Docstring
 
 > Whether these two names could be the same job's.
 >
@@ -127,7 +131,7 @@ Code: `ANON = "anon|"`
 > empty one, a job proposed with no title -- is not evidence of difference,
 > so it does not block anything.
 
-## `containment`, [line 79](../../../../../../../backend/src/sro/domain/observation/identity.py#L79): Docstring
+## `containment`, [line 80](../../../../../../../backend/src/sro/domain/observation/identity.py#L80): Docstring
 
 > |a ∩ b| / min(|a|, |b|).
 >
@@ -137,12 +141,12 @@ Code: `ANON = "anon|"`
 > says the smaller is part of the larger, which is true and is the variant
 > relation worth surfacing.
 
-## `jaccard`, [line 85](../../../../../../../backend/src/sro/domain/observation/identity.py#L85): Docstring
+## `jaccard`, [line 86](../../../../../../../backend/src/sro/domain/observation/identity.py#L86): Docstring
 
 > |a ∩ b| / |a ∪ b|. For the occurrence question, where the two sets are
 > the same size by construction.
 
-## `_shared`, [line 122](../../../../../../../backend/src/sro/domain/observation/identity.py#L122): Docstring (debt)
+## `_shared`, [line 123](../../../../../../../backend/src/sro/domain/observation/identity.py#L123): Docstring (debt)
 
 > How many steps these two shapes have in common.
 >
@@ -182,7 +186,7 @@ Code: `ANON = "anon|"`
 > `skill.learned.same_control`'s alias set, which needs the names carried on
 > the shape and is a migration, not an edit.
 
-## `resolve`, [line 145](../../../../../../../backend/src/sro/domain/observation/identity.py#L145): Docstring
+## `resolve`, [line 146](../../../../../../../backend/src/sro/domain/observation/identity.py#L146): Docstring
 
 > Which of the known workflows, if any, this proposal already is.
 >
@@ -193,13 +197,13 @@ Code: `ANON = "anon|"`
 > both return 0.0 for an empty set, no threshold here is at or below zero, and
 > a proposal that matches nothing falls out of the bottom as "new" anyway.
 
-## `target_identity`, [line 22](../../../../../../../backend/src/sro/domain/observation/identity.py#L22): Comment
+## `target_identity`, [line 23](../../../../../../../backend/src/sro/domain/observation/identity.py#L23): Comment
 
 Code: `return f"anon|{gesture.action.kind}"`
 
 > A scroll has no target -- you scroll a page, not an element.
 
-## `target_identity`, [line 30](../../../../../../../backend/src/sro/domain/observation/identity.py#L30): Comment
+## `target_identity`, [line 31](../../../../../../../backend/src/sro/domain/observation/identity.py#L31): Comment
 
 Code: `if target.role and target.name and _names_a_control(target.name):`
 
@@ -221,7 +225,7 @@ Code: `if target.role and target.name and _names_a_control(target.name):`
 > paragraph that nothing here carries a typed value, while this served an
 > operator's own mail to every browser in the tenant asking for shapes.
 
-## `target_identity`, [line 38](../../../../../../../backend/src/sro/domain/observation/identity.py#L38): Comment
+## `target_identity`, [line 39](../../../../../../../backend/src/sro/domain/observation/identity.py#L39): Comment
 
 Code: `return f"anon|{gesture.action.kind}"`
 
@@ -229,7 +233,7 @@ Code: `return f"anon|{gesture.action.kind}"`
 > is what actually happened, and the rest of the shape is what tells this
 > job from another.
 
-## module, [line 91](../../../../../../../backend/src/sro/domain/observation/identity.py#L91): Comment
+## module, [line 92](../../../../../../../backend/src/sro/domain/observation/identity.py#L92): Comment
 
 Code: `K_SAME_EVIDENCE = 0.5`
 
@@ -245,7 +249,7 @@ Code: `K_SAME_EVIDENCE = 0.5`
 > asked to re-judge its earlier verdict disagrees with itself at roughly 90%,
 > and `same_as` asked precisely that.
 
-## module, [line 93](../../../../../../../backend/src/sro/domain/observation/identity.py#L93): Comment
+## module, [line 94](../../../../../../../backend/src/sro/domain/observation/identity.py#L94): Comment
 
 Code: `K_MIN_SHARED_STEPS = 2`
 
@@ -272,13 +276,13 @@ Code: `K_MIN_SHARED_STEPS = 2`
 > at two for every shape: letting a one-entry shape clear it on "all of it
 > matched" folded unrelated doings at 1.0 (2026-09-23 review).
 
-## `Resolution`, [line 98](../../../../../../../backend/src/sro/domain/observation/identity.py#L98): Inline
+## `Resolution`, [line 99](../../../../../../../backend/src/sro/domain/observation/identity.py#L99): Inline
 
 Code: `kind: str`
 
 > "new" | "same_occurrence" | "same_job"
 
-## `Resolution`, [line 102](../../../../../../../backend/src/sro/domain/observation/identity.py#L102): Comment
+## `Resolution`, [line 103](../../../../../../../backend/src/sro/domain/observation/identity.py#L103): Comment
 
 Code: `contains: bool = False`
 
@@ -290,7 +294,7 @@ Code: `contains: bool = False`
 > "neither contains the other" are both False, and both mean "do not grow".
 > That is the only question the one reader asks.
 
-## `_shared`, [line 127](../../../../../../../backend/src/sro/domain/observation/identity.py#L127): Comment
+## `_shared`, [line 128](../../../../../../../backend/src/sro/domain/observation/identity.py#L128): Comment
 
 Code: `for one in left:`
 
@@ -299,12 +303,12 @@ Code: `for one in left:`
 > two unnamed steps cannot claim one named step. Two unnamed entries of one
 > system and kind are one entry by the time a set has been made of them.
 
-## `_alike`, [line 112](../../../../../../../backend/src/sro/domain/observation/identity.py#L112): Docstring
+## `_alike`, [line 113](../../../../../../../backend/src/sro/domain/observation/identity.py#L113): Docstring
 
 > The same step: equal, or one of the two unnamed on the same screen, done the
 > same way. See `_shared`.
 
-## `_in_order`, [line 135](../../../../../../../backend/src/sro/domain/observation/identity.py#L135): Docstring
+## `_in_order`, [line 136](../../../../../../../backend/src/sro/domain/observation/identity.py#L136): Docstring
 
 > Whether the doing holds every stored step in the order the job does them,
 > with more besides -- which is what `contains` means and what `_grow` may
@@ -315,7 +319,7 @@ Code: `for one in left:`
 > of its controls, and `_grow` replaced the stored steps with it either way.
 > Greedy, earliest match first, which is exact for a subsequence test.
 
-## `resolve`, [line 151](../../../../../../../backend/src/sro/domain/observation/identity.py#L151): Comment
+## `resolve`, [line 152](../../../../../../../backend/src/sro/domain/observation/identity.py#L152): Comment
 
 Code: `peers = [other for other in known if other.tenant == proposal.tenant]`
 
@@ -324,7 +328,7 @@ Code: `peers = [other for other in known if other.tenant == proposal.tenant]`
 > tenant; resolve() takes whatever list it is handed, and welding one
 > tenant's job onto another's is not a mistake anyone can undo afterwards.
 
-## `resolve`, [line 162](../../../../../../../backend/src/sro/domain/observation/identity.py#L162): Comment
+## `resolve`, [line 163](../../../../../../../backend/src/sro/domain/observation/identity.py#L163): Comment
 
 Code: `return Resolution("same_occurrence", seen.id, seen_score)`
 
@@ -332,7 +336,7 @@ Code: `return Resolution("same_occurrence", seen.id, seen_score)`
 > the same occurrence and is not identity, and a constant is a number
 > no caller can ever threshold on a second time.
 
-## `resolve`, [line 164](../../../../../../../backend/src/sro/domain/observation/identity.py#L164): Comment
+## `resolve`, [line 165](../../../../../../../backend/src/sro/domain/observation/identity.py#L165): Comment
 
 Code: `here = lands.get(proposal.id) if proposal.signs_in else None`
 
@@ -349,7 +353,7 @@ Code: `here = lands.get(proposal.id) if proposal.signs_in else None`
 > are never folded by their shape either: identical password pages in front
 > of two applications look the same and are not.
 
-## `resolve`, [line 184](../../../../../../../backend/src/sro/domain/observation/identity.py#L184): Comment
+## `resolve`, [line 185](../../../../../../../backend/src/sro/domain/observation/identity.py#L185): Comment
 
 Code: `matched = _shared(shape, theirs)`
 
@@ -359,7 +363,7 @@ Code: `matched = _shared(shape, theirs)`
 > step aliases a named one scored as though it had not, and `Reply to
 > Email` cleared K_SAME_JOB at exactly 0.5 by arithmetic coincidence.
 
-## `resolve`, [line 186](../../../../../../../backend/src/sro/domain/observation/identity.py#L186): Comment
+## `resolve`, [line 187](../../../../../../../backend/src/sro/domain/observation/identity.py#L187): Comment
 
 Code: `whole = matched >= K_MIN_SHARED_STEPS`
 
@@ -384,7 +388,7 @@ Code: `whole = matched >= K_MIN_SHARED_STEPS`
 > Ranked by how many steps are shared, then by containment, so a one-entry
 > stub 1.0-contained by the proposal cannot beat the real match behind it.
 
-## `resolve`, [line 187](../../../../../../../backend/src/sro/domain/observation/identity.py#L187): Comment
+## `resolve`, [line 188](../../../../../../../backend/src/sro/domain/observation/identity.py#L188): Comment
 
 Code: `if (`
 
@@ -393,7 +397,7 @@ Code: `if (`
 > and `Send` -- have nothing else left to be told apart by. See
 > `K_SAME_NAME`.
 
-## `resolve`, [line 210](../../../../../../../backend/src/sro/domain/observation/identity.py#L210): Comment
+## `resolve`, [line 211](../../../../../../../backend/src/sro/domain/observation/identity.py#L211): Comment
 
 Code: `named = _as_words(proposal.title)`
 
@@ -410,7 +414,7 @@ Code: `named = _as_words(proposal.title)`
 > sign-in filter, so two sign-ins that land in different places are not
 > joined by a title.
 
-## `resolve`, [line 216](../../../../../../../backend/src/sro/domain/observation/identity.py#L216): Comment
+## `resolve`, [line 217](../../../../../../../backend/src/sro/domain/observation/identity.py#L217): Comment
 
 Code: `if not proposal.parameters:`
 
@@ -428,7 +432,7 @@ Code: `if not proposal.parameters:`
 > covered proposal that fails those guards is refused as a fragment if it
 > has no parameters, and is otherwise new.
 
-## `resolve`, [line 201](../../../../../../../backend/src/sro/domain/observation/identity.py#L201): Comment
+## `resolve`, [line 202](../../../../../../../backend/src/sro/domain/observation/identity.py#L202): Comment
 
 Code: `if sum(1 for entry in shape if not entry[1].startswith(ANON)) >= K_MIN_SHARED_STEPS:`
 
@@ -458,7 +462,7 @@ Code: `if sum(1 for entry in shape if not entry[1].startswith(ANON)) >= K_MIN_SH
 > still joins an Edit sharing two steps and half the form. Telling them
 > apart by the verb is an identity decision of its own, not made here.
 
-## `resolve`, [line 210](../../../../../../../backend/src/sro/domain/observation/identity.py#L210): Comment
+## `resolve`, [line 211](../../../../../../../backend/src/sro/domain/observation/identity.py#L211): Comment
 
 Code: `named = _as_words(proposal.title)`
 

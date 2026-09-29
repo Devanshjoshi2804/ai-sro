@@ -72,6 +72,13 @@ PAGES = (
     "https://wms.example:8443/receiving",
     "https://wms.example/receiving#tab=two",
     "https://wms.example/receiving?facility=BLR1#tab=two",
+    # Blue Yonder routes on the fragment: two screens of one `/portal`.
+    "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG"
+    "#wm.config/wm.config.partners.customers.types////",
+    "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG"
+    "#wm.config/wm.config.equipment.equipment.transportequipmenttype////",
+    # An OAuth callback: pairs, and a token with dots in it, never a route.
+    "https://wms.example/cb#access_token=eyJhbGci.eyJzdWIi.c2ln&token_type=Bearer",
     # Not a system, on either side.
     "chrome://settings",
     "file:///Users/somebody/page.html",

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 from sro.domain.observation.gesture import Gesture
+from sro.domain.shared.hosts import route_of
 from sro.domain.skill.workflow import Workflow, cited_ids
 
 ShapeKey = tuple[tuple[str, str, str], ...]
@@ -44,7 +45,7 @@ def screen_of(gesture: Gesture) -> str:
         return ""
     parsed = urlsplit(said)
     where = f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/").lower()
-    route = "/".join(part for part in parsed.fragment.split("/") if part and "." in part).lower()
+    route = route_of(parsed.fragment)
     return f"{where}#{route}" if route else where
 
 

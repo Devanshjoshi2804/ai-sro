@@ -1,0 +1,35 @@
+{
+  "id": "wfl_1",
+  "title": "Create a Customer Type",
+  "starts_on": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+  "hosts": [
+    "https://bf56-kms-wms-web-np2.jdadelivers.com"
+  ],
+  "shape": [
+    [
+      "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+      "clientCode",
+      "type"
+    ],
+    [
+      "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+      "combobox|Dock",
+      "select"
+    ],
+    [
+      "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
+      "saveButton",
+      "click"
+    ]
+  ],
+  "parameters": [
+    {
+      "name": "clientCode",
+      "at": 0
+    }
+  ],
+  "writes": [],
+  "held_runs": 1,
+  "offer_after": 2,
+  "quiet_until": null
+}

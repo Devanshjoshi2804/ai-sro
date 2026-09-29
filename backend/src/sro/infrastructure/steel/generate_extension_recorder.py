@@ -296,9 +296,40 @@ export function targetIdentity(target, kind) {
   return `anon|${kind}`;
 }
 
-/** One entry of a shape: which system, which control, touched how. */
+/** One entry of a shape: which screen, which control, touched how. */
 export function tripleOf({ system, target, kind }) {
   return [system || "", targetIdentity(target, kind), kind];
+}
+
+// The reference is backend identity.py:screen_of, the first entry of every
+// triple the backend serves. Both are tested against
+// ../../fixtures/screen-of.json.
+//
+// Scheme, host and path, without the query and without a trailing slash, and
+// the fragment's route: Blue Yonder routes on the fragment, so without it every
+// config screen is `/portal` and one job's gestures are every job's. The route
+// is the fragment's dotted segments -- the trailing `////` are empty
+// positional slots, and a `key=value` segment is an OAuth callback's pairs,
+// never a route, however many dots its token has. "" for anything that is not
+// a url.
+
+/** The screen a url is on, as the backend keys a job's steps. */
+export function screenOf(url) {
+  try {
+    const parsed = new URL(url);
+    const where = `${parsed.protocol}//${parsed.host}${parsed.pathname}`
+      .replace(/\\/+$/, "")
+      .toLowerCase();
+    const route = parsed.hash
+      .slice(1)
+      .split("/")
+      .filter((part) => part.includes(".") && !part.includes("="))
+      .join("/")
+      .toLowerCase();
+    return route ? `${where}#${route}` : where;
+  } catch {
+    return "";
+  }
 }
 """
     )

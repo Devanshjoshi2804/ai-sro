@@ -39,7 +39,23 @@ def _trigger(**over: object) -> Trigger:
 
 
 def test_the_page_an_operator_is_standing_on_fires_it() -> None:
-    assert Arrival(page=THE_PAGE).matches(f"https://{WMS}/portal/page?siteId=SG#wm.config")
+    assert Arrival(page=THE_PAGE).matches(f"https://{WMS}/portal/page?siteId=SG#top")
+
+
+CUSTOMER_TYPES = f"https://{WMS}/portal?siteId=SG#wm.config/wm.config.partners.customers.types////"
+TRANSPORT = f"https://{WMS}/portal?siteId=SG#wm.config/wm.config.equipment.equipment.transportequipmenttype////"
+
+
+def test_a_rule_made_on_one_blue_yonder_screen_is_about_that_screen_alone() -> None:
+    """Blue Yonder routes on the fragment: every config screen is `/portal`.
+    A rule that dropped the route was a rule about every screen of the portal,
+    so the fragment's route is part of the page and the rest of it is not."""
+    rule = Arrival(page=page_of(CUSTOMER_TYPES))
+
+    assert rule.page == f"{WMS}/portal#wm.config/wm.config.partners.customers.types"
+    assert rule.matches(CUSTOMER_TYPES)
+    assert not rule.matches(TRANSPORT)
+    assert not rule.matches(f"https://{WMS}/portal?siteId=SG")
 
 
 def test_a_deeper_page_is_a_different_screen() -> None:
@@ -54,9 +70,10 @@ def test_a_deeper_page_is_a_different_screen() -> None:
     [
         f"https://{WMS}/portal/page",
         f"{WMS}/portal/page?siteId=SG",
-        f"{WMS}/portal/page#wm.config",
+        f"{WMS}/portal/page#top",
+        f"{WMS}/cb#access_token=eyj.eyj.sig",
     ],
-    ids=["a scheme", "a query", "a fragment"],
+    ids=["a scheme", "a query", "a fragment that is no route", "a token in the fragment"],
 )
 def test_a_url_somebody_pasted_is_refused_rather_than_quietly_trimmed(written: str) -> None:
     # Trimmed here, the rule and the page it was made from would be two strings
@@ -78,14 +95,25 @@ def test_a_page_rule_is_bounded() -> None:
 @pytest.mark.parametrize(
     ("url", "page"),
     [
-        (f"https://{WMS}/portal/page?siteId=SG#wm.config", f"{WMS}/portal/page"),
+        (f"https://{WMS}/portal/page?siteId=SG#wm.config////", f"{WMS}/portal/page#wm.config"),
+        (f"https://{WMS}/portal/page#top", f"{WMS}/portal/page"),
+        (f"https://{WMS}/cb#access_token=eyJ.eyJ.sig&token_type=Bearer", f"{WMS}/cb"),
         (f"HTTPS://{WMS.upper()}/Portal/Page", f"{WMS}/portal/page"),
         (f"https://{WMS}/portal/page/", f"{WMS}/portal/page"),
         ("http://localhost:3000/needs", "localhost:3000/needs"),
         (f"{WMS}/portal", f"{WMS}/portal"),
         ("chrome://settings", ""),
     ],
-    ids=["query and fragment", "case", "trailing slash", "a port", "no scheme", "not a page"],
+    ids=[
+        "query and route",
+        "a fragment no route",
+        "an oauth fragment",
+        "case",
+        "trailing slash",
+        "a port",
+        "no scheme",
+        "not a page",
+    ],
 )
 def test_a_url_as_the_page_it_is(url: str, page: str) -> None:
     """The port stays: an API on 8000 beside a console on 3000 is the ordinary

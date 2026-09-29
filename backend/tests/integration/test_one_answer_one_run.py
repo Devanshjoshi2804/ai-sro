@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.converse import Converse, StartThread
+from sro.application.chat.read_threads import ReadThreads
 from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
 from sro.application.knowledge.retrieve import Retrieve
@@ -50,7 +51,7 @@ def _converse(
 
 async def _asked_to_run(sessions: async_sessionmaker[AsyncSession]) -> tuple[ThreadId, str]:
     uow = await _held_in(SqlUnitOfWork(sessions))
-    thread = await StartThread(uow, FakeClock(), UuidFactory()).execute(CTX)
+    await StartThread(uow, FakeClock(), UuidFactory()).execute(CTX)
     await AskAboutTheOffer(uow, FakeClock(), UuidFactory()).execute(
         CTX,
         Pending(
@@ -63,9 +64,10 @@ async def _asked_to_run(sessions: async_sessionmaker[AsyncSession]) -> tuple[Thr
         mail_thread="t-2",
         ask_to_run=True,
     )
-    async with SqlUnitOfWork(sessions) as reading:
-        question = (await reading.threads.get(CTX.tenant_id, thread.id)).messages[-1].id.value
-    return thread.id, question
+    # Asked in the chat of its mail, which is where it is answered.
+    thread = await ReadThreads(SqlUnitOfWork(sessions)).asking(CTX, "t-2")
+    assert thread is not None
+    return thread.id, thread.messages[-1].id.value
 
 
 async def _said(sessions: async_sessionmaker[AsyncSession], thread_id: ThreadId) -> list[Message]:
@@ -181,27 +183,12 @@ async def test_a_write_begun_before_an_answer_keeps_the_answer(
 ) -> None:
     """The poll reads the thread, the operator leaves the question, then the
     poll writes. A thread that is written whole would put the question back."""
-    uow = await _held_in(SqlUnitOfWork(session_factory))
-    thread = await StartThread(uow, FakeClock(), UuidFactory()).execute(CTX)
-    await AskAboutTheOffer(uow, FakeClock(), UuidFactory()).execute(
-        CTX,
-        Pending(
-            workflow_id=JOB,
-            title="Create a Customer Type",
-            values={"Customer Type": "X", "Customer Type Description": "e"},
-            missing=(),
-            mail_thread="t-2",
-        ),
-        mail_thread="t-2",
-        ask_to_run=True,
-    )
-    async with SqlUnitOfWork(session_factory) as reading:
-        question = (await reading.threads.get(CTX.tenant_id, thread.id)).messages[-1].id.value
+    thread_id, question = await _asked_to_run(session_factory)
 
     async with SqlUnitOfWork(session_factory) as poll:
-        seen = await poll.threads.get(CTX.tenant_id, thread.id)
+        seen = await poll.threads.get(CTX.tenant_id, thread_id)
         await _converse(session_factory).execute(
-            CTX, thread_id=thread.id, text="no", answering=question
+            CTX, thread_id=thread_id, text="no", answering=question
         )
         seen.say(
             Message(
@@ -215,10 +202,10 @@ async def test_a_write_begun_before_an_answer_keeps_the_answer(
         await poll.commit()
 
     async with SqlUnitOfWork(session_factory) as reading:
-        said = (await reading.threads.get(CTX.tenant_id, thread.id)).messages
+        said = (await reading.threads.get(CTX.tenant_id, thread_id)).messages
     assert any(m.text.startswith("Left ") for m in said), [m.text for m in said]
     assert said[-1].text == "something the poll had to say"
     again = await _converse(session_factory).execute(
-        CTX, thread_id=thread.id, text="yes", answering=question
+        CTX, thread_id=thread_id, text="yes", answering=question
     )
     assert not any((m.decision or {}).get("resume") for m in again.messages)

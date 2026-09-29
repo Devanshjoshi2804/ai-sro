@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import replace
 
 from sro.application.chat.announce import SayWhatHappened
@@ -87,6 +87,7 @@ class AskAboutTheOffer:
         about: str,
         sent_to: Sequence[str],
         offer: str,
+        mail: Mapping[str, str],
     ) -> str:
         asked = should_we(pending, about, sent_to)
         await SayWhatHappened(self._uow, self._clock, self._ids).execute(
@@ -94,6 +95,7 @@ class AskAboutTheOffer:
             for_operator=PrincipalId(ctx.principal_id.value),
             text=asked,
             speaker=Speaker.ASSISTANT,
+            about=pending.mail_thread,
             decision={
                 "kind": JOB,
                 "confirm": True,
@@ -106,6 +108,7 @@ class AskAboutTheOffer:
                 "sent_to": list(sent_to),
                 "watched": pending.watched,
                 **({"offer": offer} if offer else {}),
+                **({"mail": dict(mail)} if mail else {}),
             },
         )
         logger.info(
@@ -152,6 +155,7 @@ class AskAboutTheOffer:
         ask_to_run: bool = False,
         sent_to: Sequence[str] = (),
         offer: str = "",
+        mail: Mapping[str, str] | None = None,
     ) -> str:
         pending = replace(pending, limits=await self._what_the_boxes_hold(ctx, pending))
         pending = await self._only_required(ctx, pending)
@@ -162,13 +166,18 @@ class AskAboutTheOffer:
             ),
         )
         if pending.ready:
-            return await self._should_we(ctx, pending, about, sent_to, offer) if ask_to_run else ""
+            return (
+                await self._should_we(ctx, pending, about, sent_to, offer, mail or {})
+                if ask_to_run
+                else ""
+            )
         asked = opening(pending, about)
         await SayWhatHappened(self._uow, self._clock, self._ids).execute(
             ctx,
             for_operator=PrincipalId(ctx.principal_id.value),
             text=asked,
             speaker=Speaker.ASSISTANT,
+            about=mail_thread,
             decision={
                 "kind": NEEDS,
                 "workflow_id": pending.workflow_id,
@@ -183,6 +192,7 @@ class AskAboutTheOffer:
                 "watched": pending.watched,
                 **({"unconfirmed": True} if ask_to_run else {}),
                 **({"offer": offer} if offer else {}),
+                **({"mail": dict(mail)} if mail else {}),
                 **asking_state(pending),
             },
         )

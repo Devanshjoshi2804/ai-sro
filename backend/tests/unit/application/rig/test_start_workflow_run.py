@@ -26,6 +26,7 @@ import pytest
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.converse import Converse, StartThread
+from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.execution import workflow_runs as door
 from sro.application.execution.approvals import Approvals
@@ -1481,10 +1482,12 @@ async def _short_of(
 
 
 async def _asked_last(uow: FakeUnitOfWork, run: WorkflowRun) -> Message:
-    threads = await uow.threads.list_for_tenant(
-        TENANT, opened_by=PrincipalId(run.started_by), limit=1
-    )
-    return threads[0].messages[-1]
+    """The run's question is asked in a chat of its own: the chat of its mail,
+    or of the run itself when no mail stands behind it."""
+    owner = _ctx(who=PrincipalId(run.started_by))
+    chat = await ReadThreads(uow).asking(owner, (run.mail or {}).get("thread") or run.id)
+    assert chat is not None, "the run asked in no chat of its own"
+    return chat.messages[-1]
 
 
 async def test_a_run_short_of_several_values_asks_for_all_of_them_in_one_question() -> None:

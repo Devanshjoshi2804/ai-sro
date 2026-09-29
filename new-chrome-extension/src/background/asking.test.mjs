@@ -5,7 +5,7 @@
 import assert from "node:assert";
 import { test } from "node:test";
 
-const { questionIn } = await import("./asking.js");
+const { questionAmong, questionIn } = await import("./asking.js");
 
 const asked = {
   id: "msg_1",
@@ -55,4 +55,30 @@ test("a request the server will not run by itself is waiting on the operator", (
   assert.deepEqual(found.missing, []);
   const offered = { speaker: "assistant", text: "x", decision: { kind: "job", workflow_id: "wfl_1" } };
   assert.equal(questionIn({ messages: [offered] }), null);
+});
+
+test("a question says which chat it is waiting in", () => {
+  // It is asked in a chat of its own, and "Answer it" opens that chat.
+  const found = questionIn({ id: "thr_ask_1", messages: [asked] });
+  assert.equal(found.threadId, "thr_ask_1");
+});
+
+test("of several chats, the newest question waiting is the one held", () => {
+  const older = { ...asked, id: "msg_old", said_at: "2026-09-17T03:00:00Z" };
+  const answered = {
+    id: "thr_ask_2",
+    messages: [
+      asked,
+      { speaker: "assistant", text: "Running it now.", decision: { kind: "job", run_id: "run_1" } },
+    ],
+  };
+  const found = questionAmong([
+    { id: "thr-long", messages: [] },
+    { id: "thr_ask_1", messages: [older] },
+    answered,
+    null,
+  ]);
+  assert.equal(found.id, "msg_old");
+  assert.equal(found.threadId, "thr_ask_1");
+  assert.equal(questionAmong([answered]), null);
 });

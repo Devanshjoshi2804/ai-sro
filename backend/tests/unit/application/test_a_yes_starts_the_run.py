@@ -14,6 +14,7 @@ from typing import Any
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.converse import K_CLOSED, K_NOT_YOURS, Converse, StartThread
+from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
 from sro.application.execution.gather import GatherContext
@@ -131,12 +132,12 @@ class _World:
 
     async def a_mail_job(self) -> ThreadId:
         """Compose and Send Email, asked about the way the mail door asks: a
-        job that is nothing but the mailbox, offered in the operator's thread."""
+        job that is nothing but the mailbox, offered in the chat of its mail."""
         job = _reply_job()
         await self.uow.workflows.save(job)
         await self.uow.gestures.add_gestures((_gesture("g-open", GMAIL), _gesture("g-send", GMAIL)))
         self.title = job.title
-        thread = await StartThread(self.uow, FakeClock(), FakeIdFactory()).execute(CTX)
+        await StartThread(self.uow, FakeClock(), FakeIdFactory()).execute(CTX)
         await AskAboutTheOffer(self.uow, FakeClock(), FakeIdFactory()).execute(
             CTX,
             Pending(
@@ -145,7 +146,9 @@ class _World:
             mail_thread=THREAD,
             ask_to_run=True,
         )
-        return thread.id
+        chat = await ReadThreads(self.uow).asking(CTX, THREAD)
+        assert chat is not None
+        return chat.id
 
     def attempts(self) -> list[tuple[str, str]]:
         return [
@@ -336,8 +339,8 @@ async def test_a_mail_only_job_on_an_extension_tenant_is_sent_with_no_browser() 
     await performing
     assert world.channel.sent == [], "a mail job drove a browser"
     assert [one["to"] for one in world.mailbox.sent] == ["alex.r@example.com"], "sent at once"
-    (fresh,) = await world.uow.threads.list_for_tenant(f.TENANT, opened_by=f.OPERATOR, limit=1)
-    assert (fresh.messages[-1].decision or {}).get("kind") == SENT
+    fresh = await world.uow.threads.get(f.TENANT, thread_id)
+    assert (fresh.messages[-1].decision or {}).get("kind") == SENT, "said outside the run's chat"
 
 
 async def test_a_mail_only_job_on_a_steel_tenant_runs_on_steel() -> None:

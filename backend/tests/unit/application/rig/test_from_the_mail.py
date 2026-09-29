@@ -42,7 +42,7 @@ from sro.application.ports.tools import ToolResult, ToolsUnavailable
 from sro.application.runtime.answer_run import AnswerRun
 from sro.application.shared.refusals import OverCap
 from sro.domain.chat.asking import NEEDS, Pending, offered_job, pending_job
-from sro.domain.chat.thread import Message, MessageId, Speaker
+from sro.domain.chat.thread import Message, MessageId, Speaker, Thread, asking_about
 from sro.domain.execution.gathering import Found, Gathered
 from sro.domain.execution.lanes import Broken, Lane, cites_key
 from sro.domain.execution.waiting import as_said, waiting_on
@@ -596,9 +596,12 @@ async def test_a_cap_reached_while_starting_the_run_leaves_the_mail_unread() -> 
 
 
 async def _should_we(world: _MailWorld) -> dict[str, Any]:
-    last = (await _thread(world.uow)).messages[-1]
-    assert last.decision is not None and last.decision.get("confirm") is True, last
-    return dict(last.decision)
+    """The newest "should I run it?", in whichever chat its mail was asked in."""
+    chats = await world.uow.threads.list_for_tenant(f.TENANT, opened_by=CTX.principal_id)
+    asked = [one for chat in chats for one in chat.messages if (one.decision or {}).get("confirm")]
+    assert asked, "nothing asked whether to run it"
+    last = max(asked, key=lambda one: one.said_at)
+    return dict(last.decision or {})
 
 
 async def test_the_operator_s_mail_to_a_colleague_is_asked_about_and_never_run() -> None:
@@ -701,7 +704,8 @@ OTHER_JOB = "wfl_2"
 
 async def _two_questions() -> tuple[Converse, Any, str, str]:
     """One poll, two mails the operator sent a colleague, for two jobs: two
-    questions standing in one thread."""
+    questions, each standing in the chat of its own mail. The thread returned
+    is the first one's."""
     world = await mail_world(sure=True, values=EVERY_VALUE, steel=True)
     job = await world.uow.workflows.get(f.TENANT, JOB)
     await world.uow.workflows.save(replace(job, id=OTHER_JOB, title="Create a Warehouse Type"))
@@ -734,8 +738,10 @@ async def _two_questions() -> tuple[Converse, Any, str, str]:
         )
     )
     await world.polling(mailbox, reads).execute()
-    thread = await _thread(world.uow)
-    first, second = (one.id.value for one in thread.messages if (one.decision or {}).get("confirm"))
+    thread = await _asked_in(world.uow, "t-5")
+    first = next(one.id.value for one in thread.messages if (one.decision or {}).get("confirm"))
+    other = await _asked_in(world.uow, "t-6")
+    second = next(one.id.value for one in other.messages if (one.decision or {}).get("confirm"))
     converse = Converse(
         world.uow,
         ResolveIntent(world.uow, PlanTask(Retrieve(world.uow, FakeEmbedder()))),
@@ -754,7 +760,8 @@ async def test_do_it_under_the_older_question_runs_that_question_s_job() -> None
     go = said.messages[-1].decision or {}
     assert go.get("resume") is True and go["workflow_id"] == JOB, go
     assert go["mail_thread"] == "t-5"
-    assert offered_job(said.messages, second) is not None, "the other question was closed"
+    other = await _asked_in(converse._uow, "t-6")
+    assert offered_job(other.messages, second) is not None, "the other question was closed"
 
 
 async def test_leave_it_under_the_older_question_leaves_the_newer_one_open() -> None:
@@ -764,7 +771,8 @@ async def test_leave_it_under_the_older_question_leaves_the_newer_one_open() -> 
 
     assert said.messages[-1].text.startswith("Left ")
     assert offered_job(said.messages, first) is None
-    assert offered_job(said.messages, second) is not None
+    other = await _asked_in(converse._uow, "t-6")
+    assert offered_job(other.messages, second) is not None
     assert not any((one.decision or {}).get("resume") for one in said.messages)
 
 
@@ -776,7 +784,8 @@ async def test_a_second_press_under_an_answered_question_starts_nothing() -> Non
 
     assert sum(bool((one.decision or {}).get("resume")) for one in again.messages) == 1
     assert "no longer" in again.messages[-1].text
-    assert offered_job(again.messages, second) is not None
+    other = await _asked_in(converse._uow, "t-6")
+    assert offered_job(other.messages, second) is not None
 
 
 class _Paged(_Mailbox):
@@ -852,6 +861,18 @@ class _Gathers:
             if name in self.values
         }
         return Gathered(values=found, missing=tuple(n for n in wanted if n not in found))
+
+
+async def _asked_in(uow: FakeUnitOfWork, mail_thread: str) -> Thread:
+    """The chat a question about one mail conversation is asked in."""
+    chat = Thread(
+        id=asking_about(f.TENANT, CTX.principal_id, mail_thread),
+        tenant_id=f.TENANT,
+        opened_by=CTX.principal_id,
+        opened_at=FakeClock().now(),
+    )
+    await uow.threads.open(chat)
+    return await uow.threads.get(f.TENANT, chat.id)
 
 
 async def _thread(uow: FakeUnitOfWork) -> Any:
@@ -1775,7 +1796,7 @@ async def test_a_reply_answers_the_question_standing_in_the_conversation() -> No
     job and is dropped for good: the id is claimed before it is read.
     """
     uow = await _held()
-    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    thread = await _asked_in(uow, "t-32")
     thread.say(
         Message(
             id=MessageId("msg_asked"),
@@ -1826,7 +1847,7 @@ async def test_the_reply_itself_answers_when_the_mailbox_search_finds_nothing() 
     card came back asking for the same field again.
     """
     uow = await _held()
-    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    thread = await _asked_in(uow, "t-33")
     thread.say(
         Message(
             id=MessageId("msg_asked"),
@@ -1876,7 +1897,7 @@ async def test_a_question_a_reply_answered_stops_standing() -> None:
     that does not know what it knows. Seen on the deployment 2026-09-18.
     """
     uow = await _held()
-    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    thread = await _asked_in(uow, "t-37")
     thread.say(
         Message(
             id=MessageId("msg_asked"),
@@ -2493,7 +2514,7 @@ async def test_a_new_value_on_a_thread_that_started_a_run_is_a_new_request() -> 
 
 async def test_a_reply_to_a_standing_question_is_read_with_that_question() -> None:
     uow = await _held()
-    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    thread = await _asked_in(uow, "t-32")
     thread.say(
         Message(
             id=MessageId("msg_asked"),
@@ -2580,7 +2601,7 @@ async def test_a_mail_reply_that_is_the_operator_s_sign_in_name_answers_nothing(
             tuple(_sign_in("a", "RKUCHIYAGM", "https://wms.example").values())
         )
         await uow.commit()
-    thread = await StartThread(uow, FakeClock(), FakeIdFactory()).execute(CTX)
+    thread = await _asked_in(uow, "t-40")
     thread.say(
         Message(
             id=MessageId("msg_asked"),

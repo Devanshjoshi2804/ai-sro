@@ -9,6 +9,7 @@ from itertools import pairwise
 from sro.domain.chat.request import Candidate, field_of, refusal
 from sro.domain.chat.thread import Message, Said, Speaker
 from sro.domain.execution.field_classes import FieldLimits
+from sro.domain.execution.mail_job import DRAFTED, SENT
 from sro.domain.lookup.asking import is_a_question
 from sro.domain.skill.signing_in import Logins
 
@@ -344,6 +345,38 @@ def waiting_on_mail(messages: Sequence[Message], mail_thread: str) -> Pending | 
         None,
     )
     return pending_job(messages, last.id.value) if last is not None else None
+
+
+def envelope_of(messages: Sequence[Message], mail_thread: str) -> dict[str, str]:
+    if not mail_thread:
+        return {}
+    for one in reversed(messages):
+        decision = one.decision or {}
+        mail = decision.get("mail")
+        if decision.get("mail_thread") == mail_thread and isinstance(mail, dict):
+            return {str(name): str(value) for name, value in mail.items()}
+    return {}
+
+
+def asked_by_mail(messages: Sequence[Message], mail_thread: str) -> str:
+    if not mail_thread:
+        return ""
+    drafts = {
+        one.id.value
+        for one in messages
+        if (one.decision or {}).get("kind") == DRAFTED
+        and (one.decision or {}).get("thread") == mail_thread
+    }
+    return next(
+        (
+            str(decision.get("to") or "")
+            for one in reversed(messages)
+            if (decision := one.decision or {}).get("kind") == SENT
+            and decision.get("sent")
+            and decision.get("draft_id") in drafts
+        ),
+        "",
+    )
 
 
 def _offer(decision: Mapping[str, object]) -> tuple[str, str]:

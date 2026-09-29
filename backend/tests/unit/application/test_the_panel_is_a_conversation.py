@@ -16,9 +16,12 @@ import httpx
 import pytest
 from httpx import ASGITransport
 
+from sro.application.chat.announce import SayWhatHappened
 from sro.application.chat.converse import StartThread
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
+from sro.domain.chat.asking import NEEDS
+from sro.domain.chat.thread import Speaker
 from sro.domain.shared.identifiers import PrincipalId
 from sro.interface.http.app import create_app
 from sro.interface.http.deps import get_container
@@ -148,3 +151,44 @@ class TestTheCurrentThreadRoute:
         second = await client.get("/v1/threads/current")
 
         assert first.json()["id"] == second.json()["id"]
+
+
+async def _ask_about(uow: FakeUnitOfWork, clock: FakeClock, about: str) -> None:
+    await SayWhatHappened(uow, clock, FakeIdFactory()).execute(
+        CTX,
+        for_operator=CTX.principal_id,
+        text="Customer Type takes 4 characters. What should it be?",
+        speaker=Speaker.ASSISTANT,
+        decision={"kind": NEEDS, "workflow_id": "wfl_1", "missing": ["Customer Type"]},
+        about=about,
+    )
+
+
+async def test_a_question_asked_since_does_not_become_the_operator_s_conversation() -> None:
+    """A question has a chat of its own. Opened after the operator's own, it
+    is still not "the conversation I am in": everything else said to them
+    would otherwise pile into the chat of whichever mail asked last."""
+    uow, clock = FakeUnitOfWork(), FakeClock()
+    mine = await StartThread(uow, clock, FakeIdFactory()).execute(CTX)
+    clock.advance(60)
+    await _ask_about(uow, clock, "t-9")
+
+    found = await ReadThreads(uow).current(CTX)
+
+    assert found is not None and found.id == mine.id
+
+
+class TestTheAskedRoute:
+    async def test_it_answers_each_chat_a_question_was_asked_in_whole(
+        self, client: httpx.AsyncClient, uow: FakeUnitOfWork
+    ) -> None:
+        clock = FakeClock()
+        await StartThread(uow, clock, FakeIdFactory()).execute(CTX)
+        await _ask_about(uow, clock, "t-9")
+
+        response = await client.get("/v1/threads/asking")
+
+        assert response.status_code == 200, response.text
+        (chat,) = response.json()
+        assert chat["id"].startswith("thr_ask_")
+        assert chat["messages"][0]["decision"]["kind"] == NEEDS

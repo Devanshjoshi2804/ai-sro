@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
@@ -9,6 +10,14 @@ from sro.domain.shared.identifiers import Identifier, PrincipalId, TenantId
 
 
 class ThreadId(Identifier): ...
+
+
+K_ASKING = "thr_ask_"
+
+
+def asking_about(tenant_id: TenantId, opened_by: PrincipalId, about: str) -> ThreadId:
+    said = f"{tenant_id.value}\n{opened_by.value}\n{about}".encode()
+    return ThreadId(K_ASKING + hashlib.sha256(said).hexdigest()[:32])
 
 
 class MessageId(Identifier): ...

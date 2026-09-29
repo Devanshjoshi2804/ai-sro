@@ -400,6 +400,7 @@ class FromTheMail:
             ask_to_run=True,
             sent_to=one.sent_to,
             offer=mail_key(one.message),
+            mail=_envelope(one),
         )
         return replace(one, asked=True)
 
@@ -468,15 +469,7 @@ class FromTheMail:
                 allow_focus=False,
                 conversation=(SERVER, one.thread),
                 offer=mail_key(one.message),
-                mail={
-                    name: value
-                    for name, value in (
-                        ("subject", one.subject),
-                        ("sender", one.sender),
-                        ("arrived", one.arrived),
-                    )
-                    if value
-                },
+                mail=_envelope(one),
             )
         except OverCap:
             raise
@@ -506,9 +499,11 @@ class FromTheMail:
             if value.strip() and not is_secret_field(name)
         )
         try:
+            asked = await ReadThreads(self._uow).asking(ctx, one.thread)
             await SayWhatHappened(self._uow, self._clock, self._ids).execute(
                 ctx,
                 for_operator=ctx.principal_id,
+                about=one.thread if asked is not None else "",
                 text=(
                     f"A mail arrived{f' from {one.sender}' if one.sender else ''}: "
                     f"{_about(one.subject)}. It asks for {one.title}"
@@ -606,14 +601,8 @@ class FromTheMail:
         return one_address_in(str(said.get("body") or ""), reply=reply)
 
     async def _was_asked(self, ctx: RequestContext, thread: str) -> Pending | None:
-        if not thread.strip():
-            return None
-        found = await ReadThreads(self._uow).current(ctx)
-        if found is None:
-            return None
-        async with self._uow as uow:
-            conversation = await uow.threads.get(ctx.tenant_id, found.id)
-        return waiting_on_mail(conversation.messages, thread)
+        found = await ReadThreads(self._uow).asking(ctx, thread)
+        return waiting_on_mail(found.messages, thread) if found is not None else None
 
     async def _carrying_on(
         self,
@@ -742,9 +731,6 @@ class FromTheMail:
         if self._clock is None or self._ids is None:
             return
         try:
-            found = await ReadThreads(self._uow).current(ctx)
-            if found is None:
-                return
             filled = {name: values[name] for name in asked.missing if values.get(name)}
             named = ", ".join(f"{name} {value}" for name, value in filled.items())
             about = f" to {said_by}" if said_by.strip() else ""
@@ -767,6 +753,7 @@ class FromTheMail:
                 for_operator=ctx.principal_id,
                 text=said,
                 speaker=Speaker.ASSISTANT,
+                about=asked.mail_thread,
                 decision=(
                     {
                         "kind": NEEDS,
@@ -1051,6 +1038,18 @@ def _when(date: str) -> str:
         return parsedate_to_datetime(date).isoformat() if date.strip() else ""
     except (TypeError, ValueError):
         return ""
+
+
+def _envelope(one: Offered) -> dict[str, str]:
+    return {
+        name: value
+        for name, value in (
+            ("subject", one.subject),
+            ("sender", one.sender),
+            ("arrived", one.arrived),
+        )
+        if value
+    }
 
 
 def _about(subject: str) -> str:

@@ -577,6 +577,25 @@ export function alreadyAnswered(messages) {
     if (decision?.offer && decision.run_id)
       done.set(`offer:${decision.offer}`, decision.run_id);
   }
+  // A draft asks about the question standing when it was written. Once that
+  // question is answered -- here, from the panel, or by the sender's reply --
+  // there is nothing left to ask them, and the backend refuses the send. The
+  // question stands while the newest thing the assistant decided is it: the
+  // rule `pending_job` keeps on the server.
+  const last = [...messages]
+    .reverse()
+    .find(
+      (one) =>
+        one.speaker === "assistant" && Object.keys(one.decision || {}).length,
+    );
+  const standing =
+    last?.decision?.kind === "needs_values" &&
+    Boolean(last.decision.workflow_id) &&
+    (last.decision.missing || []).length > 0;
+  if (!standing)
+    for (const one of messages)
+      if (one.decision?.kind === "mail_draft" && !done.has(one.id))
+        done.set(one.id, "answered");
   return done;
 }
 
@@ -1047,11 +1066,13 @@ function saying(
     // button they have already decided about.
     //
     // Already sent is not a thing to offer again. `mail_sent` further down the
-    // thread is the answer to this one.
-    if (
-      spent.get(message.decision.run_id) !== "sent" &&
-      spent.get(message.id) !== "sent"
-    ) {
+    // thread is the answer to this one -- and so is an answer to the question
+    // it asks about.
+    const gone =
+      spent.get(message.decision.run_id) === "sent"
+        ? "sent"
+        : spent.get(message.id);
+    if (!gone) {
       // Who and what, on their own lines. A mail is read as a mail -- the
       // recipient, then the subject, then the words -- and one run-on line is
       // the shape of a log entry, not of something somebody is authorising.
@@ -1072,7 +1093,15 @@ function saying(
       body.textContent = String(message.decision.body || "");
       item.append(body);
       item.append(pressing(KINDS.mail_draft, message, item, onPress));
-    } else item.dataset.answered = "sent";
+    } else {
+      item.dataset.answered = gone;
+      if (gone === "answered") {
+        const note = document.createElement("p");
+        note.className = "detail";
+        note.textContent = "Answered, so nothing was sent.";
+        item.append(note);
+      }
+    }
   } else if (kind === "result") {
     item.append(pressing(KINDS.result, message, item, onPress));
   } else if ((kind === "run" || kind === "job") && runs) {

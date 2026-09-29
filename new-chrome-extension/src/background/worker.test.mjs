@@ -184,6 +184,8 @@ let chatRead = null;
 let threadSaid = null;
 /** What `GET /v1/threads/current` answers: the thread as the panel rereads it. */
 let threadCurrent = null;
+/** What `GET /v1/threads/asking` answers: the chats a question was asked in. */
+let threadsAsked = [];
 let askedAbout = null;
 /** Every tab the worker reloaded to repair its recording. */
 const reloads = [];
@@ -239,6 +241,9 @@ const rigServer = async (url, options = {}) => {
   if (path === "/v1/observations/artifacts") return json({}, 201);
   if (path === "/v1/threads/current")
     return json(threadCurrent || { id: "thr-1", messages: [] });
+  if (path === "/v1/threads/asking") return json(threadsAsked);
+  if (path.startsWith("/v1/threads/thr_ask_"))
+    return json(threadsAsked.find((one) => path.endsWith(one.id)) || {});
   if (path === "/v1/threads/thr-1/messages")
     return json(threadSaid || { id: "thr-1", messages: [] });
   if (path === "/v1/chat")
@@ -3228,6 +3233,63 @@ test("a question the reply still holds is put where the panel draws it", async (
 
   assert.equal(held.get("sro.question")?.workflowId, "wfl_ct");
   assert.deepEqual(held.get("sro.question")?.missing, ["Manufacturer"]);
+  threadSaid = null;
+});
+
+test("a question asked in a chat of its own is found there, and its chat opens", async () => {
+  // QA 2026-09-29: a mail's question and the draft to its sender are asked in
+  // a chat of their own, never in the operator's conversation.
+  ready();
+  held.delete("sro.question");
+  const chat = {
+    id: "thr_ask_1",
+    messages: [
+      {
+        id: "m_vet",
+        speaker: "assistant",
+        text: "Customer Type takes 4 characters. What should it be?",
+        said_at: "2026-09-29T10:22:44Z",
+        decision: { kind: "needs_values", workflow_id: "wfl_ct", missing: ["Customer Type"] },
+      },
+    ],
+  };
+  threadsAsked = [chat];
+
+  const waiting = await send({ kind: "question" });
+  const opened = await send({ kind: "thread", threadId: "thr_ask_1" });
+
+  assert.equal(waiting?.threadId, "thr_ask_1");
+  assert.equal(held.get("sro.question")?.id, "m_vet");
+  assert.equal(opened.id, "thr_ask_1", "Answer it opened some other chat");
+  threadsAsked = [];
+});
+
+test("an answer in one chat leaves another chat's question standing", async () => {
+  ready();
+  const other = {
+    id: "thr_ask_2",
+    messages: [
+      {
+        id: "m_other",
+        speaker: "assistant",
+        text: "What should Manufacturer be?",
+        said_at: "2026-09-29T10:00:00Z",
+        decision: { kind: "needs_values", workflow_id: "wfl_ct", missing: ["Manufacturer"] },
+      },
+    ],
+  };
+  threadsAsked = [other];
+  threadSaid = {
+    id: "thr-1",
+    messages: [
+      { id: "m_ran", speaker: "assistant", text: "Running it now.", decision: { kind: "job", run_id: "run_1" } },
+    ],
+  };
+
+  await send({ kind: "thread-say", threadId: "thr-1", text: "VETC", tabId: TAB });
+
+  assert.equal(held.get("sro.question")?.id, "m_other");
+  threadsAsked = [];
   threadSaid = null;
 });
 

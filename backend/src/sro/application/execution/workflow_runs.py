@@ -486,7 +486,12 @@ class StartWorkflowRun:
             else ()
         )
         operator = PrincipalId(run.started_by) if run.started_by else ctx.principal_id
-        thread = await ReadThreads(self._uow).current(RequestContext(ctx.tenant_id, operator))
+        owner = RequestContext(ctx.tenant_id, operator)
+        envelope = dict(run.mail or {})
+        mail_thread = envelope.pop("thread", "")
+        async with self._uow as uow:
+            named = await uow.threads.naming(ctx.tenant_id, opened_by=operator, run_id=run.id)
+        thread = named or await ReadThreads(self._uow).current(owner)
         pending = still_to_ask(
             Pending(
                 workflow_id=run.workflow_id,
@@ -496,6 +501,7 @@ class StartWorkflowRun:
                 items=tuple(dict(one) for one in run.items),
                 watched=run.watched,
                 limits=limits,
+                mail_thread=mail_thread,
                 offered=offerable(workflow.parameters, run.values) if workflow else (),
                 from_step=(
                     begins_again_at(workflow, by_id, stopped_at=run.steps[-1].order)
@@ -514,12 +520,18 @@ class StartWorkflowRun:
             await self._no_longer_waiting(ctx, run.id)
             said, noted = cannot_without(pending, ran=True)
             await SayWhatHappened(self._uow, self._clock, self._ids).execute(
-                ctx, for_operator=operator, text=said, speaker=Speaker.ASSISTANT, decision=noted
+                ctx,
+                for_operator=operator,
+                text=said,
+                speaker=Speaker.ASSISTANT,
+                decision=noted,
+                about=mail_thread or run.id,
             )
             return
         await SayWhatHappened(self._uow, self._clock, self._ids).execute(
             ctx,
             for_operator=operator,
+            about=mail_thread or run.id,
             text=_asking(pending.missing, title, limits)
             + (f"{also} " if (also := also_set(pending)) else "")
             + question(pending),
@@ -536,6 +548,8 @@ class StartWorkflowRun:
                 "offered": [list(one) for one in pending.offered],
                 "from_step": pending.from_step,
                 "from_run": run.id,
+                "mail_thread": mail_thread,
+                **({"mail": envelope} if envelope else {}),
                 **asking_state(pending),
             },
         )

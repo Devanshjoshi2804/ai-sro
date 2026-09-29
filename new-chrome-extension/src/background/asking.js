@@ -45,6 +45,9 @@ export function questionIn(thread) {
     if (!asks || !decision.workflow_id) return null;
     return {
       id: message.id,
+      // The chat it is asked in: a question from a mail or a run that came up
+      // short has one of its own, and "Answer it" opens it.
+      threadId: thread.id || null,
       text: message.text || "",
       title: decision.title || "",
       workflowId: decision.workflow_id,
@@ -53,4 +56,17 @@ export function questionIn(thread) {
     };
   }
   return null;
+}
+
+/**
+ * The newest question waiting in any of these threads, or `null`.
+ *
+ * The operator's own conversation and each chat a question was asked in: a
+ * question from a mail, or from a run that came up short, is asked in a chat
+ * of its own, so reading the conversation alone finds none of them.
+ */
+export function questionAmong(threads) {
+  const waiting = threads.map(questionIn).filter(Boolean);
+  waiting.sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")));
+  return waiting[0] || null;
 }

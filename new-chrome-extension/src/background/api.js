@@ -504,6 +504,15 @@ export const api = {
   /** This operator's running conversation, started if they have none. */
   currentThread: () => call("/v1/threads/current"),
 
+  /** One chat by id: the chat a question was asked in, which "Answer it"
+   * opens. */
+  thread: (threadId) => call(`/v1/threads/${encodeURIComponent(threadId)}`),
+
+  /** The chats this operator was asked a question in, newest first, whole. A
+   * question from a mail or a short run is asked in one of these, never in
+   * the conversation `currentThread` answers with. */
+  askedThreads: () => call("/v1/threads/asking"),
+
   /** One sentence, through the one door that decides what kind it is.
    *
    * The backend answers `{kind: "job"|"lookup"}` -- an instruction becomes an

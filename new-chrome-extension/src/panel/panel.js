@@ -513,10 +513,10 @@ function theQuestion(question) {
         label: "Answer it",
         primary: true,
         act: () => {
-          pane = "chat";
-          paintPanes();
-          void conversation();
-          toTheNewest(true);
+          // Its own chat: the question, the mail drafted to whoever asked, and
+          // what the answer starts -- not the end of one long thread, under
+          // every job before it (QA, 2026-09-29).
+          goToTheConversation(question.threadId || null);
           // In the box, so the answer is one keystroke away rather than one
           // press and then a hunt for where to type it.
           $("ask-bar").querySelector?.("input")?.focus();
@@ -550,9 +550,10 @@ function toTheQuestion(run) {
   if (run.id === askedAbout) return;
   askedAbout = run.id;
   pane = "chat";
-  void conversation();
-  // At the end of it, which is where the question is.
-  toTheNewest(true);
+  // In the chat it was asked in, which the worker finds.
+  void ask({ kind: "question" }).then((waiting) =>
+    goToTheConversation(waiting?.threadId || null),
+  );
 }
 
 /** Watch this system wherever it opens, from now on.
@@ -1989,6 +1990,9 @@ async function purge() {
 let threadId = null;
 let drawn = null;
 
+/** The chat "Answer it" opened, or `null` for the operator's conversation. */
+let opened = null;
+
 /** Fetch the thread and draw it. */
 async function conversation() {
   // The first one only. A conversation nobody has drawn yet is a blank
@@ -2006,7 +2010,7 @@ async function conversation() {
   if (!lastThread) $("said").replaceChildren(_comingUp(4));
   let thread;
   try {
-    thread = await ask({ kind: "thread" });
+    thread = await ask({ kind: "thread", threadId: opened });
   } catch (error) {
     $("thread-note").textContent = error.message;
     return;
@@ -2023,10 +2027,11 @@ let lastThread = null;
 
 /** Draw a thread, if it says anything the one on screen does not.
  *
- * A redraw replaces the composer, which takes what somebody was half way
- * through typing with it -- so it happens only when the thread actually
- * changed, and never while a box on this panel has the cursor in it. Anything
- * said in the meantime appears the moment they stop typing.
+ * A redraw replaces every box in the thread, which takes what somebody was half
+ * way through typing into one with it -- so it happens only when the thread
+ * actually changed, and never while a box in the thread has the cursor in it.
+ * Anything said in the meantime appears the moment they stop typing. The
+ * composer is not in the thread and never holds a draw back.
  *
  * `asked` is that guard's one exception: the redraw the operator's own send
  * triggered. Sending with Enter leaves the cursor exactly where the guard
@@ -2288,6 +2293,7 @@ async function freshThread() {
   } catch (error) {
     $("thread-note").textContent = error.message;
   }
+  opened = null;
   pane = "chat";
   paintPanes();
   drawn = null;
@@ -2342,8 +2348,12 @@ function toTheNewest(force = false) {
  * runs only while Chat is showing, so arriving is exactly when it is most
  * likely to be stale. And the scroll is forced -- arriving at a conversation
  * means arriving at the end of it, which is where the question is.
+ *
+ * `chat` is a chat of its own to open instead -- the one a question was asked
+ * in. The Chat tab passes nothing and is back at the operator's conversation.
  */
-function goToTheConversation() {
+function goToTheConversation(chat = null) {
+  opened = chat;
   pane = "chat";
   paintPanes();
   drawn = null;
@@ -2469,7 +2479,18 @@ function show(thread, { asked = false } = {}) {
   const waitingOn = `${lastStatus?.mail?.awaiting?.at || ""}:${lastStatus?.mail?.lookedAt || ""}:${lastStatus?.mail?.looking ? "r" : ""}`;
   const now = `${thread.id}:${(thread.messages || []).map((message) => message.id).join(",")}|${mine}|${answerSeen}|${missed}|${asking}|${waitingOn}|${hostOf(tabHere.url || "")}`;
   if (now === drawn) return;
-  if (!asked && drawn !== null && document.activeElement?.tagName === "INPUT")
+  // Only a box IN the thread is what a redraw would take. The composer is in
+  // `#ask-bar` and survives it -- and holding the draw for it held back every
+  // question and draft the backend wrote while the cursor sat there, which is
+  // where "Answer it" puts it: the draft to the sender appeared only once the
+  // operator had sent the answer it asked for (QA, 2026-09-29).
+  const typing = document.activeElement;
+  if (
+    !asked &&
+    drawn !== null &&
+    typing?.tagName === "INPUT" &&
+    $("said").contains(typing)
+  )
     return;
   drawn = now;
   if (thread !== lastThread && (thread.messages || []).length)

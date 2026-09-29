@@ -586,7 +586,7 @@ async def test_mail_never_answers_what_a_mail_says() -> None:
 
 
 async def test_a_request_relayed_from_mail_and_answered_in_the_chat_is_never_trusted() -> None:
-    """A mail's request, offered in the operator's thread and answered there,
+    """A mail's request, offered in the chat of its mail and answered there,
     started from mail: nothing the operator said before it -- here an earlier
     chat request for the same job naming eve -- becomes its request."""
     world = _World(_wrote(to="eve@evil.example"))
@@ -606,7 +606,9 @@ async def test_a_request_relayed_from_mail_and_answered_in_the_chat_is_never_tru
         ),
         mail_thread="t-mail",
     )
-    said = await converse.execute(A, thread_id=thread.id, text="Hi")
+    chat = await ReadThreads(world.uow).asking(A, "t-mail")
+    assert chat is not None
+    said = await converse.execute(A, thread_id=chat.id, text="Hi")
     decision = dict(said.messages[-1].decision or {})
     assert (decision["kind"], decision["mail_thread"]) == ("job", "t-mail")
 

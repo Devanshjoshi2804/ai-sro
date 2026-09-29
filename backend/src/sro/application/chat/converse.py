@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Coroutine, Sequence
+from collections.abc import Callable, Coroutine, Mapping, Sequence
 from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
@@ -37,9 +37,11 @@ from sro.domain.chat.asking import (
     NEEDS,
     Pending,
     answered,
+    asked_by_mail,
     asked_under,
     asking_state,
     cannot_without,
+    envelope_of,
     let_go,
     named_in,
     of_the_offer,
@@ -649,6 +651,7 @@ class Converse:
             answering=answering,
             job=filled,
             offer=offer,
+            mail=envelope_of(thread.messages, filled.mail_thread),
         )
 
     async def _say_yes_to_it(
@@ -696,6 +699,7 @@ class Converse:
             answering=answering,
             job=replace(offered, missing=()),
             offer=offer,
+            mail=envelope_of(thread.messages, offered.mail_thread),
         )
 
     async def _start_it(
@@ -708,6 +712,7 @@ class Converse:
         answering: str | None,
         job: Pending,
         offer: str,
+        mail: Mapping[str, str] | None = None,
     ) -> Thread:
         decision = _to_run(job, offer, self._can_gather)
         wrote: list[Thread] = []
@@ -741,6 +746,7 @@ class Converse:
                 from_step=job.from_step,
                 conversation=(SERVER, job.mail_thread),
                 offer=offer,
+                mail=mail,
                 then=say_it,
             )
         except _Closed:
@@ -865,6 +871,8 @@ class Converse:
         still = asked_under(thread.messages, answering)
         if asked is not None and (still is None or still.id != asked):
             raise _Closed
+        if asker := asked_by_mail(thread.messages, str(decision.get("mail_thread") or "")):
+            said = f"{said} {asker} was asked by mail before this answer came."
         self._told(thread, text, said, decision)
         await uow.threads.save(thread)
         return thread

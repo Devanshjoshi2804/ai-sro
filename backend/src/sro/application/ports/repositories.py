@@ -159,6 +159,8 @@ class KnowledgeRepository(Protocol):
 class ThreadRepository(Protocol):
     async def add(self, thread: Thread) -> None: ...
 
+    async def open(self, thread: Thread) -> None: ...
+
     async def get(self, tenant_id: TenantId, thread_id: ThreadId) -> Thread: ...
 
     async def get_for_answer(self, tenant_id: TenantId, thread_id: ThreadId) -> Thread: ...
@@ -170,9 +172,14 @@ class ThreadRepository(Protocol):
         tenant_id: TenantId,
         *,
         opened_by: PrincipalId | None = None,
+        asking: bool | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[Thread, ...]: ...
+
+    async def naming(
+        self, tenant_id: TenantId, *, opened_by: PrincipalId, run_id: str
+    ) -> Thread | None: ...
 
     async def holding(
         self, tenant_id: TenantId, *, opened_by: PrincipalId, message_id: str

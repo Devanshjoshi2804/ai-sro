@@ -19,6 +19,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.ask_the_asker import DRAFTED, DraftForTheAsker, SendTheDraft
 from sro.application.chat.mailbox import is_ours
 from sro.application.context import RequestContext
@@ -126,6 +127,14 @@ async def _a_run(uow: FakeUnitOfWork, *, thread: str = THREAD, asked: bool = Fal
     return run
 
 
+async def _asked(uow: FakeUnitOfWork) -> None:
+    """The question a draft follows, asked the way the mail door asks it: a
+    draft is only ever written under a question that stands."""
+    await AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()).execute(
+        CTX, _pending(mail_thread=THREAD), mail_thread=THREAD
+    )
+
+
 def _drafter(uow: FakeUnitOfWork, mailbox: _Mailbox) -> DraftForTheAsker:
     return DraftForTheAsker(uow, mailbox, FakeClock(), FakeIdFactory())
 
@@ -154,6 +163,7 @@ async def test_the_words_sent_are_the_words_that_were_read() -> None:
     two different things."""
     uow, mailbox = FakeUnitOfWork(), _Mailbox()
     await _a_run(uow)
+    await _asked(uow)
     await _drafter(uow, mailbox).execute(CTX, _pending(), run_id="run_1")
     threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
     drafted = threads[0].messages[-1]
@@ -178,6 +188,7 @@ async def test_one_mail_per_run_however_many_presses() -> None:
     is taken before the send for exactly that."""
     uow, mailbox = FakeUnitOfWork(), _Mailbox()
     await _a_run(uow)
+    await _asked(uow)
     await _drafter(uow, mailbox).execute(CTX, _pending(), run_id="run_1")
     threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
     drafted = threads[0].messages[-1]
@@ -258,6 +269,7 @@ async def test_a_mailbox_that_could_not_be_reached_keeps_the_claim() -> None:
     a duplicate mail cannot be deleted afterwards."""
     uow, mailbox = FakeUnitOfWork(), _Mailbox()
     await _a_run(uow)
+    await _asked(uow)
     await _drafter(uow, mailbox).execute(CTX, _pending(), run_id="run_1")
     threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
     drafted = threads[0].messages[-1]
@@ -278,6 +290,7 @@ async def test_a_press_on_one_draft_does_not_send_another() -> None:
     """Two runs can both be waiting. By id and never "the newest draft"."""
     uow, mailbox = FakeUnitOfWork(), _Mailbox()
     await _a_run(uow)
+    await _asked(uow)
     await _drafter(uow, mailbox).execute(CTX, _pending(), run_id="run_1")
     threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
     drafted = threads[0].messages[-1]
@@ -334,6 +347,7 @@ async def test_one_mail_per_draft_when_no_run_stands_behind_it() -> None:
     mails to one person about one request, 15:05:34 and 15:09:06.
     """
     uow, mailbox = FakeUnitOfWork(), _Mailbox()
+    await _asked(uow)
     await _drafter(uow, mailbox).execute(CTX, _pending(), thread=THREAD)
     threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
     drafted = threads[0].messages[-1]
@@ -355,6 +369,7 @@ async def test_one_mail_per_draft_whoever_presses_it() -> None:
     card asks before any run exists.
     """
     uow, mailbox = FakeUnitOfWork(), _Mailbox()
+    await _asked(uow)
     await _drafter(uow, mailbox).execute(CTX, _pending(), thread=THREAD)
     threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
     drafted = threads[0].messages[-1]
@@ -384,6 +399,7 @@ async def test_the_mail_this_system_sent_is_never_read_as_a_request() -> None:
     """
     uow, mailbox = FakeUnitOfWork(), _Mailbox()
     await _a_run(uow)
+    await _asked(uow)
     await _drafter(uow, mailbox).execute(CTX, _pending(), run_id="run_1")
     threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
     drafted = threads[0].messages[-1]

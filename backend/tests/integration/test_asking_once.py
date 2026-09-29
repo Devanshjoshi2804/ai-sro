@@ -14,7 +14,9 @@ import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
+from sro.application.chat.announce import SayWhatHappened
 from sro.application.chat.converse import Converse, StartThread
+from sro.application.chat.read_threads import ReadThreads
 from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
 from sro.application.knowledge.retrieve import Retrieve
@@ -133,3 +135,44 @@ async def test_the_thread_holding_an_offer_is_found_by_its_message_id(
             )
             is None
         )
+
+
+async def test_a_question_s_chat_is_one_row_apart_from_the_operator_s_own(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    """QA 2026-09-29: a mail's question has a chat of its own. Two writers
+    opening it open one row (its id is derived); it is never `current`; and a
+    run it starts is found by the chat that names it, inside `messages`."""
+    uow = await _held_in(SqlUnitOfWork(session_factory))
+    mine = await StartThread(uow, FakeClock(), UuidFactory()).execute(CTX)
+    asked = {"kind": NEEDS, "workflow_id": JOB, "missing": ["Customer Type"]}
+
+    def say() -> SayWhatHappened:
+        return SayWhatHappened(SqlUnitOfWork(session_factory), FakeClock(), UuidFactory())
+
+    await asyncio.gather(
+        *(
+            say().execute(
+                CTX, for_operator=CTX.principal_id, text="What?", decision=asked, about="t-9"
+            )
+            for _ in range(2)
+        )
+    )
+    await say().execute(
+        CTX,
+        for_operator=CTX.principal_id,
+        text="Running it now.",
+        decision={"kind": "job", "run_id": "run_vet"},
+        about="t-9",
+    )
+
+    chat = await ReadThreads(uow).asking(CTX, "t-9")
+    assert chat is not None and len(chat.messages) == 3
+    assert [one.id for one in await ReadThreads(uow).asked(CTX)] == [chat.id]
+    current = await ReadThreads(uow).current(CTX)
+    assert current is not None and current.id == mine.id
+    async with SqlUnitOfWork(session_factory) as reading:
+        named = await reading.threads.naming(
+            CTX.tenant_id, opened_by=CTX.principal_id, run_id="run_vet"
+        )
+    assert named is not None and named.id == chat.id

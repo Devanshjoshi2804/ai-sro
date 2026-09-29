@@ -10,7 +10,7 @@ from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
-from sro.domain.chat.asking import Pending
+from sro.domain.chat.asking import Pending, pending_job
 from sro.domain.chat.asking_the_asker import draft_for, worth_asking
 from sro.domain.chat.thread import Message, Speaker, ThreadId
 from sro.domain.execution.mail_job import DRAFTED, SENT
@@ -41,7 +41,9 @@ class DraftForTheAsker:
         if run is not None and run.asked_the_asker:
             logger.info("%s: %s has already asked whoever sent it", ctx.tenant_id.value, run_id)
             return False
-        if await self._already_drafted(ctx, conversation):
+        operator = PrincipalId(run.started_by) if run and run.started_by else ctx.principal_id
+        owner = RequestContext(ctx.tenant_id, operator)
+        if await self._already_drafted(owner, conversation):
             logger.info("%s: %s is already drafted for", ctx.tenant_id.value, conversation)
             return False
 
@@ -57,11 +59,10 @@ class DraftForTheAsker:
         subject, body = draft_for(pending, about=about, signed=ctx.principal_id.value)
         await SayWhatHappened(self._uow, self._clock, self._ids).execute(
             ctx,
-            for_operator=PrincipalId(run.started_by)
-            if run and run.started_by
-            else ctx.principal_id,
+            for_operator=operator,
             text=f"I can ask {asked_by}. This is what I would send — read it first.",
             speaker=Speaker.SYSTEM,
+            about=conversation,
             decision={
                 "kind": DRAFTED,
                 "run_id": run_id,
@@ -80,12 +81,10 @@ class DraftForTheAsker:
         )
         return True
 
-    async def _already_drafted(self, ctx: RequestContext, conversation: str) -> bool:
-        found = await ReadThreads(self._uow).current(ctx)
-        if found is None:
+    async def _already_drafted(self, owner: RequestContext, conversation: str) -> bool:
+        thread = await ReadThreads(self._uow).asking(owner, conversation)
+        if thread is None:
             return False
-        async with self._uow as uow:
-            thread = await uow.threads.get(ctx.tenant_id, found.id)
         return any(
             isinstance(message.decision, dict)
             and message.decision.get("kind") == DRAFTED
@@ -132,15 +131,24 @@ class SendTheDraft:
 
     async def execute(self, ctx: RequestContext, thread_id: ThreadId, message_id: str) -> str:
         async with self._uow as uow:
-            thread = await uow.threads.get(ctx.tenant_id, thread_id)
-        draft = _the_draft(thread.messages, message_id)
-        if draft is None:
-            logger.info("%s: no draft to send under %s", ctx.tenant_id.value, message_id)
-            return ""
-
-        if not await self._claim(ctx, message_id):
-            logger.info("%s: the draft %s has already been sent", ctx.tenant_id.value, message_id)
-            return ""
+            thread = await uow.threads.get_for_answer(ctx.tenant_id, thread_id)
+            draft = _the_draft(thread.messages, message_id)
+            if draft is None:
+                logger.info("%s: no draft to send under %s", ctx.tenant_id.value, message_id)
+                return ""
+            if pending_job(thread.messages) is None:
+                logger.info(
+                    "%s: the question the draft %s asks was answered",
+                    ctx.tenant_id.value,
+                    message_id,
+                )
+                return ""
+            if not await self._claim(uow, ctx, message_id):
+                logger.info(
+                    "%s: the draft %s has already been sent", ctx.tenant_id.value, message_id
+                )
+                return ""
+            await uow.commit()
 
         run_id = str(draft.get("run_id") or "")
         async with self._uow as uow:
@@ -183,10 +191,15 @@ class SendTheDraft:
             )
             return ""
 
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
         await self._say(
             ctx,
             thread_id,
-            f"Asked {to}. I will carry on when they reply.",
+            f"Asked {to}. I will carry on when they reply."
+            if pending_job(thread.messages) is not None
+            else f"Asked {to}, but the question was answered here meanwhile, "
+            "so their reply is not needed.",
             run_id,
             message_id,
             to,
@@ -195,16 +208,13 @@ class SendTheDraft:
         logger.info("%s: asked %s about %s", ctx.tenant_id.value, to, run_id)
         return to
 
-    async def _claim(self, ctx: RequestContext, message_id: str) -> bool:
-        async with self._uow as uow:
-            mine = await uow.tool_calls.remember(
-                ctx.tenant_id,
-                f"draft:{message_id}",
-                tool="a mail drafted for whoever asked, sent once",
-                at=self._clock.now(),
-            )
-            await uow.commit()
-        return mine
+    async def _claim(self, uow: UnitOfWork, ctx: RequestContext, message_id: str) -> bool:
+        return await uow.tool_calls.remember(
+            ctx.tenant_id,
+            f"draft:{message_id}",
+            tool="a mail drafted for whoever asked, sent once",
+            at=self._clock.now(),
+        )
 
     async def _say(
         self,

@@ -5,7 +5,7 @@
 
 import { api, ApiError } from "./api.js";
 import { alsoWatch, alwaysWatched, hostOf } from "./always.js";
-import { questionIn } from "./asking.js";
+import { questionAmong } from "./asking.js";
 import { waitBeforeLooking } from "./looking.js";
 import { MAX_SAID, narrate, said } from "./said.js";
 import { serially } from "./serially.js";
@@ -2103,10 +2103,19 @@ async function handle(message, sender) {
     // `never-watch-site`, `revise-run`, `say-to-run`, `look-in-the-mail` and
     // `panel-open` went the same way: nothing sent them.
     case "thread": {
-      const thread = await api.currentThread();
+      // The chat the panel has open when it names one -- a question's own --
+      // else the operator's conversation.
+      const thread = message.threadId
+        ? await api.thread(message.threadId)
+        : await api.currentThread();
       void watchTheRunIn(thread);
       return thread;
     }
+    case "question":
+      // Read now rather than on the beat: the panel is about to take somebody
+      // to it.
+      await lookForAQuestion();
+      return state.question();
     case "new-thread":
       // A conversation somebody deliberately started. `current` answers with
       // the newest, so nothing else has to be told which one to draw.
@@ -2171,9 +2180,11 @@ async function handle(message, sender) {
       // 2026-09-22 at 01:24: the operator typed `no`, the door answered
       // "Dropped Create a Customer Type", and the question they had just
       // dropped was still sitting under it -- a job that no longer existed
-      // asking for a value. The reply already carries the whole thread, so
-      // this costs no request.
-      await holdTheQuestion(said);
+      // asking for a value.
+      //
+      // Off the reply, and across every other chat: a question is asked in a
+      // chat of its own, and an answer in one leaves another's standing.
+      await lookForAQuestion(said);
       // The reply already read the sentence against this tenant's jobs, so the
       // offer is built from what came back rather than from a second reading
       // of the same words. That second reading was a second model call per
@@ -2991,13 +3002,13 @@ async function register(label) {
  * a browser that cannot reach the backend has nothing to say about questions,
  * and a banner drawn from a stale read would be worse than none.
  */
-/** Hold what this thread is waiting on, or nothing.
+/** Hold the newest question these threads are waiting on, or nothing.
  *
  * Written only when it changes, because every write wakes the panel's storage
  * listener and redraws the column.
  */
-async function holdTheQuestion(thread) {
-  const waiting = questionIn(thread);
+async function holdTheQuestion(threads) {
+  const waiting = questionAmong(threads);
   const held = await state.question();
   if ((held?.id || null) !== (waiting?.id || null)) await state.setQuestion(waiting);
   return waiting;
@@ -3085,11 +3096,18 @@ async function lookForMailRuns(now = false) {
   }
 }
 
-async function lookForAQuestion() {
+/** Find the question waiting on this operator, in their conversation or in a
+ * chat a question was asked in. `fresh` is a thread already in hand -- the
+ * reply to what they just said -- and stands in for its older read. */
+async function lookForAQuestion(fresh = null) {
   try {
-    const thread = await api.currentThread();
+    const [thread, asked] = await Promise.all([
+      api.currentThread(),
+      api.askedThreads(),
+    ]);
     void watchTheRunIn(thread);
-    await holdTheQuestion(thread);
+    const read = [thread, ...asked].filter((one) => one?.id !== fresh?.id);
+    await holdTheQuestion(fresh ? [fresh, ...read] : read);
   } catch {
     // Offline, or a backend that has no threads. Leave whatever is held: a
     // question does not stop waiting because a poll failed.

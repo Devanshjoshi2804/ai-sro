@@ -116,6 +116,10 @@ function node(tag) {
     setAttribute(name, value) {
       this[name] = value;
     },
+    // As the DOM's: this node, or any node under it.
+    contains(other) {
+      return this === other || this.kids.some((kid) => kid.contains?.(other));
+    },
   };
 }
 
@@ -241,6 +245,10 @@ function panel(status, here = null, replies = {}) {
           // offerable here, and `{}` reaching `.filter` throws after the
           // assertions have already passed -- which is a green test run and a
           // red exit code.
+          // A function where the answer depends on what was asked -- which
+          // thread, say -- and on when: a fixture can swap it between polls.
+          if (typeof replies[message.kind] === "function")
+            return replies[message.kind](message);
           return message.kind in replies ? replies[message.kind] : [];
         },
         openOptionsPage: () => {},
@@ -332,6 +340,8 @@ function panel(status, here = null, replies = {}) {
     // `refresh()` calling `render(status)` again with nothing changed --
     // separately from whatever else a click already triggered.
     render: sandbox.render,
+    // The conversation's own poll, as the five-second tick fires it.
+    conversation: () => sandbox.conversation(),
     // The nudge and offer press path, as the ledger calls it. Reached here
     // rather than through a rendered card because the thread is drawn from a
     // separate fetch: what is under test is which message a press sends, and
@@ -3887,6 +3897,86 @@ test("the state card is its slim line whenever a louder card is present", () => 
   const state = busy.ids["expanded"].kids[0];
   assert.equal(words(state), "Watching this tab · learning from what you do Stop watching");
   assert.equal(state.dataset.slim, "1");
+});
+
+/** A question and the mail drafted about it, in the chat of their own the
+ * backend asks them in (QA, 2026-09-29: VETCLINIC, a box that holds 4). */
+const ASKED = {
+  id: "m-asked",
+  speaker: "assistant",
+  text: "Customer Type takes 4 characters. What should it be?",
+  said_at: "2026-09-29T10:22:44Z",
+  decision: {
+    kind: "needs_values",
+    workflow_id: "wfl_1",
+    title: "Create a Customer Type",
+    missing: ["Customer Type"],
+    mail_thread: "t-9",
+  },
+};
+const DRAFTED = {
+  id: "m-draft",
+  speaker: "system",
+  text: "I can ask sender@example.com. This is what I would send — read it first.",
+  said_at: "2026-09-29T10:22:45Z",
+  decision: {
+    kind: "mail_draft",
+    run_id: "",
+    to: "sender@example.com",
+    subject: "Re: new customer type - vet clinics",
+    body: "Customer Type needs to be 4 characters or fewer.",
+    thread: "t-9",
+  },
+};
+const sendIt = (ids) =>
+  buttons(ids["said"]).find((one) => /Send it/.test(one.textContent));
+
+test("Answer it opens the question's own chat, with its draft beside it", async () => {
+  const chat = { id: "thr_ask_1", messages: [ASKED, DRAFTED] };
+  const long = { id: "thr-long", messages: [] };
+  const made = panel(
+    {
+      deviceId: "dev-1",
+      question: {
+        id: "m-asked",
+        threadId: "thr_ask_1",
+        title: "Create a Customer Type",
+        text: ASKED.text,
+        missing: ["Customer Type"],
+      },
+    },
+    null,
+    { thread: (asked) => (asked.threadId === "thr_ask_1" ? chat : long) },
+  );
+  await settled();
+  const answer = made.cards
+    .flatMap(buttons)
+    .find((one) => /Answer it/.test(one.textContent));
+  assert.ok(answer, "no Answer it on the card");
+
+  answer.listeners[0]();
+  // The box the press puts the cursor in, before the chat has come back.
+  made.focus({ tagName: "INPUT" });
+  await settled();
+
+  assert.equal(sentOf(made.sent, "thread").at(-1).threadId, "thr_ask_1");
+  assert.match(words(made.ids["said"]), /What should it be\?/);
+  assert.ok(sendIt(made.ids), "the draft was not on screen with its question");
+});
+
+test("a draft written after the last draw appears on the next poll", async () => {
+  // Nothing typed, the cursor in the box: the poll draws what the backend
+  // wrote since, rather than waiting for the operator's next sentence.
+  const replies = { thread: { id: "thr_ask_1", messages: [ASKED] } };
+  const made = panel({ deviceId: "dev-1" }, null, replies);
+  await settled();
+  made.toChat();
+  made.focus({ tagName: "INPUT" });
+  replies.thread = { id: "thr_ask_1", messages: [ASKED, DRAFTED] };
+
+  await made.conversation();
+
+  assert.ok(sendIt(made.ids), "the draft waited for somebody to type");
 });
 
 for (const [name, fn] of tests) {

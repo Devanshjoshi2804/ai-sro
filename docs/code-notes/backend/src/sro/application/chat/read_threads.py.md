@@ -6,7 +6,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/read_thr
 
 > Reading threads. A router never touches a repository.
 
-## `ReadThreads.current`, [line 20](../../../../../../../backend/src/sro/application/chat/read_threads.py#L20): Docstring
+## `ReadThreads.current`, [line 21](../../../../../../../backend/src/sro/application/chat/read_threads.py#L21): Docstring
 
 > This operator's most recently opened thread, or `None` if they have
 > none yet.
@@ -27,3 +27,26 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/read_thr
 > reader that quietly writes on a cache-miss is no longer a reader --
 > the caller (the router) already knows how to start a thread, so the
 > fallback belongs there.
+
+## `ReadThreads.current`, [line 24](../../../../../../../backend/src/sro/application/chat/read_threads.py#L24): Comment
+
+Code: `ctx.tenant_id, opened_by=ctx.principal_id, asking=False, limit=1`
+
+> Never a chat a question was asked in, though it is opened later: the
+> conversation somebody is in is theirs. Were the newest question's chat
+> "current", everything else said to the operator would pile into the chat of
+> whichever mail asked last.
+
+## `ReadThreads.asked`, [line 28](../../../../../../../backend/src/sro/application/chat/read_threads.py#L28): Comment
+
+Code: `async def asked(self, ctx: RequestContext, *, limit: int = 10) -> tuple[Thread, ...]:`
+
+> This operator's chats that each hold one question, newest first -- what
+> the panel reads to put a waiting question on Home.
+
+## `ReadThreads.asking`, [line 34](../../../../../../../backend/src/sro/application/chat/read_threads.py#L34): Comment
+
+Code: `async def asking(self, ctx: RequestContext, about: str) -> Thread | None:`
+
+> The chat a question about `about` (a mail conversation, or a run with
+> none) was asked in, if one was. A reader: opening it is `SayWhatHappened`'s.

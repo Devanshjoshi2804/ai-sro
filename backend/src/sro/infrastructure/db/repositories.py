@@ -41,7 +41,7 @@ from sro.application.ports.repositories import (
     TriggerRepository,
     UnitOfWork,
 )
-from sro.domain.chat.thread import Thread, ThreadId
+from sro.domain.chat.thread import K_ASKING, Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
 from sro.domain.execution.account import K_LEASE_TTL, LIVE, Account, Lease, LeaseState
 from sro.domain.execution.model_call import ModelCall
@@ -487,6 +487,20 @@ class SqlThreadRepository(ThreadRepository):
         self._session.add(thread_to_row(thread))
         thread.saved()
 
+    async def open(self, thread: Thread) -> None:
+        await self._session.execute(
+            pg_insert(ThreadRow)
+            .values(
+                id=thread.id.value,
+                tenant_id=thread.tenant_id.value,
+                opened_by=thread.opened_by.value,
+                opened_at=thread.opened_at,
+                messages=dump_messages(thread.messages),
+            )
+            .on_conflict_do_nothing(index_elements=[ThreadRow.id])
+        )
+        thread.saved()
+
     async def get(self, tenant_id: TenantId, thread_id: ThreadId) -> Thread:
         return row_to_thread(await self._row(tenant_id, thread_id))
 
@@ -510,15 +524,35 @@ class SqlThreadRepository(ThreadRepository):
         tenant_id: TenantId,
         *,
         opened_by: PrincipalId | None = None,
+        asking: bool | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[Thread, ...]:
         query = select(ThreadRow).where(ThreadRow.tenant_id == tenant_id.value)
         if opened_by is not None:
             query = query.where(ThreadRow.opened_by == opened_by.value)
+        if asking is not None:
+            asks = ThreadRow.id.startswith(K_ASKING, autoescape=True)
+            query = query.where(asks if asking else ~asks)
         query = query.order_by(ThreadRow.opened_at.desc()).limit(limit).offset(offset)
         rows = (await self._session.execute(query)).scalars().all()
         return tuple(row_to_thread(row) for row in rows)
+
+    async def naming(
+        self, tenant_id: TenantId, *, opened_by: PrincipalId, run_id: str
+    ) -> Thread | None:
+        query = (
+            select(ThreadRow)
+            .where(
+                ThreadRow.tenant_id == tenant_id.value,
+                ThreadRow.opened_by == opened_by.value,
+                ThreadRow.messages.contains([{"decision": {"run_id": run_id}}]),
+            )
+            .order_by(ThreadRow.opened_at.desc())
+            .limit(1)
+        )
+        row = (await self._session.execute(query)).scalar_one_or_none()
+        return row_to_thread(row) if row is not None else None
 
     async def holding(
         self, tenant_id: TenantId, *, opened_by: PrincipalId, message_id: str

@@ -84,7 +84,7 @@ from sro.application.ports.vision import (
     VisionUnavailable,
 )
 from sro.domain.chat.reading import ChatReading
-from sro.domain.chat.thread import MessageId, Thread, ThreadId
+from sro.domain.chat.thread import K_ASKING, MessageId, Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
 from sro.domain.execution.account import K_LEASE_TTL, LIVE, Account, Lease, LeaseState
 from sro.domain.execution.belts import RunProof, state_verified
@@ -920,6 +920,10 @@ class FakeThreadRepository:
         self.rows[(str(thread.tenant_id), str(thread.id))] = _copied(thread)
         thread.saved()
 
+    async def open(self, thread: Thread) -> None:
+        self.rows.setdefault((str(thread.tenant_id), str(thread.id)), _copied(thread))
+        thread.saved()
+
     async def get_for_answer(self, tenant_id: TenantId, thread_id: ThreadId) -> Thread:
         return await self.get(tenant_id, thread_id)
 
@@ -945,16 +949,32 @@ class FakeThreadRepository:
         tenant_id: TenantId,
         *,
         opened_by: PrincipalId | None = None,
+        asking: bool | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[Thread, ...]:
         rows = [
             t
             for (tenant, _), t in self.rows.items()
-            if tenant == str(tenant_id) and (opened_by is None or t.opened_by == opened_by)
+            if tenant == str(tenant_id)
+            and (opened_by is None or t.opened_by == opened_by)
+            and (asking is None or t.id.value.startswith(K_ASKING) == asking)
         ]
         rows.sort(key=lambda thread: thread.opened_at, reverse=True)
         return tuple(_copied(one) for one in rows[offset : offset + limit])
+
+    async def naming(
+        self, tenant_id: TenantId, *, opened_by: PrincipalId, run_id: str
+    ) -> Thread | None:
+        named = await self.list_for_tenant(tenant_id, opened_by=opened_by, limit=len(self.rows))
+        return next(
+            (
+                one
+                for one in named
+                if any((said.decision or {}).get("run_id") == run_id for said in one.messages)
+            ),
+            None,
+        )
 
     async def holding(
         self, tenant_id: TenantId, *, opened_by: PrincipalId, message_id: str

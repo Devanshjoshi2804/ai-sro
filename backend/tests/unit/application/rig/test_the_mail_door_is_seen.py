@@ -310,7 +310,7 @@ async def test_a_chat_yes_on_a_mail_whose_run_already_started_answers_that_run()
     )
     await world.start.start_on_steel(CTX, pressed)
     converse = _chat(world, _two_mails(), _Reads(), _check_mail())
-    thread = await ReadThreads(world.uow).current(CTX)
+    thread = await ReadThreads(world.uow).asking(CTX, str(asked["mail_thread"]))
     assert thread is not None
 
     said = await converse.execute(CTX, thread_id=thread.id, text="yes")

@@ -63,6 +63,21 @@ async def current_thread(container: ContainerDep, ctx: ContextDep) -> ThreadDeta
     return ThreadDetail.of_thread(thread)
 
 
+@router.get("/asking")
+async def asking_threads(container: ContainerDep, ctx: ContextDep) -> list[ThreadDetail]:
+    """The chats this operator was asked a question in, newest first, whole.
+
+    A question -- from a mail, or from a run that came up short -- is asked in
+    a chat of its own, with the mail drafted to its sender beside it and the
+    run its answer starts reporting there. None of them is `current`: that is
+    the operator's own conversation. The panel reads these to put a waiting
+    question on Home and to open its chat when "Answer it" is pressed.
+
+    Declared before `/{thread_id}` for the reason `current` is.
+    """
+    return [ThreadDetail.of_thread(one) for one in await container.read_threads().asked(ctx)]
+
+
 @router.post(
     "/{thread_id}/runs",
     status_code=status.HTTP_201_CREATED,

@@ -1587,6 +1587,66 @@ test("nothing in flight draws no sentence and no spinner", () => {
   assert.equal(drawn.length, 0);
 });
 
+/** The question a draft is written under, as the backend writes it: the
+ * draft is only ever said after it, in the same chat. */
+const ASKED = {
+  id: "m-asked",
+  speaker: "assistant",
+  text: "Customer Type takes 4 characters. What should it be?",
+  said_at: "2026-09-18T12:59:00Z",
+  decision: {
+    kind: "needs_values",
+    workflow_id: "wfl_1",
+    title: "Create a Customer Type",
+    missing: ["Customer Type"],
+    mail_thread: "t-9",
+  },
+};
+
+test("a draft whose question was answered offers nothing to send", () => {
+  // QA 2026-09-29: the operator typed VETC and the draft under it still
+  // offered Send it; the PHARM26 one was pressed, and asked the sender for a
+  // value already given.
+  const item = messages(
+    ledger(
+      {
+        id: "thr_ask_1",
+        messages: [
+          ASKED,
+          {
+            id: "m-draft",
+            speaker: "system",
+            text: "I can ask tanisha@example.com. This is what I would send — read it first.",
+            said_at: "2026-09-18T13:00:00Z",
+            decision: {
+              kind: "mail_draft",
+              run_id: "",
+              to: "tanisha@example.com",
+              subject: "Re: it",
+              body: "the words",
+              thread: "t-9",
+            },
+          },
+          { id: "m-op", speaker: "operator", text: "VETC", said_at: "2026-09-18T13:02:00Z" },
+          {
+            id: "m-run",
+            speaker: "assistant",
+            text: "Running Create a Customer Type now.",
+            said_at: "2026-09-18T13:02:00Z",
+            decision: { kind: "job", workflow_id: "wfl_1", run_id: "run_1", resume: true },
+          },
+        ],
+      },
+      {},
+      { onPress: () => {} },
+    ),
+  )[1];
+
+  assert.equal(labelled(item, /Send it/), undefined, "Send it outlived its question");
+  assert.equal(item.dataset.answered, "answered");
+  assert.doesNotMatch(words(item), /the words/);
+});
+
 test("a drafted mail is shown whole, with the press under it", () => {
   // The one thing this system writes that leaves the company, over the
   // operator's name, to somebody outside every system here -- and it cannot be
@@ -1599,6 +1659,7 @@ test("a drafted mail is shown whole, with the press under it", () => {
       {
         id: "thr-1",
         messages: [
+          ASKED,
           {
             id: "m-draft",
             speaker: "system",
@@ -1617,7 +1678,7 @@ test("a drafted mail is shown whole, with the press under it", () => {
       {},
       { onPress: (...args) => pressed.push(args) },
     ),
-  )[0];
+  )[1];
 
   const said = words(item);
   assert.match(said, /To tanisha@example\.com/);

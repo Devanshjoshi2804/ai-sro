@@ -11,14 +11,14 @@ Comments and docstrings moved out of [`backend/src/sro/domain/chat/thread.py`](.
 > first thing anybody reads after an incident. So messages are append-only and
 > carry the decision that produced them, not just prose.
 
-## `Speaker`, [line 20](../../../../../../../backend/src/sro/domain/chat/thread.py#L20): Note on the line above
+## `Speaker`, [line 29](../../../../../../../backend/src/sro/domain/chat/thread.py#L29): Note on the line above
 
 Code: `SYSTEM = "system"`
 
 > Things that happened rather than things anybody said: a run finished, a
 > skill was induced.
 
-## `Said`, [line 23](../../../../../../../backend/src/sro/domain/chat/thread.py#L23): Docstring
+## `Said`, [line 32](../../../../../../../backend/src/sro/domain/chat/thread.py#L32): Docstring
 
 > What a message's ``decision["kind"]`` may be.
 >
@@ -34,50 +34,50 @@ Code: `SYSTEM = "system"`
 > and no buttons in that case: a backend must be able to add a kind without
 > every browser in the field going dark first.
 
-## `Said`, [line 24](../../../../../../../backend/src/sro/domain/chat/thread.py#L24): Note on the line above
+## `Said`, [line 33](../../../../../../../backend/src/sro/domain/chat/thread.py#L33): Note on the line above
 
 Code: `OFFER = "offer"`
 
 > A task done often enough to be worth doing for somebody.
 
-## `Said`, [line 26](../../../../../../../backend/src/sro/domain/chat/thread.py#L26): Note on the line above
+## `Said`, [line 35](../../../../../../../backend/src/sro/domain/chat/thread.py#L35): Note on the line above
 
 Code: `MAIL_MATCH = "mail_match"`
 
 > A watched mailbox recognised a task. Names only -- what was read out of
 > the mail stays in the browser that read it.
 
-## `Said`, [line 28](../../../../../../../backend/src/sro/domain/chat/thread.py#L28): Note on the line above
+## `Said`, [line 37](../../../../../../../backend/src/sro/domain/chat/thread.py#L37): Note on the line above
 
 Code: `NOTE = "note"`
 
 > Something said to a run while it is happening, rather than a request.
 
-## `Said`, [line 30](../../../../../../../backend/src/sro/domain/chat/thread.py#L30): Note on the line above
+## `Said`, [line 39](../../../../../../../backend/src/sro/domain/chat/thread.py#L39): Note on the line above
 
 Code: `RUN = "run"`
 
 > A run, from the moment it starts. The message the steps land against.
 
-## `Said`, [line 32](../../../../../../../backend/src/sro/domain/chat/thread.py#L32): Note on the line above
+## `Said`, [line 41](../../../../../../../backend/src/sro/domain/chat/thread.py#L41): Note on the line above
 
 Code: `RESULT = "result"`
 
 > What a finished run made.
 
-## `Said`, [line 34](../../../../../../../backend/src/sro/domain/chat/thread.py#L34): Note on the line above
+## `Said`, [line 43](../../../../../../../backend/src/sro/domain/chat/thread.py#L43): Note on the line above
 
 Code: `QUESTION = "question"`
 
 > A run stopped and needs a person to decide.
 
-## `Said`, [line 36](../../../../../../../backend/src/sro/domain/chat/thread.py#L36): Note on the line above
+## `Said`, [line 45](../../../../../../../backend/src/sro/domain/chat/thread.py#L45): Note on the line above
 
 Code: `FAILURE = "failure"`
 
 > A run that could not go on, and the one thing that would help.
 
-## `Message`, [line 48](../../../../../../../backend/src/sro/domain/chat/thread.py#L48): Note on the line above
+## `Message`, [line 57](../../../../../../../backend/src/sro/domain/chat/thread.py#L57): Note on the line above
 
 Code: `decision: dict[str, object] = field(default_factory=dict)`
 
@@ -86,7 +86,7 @@ Code: `decision: dict[str, object] = field(default_factory=dict)`
 > Kept structured as well as in prose because "why did it do that" is
 > answered by the resolution, not by the sentence that reported it.
 
-## `Thread.title`, [line 75](../../../../../../../backend/src/sro/domain/chat/thread.py#L75): Docstring
+## `Thread.title`, [line 84](../../../../../../../backend/src/sro/domain/chat/thread.py#L84): Docstring
 
 > What this conversation was about, and what came of it.
 >
@@ -95,18 +95,34 @@ Code: `decision: dict[str, object] = field(default_factory=dict)`
 > other. What tells them apart is what was done in them, so the last task
 > that actually ran is added when there was one.
 
-## `Thread._what_was_done`, [line 80](../../../../../../../backend/src/sro/domain/chat/thread.py#L80): Docstring
+## `Thread._what_was_done`, [line 89](../../../../../../../backend/src/sro/domain/chat/thread.py#L89): Docstring
 
 > The last thing this conversation actually performed, if anything.
 
-## `Thread.say`, [line 88](../../../../../../../backend/src/sro/domain/chat/thread.py#L88): Docstring
+## `Thread.say`, [line 97](../../../../../../../backend/src/sro/domain/chat/thread.py#L97): Docstring
 
 > Append. Nothing in a thread is ever edited or removed.
 
-## `Thread.unsaved`, [line 93](../../../../../../../backend/src/sro/domain/chat/thread.py#L93): Note
+## `Thread.unsaved`, [line 102](../../../../../../../backend/src/sro/domain/chat/thread.py#L102): Note
 
 Code: `return tuple(self._messages[self._kept :])`
 
 > What this copy said since it was read or last saved: the part a save
 > appends. The store adds only these, so two copies of one thread never
 > overwrite each other.
+
+## `asking_about`, [line 18](../../../../../../../backend/src/sro/domain/chat/thread.py#L18): Comment
+
+Code: `def asking_about(tenant_id: TenantId, opened_by: PrincipalId, about: str) -> ThreadId:`
+
+> The one chat a question is asked in: about a mail conversation, or
+> about a run that has none. Derived from the tenant, the operator and what it
+> is about, so asking twice is the same chat and two writers racing to open it
+> open one -- the primary key is the uniqueness, and no migration was needed
+> for it.
+>
+> Why a chat of its own (QA, 2026-09-29): the question, the mail drafted to
+> whoever asked and the operator's answer were written at the end of one long
+> thread under every earlier job. "Answer it" scrolled there, the draft arrived
+> beside nothing, and the whole exchange was buried. `K_ASKING` is the id
+> prefix that tells these chats from an operator's own conversation.

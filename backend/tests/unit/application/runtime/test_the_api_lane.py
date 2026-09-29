@@ -6,7 +6,10 @@ import pytest
 
 from sro.application.runtime.api_lane import K_AUTH_REFUSED, ApiLane
 from sro.domain.execution.lanes import Lane
+from sro.domain.execution.verified_writes import VerifiedWrite
+from sro.domain.observation.gesture import Action, Call, Gesture, Target
 from sro.domain.shared.hosts import REDACTED
+from sro.domain.skill.workflow import Step
 from sro.infrastructure.http.httpx_caller import HttpxCaller
 from tests.unit.fakes import FakeHttpCaller, FakePageDriver
 from tests.unit.runtime_support import (
@@ -473,3 +476,60 @@ async def test_a_replay_with_an_absent_optional_value_sends_no_key_for_it() -> N
     (sent,) = http.sent
     assert json.loads(str(sent["body"])) == {"name": "GT2"}
     assert "north" not in str(sent) and "south" not in str(sent)
+
+
+def _deleting() -> tuple[Step, dict[str, Gesture], tuple[VerifiedWrite, ...]]:
+    by_id = {
+        f"ges_del_{name}": Gesture(
+            id=f"ges_del_{name}",
+            tenant="acme",
+            stream_id="stream-1",
+            batch_id="batch-1",
+            at=float(n + 1),
+            url="https://wms.example/app",
+            system="https://wms.example",
+            tab_id=1,
+            frame_url=None,
+            action=Action(kind="click", at=float(n + 1), target=Target(role="button", name="OK")),
+            requests=[
+                Call(
+                    method="DELETE",
+                    url=f"{WRITE}/{name}",
+                    status=204,
+                    started_at=float(n + 1),
+                    request_headers={"Content-Type": "application/json"},
+                )
+            ],
+        )
+        for n, name in enumerate(("GT0", "GT1"))
+    }
+    step = Step(order=0, says="Delete it", system="https://wms.example", cites=list(by_id))
+    return step, by_id, (VerifiedWrite("DELETE", "/api/customer-types/{id}"),)
+
+
+@pytest.mark.parametrize(("read_back", "verdict"), [(404, "done"), (200, "unknown")])
+async def test_a_delete_is_done_when_its_record_no_longer_answers(
+    read_back: int, verdict: str
+) -> None:
+    """Greyorange, 2026-09-29: the Undo of SR10 sent its DELETE by the proven
+    call, and the run said nothing confirmed it -- the read-back looked for the
+    values written, which a delete never leaves. A delete is confirmed by its
+    record's own address answering that it is gone."""
+    step, by_id, ledger = _deleting()
+    job = replace(
+        lane_context(by_id).workflow,
+        parameters=[{"name": "Customer Type", "seen_values": ["GT0", "GT1"]}],
+    )
+    http = FakeHttpCaller()
+    http.answer(204)
+    http.answer(read_back, "{}")
+
+    result = await ApiLane(headers_broker({}, http=http)).execute(
+        step, RUN, lane_context(by_id, ledger=ledger, workflow=job)
+    )
+
+    assert result.verdict == verdict
+    assert [(one["method"], str(one["url"]).split("?")[0]) for one in http.sent] == [
+        ("DELETE", f"{WRITE}/GT2"),
+        ("GET", f"{WRITE}/GT2"),
+    ]

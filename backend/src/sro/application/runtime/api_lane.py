@@ -33,6 +33,9 @@ K_AUTH_REFUSED = frozenset({401, 403, 419})
 K_REPRESENTATION = frozenset({"content-type", "accept"})
 
 
+_GONE = frozenset({404, 410})
+
+
 class ApiLane:
     lane = Lane.API
 
@@ -118,6 +121,24 @@ class ApiLane:
         made = made_by({"status": status, "body": answered.text})
         if verdict != "done":
             return StepResult("unknown", Lane.API, f"the system answered {status}", read=made)
+        if method.upper() == "DELETE":
+            # A delete leaves no values to read back: its record's own address
+            # answering that it is gone is what confirms it.
+            try:
+                after = await self._broker.send(ctx.ctx, held, "GET", url, headers=headers)
+            except (Stopped, asyncio.CancelledError):
+                raise
+            except Exception as lost:
+                return StepResult(
+                    "unknown", Lane.API, f"the read-back was lost: {type(lost).__name__}", read=made
+                )
+            if after.status_code in _GONE:
+                return StepResult("done", Lane.API, "a read-back finds the record gone", read=made)
+            return StepResult(
+                "unknown",
+                Lane.API,
+                f"the record still answers {after.status_code} after the delete",
+            )
         try:
             confirmed = await self._confirmed(step, planned, ctx, held, fresh=False)
         except (Stopped, asyncio.CancelledError):
@@ -155,7 +176,7 @@ class ApiLane:
             return False
         if _origin(probe.url) != _origin(str(planned.payload["url"])):
             return False
-        url = _aimed(probe.url, planned, seen_values(ctx.workflow))
+        url = _aimed(probe.url, planned, seen_values(ctx.workflow, ctx.by_id))
         if url is None:
             return False
         headers = await session_headers(
@@ -214,7 +235,7 @@ def replay_of(step: Step, values: Mapping[str, str], ctx: LaneContext) -> Planne
         cited=[ctx.by_id[one] for one in step.cites if one in ctx.by_id],
         values=values,
         verified_writes=ctx.ledger,
-        seen=seen_values(ctx.workflow),
+        seen=seen_values(ctx.workflow, ctx.by_id),
         learned=learned_slots(ctx.workflow, step),
     )
 

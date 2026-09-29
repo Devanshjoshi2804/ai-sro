@@ -6,13 +6,15 @@ from dataclasses import dataclass, replace
 from types import MappingProxyType
 from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
-from sro.domain.execution.evidence import READ_METHODS, recorded_call
+from sro.domain.execution.evidence import READ_METHODS, control_names, recorded_call
 from sro.domain.execution.planning import unreplayable
 from sro.domain.execution.secrets import needs_a_secret
 from sro.domain.execution.verified_writes import VerifiedWrite, verified_write_for
 from sro.domain.observation.gesture import Call, Gesture
+from sro.domain.observation.trim import is_secret
 from sro.domain.shared.hosts import system_of
-from sro.domain.skill.workflow import Step, Workflow
+from sro.domain.skill.learned import called
+from sro.domain.skill.workflow import Step, Workflow, cited_ids
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,7 +29,9 @@ class WritePlan:
     entry: VerifiedWrite
 
 
-def seen_values(workflow: Workflow) -> dict[str, frozenset[str]]:
+def seen_values(
+    workflow: Workflow, by_id: Mapping[str, Gesture] | None = None
+) -> dict[str, frozenset[str]]:
     found: dict[str, frozenset[str]] = {}
     for parameter in workflow.parameters:
         name = parameter.get("name")
@@ -39,6 +43,27 @@ def seen_values(workflow: Workflow) -> dict[str, frozenset[str]]:
             # One value mined under two parameters of one name (a search box and
             # a form field) is one value: every value either saw.
             found[name] = found.get(name, frozenset()) | values
+    if by_id is not None:
+        # What the recording typed into a parameter's control is a value it was
+        # seen with, whatever mining wrote down: greyorange's transport job typed
+        # AISR, AISF and AUSII and mining kept two, so its save never read as its.
+        labels = {
+            one.strip(): str(parameter["name"])
+            for parameter in workflow.parameters
+            if isinstance(parameter.get("name"), str)
+            for one in called(parameter)
+        }
+        for cited in cited_ids(workflow):
+            gesture = by_id.get(cited)
+            if gesture is None or gesture.action.kind not in ("type", "select"):
+                continue
+            value = (gesture.action.value or "").strip()
+            owner = next(
+                (labels[one.strip()] for one in control_names(gesture) if one.strip() in labels),
+                None,
+            )
+            if value and owner and not is_secret(gesture):
+                found[owner] = found.get(owner, frozenset()) | {value}
     return found
 
 
@@ -389,7 +414,7 @@ def _path_plan(
 def demonstrated_writes(
     workflow: Workflow, by_id: Mapping[str, Gesture]
 ) -> tuple[VerifiedWrite, ...]:
-    seen = seen_values(workflow)
+    seen = seen_values(workflow, by_id)
     found: list[VerifiedWrite] = []
     for step in workflow.steps:
         call = recorded_call(step, by_id)

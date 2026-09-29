@@ -1319,3 +1319,48 @@ def test_a_delete_that_carries_its_record_is_addressed_by_the_value_in_path_and_
     assert plan.url.split("?")[0].endswith(f"{PATH}/SR10")
     body = json.loads(plan.body or "{}")
     assert (body["customerType"], body["resourceId"]) == ("SR10", "SR10")
+
+
+def test_a_value_typed_into_a_parameters_control_is_a_value_it_was_seen_with() -> None:
+    """Greyorange, 2026-09-29: Create a Transport Equipment Type typed AISR,
+    AISF and AUSII into its Equipment box, but mining wrote seen values AISR
+    and AUSII -- the saved AISF was missing, so the save's codeValue did not
+    read as Equipment and the proven POST was never planned; every run filled
+    the form by hand. What the recording typed into the control is what the
+    parameter was seen with."""
+
+    def typed(gid: str, value: str) -> Gesture:
+        return Gesture(
+            id=gid,
+            tenant="greyorange",
+            stream_id="s",
+            batch_id="b",
+            at=1.0,
+            url=f"{HOST}/portal",
+            system=HOST,
+            tab_id=1,
+            frame_url=None,
+            action=Action(
+                kind="type", at=1.0, value=value, target=Target(tag="input", name="Equipment*")
+            ),
+        )
+
+    by_id = {"t1": typed("t1", "AISR"), "t2": typed("t2", "AISF")}
+    job = Workflow(
+        id="wfl_t",
+        tenant="greyorange",
+        title="Create a Transport Equipment Type",
+        narrative="n",
+        steps=[Step(order=1, says="Enter Equipment code", system=HOST, cites=["t1", "t2"])],
+        parameters=[
+            {
+                "name": "Equipment",
+                "key": "trailerType",
+                "names": ["Equipment", "Equipment*"],
+                "seen_values": ["AISR"],
+            },
+        ],
+    )
+
+    assert seen_values(job, by_id) == {"Equipment": frozenset({"AISR", "AISF"})}
+    assert seen_values(job) == {"Equipment": frozenset({"AISR"})}

@@ -18,7 +18,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/api_l
 > a token) comes from this account's own context through the broker, never
 > from the account that was recorded.
 
-## `ApiLane`, [line 36](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L36): Docstring
+## `ApiLane`, [line 39](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L39): Docstring
 
 > Replays a write the ledger has watched succeed (`replay_without_asking`)
 > through httpx, with the broker's live cookie and token headers for this
@@ -27,14 +27,14 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/api_l
 > and an exception is reported by its class alone: an httpx or h11 message can
 > quote the header value it refused.
 
-## `ApiLane.execute`, [line 42](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L42): Comment
+## `ApiLane.execute`, [line 45](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L45): Comment
 
 > The broker is asked to wait (within its bound) for every token the
 > recorded write carried; a token the live session still does not have is
 > refused before anything is sent (`never_left`): the call would only be
 > refused, and nothing has left, so another lane may take the step.
 
-## `ApiLane.execute`, [line 42](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L42): Comment
+## `ApiLane.execute`, [line 45](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L45): Comment
 
 > `never_left` is decided by phase, not by the kind of exception. The request
 > is checked whole before `about_to_write`: an absolute http(s) URL, and
@@ -43,7 +43,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/api_l
 > a request the system received and applied, so the write is `unknown`, never
 > failed, and no lane repeats it blindly (§6.2).
 
-## `ApiLane.execute`, [line 42](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L42): Comment
+## `ApiLane.execute`, [line 45](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L45): Comment
 
 > A redirect off the system's host (or a sign-in form in place of an answer),
 > by the same structural test `CheckSession` uses, means the session is gone.
@@ -51,7 +51,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/api_l
 > a success is common), so it is `unknown` and `expired`: the executor signs
 > in again and settles it by `read_back`, never by sending it again.
 
-## `ApiLane.execute`, [line 42](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L42): Comment
+## `ApiLane.execute`, [line 45](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L45): Comment
 
 > The lane sends one call, so the answer is the write's own call; the ruling
 > that a write is done only by its own call holds by construction.
@@ -61,14 +61,14 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/api_l
 > rejection. The recorded call is compared at the URL actually sent, because
 > a path-addressed write names this run's record, not the recorded one.
 
-## `ApiLane.execute`, [line 42](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L42): Comment
+## `ApiLane.execute`, [line 45](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L45): Comment
 
 > A 2xx is not proof (§6.2; parent spec §4.3 "Unconfirmed write"): the step is
 > `done` only when the recorded confirming read, sent after the write, shows
 > the record written. Without one, or when it does not show it, the write is
 > `unknown` and the run settles it later with `read_back` or asks.
 
-## `ApiLane.execute`, [line 62](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L62): Note
+## `ApiLane.execute`, [line 65](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L65): Note
 
 Code: `if missing:`
 
@@ -79,7 +79,7 @@ Code: `if missing:`
 > person answers `AccountBusy` and the run queues -- and retries with
 > fresh headers.
 
-## `ApiLane._confirmed`, [line 150](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L150): Comment
+## `ApiLane._confirmed`, [line 171](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L171): Comment
 
 > One check for `execute` and `read_back`. The confirming read goes only to
 > the write's own origin (a GET recorded after the write may be analytics or
@@ -89,7 +89,7 @@ Code: `if missing:`
 > string is not the record this run wrote. A write with no filled slots is
 > never confirmed by a read-back.
 
-## `_aimed`, [line 259](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L259): Comment
+## `_aimed`, [line 280](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L280): Comment
 
 > The recorded read names the recorded record. A path segment equal to a value
 > the recording saw for a filled parameter is replaced by this run's value. A
@@ -97,7 +97,7 @@ Code: `if missing:`
 > query) cannot be re-aimed safely, so no read is sent and the write stays
 > `unknown`.
 
-## `ApiLane.execute`, [line 90](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L90): Note
+## `ApiLane.execute`, [line 93](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L93): Note
 
 Code: `if status in K_AUTH_REFUSED and ctx.reauthed:`
 
@@ -107,7 +107,7 @@ Code: `if status in K_AUTH_REFUSED and ctx.reauthed:`
 > the lane's own failure, with a fingerprint, and the step joins the
 > known-broken list instead of signing in again on every run.
 
-## `session_headers`, [line 186](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L186): Note on the line above
+## `session_headers`, [line 207](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L207): Note on the line above
 
 Code: `async def session_headers(`
 
@@ -117,7 +117,7 @@ Code: `async def session_headers(`
 > session did not answer itself. `wait_s` is how long the broker may wait for
 > the headers `needs` names; a caller with a budget passes what is left of it.
 
-## `needs_of`, [line 176](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L176): Note on the line above
+## `needs_of`, [line 197](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L197): Note on the line above
 
 Code: `def needs_of(recorded: Mapping[str, str]) -> list[str]:`
 
@@ -129,7 +129,7 @@ Code: `def needs_of(recorded: Mapping[str, str]) -> list[str]:`
 > read-back (so a read-back after `fresh=True` waits for its CSRF token rather
 > than answering from an empty since-mark log), and lookups.
 
-## `confirmed_keys`, [line 222](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L222): Function
+## `confirmed_keys`, [line 243](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L243): Function
 
 > The learned fields this write's read-back confirmed, as `StepResult.keyed`
 > reads (`{parameter: body_key}`), so `_settle_fields` holds them and a run

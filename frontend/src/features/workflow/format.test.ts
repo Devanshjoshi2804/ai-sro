@@ -30,9 +30,9 @@ describe("became", () => {
   it("pluralises more than one", () => {
     expect(became({ total: 3, held: 2, stale: 0, earned: false })).toBe("3 runs · 2 held");
   });
-  it("says writes unasked once the job has earned it", () => {
+  it("says proven once the job has earned it", () => {
     expect(became({ total: 3, held: 2, stale: 0, earned: true })).toBe(
-      "3 runs · 2 held · writes unasked",
+      "3 runs · 2 held · proven",
     );
   });
   it("warns that the page is moving under the job", () => {

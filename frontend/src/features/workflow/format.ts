@@ -24,7 +24,7 @@ export function became(runs: {
 }): string {
   if (!runs.total) return "never run";
   const parts = [`${runs.total} run${runs.total === 1 ? "" : "s"}`, `${runs.held} held`];
-  if (runs.earned) parts.push("writes unasked");
+  if (runs.earned) parts.push("proven");
   if (runs.stale) parts.push(`${runs.stale} step${runs.stale === 1 ? "" : "s"} matched weakly`);
   return parts.join(" · ");
 }

@@ -214,6 +214,72 @@ def test_the_page_a_job_begins_on_keeps_the_screen_its_fragment_names() -> None:
     assert shape.starts_on == f"{by}/portal#{screen}"
 
 
+def _led_by_a_tab_click(on: str, rest_on: str) -> tuple[Workflow, dict[str, Gesture]]:
+    """The job, with a first step that clicks a tab on `on` and the rest of it
+    done on `rest_on` -- the shape of `Create a Customer Type` as the QA
+    tenant's miner recorded it on 2026-09-29."""
+    by_id = _evidence()
+    for one in by_id.values():
+        one.page_url = rest_on
+        one.system = BY
+    earliest = min(one.at for one in by_id.values())
+    tab = replace(
+        _saver(by_id),
+        id="ges_tab",
+        at=earliest - 5,
+        page_url=on,
+        action=replace(
+            _saver(by_id).action,
+            at=earliest - 5,
+            target=Target(tag="div", component=Component(item_id="tabItem")),
+        ),
+    )
+    by_id[tab.id] = tab
+    workflow = _workflow(by_id)
+    workflow.steps.insert(0, Step(order=-1, says="open the tab", system=None, cites=[tab.id]))
+    return workflow, by_id
+
+
+def test_a_job_begins_where_its_work_is_not_on_the_screen_its_first_click_left() -> None:
+    """QA 2026-09-29: the recording of `Create a Customer Type` opens with the
+    Customer Types tab, clicked while its maker stood on Transport Equipment,
+    so that screen was served as where the job begins. Arriving on Customer
+    Types -- where every other gesture of it was made -- offered the one other
+    job that starts there, `Delete a Customer Type`, to somebody pressing Add."""
+    route = "wm.config/wm.config.equipment.equipment.transportequipmenttype"
+    transport = f"{BY}/portal?siteId=SG#{route}////"
+    workflow, by_id = _led_by_a_tab_click(on=transport, rest_on=CUSTOMER_TYPES)
+
+    shape = _served(workflow, by_id)
+
+    assert shape is not None
+    assert shape.starts_on == f"{BY}/portal#wm.config/wm.config.partners.customers.types"
+    assert shape.shape[0][0].endswith("transportequipmenttype"), "the walk itself is untouched"
+
+
+def test_a_first_click_on_the_screen_the_work_is_on_is_where_it_begins() -> None:
+    workflow, by_id = _led_by_a_tab_click(on=CUSTOMER_TYPES, rest_on=CUSTOMER_TYPES)
+
+    shape = _served(workflow, by_id)
+
+    assert shape is not None
+    assert shape.starts_on == f"{BY}/portal#wm.config/wm.config.partners.customers.types"
+
+
+def test_a_job_read_in_one_system_and_done_in_another_begins_where_it_was_read() -> None:
+    """Leaving a system is not a navigation within it: a request read in a
+    mailbox and done in the warehouse begins in the mailbox."""
+    workflow, by_id = _led_by_a_tab_click(
+        on="https://mail.google.com/mail/u/0/#inbox", rest_on=CUSTOMER_TYPES
+    )
+    by_id["ges_tab"].system = "https://mail.google.com"
+
+    shape = _served(workflow, by_id)
+
+    assert shape is not None
+    assert shape.starts_on == "https://mail.google.com/mail/u/0"
+
+
 BY = "https://bf56-kms-wms-web-np2.jdadelivers.com"
 CUSTOMER_TYPES = f"{BY}/portal?siteId=SG#wm.config/wm.config.partners.customers.types////"
 FIXTURES = Path(__file__).resolve().parents[5] / "new-chrome-extension/fixtures"

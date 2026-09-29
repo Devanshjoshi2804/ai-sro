@@ -146,13 +146,13 @@ Code: `quiet_until: str | None = None`
 >
 > Zero for a tail that matched nothing, which is a run from the top.
 
-## `shape_of`, [line 106](../../../../../../../backend/src/sro/domain/skill/shape.py#L106): Docstring
+## `shape_of`, [line 126](../../../../../../../backend/src/sro/domain/skill/shape.py#L126): Docstring
 
 > One workflow as the extension needs it, or None when it cannot be
 > served: nothing cited, a start its own evidence never names, or too short a
 > walk to ever be offered.
 
-## `where_steps_moved`, [line 142](../../../../../../../backend/src/sro/domain/skill/shape.py#L142): Docstring
+## `where_steps_moved`, [line 162](../../../../../../../backend/src/sro/domain/skill/shape.py#L162): Docstring
 
 > Which `ord` each of a job's steps has after the job grew.
 >
@@ -187,7 +187,7 @@ Code: `quiet_until: str | None = None`
 > mapping, and its learning is dropped: the step is gone, and a locator for
 > a step nobody performs is a locator nobody can check.
 
-## `_did`, [line 184](../../../../../../../backend/src/sro/domain/skill/shape.py#L184): Docstring
+## `_did`, [line 204](../../../../../../../backend/src/sro/domain/skill/shape.py#L204): Docstring
 
 > What one step did, as the shape key says it: which control, on which
 > screen, touched how -- in the order it happened.
@@ -221,7 +221,7 @@ Code: `_, step = walk[min(matched, len(walk)) - 1]`
 > so it cannot overrun, but this is a number off the wire and the cost of
 > believing a bad one is an IndexError in the middle of a press.
 
-## `shape_of`, [line 110](../../../../../../../backend/src/sro/domain/skill/shape.py#L110): Comment
+## `shape_of`, [line 130](../../../../../../../backend/src/sro/domain/skill/shape.py#L130): Comment
 
 Code: `return None`
 
@@ -245,9 +245,9 @@ Code: `return None`
 > sign-in job by the host it stands on. It stops them being OFFERED,
 > which is the only place they cost anybody anything.
 
-## `shape_of`, [line 117](../../../../../../../backend/src/sro/domain/skill/shape.py#L117): Comment
+## `shape_of`, [line 137](../../../../../../../backend/src/sro/domain/skill/shape.py#L137): Comment
 
-Code: `starts_on = screen_of(first) or None`
+Code: `starts_on = screen_of(where_the_work_begins(gestures, first)) or None`
 
 > The screen, not the visit. What was served here was the whole url of the
 > first gesture of ONE demonstration, so `Create a Customer Type` carried
@@ -269,7 +269,7 @@ Code: `starts_on = screen_of(first) or None`
 > QA 2026-09-29 saw `Create a Warehouse Equipment Type` offered on the
 > Transport Equipment page. `nudge.page` keeps the same route.
 
-## `shape_of`, [line 118](../../../../../../../backend/src/sro/domain/skill/shape.py#L118): Comment
+## `shape_of`, [line 138](../../../../../../../backend/src/sro/domain/skill/shape.py#L138): Comment
 
 Code: `hosts = sorted(stood_on(workflow, by_id))`
 
@@ -278,7 +278,7 @@ Code: `hosts = sorted(stood_on(workflow, by_id))`
 > beacon is not one of them -- it put `https://play.google.com` on a
 > warehouse job's shape, served to every browser in the tenant.
 
-## `shape_of`, [line 119](../../../../../../../backend/src/sro/domain/skill/shape.py#L119): Comment
+## `shape_of`, [line 139](../../../../../../../backend/src/sro/domain/skill/shape.py#L139): Comment
 
 Code: `if system_of(starts_on) not in hosts:`
 
@@ -286,7 +286,7 @@ Code: `if system_of(starts_on) not in hosts:`
 > which is the frame's. When they disagree the extension would be sent
 > to open an origin no cited gesture ever proved -- so it is not sent.
 
-## `shape_of`, [line 121](../../../../../../../backend/src/sro/domain/skill/shape.py#L121): Comment
+## `shape_of`, [line 141](../../../../../../../backend/src/sro/domain/skill/shape.py#L141): Comment
 
 Code: `walk = walkable(cited)`
 
@@ -294,7 +294,7 @@ Code: `walk = walkable(cited)`
 > where the job begins is a fact about the recording, not about what can
 > be matched.
 
-## `shape_of`, [line 122](../../../../../../../backend/src/sro/domain/skill/shape.py#L122): Comment
+## `shape_of`, [line 142](../../../../../../../backend/src/sro/domain/skill/shape.py#L142): Comment
 
 Code: `if len(walk) <= K_OFFER_AFTER:`
 
@@ -322,7 +322,7 @@ Code: `if len(walk) <= K_OFFER_AFTER:`
 > cap is what gives this line its exact form: a shape whose floor exceeds
 > its own cap is one the matcher can never reach.
 
-## `shape_of`, [line 137](../../../../../../../backend/src/sro/domain/skill/shape.py#L137): Comment
+## `shape_of`, [line 157](../../../../../../../backend/src/sro/domain/skill/shape.py#L157): Comment
 
 Code: `offer_after=max(K_OFFER_AFTER, min(advice.offer_after, len(walk) - 1)),`
 
@@ -331,14 +331,14 @@ Code: `offer_after=max(K_OFFER_AFTER, min(advice.offer_after, len(walk) - 1)),`
 > `recognise.js` can offer: a job that diverges even there keeps
 > diverging, on record.
 
-## `where_steps_moved`, [line 152](../../../../../../../backend/src/sro/domain/skill/shape.py#L152): Comment
+## `where_steps_moved`, [line 172](../../../../../../../backend/src/sro/domain/skill/shape.py#L172): Comment
 
 Code: `moved[step.order] = same.pop(0)`
 
 > First unclaimed, so a job that does one thing twice keeps both
 > rather than folding two steps onto one.
 
-## `keeping_fields`, [line 156](../../../../../../../backend/src/sro/domain/skill/shape.py#L156): Docstring
+## `keeping_fields`, [line 176](../../../../../../../backend/src/sro/domain/skill/shape.py#L176): Docstring
 
 > `where_steps_moved` for a job that learned fields (X10). A learned field
 > step cites nothing, so no doing re-derives it: it is carried over, in its
@@ -347,7 +347,7 @@ Code: `moved[step.order] = same.pop(0)`
 > field whose write the new shape lost is left out: its parameter stays, and
 > `compose` places the value again from the outline.
 
-## `keeping_fields`, [line 156](../../../../../../../backend/src/sro/domain/skill/shape.py#L156): Note on the function
+## `keeping_fields`, [line 176](../../../../../../../backend/src/sro/domain/skill/shape.py#L176): Note on the function
 
 > A carried field step has no gesture, so it takes the tab of the step before
 > it in the grown job (`main` when it comes first) -- the rule `tab_roles`

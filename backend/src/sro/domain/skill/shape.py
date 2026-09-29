@@ -103,6 +103,26 @@ def resumes_at(workflow: Workflow, by_id: Mapping[str, Gesture], matched: int) -
     return step.order
 
 
+def where_the_work_begins(gestures: Sequence[Gesture], first: Gesture) -> Gesture:
+    """`first`, or the gesture after the clicks that only took its maker there.
+
+    A click followed by a gesture on another screen of the same system was a
+    navigation: the tab `Create a Customer Type` opens with was clicked on the
+    Transport Equipment screen, and serving that as where the job begins
+    offered `Delete a Customer Type` to somebody on Customer Types pressing Add
+    (QA 2026-09-29). Leaving the system is not one -- a request read in a
+    mailbox and done in the warehouse begins in the mailbox.
+    """
+    at = gestures.index(first) if first in gestures else 0
+    while at + 1 < len(gestures):
+        here, then = screen_of(gestures[at]), screen_of(gestures[at + 1])
+        moved = here != then and system_of(here) == system_of(then)
+        if gestures[at].action.kind != "click" or not moved:
+            break
+        at += 1
+    return gestures[at]
+
+
 def shape_of(
     workflow: Workflow, cited: list[tuple[Gesture, Step]], *, held: int, advice: Counsel
 ) -> Shape | None:
@@ -114,7 +134,7 @@ def shape_of(
     by_id = {g.id: g for g in gestures}
     first_step = min(workflow.steps, key=lambda s: s.order)
     first = primary_gesture(first_step, by_id) or gestures[0]
-    starts_on = screen_of(first) or None
+    starts_on = screen_of(where_the_work_begins(gestures, first)) or None
     hosts = sorted(stood_on(workflow, by_id))
     if system_of(starts_on) not in hosts:
         return None

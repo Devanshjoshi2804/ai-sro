@@ -1,16 +1,17 @@
-// What was learned here, and how far each job is toward doing it alone.
+// What was learned here, and how proven each job is.
 //
 // Learning is passive: nobody starts a demonstration. What the operator
 // repeats on this system is mined into a job, and this card is the one place
 // they see that it happened -- which jobs exist for the page in front of them,
-// and where each stands on the way to writing without asking.
+// and how proven each is.
 //
-// The way is the rig's own and nothing else: a job exists (learned), has run
-// (ran with you), has held, and after `needed` live runs whose every write was
-// verified by what the warehouse said, writes on its own. A job with a hundred
-// held runs and nothing verified has earned nothing, and the count here is the
-// same count the backend's verdict reads (`runs.proven`), so the two cannot
-// disagree.
+// Nothing here says a write waits for approval: a Steel run writes on its
+// own from its first run (full autonomy). The ladder is how proven a job is
+// and nothing else: it exists (learned), has run (ran with you), has held,
+// and after `needed` live runs whose every write was verified by what the
+// warehouse said, is proven. A job with a hundred held runs and nothing
+// verified is not proven, and the count here is the same count the backend's
+// verdict reads (`runs.proven`), so the two cannot disagree.
 //
 // Pure: jobs in, DOM out. What a press means is the caller's.
 
@@ -19,7 +20,7 @@ const RUNGS = [
   ["Learned", () => true],
   ["Ran with you", (runs) => runs.total > 0],
   ["Held", (runs) => runs.held > 0],
-  ["On its own", (runs) => runs.earned],
+  ["Proven", (runs) => runs.earned],
 ];
 
 /** How many learned jobs one card lists. The rest are in the console. */
@@ -42,58 +43,18 @@ export function hostOf(system) {
   }
 }
 
-/** The jobs whose systems include this host, one per job.
+/** The jobs offered on this host.
  *
- * Mining produces more than one workflow for the same work -- the deployment
- * holds three called "Log in to Keycloak" and three called "Reply to Email" --
- * and a card listing each of them asks the operator to choose between things
- * that have the same name and no visible difference. The one that has run
- * most, and among equals the one furthest along, is the one a press should
- * start; the rest are in the console where their ids are readable.
+ * Which jobs are real -- no chores, no mail-only doings, no fragments, one
+ * copy per title -- is the backend's `offered`, the rule the chat offers by.
+ * A backend that does not say is not guessed at: nothing is shown.
  */
 export function learnedHere(jobs, host) {
   if (!host) return [];
   const here = host.toLowerCase();
-  const mine = (jobs || []).filter((job) =>
-    (job.systems || []).some((system) => hostOf(system) === here),
+  return (jobs || []).filter(
+    (job) => job.offered === true && (job.systems || []).some((system) => hostOf(system) === here),
   );
-  const byName = new Map();
-  for (const job of mine) {
-    const name = String(job.title || "").trim().toLowerCase();
-    const seen = byName.get(name);
-    if (!seen || furtherOn(job, seen)) byName.set(name, job);
-  }
-  return [...byName.values()];
-}
-
-/** Whether `job` is the one to offer over `than`.
- *
- * A step that types a credential first, then run more, then proved more, then
- * earned. Never the newest -- a job mined this morning and never run is not
- * the one a press should start.
- *
- * The credential comes first because the alternative is a sign-in that cannot
- * sign in. Two readings of one login differ by whether the operator typed
- * their password or the browser filled it: the one where nobody typed has no
- * step for it, and on a machine that does not fill it in, it presses Sign In
- * with the field empty. The one that has run MORE is often that one, because
- * it is the one that runs on a browser where autofill does the work.
- */
-function furtherOn(job, than) {
-  const rank = ({ runs = {}, types_a_credential: credential = false }) => [
-    credential ? 1 : 0,
-    runs.total || 0,
-    runs.proven || 0,
-    runs.earned ? 1 : 0,
-  ];
-  const mine = rank(job);
-  const theirs = rank(than);
-  // Compared as numbers, place by place. Joined into a string, "10,0,0" sorts
-  // below "9,0,0" and the job with ten runs loses to the one with nine.
-  for (let i = 0; i < mine.length; i += 1) {
-    if (mine[i] !== theirs[i]) return mine[i] > theirs[i];
-  }
-  return false;
 }
 
 /** One sentence for where a job stands, from counted facts only.
@@ -102,15 +63,11 @@ function furtherOn(job, than) {
  * backend has no `proven`, and "0 of 3" would be this panel inventing a number
  * about somebody's warehouse. It says what it knows instead. */
 export function standing(runs) {
-  if (runs.earned) return "Writes on its own now. Every write is still read back.";
-  if (!runs.total) return "Not run yet. Its writes ask you first.";
-  if (!counts(runs)) return "Its writes ask you first.";
-  const needed = runs.needed;
-  const proven = Math.min(runs.proven, needed);
-  return (
-    `${proven} of ${needed} runs checked against the warehouse.` +
-    " Its writes ask you first until then."
-  );
+  if (runs.earned) return "Checked against the warehouse. Every write is still read back.";
+  if (!runs.total) return "Not run yet.";
+  if (!counts(runs)) return "Has run with you.";
+  const proven = Math.min(runs.proven, runs.needed);
+  return `${proven} of ${runs.needed} runs checked against the warehouse.`;
 }
 
 /** Whether this deployment says how far along a job is. */
@@ -162,8 +119,8 @@ export function learned(jobs, { onRun, onReview } = {}) {
   const card = document.createElement("section");
   card.className = "card learned";
   card.dataset.key = "learned";
-  // Ember while something here has not earned its writes yet, because that is
-  // the thing worth the operator's attention; quiet once all of it has.
+  // Ember while something here is not proven yet, because that is the thing
+  // worth the operator's attention; quiet once all of it is.
   if (jobs.some((job) => !job.runs?.earned)) card.dataset.tone = "live";
 
   const eyebrow = document.createElement("p");

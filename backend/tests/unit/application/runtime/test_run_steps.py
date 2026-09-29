@@ -4,6 +4,7 @@ from dataclasses import replace
 import pytest
 
 from sro.application.context import RequestContext
+from sro.application.execution.effects import earned
 from sro.application.ports.locks import AccountBusy
 from sro.application.ports.page import PageGone
 from sro.application.runtime.step import LaneContext, Superseded
@@ -66,6 +67,22 @@ async def test_a_write_is_marked_before_it_is_sent() -> None:
     await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
 
     assert seen[:2] == ["sending", "done"]
+
+
+async def test_a_first_live_write_goes_out_and_asks_nobody_to_approve_it() -> None:
+    """Full autonomy from the first run: a job that has earned nothing still
+    sends its write on Steel. Nobody is asked, nothing waits for approval."""
+    world = await steel_run(steps=[save_step(status=201)])
+    assert not await earned(world.uow.workflows, TENANT, (await world.job()).id)
+    world.lanes.ui.answers(StepResult("done", Lane.UI))
+
+    outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    assert not outcome.asking and not outcome.more
+    assert world.lanes.ui.calls == 1, "the write was never sent"
+    run = await world.saved_run()
+    assert [(one.verdict, one.verdict_by) for one in run.steps] == [("held", "ui")]
+    assert not Progress.of(run.progress).asking
 
 
 async def test_a_step_no_lane_could_do_asks_a_person() -> None:

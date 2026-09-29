@@ -432,30 +432,19 @@ export const api = {
       asPanelRun,
     ),
 
-  /** Every job this tenant has mined, with how far each is toward writing on
-   * its own (`runs.proven` of `runs.needed`). For the panel's learned-job
-   * card; `?device_id=` because the route refuses a browser named without its
-   * secret, the same pair `shapes` sends. */
+  /** Every job this tenant has mined, with how proven each is (`runs.proven`
+   * of `runs.needed`) and whether the chat would offer it (`offered`). For
+   * the panel's learned-job card; `?device_id=` because the route refuses a
+   * browser named without its secret, the same pair `shapes` sends. */
   workflows: async (deviceId) => {
     const query = deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : "";
     const answered = await call(`/v1/workflows${query}`);
-    return (answered.workflows || []).map(({ id, title, systems, runs, steps }) => ({
+    return (answered.workflows || []).map(({ id, title, systems, runs, offered }) => ({
       id,
       title,
       systems,
       runs,
-      // Whether any step types a credential.
-      //
-      // Read from the words, because that is all the wire carries: a step
-      // says what it does and nothing on it marks a credential. It decides
-      // which of two jobs of one name the card offers, and it is the one
-      // thing that tells a sign-in that can sign in from one that clicks the
-      // button with the field empty -- so a job whose password was typed by
-      // the browser rather than the operator reads as the weaker of the two,
-      // which is what it is on a machine that does not fill it in.
-      types_a_credential: (steps || []).some((step) =>
-        /\b(password|passcode|credential)/i.test(String(step?.says || "")),
-      ),
+      offered,
     }));
   },
 

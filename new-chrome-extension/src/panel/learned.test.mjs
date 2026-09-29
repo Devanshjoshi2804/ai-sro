@@ -23,6 +23,7 @@ const job = (id, runs = {}, systems = ["wms.example"]) => ({
   id,
   title: `Job ${id}`,
   systems,
+  offered: true,
   runs: { total: 0, held: 0, stale: 0, earned: false, proven: 0, needed: 3, ...runs },
 });
 
@@ -52,38 +53,30 @@ test("only the jobs on this host are shown, whole origin or bare host", () => {
   assert.deepEqual(learnedHere(jobs, ""), []);
 });
 
-test("jobs mined more than once show as one, the one that has run", () => {
-  // The deployment holds three jobs called "Log in to Keycloak". Three cards
-  // with the same name and no visible difference is not a choice anybody can
-  // make.
+test("only the jobs the backend offers are shown", () => {
+  // Seen on QA: Reply to Email and Forward Email were listed here. Chores,
+  // mail-only doings, fragments and extra copies of a title are the backend's
+  // to rule out (`offered`, the chat's own rule); this card never re-decides.
   const jobs = [
-    job("fresh", { total: 0 }),
-    job("worked", { total: 10, held: 9, proven: 2 }),
-    job("nine", { total: 9, held: 9, proven: 2 }),
-  ].map((one) => ({ ...one, title: "Log in to Keycloak" }));
-  const shown = learnedHere(jobs, "wms.example");
-  assert.deepEqual(shown.map((one) => one.id), ["worked"]);
+    job("real"),
+    { ...job("reply"), title: "Reply to Email", offered: false },
+    { ...job("older"), offered: undefined },
+  ];
+  assert.deepEqual(learnedHere(jobs, "wms.example").map((one) => one.id), ["real"]);
 });
 
-test("of two readings of one login, the one that types a password is offered", () => {
-  // Two readings of the same sign-in differ by whether the operator typed
-  // their password or the browser filled it in. The one where nobody typed
-  // has no step for it, and on a machine that does not fill it in it presses
-  // Sign In with the field empty. The deployment holds exactly this pair:
-  // wfl_55df5840 (2 steps, 3 runs, no credential) against wfl_5873ec01
-  // (5 steps, never run, types the password).
-  const jobs = [
-    { ...job("autofilled", { total: 3, held: 3 }), title: "Log in using Azure B2C SSO" },
-    {
-      ...job("types-it", { total: 0 }),
-      title: "Log in using Azure B2C SSO",
-      types_a_credential: true,
-    },
+test("no card claims a write waits for anybody", () => {
+  // Full autonomy from the first run: nothing holds a write for approval, so
+  // no rung or sentence may say one does.
+  const cards = [
+    learned([job("a")]),
+    learned([job("b", { total: 4, held: 3, proven: 2 })]),
+    learned([{ id: "c", title: "Job c", systems: ["wms.example"], runs: { total: 4, held: 4 } }]),
+    learned([job("d", { total: 3, held: 3, proven: 3, earned: true })]),
   ];
-  assert.deepEqual(
-    learnedHere(jobs, "wms.example").map((one) => one.id),
-    ["types-it"],
-  );
+  for (const card of cards) {
+    assert.doesNotMatch(words(card), /ask you|approv|on its own|unasked/i);
+  }
 });
 
 test("nothing learned here draws nothing", () => {
@@ -93,8 +86,7 @@ test("nothing learned here draws nothing", () => {
 test("held runs with nothing verified have earned nothing", () => {
   const card = learned([job("a", { total: 5, held: 5, proven: 0 })]);
   assert.deepEqual(rungs(card), ["done", "done", "done", "now"]);
-  assert.match(words(card), /0 of 3 runs checked/);
-  assert.match(words(card), /ask you first/);
+  assert.match(words(card), /0 of 3 runs checked against the warehouse/);
 });
 
 test("the count is the backend's, capped at what is needed", () => {
@@ -105,7 +97,7 @@ test("the count is the backend's, capped at what is needed", () => {
 test("an earned job says so and draws no count", () => {
   const card = learned([job("a", { total: 3, held: 3, proven: 3, earned: true })]);
   assert.deepEqual(rungs(card), ["done", "done", "done", "done"]);
-  assert.match(words(card), /Writes on its own now/);
+  assert.match(words(card), /Checked against the warehouse/);
   assert.equal(card.dataset.tone, undefined, "an earned job is not the loud card");
 });
 
@@ -132,7 +124,6 @@ test("a backend that does not say how far along it is gets no invented number", 
   const card = learned([
     { id: "a", title: "Job a", systems: ["wms.example"], runs: { total: 4, held: 4 } },
   ]);
-  assert.match(words(card), /Its writes ask you first/);
   assert.doesNotMatch(words(card), /of 3/);
   assert.equal(
     card.kids.find((kid) => kid.className === "job").kids.some((kid) => kid.className === "clean"),

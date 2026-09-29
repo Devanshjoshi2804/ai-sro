@@ -1954,9 +1954,10 @@ test("what was learned here is not offered while a run is going", () => {
   const jobs = [
     {
       id: "wfl_1",
-      title: "Log in to Keycloak",
+      title: "Create a Customer Type",
       systems: ["https://wms.example"],
       runs: { total: 9, held: 4, stale: 0, earned: false, proven: 0, needed: 3 },
+      offered: true,
     },
   ];
   const status = {
@@ -2086,12 +2087,14 @@ test("what was learned on this system is on Home, and only here", async () => {
       // As the miner writes them: whole origins, not bare hosts.
       systems: ["https://wms.example"],
       runs: { total: 2, held: 2, stale: 0, earned: false, proven: 1, needed: 3 },
+      offered: true,
     },
     {
       id: "wfl_2",
-      title: "Reply to Email",
-      systems: ["https://mail.example"],
+      title: "Create an Invoice",
+      systems: ["https://billing.example"],
       runs: { total: 0, held: 0, stale: 0, earned: false, proven: 0, needed: 3 },
+      offered: true,
     },
   ];
   const drawn = panel(
@@ -2108,7 +2111,7 @@ test("what was learned on this system is on Home, and only here", async () => {
   assert.match(said, /Learned from what you do here/);
   assert.match(said, /Delete a Customer Type/);
   assert.match(said, /1 of 3 runs checked/);
-  assert.doesNotMatch(said, /Reply to Email/, "another system's job was drawn here");
+  assert.doesNotMatch(said, /Create an Invoice/, "another system's job was drawn here");
   assert.ok(
     drawn.sent.some((message) => message.kind === "learned-jobs"),
     "the panel never asked what was learned",
@@ -3678,6 +3681,7 @@ test("every press on a card is a call to the backend, and a yes is said to the c
       title: "Delete a Customer Type",
       systems: ["https://wms.example"],
       runs: { total: 2, held: 2, stale: 0, earned: false, proven: 1, needed: 3 },
+      offered: true,
     },
   ];
   const asked = {

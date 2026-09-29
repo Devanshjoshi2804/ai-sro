@@ -374,7 +374,7 @@ Code: `refused: Mapping[str, str] = field(default_factory=dict)`
 > rather than as it was typed, so the answer this reports on is the one that
 > would be sent.
 
-## `pending_job`, [line 414](../../../../../../../backend/src/sro/domain/chat/asking.py#L414): Docstring
+## `pending_job`, [line 420](../../../../../../../backend/src/sro/domain/chat/asking.py#L420): Docstring
 
 > What the conversation is waiting on, or None.
 >
@@ -385,48 +385,48 @@ Code: `refused: Mapping[str, str] = field(default_factory=dict)`
 > as it should. Reading further back would let a job abandoned twenty minutes
 > ago claim the next sentence somebody typed.
 
-## `_pairs`, [line 452](../../../../../../../backend/src/sro/domain/chat/asking.py#L452): Docstring
+## `_pairs`, [line 458](../../../../../../../backend/src/sro/domain/chat/asking.py#L458): Docstring
 
 > The offered fields as the decision stores them: a list of two-item
 > lists, because JSON has no tuples. Anything else is nothing -- an offer
 > read out of a shape nobody wrote is an offer to fill a field that may not
 > exist.
 
-## `_step`, [line 462](../../../../../../../backend/src/sro/domain/chat/asking.py#L462): Docstring
+## `_step`, [line 468](../../../../../../../backend/src/sro/domain/chat/asking.py#L468): Docstring
 
 > Which step a stored decision names, or 0. A bool is an int in Python and
 > `from_step: true` would otherwise resume a job at its second step.
 
-## `_numbers`, [line 468](../../../../../../../backend/src/sro/domain/chat/asking.py#L468): Docstring
+## `_numbers`, [line 474](../../../../../../../backend/src/sro/domain/chat/asking.py#L474): Docstring
 
 > A decision's limits, as whole numbers. JSON off a row, so anything that
 > is not a usable count is not one -- a bool is an int in Python, and
 > `limits: {"Code": true}` would otherwise read as a one-character field.
 
-## `_strings`, [line 478](../../../../../../../backend/src/sro/domain/chat/asking.py#L478): Docstring
+## `_strings`, [line 484](../../../../../../../backend/src/sro/domain/chat/asking.py#L484): Docstring
 
 > A decision's mapping, as strings. A decision is JSON off a row and its
 > values are `object` to anything reading it honestly.
 
-## `let_go`, [line 482](../../../../../../../backend/src/sro/domain/chat/asking.py#L482): Docstring
+## `let_go`, [line 488](../../../../../../../backend/src/sro/domain/chat/asking.py#L488): Docstring
 
 > Whether that answer was somebody calling it off.
 
-## `said_yes`, [line 486](../../../../../../../backend/src/sro/domain/chat/asking.py#L486): Docstring
+## `said_yes`, [line 492](../../../../../../../backend/src/sro/domain/chat/asking.py#L492): Docstring
 
 > Whether that sentence agrees with what was just offered.
 
-## `_plainly`, [line 490](../../../../../../../backend/src/sro/domain/chat/asking.py#L490): Docstring
+## `_plainly`, [line 496](../../../../../../../backend/src/sro/domain/chat/asking.py#L496): Docstring
 
 > One answer, as it is matched: lowercased, without the punctuation
 > somebody types around a short word.
 
-## `_items`, [line 494](../../../../../../../backend/src/sro/domain/chat/asking.py#L494): Docstring
+## `_items`, [line 500](../../../../../../../backend/src/sro/domain/chat/asking.py#L500): Docstring
 
 > The things a job would be done for, as strings. A decision is JSON off a
 > row, so its `items` is `object` to anything reading it honestly.
 
-## `offered_job`, [line 498](../../../../../../../backend/src/sro/domain/chat/asking.py#L498): Docstring
+## `offered_job`, [line 504](../../../../../../../backend/src/sro/domain/chat/asking.py#L504): Docstring
 
 > The job this conversation has just offered to do, if it is still the
 > last thing said.
@@ -437,7 +437,7 @@ Code: `refused: Mapping[str, str] = field(default_factory=dict)`
 > value is NOT one of these -- `pending_job` owns that, and a sentence there
 > is the value rather than a yes.
 
-## module, [line 518](../../../../../../../backend/src/sro/domain/chat/asking.py#L518): Note on the line above
+## module, [line 524](../../../../../../../backend/src/sro/domain/chat/asking.py#L524): Note on the line above
 
 Code: `K_WITH_WHAT_WE_HAVE = re.compile(`
 
@@ -447,7 +447,7 @@ Code: `K_WITH_WHAT_WE_HAVE = re.compile(`
 > stock" are not drops (F1 round 1, C1). Read after the reply's named
 > values, so "Customer Type: RRF, run with what we have" keeps RRF.
 
-## module, [line 523](../../../../../../../backend/src/sro/domain/chat/asking.py#L523): Note on the line above
+## module, [line 529](../../../../../../../backend/src/sro/domain/chat/asking.py#L529): Note on the line above
 
 Code: `K_DROP = re.compile(`
 
@@ -459,7 +459,7 @@ Code: `K_DROP = re.compile(`
 > nothing, so "skip the queue at dock 4" is still a description -- except
 > a bare pronoun ("skip it"), which is a holding reply, not a value.
 
-## module, [line 551](../../../../../../../backend/src/sro/domain/chat/asking.py#L551): Note on the line above
+## module, [line 557](../../../../../../../backend/src/sro/domain/chat/asking.py#L557): Note on the line above
 
 Code: `K_LIKE = 0.8`
 
@@ -471,7 +471,7 @@ Code: `K_LIKE = 0.8`
 > name with a different number of words never matches -- "code" is not Zip
 > Code. Stdlib `difflib`, no dependency.
 
-## `_read`, [line 681](../../../../../../../backend/src/sro/domain/chat/asking.py#L681): Docstring
+## `_read`, [line 687](../../../../../../../backend/src/sro/domain/chat/asking.py#L687): Docstring
 
 > The reply, clause by clause, with every value cut from the ORIGINAL text by
 > position (F1 round 2, item 9). A clause ends at a comma, semicolon, full
@@ -504,14 +504,14 @@ Code: `K_LIKE = 0.8`
 > `Pending.known`; I1). A question is read by nothing here: it goes to the
 > reader.
 
-## `named_in`, [line 740](../../../../../../../backend/src/sro/domain/chat/asking.py#L740): Docstring
+## `named_in`, [line 746](../../../../../../../backend/src/sro/domain/chat/asking.py#L746): Docstring
 
 > Whether the reply says what it is: a named value, a drop, "run with what
 > we have", or a label to ask about. Such a reply needs no model to read it
 > (`Converse._is_it_an_answer`). Anything else -- another task, a lookup,
 > "don't know", "let me check" -- goes to the reader (F1 round 1, C1).
 
-## `answered`, [line 757](../../../../../../../backend/src/sro/domain/chat/asking.py#L757): Docstring
+## `answered`, [line 763](../../../../../../../backend/src/sro/domain/chat/asking.py#L763): Docstring
 
 > The same job with this answer in it, and the next question outstanding.
 >
@@ -550,7 +550,7 @@ Code: `if also := also_set(pending):`
 > Before rather than after, because the question is what the next sentence
 > answers and a question buried above an offer gets the offer's answer.
 
-## `answered`, [line 774](../../../../../../../backend/src/sro/domain/chat/asking.py#L774): Comment
+## `answered`, [line 780](../../../../../../../backend/src/sro/domain/chat/asking.py#L780): Comment
 
 Code: `if (why := refusal(one, value, _limits(pending, name), logins))`
 
@@ -575,7 +575,7 @@ Code: `said.append(f"You sent this to {_listed(list(sent_to))}.")`
 > the operator asked somebody else to do it, and the question is whether this
 > system should do it instead.
 
-## `offered_job`, [line 514](../../../../../../../backend/src/sro/domain/chat/asking.py#L514): Note
+## `offered_job`, [line 520](../../../../../../../backend/src/sro/domain/chat/asking.py#L520): Note
 
 Code: `mail_thread=str(decision.get("mail_thread") or ""),`
 
@@ -596,14 +596,14 @@ Code: `def asked_under(messages: Sequence[Message], answering: str | None = None
 > question's offer, never on the newest one, and a press under a closed
 > question resolves to nothing, which the door refuses.
 
-## `offered_job`, [line 503](../../../../../../../backend/src/sro/domain/chat/asking.py#L503): Note
+## `offered_job`, [line 509](../../../../../../../backend/src/sro/domain/chat/asking.py#L509): Note
 
 Code: `if decision.get("resume"):`
 
 > A `resume` decision is a run already started, not an offer: a second "yes"
 > under it would start the same job again.
 
-## `waiting_on_mail`, [line 347](../../../../../../../backend/src/sro/domain/chat/asking.py#L347): Note
+## `waiting_on_mail`, [line 353](../../../../../../../backend/src/sro/domain/chat/asking.py#L353): Note
 
 Code: `return pending_job(messages, last.id.value) if last is not None else None`
 
@@ -621,7 +621,7 @@ Code: `return pending_job(messages, last.id.value) if last is not None else None
 > `Converse.execute` asking it again, before anything reaches here.
 
 
-## `the_request`, [line 386](../../../../../../../backend/src/sro/domain/chat/asking.py#L386): Docstring
+## `the_request`, [line 392](../../../../../../../backend/src/sro/domain/chat/asking.py#L392): Docstring
 
 > The operator's own words for the run a chat offer started (S4): the chain of
 > assistant messages that led to this run's offer (`WorkflowRun.offer`) -- each

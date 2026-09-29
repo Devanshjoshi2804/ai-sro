@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/interface/http/v1/routers/threads.py`](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `run_from_thread`, [line 99](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L99): Comment
+## `run_from_thread`, [line 100](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L100): Comment
 
 Code: `raise InvariantViolation("a run started from a thread must name a skill_id")`
 
@@ -11,7 +11,7 @@ Code: `raise InvariantViolation("a run started from a thread must name a skill_i
 > sign of it was a 404 from the *next* line -- one whose real cause was
 > already off running as an orphaned workflow.
 
-## `run_from_thread`, [line 102](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L102): Comment
+## `run_from_thread`, [line 103](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L103): Comment
 
 Code: `skill = await container.get_skill().execute(ctx, skill_id=skill_id)`
 
@@ -19,7 +19,7 @@ Code: `skill = await container.get_skill().execute(ctx, skill_id=skill_id)`
 > answered 404 from below while the workflow it had already scheduled went
 > off to fail on its own, out of sight of the request that caused it.
 
-## `run_from_thread`, [line 103](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L103): Comment
+## `run_from_thread`, [line 104](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L104): Comment
 
 Code: `await container.start_run().check(`
 
@@ -30,14 +30,14 @@ Code: `await container.start_run().check(`
 > sat on "opening the connection" for a run that had been stopped on
 > purpose.
 
-## `run_from_thread`, [line 112](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L112): Comment
+## `run_from_thread`, [line 113](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L113): Comment
 
 Code: `run_id = container.ids.new_run_id()`
 
 > Named before it starts, so the console can watch the steps land instead
 > of holding this request open for as long as the warehouse takes.
 
-## `pursue`, [line 154](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L154): Comment
+## `pursue`, [line 155](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L155): Comment
 
 Code: `if (busy := container.pursuits.working()) is not None:`
 
@@ -47,7 +47,7 @@ Code: `if (busy := container.pursuits.working()) is not None:`
 > pursuits then report, separately and truthfully, that the screen would not
 > respond to anything they did.
 
-## `pursue`, [line 161](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L161): Comment
+## `pursue`, [line 162](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L162): Comment
 
 Code: `if goal.changes_the_system and not body.authorized_by:`
 
@@ -55,14 +55,14 @@ Code: `if goal.changes_the_system and not body.authorized_by:`
 > fails a second later reads as "it tried and could not" rather than "you
 > have not confirmed this".
 
-## `pursue.drive`, [line 189](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L189): Comment
+## `pursue.drive`, [line 190](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L190): Comment
 
 Code: `await container.converse().note(`
 
 > The thread outlives the process; the progress does not. What
 > happened has to end up somewhere an operator can read tomorrow.
 
-## `say`, [line 244](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L244): Comment
+## `say`, [line 245](../../../../../../../../../backend/src/sro/interface/http/v1/routers/threads.py#L245): Comment
 
 Code: `last = thread.messages[-1] if thread.messages else None`
 

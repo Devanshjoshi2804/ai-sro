@@ -25,7 +25,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/ask_the_
 > row rather than a counter here, because a worker restart must not buy anybody
 > a second mail.
 
-## `DraftForTheAsker`, [line 23](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L23): Docstring
+## `DraftForTheAsker`, [line 24](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L24): Docstring
 
 > Write the mail, put it in front of the operator, and stop.
 >
@@ -33,7 +33,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/ask_the_
 > conversation -- who asked, and what the message id is to reply to -- and
 > the only write it makes is into the operator's own thread.
 
-## `_address`, [line 118](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L118): Docstring
+## `_address`, [line 126](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L126): Docstring
 
 > The address out of `Tanisha Pradhan <tanisha@example.com>`.
 >
@@ -42,7 +42,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/ask_the_
 > answer means nobody to ask, which is a thing this door says rather than
 > guesses past.
 
-## `SendTheDraft`, [line 125](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L125): Docstring
+## `SendTheDraft`, [line 133](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L133): Docstring
 
 > Send the mail the operator read, and nothing else.
 >
@@ -57,14 +57,14 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/ask_the_
 > decides that a mail should go -- it decides that this mail, which somebody
 > has read, may.
 
-## `_the_draft`, [line 251](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L251): Docstring
+## `_the_draft`, [line 262](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L262): Docstring
 
 > The drafted mail with that id, if it is still the last word on it.
 >
 > By id and not "the newest draft": two runs can both be waiting, and a press
 > on the older card must not send the newer mail.
 
-## `DraftForTheAsker.execute`, [line 30](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L30): Docstring
+## `DraftForTheAsker.execute`, [line 31](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L31): Docstring
 
 > Whether a draft was put in front of somebody.
 >
@@ -82,7 +82,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/ask_the_
 > False for every ordinary reason -- no mailbox behind it, nothing
 > missing, somebody already asked. None of those is a failure.
 
-## `DraftForTheAsker._already_drafted`, [line 84](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L84): Docstring
+## `DraftForTheAsker._already_drafted`, [line 92](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L92): Docstring
 
 > Whether somebody already has a draft in front of them for this mail.
 >
@@ -92,7 +92,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/ask_the_
 > a reason to refuse another either -- the run column covers that, and
 > this covers the window before it exists.
 
-## `DraftForTheAsker._who_asked`, [line 95](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L95): Docstring
+## `DraftForTheAsker._who_asked`, [line 103](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L103): Docstring
 
 > Who to answer, which message to answer, and what it was called.
 >
@@ -101,7 +101,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/ask_the_
 > operator about the operator's own request. The first message is the
 > request, and whoever sent it is who to ask.
 
-## `SendTheDraft.execute`, [line 132](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L132): Docstring
+## `SendTheDraft.execute`, [line 140](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L140): Docstring
 
 > The address it went to, or `""` where nothing was sent.
 >
@@ -110,7 +110,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/ask_the_
 > all are reasons not to send, and none of them is an error worth a 500.
 
 
-## `SendTheDraft._claim`, [line 211](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L211): Docstring
+## `SendTheDraft._claim`, [line 222](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L222): Docstring
 
 > Take this draft, or say somebody already has it.
 >
@@ -127,7 +127,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/ask_the_
 > and the guard would let them, which is the one thing this claim
 > exists to stop. The draft id is unique in the tenant on its own.
 
-## `SendTheDraft._say`, [line 219](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L219): Docstring
+## `SendTheDraft._say`, [line 230](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L230): Docstring
 
 > What happened, in the conversation the draft was read in.
 >
@@ -137,14 +137,14 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/ask_the_
 > knows whether it was. One kind, one honest flag, rather than a line
 > reading `mail_sent` under the words "I could not reach the mailbox".
 
-## `DraftForTheAsker.execute`, [line 41](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L41): Comment
+## `DraftForTheAsker.execute`, [line 48](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L48): Comment
 
 Code: `if run is not None and run.asked_the_asker:`
 
 > One per run, read off the row rather than counted here: a worker that
 > restarted between two stops must not buy anybody a second mail.
 
-## `DraftForTheAsker.execute`, [line 46](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L46): Comment
+## `DraftForTheAsker.execute`, [line 53](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L53): Comment
 
 Code: `if await self._already_drafted(owner, conversation):`
 
@@ -152,7 +152,7 @@ Code: `if await self._already_drafted(owner, conversation):`
 > one card would otherwise put two drafts in front of somebody, and the
 > second is a mail they can send after the first has gone.
 
-## `DraftForTheAsker.execute`, [line 64](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L64): Comment
+## `DraftForTheAsker.execute`, [line 71](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L71): Comment
 
 Code: `speaker=Speaker.SYSTEM,`
 
@@ -160,7 +160,7 @@ Code: `speaker=Speaker.SYSTEM,`
 > ASSISTANT decided, and a draft standing where the question should
 > be would eat the operator's next sentence.
 
-## `DraftForTheAsker._who_asked`, [line 113](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L113): Comment
+## `DraftForTheAsker._who_asked`, [line 121](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L121): Comment
 
 Code: `str(first.get("rfc822_message_id") or ""),`
 
@@ -174,7 +174,7 @@ Code: `str(first.get("rfc822_message_id") or ""),`
 > arrived in the recipient's mailbox as a new conversation rather
 > than under the request it was answering.
 
-## `SendTheDraft.execute`, [line 146](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L146): Comment
+## `SendTheDraft.execute`, [line 157](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L157): Comment
 
 Code: `if not await self._claim(uow, ctx, message_id):`
 
@@ -191,7 +191,7 @@ Code: `if not await self._claim(uow, ctx, message_id):`
 > Keyed by the DRAFT, which exists on both paths and is unique to the
 > words somebody actually read.
 
-## `SendTheDraft.execute`, [line 156](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L156): Comment
+## `SendTheDraft.execute`, [line 167](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L167): Comment
 
 Code: `if run is not None:`
 
@@ -200,7 +200,7 @@ Code: `if run is not None:`
 > second mail about one request -- which is the one thing the
 > column exists to stop.
 
-## `SendTheDraft.execute`, [line 174](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L174): Comment
+## `SendTheDraft.execute`, [line 185](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L185): Comment
 
 Code: `"thread_id": str(draft.get("thread") or ""),`
 
@@ -208,7 +208,7 @@ Code: `"thread_id": str(draft.get("thread") or ""),`
 > its own thread cannot be matched back to the run waiting
 > on it, so the person answers into a void.
 
-## `SendTheDraft.execute`, [line 180](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L180): Comment
+## `SendTheDraft.execute`, [line 191](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L191): Comment
 
 Code: `logger.warning(`
 
@@ -217,7 +217,7 @@ Code: `logger.warning(`
 > ladder keeps, and for a stronger reason: a duplicate mail cannot
 > be deleted afterwards.
 
-## `SendTheDraft._say`, [line 238](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L238): Comment
+## `SendTheDraft._say`, [line 249](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L249): Comment
 
 Code: `decision={`
 
@@ -227,7 +227,7 @@ Code: `decision={`
 > panel keyed only on that went on showing `Send it` under
 > a mail already in somebody's inbox.
 
-## `SendTheDraft._say`, [line 242](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L242): Comment
+## `SendTheDraft._say`, [line 253](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L253): Comment
 
 Code: `"to": to,`
 
@@ -236,7 +236,7 @@ Code: `"to": to,`
 > a panel parsing prose to find a fact the decision
 > was already carrying everything else about.
 
-## `_the_draft`, [line 256](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L256): Comment
+## `_the_draft`, [line 267](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L267): Comment
 
 Code: `if str(getattr(message, "id", "")) == str(message_id):`
 
@@ -245,7 +245,7 @@ Code: `if str(getattr(message, "id", "")) == str(message_id):`
 > row as text. The two were never going to match by accident, which is
 > the worst kind of mismatch -- every draft would quietly refuse.
 
-## `SendTheDraft.execute`, [line 134](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L134): Comment
+## `SendTheDraft.execute`, [line 142](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L142): Comment
 
 Code: `thread = await uow.threads.get_for_answer(ctx.tenant_id, thread_id)`
 

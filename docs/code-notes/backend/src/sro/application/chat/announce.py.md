@@ -48,7 +48,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/announce
 > this door has ever asked was invisible to the reader that exists to
 > answer it, including the run path's since `5a2d10b1`.
 
-## `SayWhatHappened.answered_elsewhere`, [line 37](../../../../../../../backend/src/sro/application/chat/announce.py#L37): Docstring
+## `SayWhatHappened.answered_elsewhere`, [line 41](../../../../../../../backend/src/sro/application/chat/announce.py#L41): Docstring
 
 > A run's wait ended with its question open, and a reply reached only a
 > colleague's mailbox (the mail door left `elsewhere_key`): the starter is told
@@ -66,14 +66,14 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/announce
 > mark to a failure after `StartThread`, and the retry said nothing
 > (invariants 6 and 12; S1 rounds 2 and 3).
 
-## `SayWhatHappened._thread_for`, [line 66](../../../../../../../backend/src/sro/application/chat/announce.py#L66): Comment
+## `SayWhatHappened._thread_for`, [line 70](../../../../../../../backend/src/sro/application/chat/announce.py#L70): Comment
 
 Code: `if about.strip():`
 
 > Said in the chat of the question about `about` when one is named --
 > opened if it is not there yet, idempotently, because its id is derived.
 
-## `SayWhatHappened._thread_for`, [line 77](../../../../../../../backend/src/sro/application/chat/announce.py#L77): Comment
+## `SayWhatHappened._thread_for`, [line 81](../../../../../../../backend/src/sro/application/chat/announce.py#L81): Comment
 
 Code: `if run_id:`
 

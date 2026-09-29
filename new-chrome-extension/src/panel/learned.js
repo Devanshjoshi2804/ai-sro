@@ -23,9 +23,6 @@ const RUNGS = [
   ["Proven", (runs) => runs.earned],
 ];
 
-/** How many learned jobs one card lists. The rest are in the console. */
-export const K_SHOWN = 3;
-
 /** The host a mined job's `systems` entry names.
  *
  * They are stored as whole origins -- `https://bf56-kms-wms-web-np2.jdadelivers.com`
@@ -75,16 +72,33 @@ export function counts(runs) {
   return Number.isFinite(runs?.proven) && Number.isFinite(runs?.needed) && runs.needed > 0;
 }
 
+/** The same count, in the few words a one-line row has room for. */
+function checkedCount(runs) {
+  if (runs.earned) return "proven";
+  if (!runs.total) return "not run yet";
+  if (!counts(runs)) return "has run";
+  return `${Math.min(runs.proven, runs.needed)} of ${runs.needed} runs checked`;
+}
+
+/** The rungs, lit where the job stands: every rung it reached is done, and the
+ * last one reached is the one it is on -- unless it reached them all. A rung
+ * it has not reached is never lit, so "0 of 3 checked" cannot sit under a
+ * glowing Proven (QA 2026-09-29): Proven is `earned`, the fact the count
+ * beside it reads. */
 function ladder(runs) {
   const list = document.createElement("ol");
   list.className = "ladder";
   const reached = RUNGS.map(([, did]) => Boolean(did(runs)));
-  // The rung being worked toward is the first not yet reached.
-  const next = reached.indexOf(false);
+  const at = reached.lastIndexOf(true);
+  const all = reached.every(Boolean);
   RUNGS.forEach(([name], index) => {
     const rung = document.createElement("li");
     rung.className = "rung";
-    rung.dataset.state = reached[index] ? "done" : index === next ? "now" : "todo";
+    rung.dataset.state = !reached[index]
+      ? "todo"
+      : index === at && !all
+        ? "now"
+        : "done";
     rung.textContent = name;
     list.append(rung);
   });
@@ -105,65 +119,82 @@ function checked(runs) {
   return bar;
 }
 
+function button(label, act, className = "quiet") {
+  const press = document.createElement("button");
+  press.type = "button";
+  press.className = className;
+  press.textContent = label;
+  press.addEventListener("click", () => act(press));
+  return press;
+}
+
+/** One job, as a line: its title (which opens its ladder), its checked count,
+ * and Run it here. The ladder only under the job somebody opened. */
+function jobLine(job, { opened, onRun, onReview, onOpen }) {
+  const runs = { total: 0, held: 0, earned: false, ...job.runs };
+  const isOpen = opened === job.id;
+  const one = document.createElement("li");
+  one.className = "job";
+  one.dataset.workflowId = job.id;
+
+  const line = document.createElement("div");
+  line.className = "line";
+  const title = button(job.title, () => onOpen?.(isOpen ? null : job.id), "title");
+  title.setAttribute("aria-expanded", String(isOpen));
+  const count = document.createElement("span");
+  count.className = "count";
+  count.textContent = checkedCount(runs);
+  line.append(title, count, button("Run it here", (press) => onRun?.(job, press)));
+  one.append(line);
+
+  if (isOpen) {
+    const says = document.createElement("p");
+    says.textContent = standing(runs);
+    one.append(says, ladder(runs));
+    if (!runs.earned && counts(runs)) one.append(checked(runs));
+    one.append(button("Review in console ↗", () => onReview?.(job)));
+  }
+  return one;
+}
+
 /**
- * The card, or `null` when nothing was learned for this host.
+ * One quiet row, or `null` when nothing was learned for this host.
  *
- * `onRun(job, button)` when they ask for one; `onReview(job)` for the console.
+ * Learned jobs are standing facts, not things happening now, so Home gives
+ * them one line (the user, 2026-09-29): "N jobs learned on this page ›".
+ * `open` is whether that line is unfolded to a compact line per job, and
+ * `opened` which job's ladder is showing -- both this window's, held by the
+ * panel. `onToggle(open)`, `onOpen(id | null)`, `onRun(job, button)` and
+ * `onReview(job)` are the caller's.
  *
  * Nothing here knows about a run in progress: while one drives this browser
- * the panel does not draw this card at all, the way an offer taken stops
+ * the panel does not draw this row at all, the way an offer taken stops
  * being an offer. See `render` in `panel.js`.
  */
-export function learned(jobs, { onRun, onReview } = {}) {
+export function learned(
+  jobs,
+  { open = false, opened = null, onToggle, onOpen, onRun, onReview } = {},
+) {
   if (!jobs?.length) return null;
   const card = document.createElement("section");
   card.className = "card learned";
   card.dataset.key = "learned";
-  // Ember while something here is not proven yet, because that is the thing
-  // worth the operator's attention; quiet once all of it is.
-  if (jobs.some((job) => !job.runs?.earned)) card.dataset.tone = "live";
 
-  const eyebrow = document.createElement("p");
-  eyebrow.className = "eyebrow";
-  eyebrow.textContent = "Learned from what you do here";
-  card.append(eyebrow);
+  const head = button(
+    `${jobs.length} ${jobs.length === 1 ? "job" : "jobs"} learned on this page ›`,
+    () => onToggle?.(!open),
+    "learned-head",
+  );
+  head.setAttribute("aria-expanded", String(open));
+  head.setAttribute("aria-controls", "learned-list");
+  card.append(head);
 
-  jobs.slice(0, K_SHOWN).forEach((job, index) => {
-    const runs = { total: 0, held: 0, earned: false, ...job.runs };
-    const one = document.createElement("div");
-    one.className = "job";
-    one.dataset.workflowId = job.id;
-
-    const title = document.createElement("h3");
-    title.textContent = job.title;
-    const says = document.createElement("p");
-    says.textContent = standing(runs);
-    one.append(title, says, ladder(runs));
-    if (!runs.earned && counts(runs)) one.append(checked(runs));
-
-    const row = document.createElement("div");
-    row.className = "row";
-    const run = document.createElement("button");
-    run.type = "button";
-    run.textContent = "Run it here";
-    // One primary press per card: the first job's. The rest are quiet.
-    if (index > 0) run.className = "quiet";
-    run.addEventListener("click", () => onRun?.(job, run));
-    const review = document.createElement("button");
-    review.type = "button";
-    review.className = "quiet";
-    review.textContent = "Review in console ↗";
-    review.addEventListener("click", () => onReview?.(job));
-    row.append(run, review);
-    one.append(row);
-    card.append(one);
-  });
-
-  if (jobs.length > K_SHOWN) {
-    const more = document.createElement("p");
-    more.className = "note";
-    more.textContent = `${jobs.length - K_SHOWN} more learned here, in the console.`;
-    card.append(more);
+  if (open) {
+    const list = document.createElement("ul");
+    list.className = "learned-list";
+    list.id = "learned-list";
+    for (const job of jobs) list.append(jobLine(job, { opened, onRun, onReview, onOpen }));
+    card.append(list);
   }
   return card;
 }

@@ -2046,7 +2046,7 @@ test("what was learned here is not offered while a run is going", () => {
     await settled();
     assert.match(
       [...quiet.ids["cards"].kids].map(words).join(" "),
-      /Learned from what you do here/,
+      /1 job learned on this page/,
       "nothing was learned to hide",
     );
 
@@ -2057,7 +2057,7 @@ test("what was learned here is not offered while a run is going", () => {
     quiet.render(running);
     assert.doesNotMatch(
       [...quiet.ids["cards"].kids].map(words).join(" "),
-      /Learned from what you do here/,
+      /learned on this page/,
       "it offered to start a job while a run was going",
     );
   });
@@ -2181,9 +2181,15 @@ test("what was learned on this system is on Home, and only here", async () => {
     .map(words)
     .join(" ");
   void cards;
-  assert.match(said, /Learned from what you do here/);
-  assert.match(said, /Delete a Customer Type/);
-  assert.match(said, /1 of 3 runs checked/);
+  // One quiet row, folded: the jobs are one tap away (the user, 2026-09-29).
+  assert.match(said, /1 job learned on this page ›/);
+  assert.doesNotMatch(said, /Delete a Customer Type/, "the list was drawn unfolded");
+  const row = [...drawn.ids["cards"].kids].find((one) =>
+    words(one).includes("learned on this page"),
+  );
+  buttons(row).find((b) => /learned on this page/.test(b.textContent)).listeners[0]();
+  const unfolded = [...drawn.ids["cards"].kids].map(words).join(" ");
+  assert.match(unfolded, /Delete a Customer Type 1 of 3 runs checked Run it here/);
   assert.doesNotMatch(said, /Create an Invoice/, "another system's job was drawn here");
   assert.ok(
     drawn.sent.some((message) => message.kind === "learned-jobs"),
@@ -2197,7 +2203,7 @@ test("what was learned on this system is on Home, and only here", async () => {
   // as "did you mean this one, this one, or that one" about the card they had
   // just pressed.
   const card = [...drawn.ids["cards"].kids].find((one) =>
-    words(one).includes("Learned from what you do here"),
+    words(one).includes("learned on this page"),
   );
   const run = buttons(card).find((b) => /Run it here/.test(b.textContent));
   run.listeners[0]();
@@ -3363,8 +3369,9 @@ test("Home keeps one request and counts the rest", async () => {
     /G3/,
     "Home drew the oldest request as well as the newest",
   );
-  // And a way to the others, as one line rather than three more cards.
-  assert.match(said, /3 more waiting/);
+  // And no line about the others: one offer at most (the user, 2026-09-29).
+  // The Waiting pane's badge counts all four.
+  assert.doesNotMatch(said, /more waiting/);
 });
 
 test("a rig run that can be taken back offers it, and names what it removes", async () => {
@@ -3780,14 +3787,16 @@ test("every press on a card is a call to the backend, and a yes is said to the c
   await drawn.refresh();
   await settled();
 
-  const home = [...(drawn.ids["expanded"]?.kids || []), ...drawn.ids["cards"].kids];
+  const home = () => [...(drawn.ids["expanded"]?.kids || []), ...drawn.ids["cards"].kids];
   const press = async (label) => {
-    const button = home.flatMap(buttons).find((b) => b.textContent === label);
+    const button = home().flatMap(buttons).find((b) => b.textContent === label);
     assert.ok(button, `Home offers no "${label}"`);
     await button.listeners[0]();
     await settled();
   };
   await press("Try it again");
+  // The learned jobs are one folded row; its press unfolds them.
+  await press("1 job learned on this page ›");
   await press("Run it here");
   const doIt = buttons(drawn.ids["said"]).find((b) => b.textContent === "Do it");
   await doIt.listeners[0]();
@@ -3809,6 +3818,123 @@ test("every press on a card is a call to the backend, and a yes is said to the c
     sentOf(drawn.sent, "thread-say").map((one) => [one.text, one.answering]),
     [["yes", "msg_confirm"]],
   );
+});
+
+// --- a calm Home (the user, 2026-09-29) --------------------------------------
+//
+// Home shows what is true right now: what needs the operator, then what is
+// running or just finished, then one offer for this page's job -- three loud
+// cards at most. Seen on QA: a mail card, a wrong-page offer and a full ladder
+// card per learned job, stacked.
+
+const WATCHED = [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }];
+const TAB = { id: 7, host: "wms.example", url: "https://wms.example/portal" };
+const aMail = (subject) => ({
+  subject,
+  sender: "Devansh <devansh@example.com>",
+  arrived: new Date().toISOString(),
+  thread: `t-${subject}`,
+});
+const aNudge = (id, workflowId, title) => ({
+  id,
+  source: "rig",
+  state: "open",
+  tabId: null,
+  k: 0,
+  at: new Date().toISOString(),
+  title,
+  workflowId,
+  values: {},
+  items: [],
+  missing: [],
+});
+
+test("more than three loud cards: three, in the order somebody deals with them", () => {
+  const status = {
+    deviceId: "dev-1",
+    capturing: true,
+    watched: WATCHED,
+    nudges: [aNudge("n_1", "wfl_c", "Create a Client")],
+    question: { title: "Create a Customer Type", text: "What is the description for GV3?" },
+    performing: { runId: "run-9", kind: "rig", source: "rig", workflowId: "wfl_run", since: new Date().toISOString(), step: 1 },
+    mailRuns: [
+      { id: "run-1", status: "running", workflow_id: "wfl_a", title: "Create a Transport Equipment Type", values: {}, started_at: new Date().toISOString(), steps: [], mail: aMail("AITE8") },
+      { id: "run-2", status: "running", workflow_id: "wfl_b", title: "Create a Warehouse Equipment Type", values: {}, started_at: new Date().toISOString(), steps: [], mail: aMail("AIWE2") },
+    ],
+  };
+  const { ids } = panel(status, TAB);
+
+  const loud = ids["cards"].kids.map(words);
+  assert.equal(loud.length, 3, loud.join(" | "));
+  assert.match(loud[0], /waiting on you/, "what needs the operator leads");
+  assert.match(loud[1], /performing here/);
+  assert.match(loud[2], /Mail: AITE8/);
+  assert.doesNotMatch(loud.join(" "), /AIWE2|Create a Client/, "a fourth loud card was drawn");
+});
+
+test("a finished mail card folds to one line after ten minutes", () => {
+  const minute = 60_000;
+  const done = (ago) => ({
+    id: "run-1",
+    status: "held",
+    workflow_id: "wfl_a",
+    title: "Create a Transport Equipment Type",
+    values: { Code: "AITE9" },
+    started_at: new Date(Date.now() - ago - minute).toISOString(),
+    finished_at: new Date(Date.now() - ago).toISOString(),
+    steps: [],
+    mail: aMail("create AITE9"),
+  });
+  const status = (ago) => ({ deviceId: "dev-1", capturing: true, watched: WATCHED, mailRuns: [done(ago)] });
+
+  const fresh = panel(status(2 * minute), TAB);
+  assert.match(words(fresh.ids["cards"]), /Mail: create AITE9/, "a card that just finished was folded");
+
+  const old = panel(status(11 * minute), TAB);
+  const said = old.ids["cards"].kids.map(words);
+  assert.ok(
+    said.some((one) => /^✓ AITE9 from mail · \d\d:\d\d$/.test(one)),
+    said.join(" | "),
+  );
+  assert.doesNotMatch(said.join(" "), /Mail: create AITE9/, "the whole card was still drawn");
+});
+
+test("no offer beside a run or a mail card for the same job", () => {
+  const running = {
+    id: "run-1",
+    status: "running",
+    workflow_id: "wfl_ct",
+    title: "Create a Customer Type",
+    values: {},
+    started_at: new Date().toISOString(),
+    steps: [],
+    mail: aMail("GT5 please"),
+  };
+  const same = panel(
+    { deviceId: "dev-1", capturing: true, watched: WATCHED, mailRuns: [running], nudges: [aNudge("n_1", "wfl_ct", "Create a Customer Type")] },
+    TAB,
+  );
+  assert.doesNotMatch(words(same.ids["cards"]), /want me to do it/i, "a Yes beside the mail card doing that job");
+
+  const other = panel(
+    { deviceId: "dev-1", capturing: true, watched: WATCHED, mailRuns: [running], nudges: [aNudge("n_2", "wfl_cl", "Create a Client")] },
+    TAB,
+  );
+  assert.match(words(other.ids["cards"]), /Create a Client — want me to do it/);
+});
+
+test("the state card is its slim line whenever a louder card is present", () => {
+  const quiet = { deviceId: "dev-1", capturing: true, watched: WATCHED };
+  const alone = panel(quiet, TAB);
+  assert.match(words(alone.ids["expanded"]), /Work as usual/);
+
+  const busy = panel(
+    { ...quiet, performing: { runId: "run-9", kind: "rig", source: "rig", since: new Date().toISOString(), step: 1 } },
+    TAB,
+  );
+  const state = busy.ids["expanded"].kids[0];
+  assert.equal(words(state), "Watching this tab · learning from what you do Stop watching");
+  assert.equal(state.dataset.slim, "1");
 });
 
 for (const [name, fn] of tests) {

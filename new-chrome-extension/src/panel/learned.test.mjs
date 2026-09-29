@@ -27,11 +27,18 @@ const job = (id, runs = {}, systems = ["wms.example"]) => ({
   runs: { total: 0, held: 0, stale: 0, earned: false, proven: 0, needed: 3, ...runs },
 });
 
-const rungs = (card) =>
-  card.kids
-    .find((kid) => kid.className === "job")
-    .kids.find((kid) => kid.className === "ladder")
-    .kids.map((rung) => rung.dataset.state);
+/** Every node under `el` whose class list names `name`. */
+const find = (el, name, found = []) => {
+  if (String(el.className).split(" ").includes(name)) found.push(el);
+  for (const kid of el.kids) find(kid, name, found);
+  return found;
+};
+
+/** The ladder of the one job opened, rung by rung. */
+const rungs = (one) =>
+  find(learned([one], { open: true, opened: one.id }), "ladder")[0].kids.map(
+    (rung) => rung.dataset.state,
+  );
 
 test("only the jobs on this host are shown, whole origin or bare host", () => {
   // What the miner actually writes is an origin. Compared as-is against the
@@ -65,16 +72,16 @@ test("only the jobs the backend offers are shown", () => {
   assert.deepEqual(learnedHere(jobs, "wms.example").map((one) => one.id), ["real"]);
 });
 
-test("no card claims a write waits for anybody", () => {
+test("no job claims a write waits for anybody", () => {
   // Full autonomy from the first run: nothing holds a write for approval, so
   // no rung or sentence may say one does.
-  const cards = [
-    learned([job("a")]),
-    learned([job("b", { total: 4, held: 3, proven: 2 })]),
-    learned([{ id: "c", title: "Job c", systems: ["wms.example"], runs: { total: 4, held: 4 } }]),
-    learned([job("d", { total: 3, held: 3, proven: 3, earned: true })]),
-  ];
-  for (const card of cards) {
+  for (const one of [
+    job("a"),
+    job("b", { total: 4, held: 3, proven: 2 }),
+    { id: "c", title: "Job c", systems: ["wms.example"], runs: { total: 4, held: 4 } },
+    job("d", { total: 3, held: 3, proven: 3, earned: true }),
+  ]) {
+    const card = learned([one], { open: true, opened: one.id });
     assert.doesNotMatch(words(card), /ask you|approv|on its own|unasked/i);
   }
 });
@@ -83,10 +90,59 @@ test("nothing learned here draws nothing", () => {
   assert.equal(learned([]), null);
 });
 
-test("held runs with nothing verified have earned nothing", () => {
-  const card = learned([job("a", { total: 5, held: 5, proven: 0 })]);
-  assert.deepEqual(rungs(card), ["done", "done", "done", "now"]);
-  assert.match(words(card), /0 of 3 runs checked against the warehouse/);
+test("Home gets one quiet row, however many jobs were learned", () => {
+  // QA 2026-09-29: a full ladder card per learned job cluttered Home.
+  const card = learned(["a", "b", "c", "d", "e"].map((id) => job(id)));
+  assert.equal(words(card), "5 jobs learned on this page ›");
+  assert.equal(card.dataset.tone, undefined, "a row of standing facts is not a loud card");
+  const head = card.kids[0];
+  assert.equal(head.getAttribute("aria-expanded"), "false");
+  assert.equal(find(card, "job").length, 0);
+  assert.equal(find(card, "ladder").length, 0);
+  assert.equal(words(learned([job("a")])), "1 job learned on this page ›");
+});
+
+test("the row opens to one compact line per job, and no ladder", () => {
+  const flips = [];
+  const closed = learned([job("a")], { onToggle: (open) => flips.push(open) });
+  closed.kids[0].listeners.click[0]();
+  assert.deepEqual(flips, [true]);
+
+  const card = learned(
+    [job("a", { total: 3, held: 3, proven: 2 }), job("b"), job("c", { total: 3, held: 3, proven: 3, earned: true })],
+    { open: true },
+  );
+  assert.equal(card.kids[0].getAttribute("aria-expanded"), "true");
+  assert.deepEqual(find(card, "job").map(words), [
+    "Job a 2 of 3 runs checked Run it here",
+    "Job b not run yet Run it here",
+    "Job c proven Run it here",
+  ]);
+  assert.equal(find(card, "ladder").length, 0, "the ladder is only for the job somebody opened");
+});
+
+test("tapping a title opens that job's ladder, and tapping it again closes it", () => {
+  const opened = [];
+  const card = learned([job("a"), job("b", { total: 5, held: 5 })], {
+    open: true,
+    opened: "b",
+    onOpen: (id) => opened.push(id),
+  });
+  const [a, b] = find(card, "job");
+  assert.equal(find(a, "ladder").length, 0);
+  assert.equal(find(b, "ladder").length, 1);
+  assert.match(words(b), /0 of 3 runs checked against the warehouse/);
+  find(a, "title")[0].listeners.click[0]();
+  find(b, "title")[0].listeners.click[0]();
+  assert.deepEqual(opened, ["a", null]);
+});
+
+test("0 of 3 checked never lights Proven", () => {
+  // QA 2026-09-29: "0 of 3 runs checked against the warehouse" under a ladder
+  // whose Proven rung glowed. The lit rung is where the job stands.
+  const states = rungs(job("a", { total: 5, held: 5, proven: 0 }));
+  assert.deepEqual(states, ["done", "done", "now", "todo"]);
+  assert.deepEqual(rungs(job("a", { total: 5, held: 5, proven: 2 })), ["done", "done", "now", "todo"]);
 });
 
 test("the count is the backend's, capped at what is needed", () => {
@@ -94,26 +150,25 @@ test("the count is the backend's, capped at what is needed", () => {
   assert.match(standing({ total: 9, held: 9, proven: 7, needed: 3, earned: false }), /3 of 3/);
 });
 
-test("an earned job says so and draws no count", () => {
-  const card = learned([job("a", { total: 3, held: 3, proven: 3, earned: true })]);
-  assert.deepEqual(rungs(card), ["done", "done", "done", "done"]);
+test("an earned job says so, lights every rung and draws no count", () => {
+  const one = job("a", { total: 3, held: 3, proven: 3, earned: true });
+  assert.deepEqual(rungs(one), ["done", "done", "done", "done"]);
+  const card = learned([one], { open: true, opened: "a" });
   assert.match(words(card), /Checked against the warehouse/);
-  assert.equal(card.dataset.tone, undefined, "an earned job is not the loud card");
+  assert.equal(find(card, "clean").length, 0);
 });
 
-test("a job never run is at its second rung", () => {
-  const card = learned([job("a")]);
-  assert.deepEqual(rungs(card), ["done", "now", "todo", "todo"]);
-  assert.equal(card.dataset.tone, "live");
+test("a job never run stands on its first rung", () => {
+  assert.deepEqual(rungs(job("a")), ["now", "todo", "todo", "todo"]);
 });
 
-test("one primary press per card, and the press names the job", () => {
+test("the press names the job, and every press here is quiet", () => {
   const pressed = [];
-  const card = learned([job("a"), job("b")], { onRun: (one) => pressed.push(one.id) });
-  const runs = card.kids
-    .filter((kid) => kid.className === "job")
-    .map((one) => one.kids.find((kid) => kid.className === "row").kids[0]);
-  assert.deepEqual(runs.map((button) => button.className), ["", "quiet"]);
+  const card = learned([job("a"), job("b")], { open: true, onRun: (one) => pressed.push(one.id) });
+  const runs = find(card, "job").map((one) =>
+    one.querySelectorAll("button").find((button) => button.textContent === "Run it here"),
+  );
+  assert.deepEqual(runs.map((button) => button.className), ["quiet", "quiet"]);
   runs[1].listeners.click[0]();
   assert.deepEqual(pressed, ["b"]);
 });
@@ -121,21 +176,10 @@ test("one primary press per card, and the press names the job", () => {
 test("a backend that does not say how far along it is gets no invented number", () => {
   // An older deployment serves runs without `proven`. "0 of 3" there would be
   // this panel making up a fact about somebody's warehouse.
-  const card = learned([
-    { id: "a", title: "Job a", systems: ["wms.example"], runs: { total: 4, held: 4 } },
-  ]);
+  const one = { id: "a", title: "Job a", systems: ["wms.example"], runs: { total: 4, held: 4 } };
+  const card = learned([one], { open: true, opened: "a" });
   assert.doesNotMatch(words(card), /of 3/);
-  assert.equal(
-    card.kids.find((kid) => kid.className === "job").kids.some((kid) => kid.className === "clean"),
-    false,
-    "it drew a progress bar out of nothing",
-  );
-});
-
-test("more than three is a line, not more cards", () => {
-  const card = learned(["a", "b", "c", "d", "e"].map((id) => job(id)));
-  assert.equal(card.kids.filter((kid) => kid.className === "job").length, 3);
-  assert.match(words(card), /2 more learned here/);
+  assert.equal(find(card, "clean").length, 0, "it drew a progress bar out of nothing");
 });
 
 for (const [name, fn] of tests) {

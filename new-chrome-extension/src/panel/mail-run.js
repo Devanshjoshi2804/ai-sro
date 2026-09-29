@@ -89,3 +89,28 @@ export function mailRunCard(
   card.append(row);
   return card;
 }
+
+/**
+ * A finished run's card, folded to one line: "✓ AITE9 from mail · 12:12".
+ *
+ * Home keeps what just finished whole for ten minutes and then this (the
+ * user, 2026-09-29). Named by the first value it was given, which is how the
+ * operator names the record; by its job where it had none. `at` is when it
+ * ended, `fromMail` whether a mail started it.
+ */
+export function foldedRun(run, { at, fromMail = false } = {}) {
+  const what =
+    Object.values(run.values || {})
+      .map((value) => String(value ?? "").trim())
+      .find(Boolean) ||
+    run.title ||
+    "The run";
+  const ended = mailClock(at);
+  const line = document.createElement("section");
+  line.className = "card folded";
+  line.dataset.key = `folded:${run.id}`;
+  line.textContent =
+    `${run.status === "held" ? "✓" : "✗"} ${what}` +
+    `${fromMail ? " from mail" : ""}${ended ? ` · ${ended}` : ""}`;
+  return line;
+}

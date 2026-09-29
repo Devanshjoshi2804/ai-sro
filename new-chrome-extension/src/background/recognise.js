@@ -115,8 +115,10 @@ export function covered(tail, shape) {
     }
     // What the shape wants a little further on. The entries in between are
     // ones this operator did not need -- a navigation to a screen they were
-    // already on is the case this exists for.
-    const last = Math.min(want + K_MISSED, shape.length - 1);
+    // already on is the case this exists for. Before anything has matched,
+    // anywhere: an operator whose recording began with the form already open
+    // joins the job part-way (`match` asks more of an entry like that).
+    const last = matched === 0 ? shape.length - 1 : Math.min(want + K_MISSED, shape.length - 1);
     for (let ahead = want + 1; ahead <= last; ahead += 1) {
       if (key(shape[ahead]) !== here) continue;
       at.set(ahead, j);
@@ -130,6 +132,35 @@ export function covered(tail, shape) {
     // Anything else is the operator's own business and is passed over.
   }
   return { k: want, matched, skipped, ended, straying, at };
+}
+
+/** The attempt at `shape` the operator is making now: the stretch of the tail
+ *  that ends on the last gesture and covers the most of it, or null.
+ *
+ *  `covered` over the whole tail reads every gesture against where the FIRST
+ *  attempt got to. QA 2026-09-29: the operator added a customer type, walked
+ *  off, came back and pressed Add again, and the second attempt was never
+ *  seen -- the first had got past Add, so nothing after it advanced. Each
+ *  attempt starts somewhere in the tail; the one happening is the one the last
+ *  gesture belongs to. `at` indexes the whole tail, as `covered`'s does.
+ *
+ *  ponytail: every start is tried, tail x shape per shape per gesture; index
+ *  the shape's keys if tails or shapes grow past this. */
+export function doing(tail, shape) {
+  let best = null;
+  for (let from = 0; from < tail.length; from += 1) {
+    const reach = covered(tail.slice(from), shape);
+    if (reach.ended && (!best || reach.matched > best.matched)) best = { ...reach, from };
+  }
+  if (!best) return null;
+  return { ...best, at: new Map([...best.at].map(([entry, j]) => [entry, j + best.from])) };
+}
+
+/** The tail from the gesture an offer's match began at: the attempt it was
+ *  made on, and not an older one the tail still holds. */
+export function since(tail, at) {
+  const from = at == null ? -1 : tail.findIndex((entry) => entry.at === at);
+  return from > 0 ? tail.slice(from) : tail;
 }
 
 /** How many gestures in a row may advance nothing before an open offer is
@@ -212,19 +243,34 @@ export function resting(shape, now = Date.now()) {
 export function match(tail, shapes) {
   let best = null;
   let shared = false;
+  // How many served jobs hold each triple: a gesture only one of them has is
+  // one that says which job this is.
+  const holders = new Map();
+  for (const shape of shapes) {
+    for (const entry of new Set((shape.shape || []).map(key))) {
+      holders.set(entry, (holders.get(entry) || 0) + 1);
+    }
+  }
   for (const shape of shapes) {
     if (!shape.shape?.length || resting(shape)) continue;
     // The rig may say a job is offered later than the default: its earlier
     // offers kept diverging at the default.
     const after = shape.offer_after ?? K_OFFER_AFTER;
-    const reach = covered(tail, shape.shape);
+    // The attempt the last gesture belongs to -- which is also what makes an
+    // offer about the gesture that just happened, and not a shape a tail
+    // brushed past ten gestures ago.
+    const reach = doing(tail, shape.shape);
+    if (!reach) continue;
     // `matched` and not `k`: `k` is how far INTO the shape the operator has
     // got and counts the entries a skip stepped over, which are entries they
     // never performed. What earns an offer is what they actually did.
     if (reach.matched < after) continue;
-    // An offer is about the gesture that just happened. A tail that brushed
-    // past this shape and then went elsewhere is not somebody starting it.
-    if (!reach.ended) continue;
+    // Joined part-way -- past the opening a skip allows -- the gestures have
+    // to name this job: Add, a field or Save on this screen can be any job's
+    // on it, and one that only this job has cannot.
+    const entry = Math.min(...reach.at.keys());
+    const telling = [...reach.at.keys()].some((i) => holders.get(key(shape.shape[i])) === 1);
+    if (entry > K_MISSED && !telling) continue;
     // A strict prefix, as before: a tail that reached the end of the shape is
     // a job the operator finished, and there is nothing left to offer.
     if (reach.k >= shape.shape.length) continue;
@@ -277,7 +323,7 @@ export function diverged(tail, offer, shapes) {
   // is: an operator who skipped a step they were already past has not left
   // the job, and calling that divergence withdrew the offer they were in the
   // middle of answering.
-  const reach = covered(tail, shape.shape);
+  const reach = covered(since(tail, offer.since), shape.shape);
   // Backwards is impossible -- a tail only grows -- so what ends an offer is
   // the operator going quiet on this job: `K_STRAY` gestures in a row that
   // advanced none of it. A single stray one is the noise the match now passes

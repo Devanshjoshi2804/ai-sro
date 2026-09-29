@@ -10,7 +10,7 @@
 // which is what makes the whole of it testable without a browser.
 
 import { fire, page as pageOf } from "../panel/nudge.js";
-import { covered, diverged, match } from "./recognise.js";
+import { covered, diverged, match, since } from "./recognise.js";
 
 export function decideOffer({ tail, shapes, open, origin, page = null, now }) {
   const rigOpen = open && open.source === "rig" && open.state === "open" && open.k > 0 ? open : null;
@@ -21,7 +21,7 @@ export function decideOffer({ tail, shapes, open, origin, page = null, now }) {
   // A tail that reached the end of the job is a job the operator finished:
   // the offer ends, so a press can never hand Steel a count behind what they did.
   const rigShape = rigOpen && shapes.find((s) => s.id === rigOpen.workflowId);
-  if (rigShape && covered(tail, rigShape.shape).k >= rigShape.shape.length)
+  if (rigShape && covered(since(tail, rigOpen.since), rigShape.shape).k >= rigShape.shape.length)
     return { replace: null, end: "did_it" };
   const found = match(tail, shapes);
   if (!found) return { replace: null, end: null };

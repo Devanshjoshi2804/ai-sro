@@ -1,0 +1,542 @@
+{
+  "batch_id": "bat_qa_customer_type_yyds",
+  "device_id": "dev_fixture",
+  "started_at": 1790673476.227,
+  "ended_at": 1790673556.457,
+  "mode": "passive",
+  "events": [
+    {
+      "kind": "gesture",
+      "tab_id": 7,
+      "frame_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "page_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "gesture": {
+        "kind": "click",
+        "at": 1790673476.227,
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+        "value": null,
+        "secret": false,
+        "target": {
+          "tag": "span",
+          "role": "presentation",
+          "name": null,
+          "secret": false,
+          "text": null,
+          "testId": null,
+          "component": {
+            "framework": "extjs",
+            "xtype": "button",
+            "itemId": null,
+            "name": null,
+            "fieldLabel": null,
+            "required": null,
+            "query": "toolbar button",
+            "chain": [
+              "jdaInactivityWarningDialog",
+              "panel#pnlButtons",
+              "toolbar",
+              "button"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "kind": "gesture",
+      "tab_id": 7,
+      "frame_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "page_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "gesture": {
+        "kind": "click",
+        "at": 1790673478.707,
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+        "value": null,
+        "secret": false,
+        "target": {
+          "tag": "div",
+          "role": "presentation",
+          "name": "Warehouse\nBuildings\nBusiness Units\nAreas\nLocations",
+          "secret": false,
+          "text": "Warehouse\nBuildings\nBusiness Units\nAreas\nLocations",
+          "testId": null,
+          "component": {
+            "framework": "extjs",
+            "xtype": null,
+            "itemId": null,
+            "name": null,
+            "fieldLabel": null,
+            "required": null,
+            "query": "",
+            "chain": []
+          }
+        }
+      }
+    },
+    {
+      "kind": "gesture",
+      "tab_id": 7,
+      "frame_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "page_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "gesture": {
+        "kind": "click",
+        "at": 1790673479.292,
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+        "value": null,
+        "secret": false,
+        "target": {
+          "tag": "span",
+          "role": null,
+          "name": "Warehouse",
+          "secret": false,
+          "text": "Warehouse",
+          "testId": null,
+          "component": {
+            "framework": "extjs",
+            "xtype": "tabItem",
+            "itemId": null,
+            "name": null,
+            "fieldLabel": null,
+            "required": null,
+            "query": "tabItem",
+            "chain": [
+              "tabItem"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "kind": "gesture",
+      "tab_id": 7,
+      "frame_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.warehouse.warehouse////",
+      "page_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.warehouse.warehouse////",
+      "gesture": {
+        "kind": "click",
+        "at": 1790673492.444,
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.warehouse.warehouse////",
+        "value": null,
+        "secret": false,
+        "target": {
+          "tag": "span",
+          "role": null,
+          "name": "Customer Types",
+          "secret": false,
+          "text": "Customer Types",
+          "testId": null,
+          "component": {
+            "framework": "extjs",
+            "xtype": "tabItem",
+            "itemId": null,
+            "name": null,
+            "fieldLabel": null,
+            "required": null,
+            "query": "tabItem",
+            "chain": [
+              "tabItem"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "kind": "gesture",
+      "tab_id": 7,
+      "frame_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "page_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "gesture": {
+        "kind": "click",
+        "at": 1790673496.741,
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+        "value": null,
+        "secret": false,
+        "target": {
+          "tag": "span",
+          "role": "presentation",
+          "name": null,
+          "secret": false,
+          "text": null,
+          "testId": null,
+          "component": {
+            "framework": "extjs",
+            "xtype": "button",
+            "itemId": "addButton",
+            "name": null,
+            "fieldLabel": null,
+            "required": null,
+            "query": "container button#addButton",
+            "chain": [
+              "viewport",
+              "wm-masterdata-customer-landing#customer-landing",
+              "container#cardDeck-cardContainer",
+              "wm-masterdata-customer-ExistingCustomerTypes#wm-masterdata-customer-ExistingCustomerTypes",
+              "rpFilterableGrid#masterdata-customer-existingcustomertypes-grid",
+              "rpFilterHeader#fancyHeader",
+              "toolbar",
+              "container",
+              "button#addButton"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "kind": "gesture",
+      "tab_id": 7,
+      "frame_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "page_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "gesture": {
+        "kind": "click",
+        "at": 1790673499.798,
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+        "value": null,
+        "secret": false,
+        "target": {
+          "tag": "input",
+          "role": "textbox",
+          "name": "Customer Type*",
+          "secret": false,
+          "text": null,
+          "testId": null,
+          "component": {
+            "framework": "extjs",
+            "xtype": "textfield",
+            "itemId": "customertype-customerType",
+            "name": "customerType",
+            "fieldLabel": "Customer Type",
+            "required": true,
+            "query": "container#GeneralItem-row1-column0 textfield#customertype-customerType",
+            "chain": [
+              "viewport",
+              "wm-masterdata-customer-landing#customer-landing",
+              "container#cardDeck-cardContainer",
+              "wm-common-customer-customertype-form#customer-customertype",
+              "form",
+              "panel",
+              "wm-common-customer-customertype-general-item#GeneralItem",
+              "container#GeneralItem-row1",
+              "container#GeneralItem-row1-column0",
+              "textfield#customertype-customerType"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "kind": "gesture",
+      "tab_id": 7,
+      "frame_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "page_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "gesture": {
+        "kind": "type",
+        "at": 1790673505.545,
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+        "value": "YDGY",
+        "secret": false,
+        "target": {
+          "tag": "input",
+          "role": "textbox",
+          "name": "Customer Type*",
+          "secret": false,
+          "text": null,
+          "testId": null,
+          "component": {
+            "framework": "extjs",
+            "xtype": "textfield",
+            "itemId": "customertype-customerType",
+            "name": "customerType",
+            "fieldLabel": "Customer Type",
+            "required": true,
+            "query": "container#GeneralItem-row1-column0 textfield#customertype-customerType",
+            "chain": [
+              "viewport",
+              "wm-masterdata-customer-landing#customer-landing",
+              "container#cardDeck-cardContainer",
+              "wm-common-customer-customertype-form#customer-customertype",
+              "form",
+              "panel",
+              "wm-common-customer-customertype-general-item#GeneralItem",
+              "container#GeneralItem-row1",
+              "container#GeneralItem-row1-column0",
+              "textfield#customertype-customerType"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "kind": "gesture",
+      "tab_id": 7,
+      "frame_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "page_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "gesture": {
+        "kind": "click",
+        "at": 1790673505.658,
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+        "value": null,
+        "secret": false,
+        "target": {
+          "tag": "input",
+          "role": "textbox",
+          "name": "Customer Type Description*",
+          "secret": false,
+          "text": null,
+          "testId": null,
+          "component": {
+            "framework": "extjs",
+            "xtype": "textfield",
+            "itemId": "customertype-longDescription",
+            "name": "longDescription",
+            "fieldLabel": "Customer Type Description",
+            "required": true,
+            "query": "container#GeneralItem-row1-column1 textfield#customertype-longDescription",
+            "chain": [
+              "viewport",
+              "wm-masterdata-customer-landing#customer-landing",
+              "container#cardDeck-cardContainer",
+              "wm-common-customer-customertype-form#customer-customertype",
+              "form",
+              "panel",
+              "wm-common-customer-customertype-general-item#GeneralItem",
+              "container#GeneralItem-row1",
+              "container#GeneralItem-row1-column1",
+              "textfield#customertype-longDescription"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "kind": "gesture",
+      "tab_id": 7,
+      "frame_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "page_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "gesture": {
+        "kind": "click",
+        "at": 1790673531.827,
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+        "value": null,
+        "secret": false,
+        "target": {
+          "tag": "span",
+          "role": null,
+          "name": "Warehouse",
+          "secret": false,
+          "text": "Warehouse",
+          "testId": null,
+          "component": {
+            "framework": "extjs",
+            "xtype": "tabItem",
+            "itemId": null,
+            "name": null,
+            "fieldLabel": null,
+            "required": null,
+            "query": "tabItem",
+            "chain": [
+              "tabItem"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "kind": "gesture",
+      "tab_id": 7,
+      "frame_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.warehouse.warehouse////",
+      "page_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.warehouse.warehouse////",
+      "gesture": {
+        "kind": "click",
+        "at": 1790673546.508,
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.warehouse.warehouse////",
+        "value": null,
+        "secret": false,
+        "target": {
+          "tag": "span",
+          "role": null,
+          "name": "Customer Types",
+          "secret": false,
+          "text": "Customer Types",
+          "testId": null,
+          "component": {
+            "framework": "extjs",
+            "xtype": "tabItem",
+            "itemId": null,
+            "name": null,
+            "fieldLabel": null,
+            "required": null,
+            "query": "tabItem",
+            "chain": [
+              "tabItem"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "kind": "gesture",
+      "tab_id": 7,
+      "frame_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "page_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "gesture": {
+        "kind": "click",
+        "at": 1790673549.578,
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+        "value": null,
+        "secret": false,
+        "target": {
+          "tag": "span",
+          "role": "presentation",
+          "name": null,
+          "secret": false,
+          "text": null,
+          "testId": null,
+          "component": {
+            "framework": "extjs",
+            "xtype": "button",
+            "itemId": "addButton",
+            "name": null,
+            "fieldLabel": null,
+            "required": null,
+            "query": "container button#addButton",
+            "chain": [
+              "viewport",
+              "wm-masterdata-customer-landing#customer-landing",
+              "container#cardDeck-cardContainer",
+              "wm-masterdata-customer-ExistingCustomerTypes#wm-masterdata-customer-ExistingCustomerTypes",
+              "rpFilterableGrid#masterdata-customer-existingcustomertypes-grid",
+              "rpFilterHeader#fancyHeader",
+              "toolbar",
+              "container",
+              "button#addButton"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "kind": "gesture",
+      "tab_id": 7,
+      "frame_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "page_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "gesture": {
+        "kind": "click",
+        "at": 1790673550.981,
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+        "value": null,
+        "secret": false,
+        "target": {
+          "tag": "input",
+          "role": "textbox",
+          "name": "Customer Type*",
+          "secret": false,
+          "text": null,
+          "testId": null,
+          "component": {
+            "framework": "extjs",
+            "xtype": "textfield",
+            "itemId": "customertype-customerType",
+            "name": "customerType",
+            "fieldLabel": "Customer Type",
+            "required": true,
+            "query": "container#GeneralItem-row1-column0 textfield#customertype-customerType",
+            "chain": [
+              "viewport",
+              "wm-masterdata-customer-landing#customer-landing",
+              "container#cardDeck-cardContainer",
+              "wm-common-customer-customertype-form#customer-customertype",
+              "form",
+              "panel",
+              "wm-common-customer-customertype-general-item#GeneralItem",
+              "container#GeneralItem-row1",
+              "container#GeneralItem-row1-column0",
+              "textfield#customertype-customerType"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "kind": "gesture",
+      "tab_id": 7,
+      "frame_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "page_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "gesture": {
+        "kind": "type",
+        "at": 1790673556.33,
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+        "value": "YYDS",
+        "secret": false,
+        "target": {
+          "tag": "input",
+          "role": "textbox",
+          "name": "Customer Type*",
+          "secret": false,
+          "text": null,
+          "testId": null,
+          "component": {
+            "framework": "extjs",
+            "xtype": "textfield",
+            "itemId": "customertype-customerType",
+            "name": "customerType",
+            "fieldLabel": "Customer Type",
+            "required": true,
+            "query": "container#GeneralItem-row1-column0 textfield#customertype-customerType",
+            "chain": [
+              "viewport",
+              "wm-masterdata-customer-landing#customer-landing",
+              "container#cardDeck-cardContainer",
+              "wm-common-customer-customertype-form#customer-customertype",
+              "form",
+              "panel",
+              "wm-common-customer-customertype-general-item#GeneralItem",
+              "container#GeneralItem-row1",
+              "container#GeneralItem-row1-column0",
+              "textfield#customertype-customerType"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "kind": "gesture",
+      "tab_id": 7,
+      "frame_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "page_url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+      "gesture": {
+        "kind": "click",
+        "at": 1790673556.457,
+        "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+        "value": null,
+        "secret": false,
+        "target": {
+          "tag": "input",
+          "role": "textbox",
+          "name": "Customer Type Description*",
+          "secret": false,
+          "text": null,
+          "testId": null,
+          "component": {
+            "framework": "extjs",
+            "xtype": "textfield",
+            "itemId": "customertype-longDescription",
+            "name": "longDescription",
+            "fieldLabel": "Customer Type Description",
+            "required": true,
+            "query": "container#GeneralItem-row1-column1 textfield#customertype-longDescription",
+            "chain": [
+              "viewport",
+              "wm-masterdata-customer-landing#customer-landing",
+              "container#cardDeck-cardContainer",
+              "wm-common-customer-customertype-form#customer-customertype",
+              "form",
+              "panel",
+              "wm-common-customer-customertype-general-item#GeneralItem",
+              "container#GeneralItem-row1",
+              "container#GeneralItem-row1-column1",
+              "textfield#customertype-longDescription"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

@@ -858,8 +858,13 @@ async function considerOffer(tabId, gesture, tabUrl) {
       // id and the moment it was made stay put -- so nothing ended, nothing is
       // reported, and the ledger has one offer that got further rather than a
       // dismissal every time the operator typed the next field.
+      //
+      // The SAME job only. An offer the address made for another job yields to
+      // the one the gestures name -- the doing outranks the address -- and
+      // ends as itself, rather than turning into a different job under its id.
       const made =
-        open && open.source === "rig" && open.state === "open"
+        open && open.source === "rig" && open.state === "open" &&
+        open.workflowId === replace.workflowId
           ? { ...open, ...replace, id: open.id, at: open.at, tabId, canFind, takesOver }
           : { ...replace, tabId, canFind, takesOver };
       // The one it supersedes stops being open: two open at once is the queue

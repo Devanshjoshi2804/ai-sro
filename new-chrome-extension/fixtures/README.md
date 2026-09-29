@@ -26,6 +26,7 @@ Shapes are specified in [`docs/14-extension-protocol.md`](../../docs/14-extensio
 | `page-navigated.json` | one `page` event |
 | `batch.json` | a complete `POST /v1/observations` body |
 | `batch-qa-customer-type-yheu.json` | the operator's real Customer Types gestures on QA, 2026-09-29 (Add, YHEU typed), from the stored upload -- read by `offer-right-job.test.mjs` |
+| `batch-qa-customer-type-yyds.json` | the same screen at ~14:49: an attempt (YDGY) abandoned, then Add again and YYDS typed, from the stored upload -- read by `offer-mid-job.test.mjs` |
 | `command-ui-perform-reply.json` | an extension → server reply to `ui.perform` |
 | `command-http-send-reply.json` | an extension → server reply to `http.send` |
 

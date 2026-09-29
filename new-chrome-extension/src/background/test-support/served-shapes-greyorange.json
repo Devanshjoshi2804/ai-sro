@@ -2,7 +2,7 @@
   {
     "id": "wfl_4869f40e1caa408c3154911984c3c0de",
     "title": "Create a Warehouse Equipment Type",
-    "starts_on": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.warehouse.warehouse",
+    "starts_on": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.warehouseequipmenttype",
     "hosts": [
       "https://bf56-kms-wms-web-np2.jdadelivers.com"
     ],
@@ -244,7 +244,7 @@
   {
     "id": "wfl_23a8108a9cd71a482d7e2eeed7566d40",
     "title": "Create a Customer Type",
-    "starts_on": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype",
+    "starts_on": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types",
     "hosts": [
       "https://bf56-kms-wms-web-np2.jdadelivers.com"
     ],
@@ -659,7 +659,7 @@
   {
     "id": "wfl_131f3aa71b8ec4971ee8f56e82e6e475",
     "title": "Create a Client",
-    "starts_on": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.warehouse.warehouse",
+    "starts_on": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.clients",
     "hosts": [
       "https://bf56-kms-wms-web-np2.jdadelivers.com"
     ],

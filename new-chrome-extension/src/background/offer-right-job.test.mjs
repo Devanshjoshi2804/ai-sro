@@ -60,6 +60,7 @@ const DONE = read("../../fixtures/batch-qa-customer-type-yheu.json").events;
 const BACKEND = "http://backend.test";
 const BY = "https://bf56-kms-wms-web-np2.jdadelivers.com";
 const WAREHOUSE = `${BY}/portal?siteId=SG#wm.config/wm.config.warehouse.warehouse////`;
+const TRANSPORT = `${BY}/portal?siteId=SG#wm.config/wm.config.equipment.equipment.transportequipmenttype////`;
 const CUSTOMER_TYPES = `${BY}/portal?siteId=SG#wm.config/wm.config.partners.customers.types////`;
 
 globalThis.fetch = async (url) => {
@@ -77,7 +78,7 @@ held.set("sro.token", "tok");
 held.set("sro.deviceId", "dev-1");
 held.set("sro.deviceSecret", "sec");
 held.set("sro.policy", { capture_enabled: true });
-held.set("sro.watched", [{ tabId: 7, host: new URL(BY).host, since: 0 }]);
+held.set("sro.watched", [7, 9].map((tabId) => ({ tabId, host: new URL(BY).host, since: 0 })));
 
 const open = () => (held.get("sro.nudges") || []).filter((one) => one.state === "open");
 
@@ -92,25 +93,26 @@ function send({ gesture, page_url: tabUrl }) {
   );
 }
 
+test("arriving on a screen one served job starts on offers it", async () => {
+  await listeners.committed({ frameId: 0, tabId: 9, url: TRANSPORT, timeStamp: 500 });
+  await settle();
+  assert.deepEqual(open().map((one) => one.title), ["Create a Transport Equipment Type"]);
+
+  await listeners.fragment({ frameId: 0, tabId: 9, url: WAREHOUSE, timeStamp: 600 });
+  await settle();
+  assert.deepEqual(open(), [], "the offer outlived the screen it was about");
+});
+
 test("arriving on a screen two served jobs start on offers neither", async () => {
-  // Create a Warehouse Equipment Type and Create a Client both begin on the
-  // warehouse screen, as served.
-  await listeners.committed({ frameId: 0, tabId: 7, url: WAREHOUSE, timeStamp: 1000 });
+  // Create and Delete a Customer Type both begin on Customer Types, as served.
+  await listeners.committed({ frameId: 0, tabId: 7, url: CUSTOMER_TYPES, timeStamp: 1000 });
   await settle();
 
   assert.deepEqual(open().map((one) => one.title), [], "the address picked one of two jobs");
 });
 
-test("arriving on a screen one served job starts on still offers it", async () => {
-  await send(DONE[0]); // the Customer Types tab, clicked on the warehouse screen
-  await listeners.fragment({ frameId: 0, tabId: 7, url: CUSTOMER_TYPES, timeStamp: 2000 });
-  await settle();
-
-  assert.deepEqual(open().map((one) => one.title), ["Delete a Customer Type"]);
-});
-
 test("Add and YHEU typed into Customer Type are Create a Customer Type, with YHEU", async () => {
-  for (const one of DONE.slice(1)) await send(one);
+  for (const one of DONE) await send(one);
   await settle();
 
   const offers = open();

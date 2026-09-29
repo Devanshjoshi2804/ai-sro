@@ -457,3 +457,50 @@ test("a match says when the gestures it used began and ended, so a takeover read
   assert.equal(got.since, 100);
   assert.equal(got.through, 102);
 });
+
+// --- part-way through a job, and a second attempt at it ----------------------
+
+const click = (identity, at) => ({ triple: [H, identity, "click"], value: null, secret: false, at });
+const long = {
+  id: "wfl_long", title: "Add a type", held_runs: 1,
+  shape: ["tab", "add", "code", "desc", "dept", "save"].map((one) => [H, one, "click"]),
+  parameters: [],
+};
+const remove = {
+  id: "wfl_remove", title: "Remove a type", held_runs: 1,
+  shape: ["grid", "delete", "ok", "add", "code", "reset"].map((one) => [H, one, "click"]),
+  parameters: [],
+};
+
+test("joining a job part-way is offered when a gesture only that job has says which", () => {
+  // The form was already open: all the tail holds is the field typed into
+  // and the next one, and `desc` is in no other job.
+  const got = match([click("code", 1), click("desc", 2)], [long, remove]);
+
+  assert.equal(got?.workflowId, "wfl_long");
+});
+
+test("and not on gestures every job on the screen has", () => {
+  // `add` then `code` are the opening of one job and the middle of the other.
+  // Part-way into `Remove a type` on those is a guess; from the top of `Add a
+  // type`, it is the job.
+  const got = match([click("add", 1), click("code", 2)], [long, remove]);
+
+  assert.equal(got?.workflowId, "wfl_long", "the middle of Remove tied with the top of Add");
+});
+
+test("a second attempt at a job is read as itself, not against where the first got to", () => {
+  // QA 2026-09-29: Add, a value, walked off, back, Add again.
+  const first = [click("tab", 1), click("add", 2), click("code", 3), click("desc", 4)];
+  const away = [click("elsewhere", 5), click("elsewhere", 6)];
+  const again = [click("add", 7), click("code", 8)];
+  const tail = [...first, ...away, ...again];
+
+  const got = match(tail, [long]);
+  assert.equal(got?.workflowId, "wfl_long", "the second attempt was never seen");
+  assert.equal(got.since, 7, "matched on the first attempt's gestures");
+
+  const offer = { workflowId: "wfl_long", k: got.k, since: got.since };
+  assert.equal(diverged(tail, offer, [long]), false, "the first attempt's leftovers withdrew the offer");
+  assert.equal(diverged([...tail, click("desc", 9)], offer, [long]), false);
+});

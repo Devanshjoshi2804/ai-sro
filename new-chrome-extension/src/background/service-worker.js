@@ -36,7 +36,7 @@ import {
   mailRunsOfToday,
 } from "./mail-runs.js";
 import { chosen, resting, tailWith } from "./recognise.js";
-import { tripleOf } from "./shape.generated.js";
+import { screenOf, tripleOf } from "./shape.generated.js";
 import { hideNudge, showNudge } from "./showing.js";
 import { capture } from "./shots.js";
 import { noteFinished } from "./finishing.js";
@@ -324,15 +324,15 @@ async function rulesHere(url) {
   });
 }
 
-/** The page a RULE is about, which is `page()` plus two narrower rules.
+/** The page a RULE is about: `page()`, over http or https only.
  *
  * Not a second parser: `nudge.js`'s `page()` is the one that says what a page
- * is here, and this is the same string under the two conditions a standing
- * rule adds. Without the fragment's route, because `domain/trigger/arrival.py`
- * defines a rule's page as host/path and refuses a `#`. And http or https
- * only: `chrome://settings` parses, and the browser's own pages are not a
- * system, carry no session, and are the one place an extension has no
- * business driving anything.
+ * is here, fragment route and all, so a rule made on one Blue Yonder screen is
+ * about that screen and not every screen of `/portal` -- the same string
+ * `domain/trigger/arrival.py`'s `page_of` makes. http or https only:
+ * `chrome://settings` parses, and the browser's own pages are not a system,
+ * carry no session, and are the one place an extension has no business
+ * driving anything.
  */
 function rulePage(url) {
   try {
@@ -340,7 +340,7 @@ function rulePage(url) {
   } catch {
     return "";
   }
-  return pageOf(url).split("#")[0];
+  return pageOf(url);
 }
 
 /** Ends the ones that ran out, wherever the operator has got to.
@@ -457,14 +457,6 @@ let canFind = false;
  * then is a press worth waiting on an upload for. False until the first
  * answer: a press that skips the wait leaves the server in doubt, never wrong. */
 let takesOver = false;
-
-function originOf(url) {
-  try {
-    return new URL(url).origin;
-  } catch {
-    return null;
-  }
-}
 
 /** One sentence, turned into the same offer a recognised walk makes.
  *
@@ -794,15 +786,18 @@ async function offerFromWords(text, tabId) {
   }
 }
 
-async function considerOffer(tabId, gesture) {
+async function considerOffer(tabId, gesture, tabUrl) {
   try {
     if (tabId === null || !(await isWatched(tabId))) return;
     // A run waiting on somebody to approve a write: the gestures arriving
     // meanwhile are them doing that step by hand. Offering to start a second
     // run over it is the worst moment this panel has.
     if (watchedRun(await state.activeRun())) return;
-    const origin = originOf(gesture.url);
-    if (!origin) return;
+    // The screen, as the backend keys the steps of every shape it serves: the
+    // tab's own url before the frame's (`page_url or url`), redacted as it is on
+    // its way up. Keyed by origin alone, no tail ever matched a served shape.
+    const here = screenOf(redactUrl(tabUrl || gesture.url));
+    if (!here) return;
     // Asked before the tail is written: a browser with no rig has nothing to
     // match against, and a storage write per keystroke to feed nothing is a
     // cost paid by every operator who never configured one.
@@ -811,7 +806,7 @@ async function considerOffer(tabId, gesture) {
     const tails = await state.tails();
     const tail = tailWith(tails[tabId] || [], {
       triple: tripleOf({
-        system: origin,
+        system: here,
         target: gesture.target,
         kind: gesture.kind,
       }),
@@ -850,8 +845,8 @@ async function considerOffer(tabId, gesture) {
         tail,
         shapes,
         open,
-        origin,
-        page: gesture.url || null,
+        origin: here,
+        page: here,
         now,
       });
       if (end && open) return endOffer(open, end, held);
@@ -1455,7 +1450,7 @@ async function handle(message, sender) {
       // backend has already proved? Never awaited -- recognising a job may not
       // hold up recording one. What it makes is an offer; only a press starts.
       if (message.kind === "gesture")
-        void considerOffer(sender?.tab?.id ?? null, message.gesture);
+        void considerOffer(sender?.tab?.id ?? null, message.gesture, sender?.tab?.url);
       // They did the task themselves while it was being offered. One of the
       // three ways a nudge ends, and the one that needs saying least: they did
       // the thing, and a panel congratulating them on it is a panel nobody

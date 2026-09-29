@@ -35,8 +35,9 @@ LENA = DeviceId("dev-lena-laptop")
 SAM = DeviceId("dev-sam-laptop")
 
 WMS = "bf56-kms-wms-web-np2.jdadelivers.com"
-THE_PAGE = f"{WMS}/portal/page"
-ON_IT = f"https://{THE_PAGE}?siteId=SG#wm.config.partners.suppliers////"
+# The screen, fragment route and all: Blue Yonder routes on the fragment.
+THE_PAGE = f"{WMS}/portal/page#wm.config.partners.suppliers"
+ON_IT = f"https://{WMS}/portal/page?siteId=SG#wm.config.partners.suppliers////"
 
 
 def _proving(device_id: DeviceId) -> dict[str, str]:

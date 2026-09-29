@@ -8,7 +8,13 @@ import pytest
 from sro.application.capture.rig_wire import Gesture as WireGesture
 from sro.application.observation.correlate import as_action
 from sro.domain.observation.gesture import Gesture, Target
-from sro.domain.observation.identity import containment, jaccard, shape_key, target_identity
+from sro.domain.observation.identity import (
+    containment,
+    jaccard,
+    screen_of,
+    shape_key,
+    target_identity,
+)
 from sro.domain.skill.shape import where_steps_moved
 from sro.domain.skill.workflow import Step
 from tests.unit.domain.rig.conftest import gestures as _gestures
@@ -208,6 +214,21 @@ def test_the_python_identity_agrees_with_the_shared_fixture() -> None:
             action=as_action(wire),
         )
         assert target_identity(gesture) == case["identity"], case["name"]
+
+
+SCREENS = FIXTURE.parent / "screen-of.json"
+
+
+def test_the_python_screen_agrees_with_the_shared_fixture() -> None:
+    """The screen is the first entry of every triple, and the browser keys its
+    tail by the generated twin. Two readings of it and no offer ever matches:
+    the tail was keyed by origin while the shape was keyed by screen, and the
+    prefix offer never fired."""
+    if not SCREENS.is_file():
+        pytest.skip("the shared screen fixture is not in this checkout")
+    for case in json.loads(SCREENS.read_text()):
+        gesture = replace(_gestures()[0], page_url=case["url"])
+        assert screen_of(gesture) == case["screen"], case["name"]
 
 
 # -- a job that grows keeps its learning ---------------------------------------

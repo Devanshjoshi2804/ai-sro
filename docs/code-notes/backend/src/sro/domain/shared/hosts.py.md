@@ -53,7 +53,23 @@ Comments and docstrings moved out of [`backend/src/sro/domain/shared/hosts.py`](
 > -- so a run opening this would land on the portal root and plan against the
 > wrong page. `run_workflow` keeps the whole url for that, deliberately.
 
-## `same_screen`, [line 49](../../../../../../../backend/src/sro/domain/shared/hosts.py#L49): Docstring
+## `route_of`, [line 49](../../../../../../../backend/src/sro/domain/shared/hosts.py#L49): Docstring
+
+> The screen a fragment names: its dotted segments, lowercased.
+>
+> Blue Yonder routes on the fragment -- `#wm.config/wm.config.partners.customers.types////`
+> -- so the route is part of which screen somebody is on, and the trailing
+> `////` are empty positional slots that change between two doings. One
+> definition for the key a job's steps are stored under (`identity.screen_of`)
+> and the page a rule is about (`arrival.page_of`); the extension's
+> `screenOf` is the generated twin, held to `fixtures/screen-of.json`.
+>
+> A `key=value` segment is never a route. An OAuth implicit flow hands its
+> token back as `#access_token=eyJ...` and a JWT is full of dots: read as a
+> route it would be a credential in every shape served to the tenant and in
+> every rule made on the callback page.
+
+## `same_screen`, [line 53](../../../../../../../backend/src/sro/domain/shared/hosts.py#L53): Docstring
 
 > Whether two urls are the same screen of the same application.
 >
@@ -72,7 +88,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/shared/hosts.py`](
 > The query stays dropped, for `page_of`'s reason: it is where a session
 > token and one visit's particulars live.
 
-## `screen_of`, [line 61](../../../../../../../backend/src/sro/domain/shared/hosts.py#L61): Docstring
+## `screen_of`, [line 65](../../../../../../../backend/src/sro/domain/shared/hosts.py#L65): Docstring
 
 > The screen these visits have in common: what every one of them agrees on.
 >
@@ -104,7 +120,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/shared/hosts.py`](
 > is the honest answer and not a fallback -- with one doing there is nothing
 > that says which half of it was the job.
 
-## `domain_matches`, [line 81](../../../../../../../backend/src/sro/domain/shared/hosts.py#L81): Docstring
+## `domain_matches`, [line 85](../../../../../../../backend/src/sro/domain/shared/hosts.py#L85): Docstring
 
 > RFC 6265 domain-match: the host itself, or a subdomain of it.
 >
@@ -112,7 +128,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/shared/hosts.py`](
 > is true, and that is how a lookalike host reaches a cookie -- or, here, past
 > an exclusion.
 
-## `belongs_to_system`, [line 88](../../../../../../../backend/src/sro/domain/shared/hosts.py#L88): Docstring
+## `belongs_to_system`, [line 92](../../../../../../../backend/src/sro/domain/shared/hosts.py#L92): Docstring
 
 > Whether ``cookie`` belongs to the system at ``url`` as a whole: the domain
 > must match (``domain_matches``); a domain with no leading dot is host-only
@@ -132,7 +148,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/shared/hosts.py`](
 > its other callers (observation policy's include/exclude lists, watch
 > hosts) are configuration, where ``acme.com`` means the whole domain.
 
-## `belongs_to`, [line 98](../../../../../../../backend/src/sro/domain/shared/hosts.py#L98): Docstring
+## `belongs_to`, [line 102](../../../../../../../backend/src/sro/domain/shared/hosts.py#L102): Docstring
 
 > Whether ``cookie`` would be sent with one request to ``url``, by the
 > browser's rules (RFC 6265 §5.4): ``belongs_to_system`` plus ``Path``,
@@ -146,7 +162,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/shared/hosts.py`](
 > The hosts Chrome counts as a secure context over plain http, so a
 > ``Secure`` cookie is sent to them.
 
-## `headers_without_markers`, [line 108](../../../../../../../backend/src/sro/domain/shared/hosts.py#L108): Docstring
+## `headers_without_markers`, [line 112](../../../../../../../backend/src/sro/domain/shared/hosts.py#L112): Docstring
 
 > The headers that can still be sent: a value the boundary struck out is
 > not a credential the browser can use, it is the marker's own text. Beside

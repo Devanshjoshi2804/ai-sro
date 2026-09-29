@@ -80,7 +80,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/gene
 > copy of a matching rule drifts the moment either side is edited. Never edit
 > the output; edit this.
 
-## `page_code_source`, [line 307](../../../../../../../backend/src/sro/infrastructure/steel/generate_extension_recorder.py#L307): Docstring
+## `page_code_source`, [line 338](../../../../../../../backend/src/sro/infrastructure/steel/generate_extension_recorder.py#L338): Docstring
 
 > page-code.js is hand-written and injected raw by both the extension
 > (`executeScript`) and Steel (`add_init_script`), so it cannot take a marker

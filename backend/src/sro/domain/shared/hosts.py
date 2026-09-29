@@ -46,6 +46,10 @@ def page_of(url: str | None) -> str | None:
     return f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
 
 
+def route_of(fragment: str) -> str:
+    return "/".join(part for part in fragment.split("/") if "." in part and "=" not in part).lower()
+
+
 def same_screen(one: str | None, other: str | None) -> bool:
     if not one or not other:
         return False

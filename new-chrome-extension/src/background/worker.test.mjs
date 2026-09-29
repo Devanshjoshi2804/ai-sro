@@ -144,16 +144,17 @@ const H = "https://wms.example";
 const PAGE = `${H}/wa`;
 const TAB = 1;
 
+// As `/v1/shapes` serves it: every step keyed by its screen, `screen_of`.
 const SHAPE = {
   id: "wfl_wa",
   title: "Create Work Area",
   held_runs: 2,
   starts_on: PAGE,
   shape: [
-    [H, "a", "type"],
-    [H, "b", "type"],
-    [H, "c", "type"],
-    [H, "d", "type"],
+    [PAGE, "a", "type"],
+    [PAGE, "b", "type"],
+    [PAGE, "c", "type"],
+    [PAGE, "d", "type"],
   ],
   parameters: [{ name: "workArea", at: 0 }],
 };
@@ -701,7 +702,7 @@ test("a press the browser itself runs waits on no upload", async () => {
 test("a Steel press names the newest gesture on any tab, so work past the offer is waited for", async () => {
   ready();
   const offer = await offered({ steel: true });
-  held.set("sro.tails", { ...held.get("sro.tails"), 8: [{ triple: [H, "save", "click"], at: 7 }] });
+  held.set("sro.tails", { ...held.get("sro.tails"), 8: [{ triple: [PAGE, "save", "click"], at: 7 }] });
 
   await send({ kind: "start-rig-run", nudgeId: offer.id, values: {} });
 

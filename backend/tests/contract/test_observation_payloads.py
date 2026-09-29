@@ -36,9 +36,17 @@ FIXTURES = Path(__file__).resolve().parents[3] / "new-chrome-extension" / "fixtu
 #   the generated twin `new-chrome-extension/src/background/shape.generated.js`
 #   on the browser side. Those tests cover it; do not re-assert it here.
 #
+#   screen-of.json -- the same kind of pair for `screen_of`, the screen that is
+#   the first entry of every triple: `test_shape.py` and `screenOf` in the
+#   generated twin.
+#
+#   served-shape.json -- one shape as `/v1/shapes` serves it, written by
+#   `shape_of` in `tests/unit/domain/rig/test_shapes.py` and served by the
+#   extension's recognition test. Backend output, not extension output.
+#
 # `test_the_named_exclusions_still_exist` below stops this set outliving the
 # files it names.
-NOT_EXTENSION_OUTPUT = frozenset({"shape-identity.json"})
+NOT_EXTENSION_OUTPUT = frozenset({"shape-identity.json", "screen-of.json", "served-shape.json"})
 
 _REQUEST = TypeAdapter(CapturedRequest)
 _PAGE_EVENT = TypeAdapter(PageEvent)

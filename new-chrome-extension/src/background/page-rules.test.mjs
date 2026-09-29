@@ -53,14 +53,17 @@ globalThis.indexedDB = {
 
 const BACKEND = "http://backend.test";
 const WMS = "bf56-kms-wms-web-np2.jdadelivers.com";
-const THE_PAGE = `${WMS}/portal/page`;
+// A rule keeps the screen it was made on: Blue Yonder routes on the fragment.
+const THE_PAGE = `${WMS}/portal/page#wm.config.partners.suppliers`;
 const PAGE_URL = `https://${WMS}/portal/page?siteId=SG#wm.config.partners.suppliers////`;
+const OTHER_SCREEN = `https://${WMS}/portal/page?siteId=SG#wm.config.partners.customers.types////`;
 
 let served = [];
 
 globalThis.fetch = async (url, options = {}) => {
   const path = String(url).slice(BACKEND.length);
-  calls.push({ path, method: options.method || "GET" });
+  calls.push({ path, method: options.method || "GET", body: options.body });
+  if (path === "/v1/triggers") return { ok: true, status: 201, json: async () => ({ id: "trg-new" }) };
   if (path.endsWith("/arrivals")) {
     return { ok: true, status: 200, json: async () => served };
   }
@@ -152,6 +155,31 @@ test("a different page is not this rule", async () => {
   await new Promise((r) => setTimeout(r, 30));
 
   assert.equal(open().length, 0, "a rule about one page was offered on another");
+});
+
+test("another screen of the same portal is not this rule", async () => {
+  ready();
+
+  await navigated({ frameId: 0, tabId: 7, url: OTHER_SCREEN, timeStamp: 4000 });
+  await new Promise((r) => setTimeout(r, 30));
+
+  assert.equal(open().length, 0, "a rule made on one Blue Yonder screen was offered on another");
+});
+
+test("a rule made from an offer keeps the offer's screen", async () => {
+  ready({ rules: [] });
+  // An offer as the worker holds it: `startsOn` is `page()` of what was served.
+  held.set("sro.nudges", [
+    { id: "n_1", state: "open", source: "rig", workflowId: "wfl_ct", startsOn: THE_PAGE, values: {} },
+  ]);
+
+  const answer = await new Promise((resolve) =>
+    globalThis.__handle({ kind: "do-this-here", nudgeId: "n_1" }, {}, resolve),
+  );
+
+  assert.equal(answer.ok, true, answer.error);
+  const made = calls.find((call) => call.path === "/v1/triggers");
+  assert.equal(JSON.parse(made.body).arrival.page, THE_PAGE, "the rule dropped the screen's route");
 });
 
 test("the browser's own pages are not a system to offer work on", async () => {

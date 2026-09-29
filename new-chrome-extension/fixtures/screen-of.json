@@ -1,0 +1,32 @@
+[
+  {
+    "name": "a Blue Yonder screen: the site in the query and the empty slots go, the route stays",
+    "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.partners.customers.types////",
+    "screen": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.partners.customers.types"
+  },
+  {
+    "name": "another screen of the same portal is another screen",
+    "url": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal?siteId=SG#wm.config/wm.config.equipment.equipment.transportequipmenttype////",
+    "screen": "https://bf56-kms-wms-web-np2.jdadelivers.com/portal#wm.config/wm.config.equipment.equipment.transportequipmenttype"
+  },
+  {
+    "name": "no fragment: host and path, no query, no trailing slash",
+    "url": "https://wms.example/receiving/?facility=BLR1",
+    "screen": "https://wms.example/receiving"
+  },
+  {
+    "name": "a fragment with no dotted route is where they were inside the page",
+    "url": "https://wms.example/receiving#top",
+    "screen": "https://wms.example/receiving"
+  },
+  {
+    "name": "an OAuth fragment is pairs, never a route, whatever dots its token has",
+    "url": "https://wms.example/cb#access_token=eyJhbGci.eyJzdWIi.c2ln&token_type=Bearer",
+    "screen": "https://wms.example/cb"
+  },
+  {
+    "name": "case is not a different screen",
+    "url": "https://WMS.Example/Portal#WM.Config////",
+    "screen": "https://wms.example/portal#wm.config"
+  }
+]

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { targetIdentity, tripleOf } from "./shape.generated.js";
+import { screenOf, targetIdentity, tripleOf } from "./shape.generated.js";
 
 const cases = JSON.parse(readFileSync(new URL("../../fixtures/shape-identity.json", import.meta.url)));
 
@@ -19,4 +19,10 @@ test("a triple carries the system the caller names", () => {
 test("a triple with no system named carries an empty one, never null", () => {
   const [system] = tripleOf({ system: null, target: cases[0].target, kind: cases[0].kind });
   assert.equal(system, "");
+});
+
+const screens = JSON.parse(readFileSync(new URL("../../fixtures/screen-of.json", import.meta.url)));
+
+test("the generated screen agrees with the shared fixture", () => {
+  for (const c of screens) assert.equal(screenOf(c.url), c.screen, c.name);
 });

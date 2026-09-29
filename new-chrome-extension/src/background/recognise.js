@@ -14,6 +14,8 @@
 // of them is a guess dressed as recognition. Nothing is offered until the tail
 // separates them, which the next gesture usually does.
 
+import { hostOfPage, page as screen } from "../panel/nudge.js";
+
 // Long enough to hold a whole job: the corpus's jobs run 13 to 35 gestures,
 // and a run started from a late step carries only the values the tail still
 // holds. Twelve held the end of every job and forgot every value typed at
@@ -213,8 +215,8 @@ export function resting(shape, now = Date.now()) {
  *
  * So a job is not offered while the operator is somewhere else in the same
  * application. `starts_on` is the url of the first gesture the job's first
- * step cites -- the screen it begins on -- and `samePage` compares the two the
- * way this application addresses a screen: origin and path and fragment,
+ * step cites -- the screen it begins on -- and `page()` names both the way this
+ * application addresses a screen: host and path and the fragment's route,
  * without the query, because the WMS routes on the fragment and puts a site
  * code in the query.
  *
@@ -230,36 +232,13 @@ export function resting(shape, now = Date.now()) {
  * not common currency across the tenant's jobs, which needs the whole shape
  * list to judge one shape and is a bigger change than the failure warrants.
  */
-/** Two URLs that are the same screen: without the query, because a session id
- * or a site code in it is not what makes this the Work Areas page, and with
- * the fragment, because an application that routes on it says which screen
- * this is only there. */
-function samePage(a, b) {
-  const parse = (raw) => {
-    try {
-      const url = new URL(raw);
-      return `${url.origin}${url.pathname}${url.hash}`.replace(/\/+$/, "");
-    } catch {
-      return null;
-    }
-  };
-  const one = parse(a);
-  return one !== null && one === parse(b);
-}
-
-function elsewhereInTheSameApp(shape, page) {
-  // No guards for a missing page or a shape with no screen: `new URL` throws
-  // on either, which the origin comparison below reads as nothing to compare.
-  const origin = (url) => {
-    try {
-      return new URL(url).origin;
-    } catch {
-      return null;
-    }
-  };
-  const here = origin(page);
-  if (!here || here !== origin(shape.starts_on)) return false;
-  return !samePage(shape.starts_on, page);
+function elsewhereInTheSameApp(shape, url) {
+  // `page()` reads a served URL and a worker-held screen alike; either one
+  // missing is nothing to compare.
+  const here = screen(url || "");
+  const start = screen(shape.starts_on || "");
+  if (!here || !start) return false;
+  return hostOfPage(here) === hostOfPage(start) && here !== start;
 }
 
 export function match(tail, shapes, page = null) {

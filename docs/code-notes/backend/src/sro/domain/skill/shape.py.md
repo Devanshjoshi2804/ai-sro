@@ -247,7 +247,7 @@ Code: `return None`
 
 ## `shape_of`, [line 117](../../../../../../../backend/src/sro/domain/skill/shape.py#L117): Comment
 
-Code: `starts_on = page_of(first.page_url or first.url)`
+Code: `starts_on = screen_of(first) or None`
 
 > The screen, not the visit. What was served here was the whole url of the
 > first gesture of ONE demonstration, so `Create a Customer Type` carried
@@ -262,6 +262,12 @@ Code: `starts_on = page_of(first.page_url or first.url)`
 > now. What NAVIGATES is a different `starts_on` computed in
 > `run_workflow`, and that one still carries the whole url because a
 > warehouse addresses its screens by fragment.
+>
+> And the screen is `screen_of`'s, the one `shape_key` keys every step by:
+> path plus the fragment's dotted route. Blue Yonder routes on the
+> fragment, so host-and-path made every config screen `.../portal`, and
+> QA 2026-09-29 saw `Create a Warehouse Equipment Type` offered on the
+> Transport Equipment page. `nudge.page` keeps the same route.
 
 ## `shape_of`, [line 118](../../../../../../../backend/src/sro/domain/skill/shape.py#L118): Comment
 

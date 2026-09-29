@@ -8,8 +8,8 @@ from sro.domain.chat.asked_by import K_MAILBOXES
 from sro.domain.execution.evidence import primary_gesture, stood_on
 from sro.domain.execution.what_it_writes import what_it_writes
 from sro.domain.observation.gesture import Gesture
-from sro.domain.observation.identity import shape_key, target_identity
-from sro.domain.shared.hosts import page_of, system_of
+from sro.domain.observation.identity import screen_of, shape_key, target_identity
+from sro.domain.shared.hosts import system_of
 from sro.domain.skill.learned import control_key, control_names, same_control
 from sro.domain.skill.offers import K_OFFER_AFTER, Counsel
 from sro.domain.skill.tabs import MAIN
@@ -114,7 +114,7 @@ def shape_of(
     by_id = {g.id: g for g in gestures}
     first_step = min(workflow.steps, key=lambda s: s.order)
     first = primary_gesture(first_step, by_id) or gestures[0]
-    starts_on = page_of(first.page_url or first.url)
+    starts_on = screen_of(first) or None
     hosts = sorted(stood_on(workflow, by_id))
     if system_of(starts_on) not in hosts:
         return None

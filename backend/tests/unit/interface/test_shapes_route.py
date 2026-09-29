@@ -191,7 +191,7 @@ async def test_the_list_comes_back_under_the_shapes_key(
     # The arithmetic really ran: this is not an empty envelope agreeing with a
     # key check by accident.
     assert body["shapes"][0]["title"] == "create a client"
-    assert body["shapes"][0]["starts_on"] == f"{HOST}/"
+    assert body["shapes"][0]["starts_on"] == HOST
     assert HOST in body["shapes"][0]["hosts"]
     assert body["shapes"][0]["parameters"] == [{"name": "clientCode", "at": 0}]
 

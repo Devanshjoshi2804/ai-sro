@@ -15,6 +15,7 @@ import {
   tailWith,
   valuesFrom,
 } from "./recognise.js";
+import { page } from "../panel/nudge.js";
 
 const H = "https://wms.example";
 const workArea = {
@@ -451,6 +452,16 @@ test("the query is not what makes it a different screen", () => {
   const found = match(addingSomething, [addSupplier], sameScreenOtherSite);
 
   assert.equal(found?.workflowId, "wfl_supplier");
+});
+
+test("the screen is judged on the shape as the worker holds it, not as served", () => {
+  // `shapesFor` keeps every shape's `starts_on` as `page()` of it -- no
+  // scheme -- and this guard parsed it as a URL, so on every real shape it
+  // read "nothing to compare" and never held anything back.
+  const held = { ...addSupplier, starts_on: page(SUPPLIERS) };
+
+  assert.equal(match(addingSomething, [held], CLIENTS), null, "offered from another screen");
+  assert.equal(match(addingSomething, [held], SUPPLIERS)?.workflowId, "wfl_supplier");
 });
 
 test("a match says when the gestures it used began and ended, so a takeover reads only this doing", () => {

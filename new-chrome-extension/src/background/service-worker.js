@@ -170,6 +170,14 @@ chrome.webNavigation.onCommitted.addListener((d) => {
   // was how a job ran because somebody opened a page (QA, 2026-09-28).
   void considerNudge(d.tabId, d.url, `${d.tabId}:${d.timeStamp}`);
 });
+// A screen change inside a single-page app is a fragment change, not a
+// commit: Blue Yonder moves from one config screen to the next this way. It
+// is arriving somewhere all the same -- the last screen's offer ends and this
+// screen's may be made.
+chrome.webNavigation.onReferenceFragmentUpdated.addListener((d) => {
+  if (d.frameId !== 0) return;
+  void considerNudge(d.tabId, d.url, `${d.tabId}:${d.timeStamp}`);
+});
 chrome.webNavigation.onCompleted.addListener((d) => {
   if (d.frameId === 0) void pageEvent("loaded", d.tabId, d.url, d.timeStamp);
 });
@@ -320,12 +328,10 @@ async function rulesHere(url) {
  *
  * Not a second parser: `nudge.js`'s `page()` is the one that says what a page
  * is here, and this is the same string under the two conditions a standing
- * rule adds. Lowercased, because `domain/trigger/arrival.py` stores rules
- * lowercase so the two sides of the wire compare one spelling -- done at the
- * comparison rather than inside `page()`, which the nudge path matches against
- * `starts_on` strings the miner wrote in whatever case the page used. And http
- * or https only: `chrome://settings` parses, and the browser's own pages are
- * not a system, carry no session, and are the one place an extension has no
+ * rule adds. Without the fragment's route, because `domain/trigger/arrival.py`
+ * defines a rule's page as host/path and refuses a `#`. And http or https
+ * only: `chrome://settings` parses, and the browser's own pages are not a
+ * system, carry no session, and are the one place an extension has no
  * business driving anything.
  */
 function rulePage(url) {
@@ -334,7 +340,7 @@ function rulePage(url) {
   } catch {
     return "";
   }
-  return pageOf(url).toLowerCase();
+  return pageOf(url).split("#")[0];
 }
 
 /** Ends the ones that ran out, wherever the operator has got to.

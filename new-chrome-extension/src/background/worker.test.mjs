@@ -89,6 +89,7 @@ globalThis.chrome = {
   },
   webNavigation: {
     onCommitted: { addListener: (fn) => (globalThis.__committed = fn) },
+    onReferenceFragmentUpdated: { addListener: () => {} },
     onCompleted: { addListener: () => {} },
     onCreatedNavigationTarget: { addListener: (fn) => (globalThis.__popup = fn) },
   },

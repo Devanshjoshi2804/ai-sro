@@ -28,6 +28,7 @@ globalThis.chrome = {
     sendMessage: async () => {}, get: async () => ({ id: 7, url: PAGE_URL }) },
   webNavigation: {
     onCommitted: { addListener: (fn) => (globalThis.__navigated = fn) },
+    onReferenceFragmentUpdated: { addListener: () => {} },
     onCompleted: { addListener: () => {} },
     onCreatedNavigationTarget: { addListener: () => {} },
   },

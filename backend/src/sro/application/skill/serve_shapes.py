@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from sro.application.chat.candidates import real_jobs
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
@@ -38,18 +39,25 @@ async def shapes_for(
 ) -> list[Shape]:
     tallied = await uow.workflow_runs.tallies(tenant_id)
     broke = await uow.workflow_runs.failures(tenant_id)
+    known = await uow.workflows.known(tenant_id)
+    ids = tuple(sorted({one for workflow in known for one in ordered_cites(workflow)}))
+    stored = {g.id: g for g in await uow.gestures.gestures_for(tenant_id, ids=ids)} if ids else {}
+    cited = {
+        workflow.id: {one: stored[one] for one in ordered_cites(workflow) if one in stored}
+        for workflow in known
+    }
+    real = real_jobs(
+        ((workflow, cited[workflow.id]) for workflow in known),
+        held={job: held for job, (_, held) in tallied.items()},
+    )
     served: list[Shape] = []
-    for workflow in await uow.workflows.known(tenant_id):
+    for workflow in known:
         _, held = tallied.get(workflow.id, (0, 0))
+        if workflow.id not in real:
+            continue
         if broke.get(workflow.id, 0) >= K_ONLY_EVER_FAILED and not held:
             continue
-        wanted = ordered_cites(workflow)
-        if not wanted:
-            continue
-        by_id = {
-            gesture.id: gesture
-            for gesture in await uow.gestures.gestures_for(tenant_id, ids=tuple(wanted))
-        }
+        by_id = cited[workflow.id]
         advice = await counsel(
             uow, tenant_id=tenant_id, workflow_id=workflow.id, device_id=device_id, now=now
         )

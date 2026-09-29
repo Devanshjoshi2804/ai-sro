@@ -4549,6 +4549,8 @@ export interface components {
             runnable: boolean;
             /** Reasons */
             reasons: components["schemas"]["ReasonModel"][];
+            /** Offered */
+            offered: boolean;
             /** Warnings */
             warnings: components["schemas"]["ReasonModel"][];
         };

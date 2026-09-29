@@ -19,7 +19,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/skill/serve_s
 > promise is that nothing in it does -- two session contracts in one file is a
 > docstring that is false twelve lines below where it is made.
 
-## module, [line 29](../../../../../../../backend/src/sro/application/skill/serve_shapes.py#L29): Note on the line above
+## module, [line 30](../../../../../../../backend/src/sro/application/skill/serve_shapes.py#L30): Note on the line above
 
 Code: `K_ONLY_EVER_FAILED = 3`
 
@@ -32,7 +32,7 @@ Code: `K_ONLY_EVER_FAILED = 3`
 > same shape as every other streak in this system: enough to be a pattern rather
 > than a bad night.
 
-## `ServeShapes`, [line 14](../../../../../../../backend/src/sro/application/skill/serve_shapes.py#L14): Docstring
+## `ServeShapes`, [line 15](../../../../../../../backend/src/sro/application/skill/serve_shapes.py#L15): Docstring
 
 > The extension's list, with this container's clock.
 >
@@ -54,7 +54,7 @@ Code: `K_ONLY_EVER_FAILED = 3`
 > reason -- `(ctx, device_id)` has no other argument to be swapped with
 > today, and this is the call site that must not gain one.
 
-## `shapes_for`, [line 32](../../../../../../../backend/src/sro/application/skill/serve_shapes.py#L32): Docstring
+## `shapes_for`, [line 33](../../../../../../../backend/src/sro/application/skill/serve_shapes.py#L33): Docstring
 
 > Every proven workflow, as the extension needs it. `device_id` is the
 > asking browser, for the rest its own refusals earned it.
@@ -97,7 +97,7 @@ Code: `K_ONLY_EVER_FAILED = 3`
 > customer succeeded. The rig used two index counts; `tallies` is those,
 > batched.
 
-## `ServeShapes.execute`, [line 20](../../../../../../../backend/src/sro/application/skill/serve_shapes.py#L20): Comment
+## `ServeShapes.execute`, [line 21](../../../../../../../backend/src/sro/application/skill/serve_shapes.py#L21): Comment
 
 Code: `async with self._uow as uow:`
 
@@ -106,17 +106,29 @@ Code: `async with self._uow as uow:`
 > inside the function, whose other callers already hold one. Nothing
 > commits: the read-only promise this module makes is untouched.
 
-## `shapes_for`, [line 43](../../../../../../../backend/src/sro/application/skill/serve_shapes.py#L43): Comment
+## `shapes_for`, [line 55](../../../../../../../backend/src/sro/application/skill/serve_shapes.py#L55): Comment
 
 Code: `_, held = tallied.get(workflow.id, (0, 0))`
 
 > Absent means never run, which is not the same as run and never held.
 
-## `shapes_for`, [line 47](../../../../../../../backend/src/sro/application/skill/serve_shapes.py#L47): Comment
+## `shapes_for`, [line 44](../../../../../../../backend/src/sro/application/skill/serve_shapes.py#L44): Comment
 
-Code: `if not wanted:`
+Code: `stored = {g.id: g for g in await uow.gestures.gestures_for(tenant_id, ids=ids)} if ids else {}`
 
-> Not a null check -- `shape_of` makes one of those below, over the
-> same emptiness. This is the round trip: `gestures_for` with no ids
-> is `IN ()` against Postgres, asked once per cite-less workflow by
-> every browser on every cache miss.
+> One read of every cited gesture for the tenant, before the loop, because
+> the rule below needs every job's evidence at once. `if ids` is not a null
+> check: `gestures_for` with no ids is `IN ()` against Postgres, a round trip
+> nothing can come back from.
+
+## `shapes_for`, [line 49](../../../../../../../backend/src/sro/application/skill/serve_shapes.py#L49): Comment
+
+Code: `real = real_jobs(`
+
+> What a browser is served is what it nudges, arrives on and pills, so it
+> is the chat's own rule (`application.chat.candidates.real_jobs`): no
+> chore, no mail-only doing, no fragment that writes nothing, and one copy
+> per title by the chat's tie-break. Seen on QA 2026-09-29: "Navigate to
+> Receiving -- want me to do it?" on a page it had nothing to do with. A
+> workflow that cites nothing is a fragment by that rule, so it is never
+> served either.

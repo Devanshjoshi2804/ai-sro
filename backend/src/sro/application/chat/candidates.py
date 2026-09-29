@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from types import MappingProxyType
 
 from sro.application.intent.match import words
@@ -47,8 +47,7 @@ def _said_about(facts: JobFacts) -> frozenset[str]:
     return words(" ".join([candidate.title, *labels, *candidate.aliases, *candidate.asked_by]))
 
 
-def _first(one: JobFacts, held: Mapping[str, int]) -> tuple[int, int, str]:
-    job = one.workflow
+def _first(job: Workflow, held: Mapping[str, int]) -> tuple[int, int, str]:
     return -len(job.parameters), -held.get(job.id, 0), job.id
 
 
@@ -58,9 +57,18 @@ def _a_fragment(job: Workflow, by_id: Mapping[str, Gesture]) -> bool:
     )
 
 
-def _a_job(one: JobFacts) -> bool:
-    job, by_id = one.workflow, one.by_id
+def _a_job(job: Workflow, by_id: Mapping[str, Gesture]) -> bool:
     return not job.chore and not is_mail_only(job, by_id) and not _a_fragment(job, by_id)
+
+
+def real_jobs(
+    jobs: Iterable[tuple[Workflow, Mapping[str, Gesture]]], *, held: Mapping[str, int] = _NONE
+) -> frozenset[str]:
+    copies: dict[str, list[Workflow]] = {}
+    for job, by_id in jobs:
+        if _a_job(job, by_id):
+            copies.setdefault(normal(job.title), []).append(job)
+    return frozenset(min(same, key=lambda job: _first(job, held)).id for same in copies.values())
 
 
 def rank_jobs(
@@ -70,13 +78,12 @@ def rank_jobs(
     held: Mapping[str, int] = _NONE,
     k: int = K_CANDIDATES,
 ) -> list[JobFacts]:
-    copies: dict[str, list[JobFacts]] = {}
-    for one in facts:
-        if _a_job(one):
-            copies.setdefault(normal(one.workflow.title), []).append(one)
-    canonical = [min(same, key=lambda one: _first(one, held)) for same in copies.values()]
+    real = real_jobs(((one.workflow, one.by_id) for one in facts), held=held)
     asked = words(said)
-    ranked = sorted(canonical, key=lambda one: (-len(asked & _said_about(one)), *_first(one, held)))
+    ranked = sorted(
+        (one for one in facts if one.workflow.id in real),
+        key=lambda one: (-len(asked & _said_about(one)), *_first(one.workflow, held)),
+    )
     return ranked[:k]
 
 
@@ -89,4 +96,4 @@ def chore_named(said: str, facts: Sequence[JobFacts]) -> JobFacts | None:
     return best if best is not None and overlap[best.workflow.id] > work else None
 
 
-__all__ = ["candidate_of", "chore_named", "rank_jobs"]
+__all__ = ["candidate_of", "chore_named", "rank_jobs", "real_jobs"]

@@ -1750,6 +1750,11 @@ class WorkflowModel(BaseModel):
     reasons: list[ReasonModel]
     """Why it cannot run, empty when it can."""
 
+    offered: bool
+    """Whether the chat would offer it: a real job, not a chore, a mail-only
+    doing or a fragment, and the one copy of its title (`real_jobs`). The
+    panel lists only these; the console reads every job."""
+
     warnings: list[ReasonModel]
     """What a reader should know although the job runs: values fixed at
     recording (`fixed_values`), every lane failing lately (`every_lane_broken`)."""
@@ -1788,6 +1793,7 @@ class WorkflowModel(BaseModel):
                 ReasonModel(code=one.code, step=one.step, detail=one.detail)
                 for one in known.compiled.reasons
             ],
+            offered=known.offered,
             warnings=[
                 ReasonModel(code=one.code, step=one.step, detail=one.detail)
                 for one in known.compiled.warnings

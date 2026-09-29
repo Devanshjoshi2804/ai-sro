@@ -21,6 +21,7 @@ nine.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from typing import Any
 
 from scripts.dry_run import TYPED, _gestures_of, replay
@@ -28,7 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sro.application.context import RequestContext
 from sro.application.skill.serve_shapes import ServeShapes
-from sro.domain.observation.gesture import Action, Gesture, GestureBatch, Target
+from sro.domain.observation.gesture import Action, Call, Gesture, GestureBatch, Target
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.skill.workflow import Step, Workflow
 from sro.infrastructure.db.repositories import SqlUnitOfWork
@@ -116,7 +117,20 @@ def _corpus() -> tuple[list[Gesture], list[Workflow]]:
                 target=Target(tag="input", name="Work Area"),
             ),
         ),
-        _click("ges_4", "Save", at=100.0),
+        # The save posts, as a recorded save does: a job that writes nothing is
+        # a fragment, and a fragment is never served.
+        replace(
+            _click("ges_4", "Save", at=100.0),
+            requests=[
+                Call(
+                    method="POST",
+                    url=f"{SYSTEM}/api/work-areas",
+                    request_id="req_4",
+                    started_at=100.2,
+                    status=201,
+                )
+            ],
+        ),
     ]
     proven = Workflow(
         id="wfl_proven",

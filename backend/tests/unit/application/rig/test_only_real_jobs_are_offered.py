@@ -15,12 +15,14 @@ from datetime import UTC, datetime
 from sro.application.chat.read_chat import ReadChat
 from sro.application.chat.understand import Understood
 from sro.application.context import RequestContext
+from sro.application.skill.read_workflows import ReadWorkflows
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.workflow import Step, Workflow
+from sro.interface.http.schemas import WorkflowsResponse
 from tests.unit.fakes import FakeAsker, FakeClock, FakeUnitOfWork
-from tests.unit.runtime_support import read_step, save_step
+from tests.unit.runtime_support import mail_send_step, read_step, save_step
 
 TENANT = TenantId("acme")
 NOW = datetime(2025, 2, 11, 12, 0, tzinfo=UTC)
@@ -92,3 +94,34 @@ async def test_an_exact_title_typed_back_picks_that_job() -> None:
 
     assert got.workflow_id == "wfl_d" and got.sure and not got.also
     assert asker.asked == [], "an exact title is a pick, not a question for the model"
+
+
+async def test_the_panel_s_list_marks_only_real_jobs_offered_and_keeps_every_job() -> None:
+    """Seen on QA (2026-09-29): the panel's "Learned from what you do here" listed
+    Reply to Email and Forward Email. The listing is the console's too, so every
+    job stays on it; `offered` is the chat's own rule, read once."""
+    uow = FakeUnitOfWork()
+    await _stored(uow, "wfl_ct", "Create a Customer Type", *save_step(gid="ges_ct"))
+    await uow.workflows.save(
+        replace(await uow.workflows.get(TENANT, "wfl_ct"), parameters=[{"name": "Customer Type"}])
+    )
+    await _stored(uow, "wfl_ct_copy", "create a customer  type", *save_step(gid="ges_ct2"))
+    await _stored(uow, "wfl_nav", "Navigate to Receiving", *read_step())
+    await _stored(uow, "wfl_mail", "Reply to Email", *mail_send_step())
+    await _stored(uow, "wfl_in", "Log in to Keycloak", *save_step(gid="ges_in"))
+    await uow.workflows.decide(
+        TENANT, await uow.workflows.get(TENANT, "wfl_in"), signs_in=True, signs_out=False
+    )
+    ctx = RequestContext(tenant_id=TENANT, principal_id=PrincipalId("operator"))
+
+    listed = WorkflowsResponse.of(
+        await ReadWorkflows(uow.hand_out(), FakeClock(NOW)).execute(ctx)
+    ).workflows
+
+    assert {one.id: one.offered for one in listed} == {
+        "wfl_ct": True,
+        "wfl_ct_copy": False,
+        "wfl_nav": False,
+        "wfl_mail": False,
+        "wfl_in": False,
+    }

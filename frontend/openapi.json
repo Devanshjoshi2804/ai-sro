@@ -29866,6 +29866,10 @@
             "type": "array",
             "title": "Reasons"
           },
+          "offered": {
+            "type": "boolean",
+            "title": "Offered"
+          },
           "warnings": {
             "items": {
               "$ref": "#/components/schemas/ReasonModel"
@@ -29886,6 +29890,7 @@
           "runs",
           "runnable",
           "reasons",
+          "offered",
           "warnings"
         ],
         "title": "WorkflowModel"

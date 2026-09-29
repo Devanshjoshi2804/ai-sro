@@ -26,6 +26,7 @@ have already shipped on this branch:
 
 from collections.abc import Mapping
 from copy import deepcopy
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -88,7 +89,8 @@ def _workflow(by_id: dict[str, Gesture], wid: str = "wfl_1") -> Workflow:
     return Workflow(
         id=wid,
         tenant=TENANT.value,
-        title="create a client",
+        # Its own title: copies of one title are one job, served once.
+        title=f"create a client {wid}",
         narrative="n",
         systems=[HOST],
         steps=[
@@ -135,8 +137,10 @@ def _saver_first(by_id: dict[str, Gesture], wid: str) -> Workflow:
 
 def _four_gestures(by_id: dict[str, Gesture], wid: str) -> Workflow:
     """Four cited gestures, so `counsel`'s threshold has room to show through
-    the cap at the last gesture but one."""
+    the cap at the last gesture but one. The last is the save, whose POST
+    makes it a job and not a click-through that writes nothing."""
     ordered = sorted(by_id.values(), key=lambda g: g.at)
+    ordered = [*ordered[:3], _saver(by_id)]
     return Workflow(
         id=wid,
         tenant=TENANT.value,
@@ -217,6 +221,33 @@ async def test_a_stored_workflow_is_served_because_storing_it_is_what_proved_it(
     uow = FakeUnitOfWork()
     by_id = _evidence()
     await _plant(uow, by_id, _workflow(by_id))
+
+    assert await _served(uow) == ["wfl_1"]
+
+
+async def test_a_fragment_a_chore_and_a_second_copy_are_never_nudged() -> None:
+    """Seen on QA (2026-09-29): the panel offered "Navigate to Receiving -- want
+    me to do it?", a click-through that writes nothing. What a browser is
+    served is what it nudges, arrives on and pills, so the chat's own rule
+    (`real_jobs`) decides it here once: no fragment, no chore, one copy."""
+    uow = FakeUnitOfWork()
+    by_id = _evidence()
+    ordered = sorted(by_id.values(), key=lambda g: g.at)
+    fragment = Workflow(
+        id="wfl_nav",
+        tenant=TENANT.value,
+        title="navigate to receiving",
+        narrative="n",
+        systems=[HOST],
+        steps=[
+            Step(order=i, says=f"click {i}", system=None, cites=[gesture.id])
+            for i, gesture in enumerate(ordered[:3])
+        ],
+    )
+    chore = replace(_workflow(by_id, "wfl_in"), title="log in")
+    copy = replace(_workflow(by_id, "wfl_copy"), title="create a client wfl_1", parameters=[])
+    await _plant(uow, by_id, _workflow(by_id), fragment, chore, copy)
+    await uow.workflows.decide(TENANT, chore, signs_in=True, signs_out=False)
 
     assert await _served(uow) == ["wfl_1"]
 

@@ -456,6 +456,9 @@ async def test_a_mined_job_reaches_the_wire_whole(
         "runs": {"total": 0, "held": 0, "stale": 0, "earned": False, "proven": 0, "needed": 3},
         "runnable": True,
         "reasons": [],
+        # Its calls started long after its gestures, so no step is seen to
+        # write: a fragment by the chat's rule, listed here but never offered.
+        "offered": False,
         "warnings": [],
     }
 

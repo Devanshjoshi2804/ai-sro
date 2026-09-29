@@ -60,7 +60,6 @@ const SOURCE = [
   // pressed the Recent tasks tab, and the first test that did got
   // `ReferenceError: history is not defined`.
   readFileSync(path.join(here, "history.js"), "utf-8"),
-  readFileSync(path.join(here, "learned.js"), "utf-8"),
   readFileSync(path.join(here, "mail-run.js"), "utf-8"),
   readFileSync(path.join(here, "panel.js"), "utf-8"),
 ]
@@ -2020,49 +2019,6 @@ test("a write nobody could confirm says that, not the url it read", () => {
   assert.match(said, /It was working on Customer Type SMKY/);
 });
 
-test("what was learned here is not offered while a run is going", () => {
-  // One browser, one hand: the backend refuses a second run for this device.
-  // The card an operator had just pressed sat beside the run it started,
-  // offering to start it again -- and the press could only come back refused.
-  const jobs = [
-    {
-      id: "wfl_1",
-      title: "Create a Customer Type",
-      systems: ["https://wms.example"],
-      runs: { total: 9, held: 4, stale: 0, earned: false, proven: 0, needed: 3 },
-      offered: true,
-    },
-  ];
-  const status = {
-    deviceId: "dev-1",
-    capturing: true,
-    channel: "open",
-    watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
-  };
-  const here = { id: 7, host: "wms.example", url: "https://wms.example/portal" };
-
-  const quiet = panel(status, here, { status, "learned-jobs": { jobs } });
-  return quiet.refresh().then(async () => {
-    await settled();
-    assert.match(
-      [...quiet.ids["cards"].kids].map(words).join(" "),
-      /1 job learned on this page/,
-      "nothing was learned to hide",
-    );
-
-    const running = {
-      ...status,
-      performing: { runId: "run-9", kind: "rig", since: new Date().toISOString(), step: 0 },
-    };
-    quiet.render(running);
-    assert.doesNotMatch(
-      [...quiet.ids["cards"].kids].map(words).join(" "),
-      /learned on this page/,
-      "it offered to start a job while a run was going",
-    );
-  });
-});
-
 test("a card rises once, not on every poll", async () => {
   // The stylesheet turns the entrance animation off for a card marked risen,
   // and nothing marked one -- so every card replayed its 800ms fade on every
@@ -2144,10 +2100,9 @@ test("the run happening now leads, and what is offered follows it", () => {
   assert.ok(run < offer, "the offer was drawn above the run in progress");
 });
 
-test("what was learned on this system is on Home, and only here", async () => {
-  // Learning is passive, so this card is the only place an operator sees
-  // that it happened: the jobs mined for the page beside the panel, and how
-  // far each is toward writing on its own.
+test("Home never shows what was learned on this page -- that stays in the console", async () => {
+  // The user, 2026-09-29: no page-dropdown list of learned jobs on Home.
+  // Even a worker still holding jobs for this host draws nothing about them.
   const status = {
     deviceId: "dev-1",
     capturing: true,
@@ -2157,16 +2112,8 @@ test("what was learned on this system is on Home, and only here", async () => {
     {
       id: "wfl_1",
       title: "Delete a Customer Type",
-      // As the miner writes them: whole origins, not bare hosts.
       systems: ["https://wms.example"],
       runs: { total: 2, held: 2, stale: 0, earned: false, proven: 1, needed: 3 },
-      offered: true,
-    },
-    {
-      id: "wfl_2",
-      title: "Create an Invoice",
-      systems: ["https://billing.example"],
-      runs: { total: 0, held: 0, stale: 0, earned: false, proven: 0, needed: 3 },
       offered: true,
     },
   ];
@@ -2175,47 +2122,13 @@ test("what was learned on this system is on Home, and only here", async () => {
     { id: 7, host: "wms.example", url: "https://wms.example/portal" },
     { status, "learned-jobs": { jobs } },
   );
-  const cards = await drawn.refresh();
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await drawn.refresh();
+  await settled();
   const said = [...(drawn.ids["expanded"]?.kids || []), ...drawn.ids["cards"].kids]
     .map(words)
     .join(" ");
-  void cards;
-  // One quiet row, folded: the jobs are one tap away (the user, 2026-09-29).
-  assert.match(said, /1 job learned on this page ›/);
-  assert.doesNotMatch(said, /Delete a Customer Type/, "the list was drawn unfolded");
-  const row = [...drawn.ids["cards"].kids].find((one) =>
-    words(one).includes("learned on this page"),
-  );
-  buttons(row).find((b) => /learned on this page/.test(b.textContent)).listeners[0]();
-  const unfolded = [...drawn.ids["cards"].kids].map(words).join(" ");
-  assert.match(unfolded, /Delete a Customer Type 1 of 3 runs checked Run it here/);
-  assert.doesNotMatch(said, /Create an Invoice/, "another system's job was drawn here");
-  assert.ok(
-    drawn.sent.some((message) => message.kind === "learned-jobs"),
-    "the panel never asked what was learned",
-  );
-
-  // And the press starts THAT job, by id.
-  //
-  // It typed the title into the composer at first, which reads well until the
-  // tenant holds three jobs called "Log in to Keycloak": the press came back
-  // as "did you mean this one, this one, or that one" about the card they had
-  // just pressed.
-  const card = [...drawn.ids["cards"].kids].find((one) =>
-    words(one).includes("learned on this page"),
-  );
-  const run = buttons(card).find((b) => /Run it here/.test(b.textContent));
-  run.listeners[0]();
-  await settled();
-  assert.deepEqual(sentOf(drawn.sent, "run-workflow"), [
-    { kind: "run-workflow", workflowId: "wfl_1" },
-  ]);
-  assert.deepEqual(
-    sentOf(drawn.sent, "say"),
-    [],
-    "the press went through the conversation as a sentence",
-  );
+  assert.doesNotMatch(said, /learned on this page/);
+  assert.doesNotMatch(said, /Delete a Customer Type/);
 });
 
 test("Open the console here puts the console in this tab, and Console ↗ in a new one", async () => {
@@ -3755,15 +3668,6 @@ test("every press on a card is a call to the backend, and a yes is said to the c
       try_again: true,
     },
   };
-  const jobs = [
-    {
-      id: "wfl_1",
-      title: "Delete a Customer Type",
-      systems: ["https://wms.example"],
-      runs: { total: 2, held: 2, stale: 0, earned: false, proven: 1, needed: 3 },
-      offered: true,
-    },
-  ];
   const asked = {
     id: "msg_confirm",
     speaker: "assistant",
@@ -3777,11 +3681,9 @@ test("every press on a card is a call to the backend, and a yes is said to the c
     { id: 7, host: "wms.example", url: "https://wms.example/portal" },
     {
       status,
-      "learned-jobs": { jobs },
       thread,
       "thread-say": thread,
       "retry-rig-run": { ok: true, run_id: "run_2" },
-      "run-workflow": { ok: true, run_id: "run_3" },
     },
   );
   await drawn.refresh();
@@ -3795,9 +3697,6 @@ test("every press on a card is a call to the backend, and a yes is said to the c
     await settled();
   };
   await press("Try it again");
-  // The learned jobs are one folded row; its press unfolds them.
-  await press("1 job learned on this page ›");
-  await press("Run it here");
   const doIt = buttons(drawn.ids["said"]).find((b) => b.textContent === "Do it");
   await doIt.listeners[0]();
   await settled();
@@ -3810,9 +3709,6 @@ test("every press on a card is a call to the backend, and a yes is said to the c
       items: [],
       retryOf: "run_1",
     },
-  ]);
-  assert.deepEqual(sentOf(drawn.sent, "run-workflow"), [
-    { kind: "run-workflow", workflowId: "wfl_1" },
   ]);
   assert.deepEqual(
     sentOf(drawn.sent, "thread-say").map((one) => [one.text, one.answering]),
@@ -3872,7 +3768,9 @@ test("more than three loud cards: three, in the order somebody deals with them",
   assert.doesNotMatch(loud.join(" "), /AIWE2|Create a Client/, "a fourth loud card was drawn");
 });
 
-test("a finished mail card folds to one line after ten minutes", () => {
+test("a finished mail card draws whole no matter how long ago it finished", () => {
+  // The user, 2026-09-29: no fold. The mail's info, Open the mail and Review
+  // in console stay on Home until the card is dismissed or the day ends.
   const minute = 60_000;
   const done = (ago) => ({
     id: "run-1",
@@ -3887,16 +3785,38 @@ test("a finished mail card folds to one line after ten minutes", () => {
   });
   const status = (ago) => ({ deviceId: "dev-1", capturing: true, watched: WATCHED, mailRuns: [done(ago)] });
 
-  const fresh = panel(status(2 * minute), TAB);
-  assert.match(words(fresh.ids["cards"]), /Mail: create AITE9/, "a card that just finished was folded");
+  for (const ago of [2 * minute, 11 * minute, 60 * minute]) {
+    const drawn = panel(status(ago), TAB);
+    const said = words(drawn.ids["cards"]);
+    assert.match(said, /Mail: create AITE9/, `folded at ${ago}ms`);
+    assert.match(said, /Review in console/, `folded at ${ago}ms`);
+  }
+});
 
-  const old = panel(status(11 * minute), TAB);
-  const said = old.ids["cards"].kids.map(words);
-  assert.ok(
-    said.some((one) => /^✓ AITE9 from mail · \d\d:\d\d$/.test(one)),
-    said.join(" | "),
-  );
-  assert.doesNotMatch(said.join(" "), /Mail: create AITE9/, "the whole card was still drawn");
+test("a finished run card draws whole, with its steps, no matter how long ago it finished", () => {
+  // The same ruling: the warehouse transport card with steps done shown in
+  // the card stays whole, not folded to one line.
+  const minute = 60_000;
+  const status = {
+    deviceId: "dev-1",
+    capturing: true,
+    watched: WATCHED,
+    finished: {
+      id: "run_1",
+      source: "rig",
+      status: "stopped",
+      workflow_id: "wfl_1",
+      values: {},
+      items: [],
+      needs: [],
+      started_at: new Date(Date.now() - 20 * minute).toISOString(),
+      finished_at: new Date(Date.now() - 20 * minute).toISOString(),
+      steps: [{ index: 1, says: "Click the Add button", outcome: "held" }],
+    },
+  };
+  const { cards } = panel(status, TAB);
+  const said = cards.map(words).join(" ");
+  assert.match(said, /Click the Add button/, "the steps done were not drawn");
 });
 
 test("no offer beside a run or a mail card for the same job", () => {

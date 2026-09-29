@@ -12,8 +12,7 @@ import { hostMatches } from "../background/scripts.js";
 import { alreadyAnswered, composer, ledger, nudging } from "./ledger.js";
 import { runCard } from "./run-card.js";
 import { history } from "./history.js";
-import { learned, learnedHere } from "./learned.js";
-import { foldedRun, mailRunCard } from "./mail-run.js";
+import { mailRunCard } from "./mail-run.js";
 import { panes } from "./panes.js";
 import { pending, when } from "./pending.js";
 import { needsAPress, strip } from "./strip.js";
@@ -247,20 +246,21 @@ function render(status) {
   //
   //   1. what needs the operator -- a run's question;
   //   2. what is running or just finished -- run cards, mail cards, the wait
-  //      on a reply. A finished one folds to one line after ten minutes;
+  //      on a reply. A finished one draws whole until it is dismissed or the
+  //      day ends (the user, 2026-09-29 -- it used to fold after ten minutes,
+  //      and the operator wants the mail's info, Open mail, Review in
+  //      console and the steps done kept on screen);
   //   3. one offer at most, for this page's job, and none for a job a card
   //      above is already doing.
   //
   // Seen on QA before this: a mail card, an offer for another page's job and
-  // a full ladder card per learned job, stacked. What was learned is one quiet
-  // row below all of it, and the state card is its slim line whenever any of
-  // this is present. Trouble cards are the design's own tier above the loud
-  // ones and are not counted.
+  // a full ladder card per learned job, stacked. Learned jobs stay in the
+  // console -- Home shows no list of them (the user, 2026-09-29) -- and the
+  // state card is its slim line whenever any of this is present. Trouble
+  // cards are the design's own tier above the loud ones and are not counted.
   const needs = [];
   const now = [];
-  const folded = [];
   const offers = [];
-  const standing = [];
 
   // A question nobody has answered: the one thing here waiting on THEM.
   if (status.question) needs.push(theQuestion(status.question));
@@ -274,15 +274,8 @@ function render(status) {
   // A look back at the last thing this browser did, after the run happening
   // now.
   const last = status.finished;
-  if (last && !fromMail.has(last.id)) {
-    if (folds(last.at)) folded.push(foldedRun(last, { at: last.at }));
-    else now.push(finished(status));
-  }
+  if (last && !fromMail.has(last.id)) now.push(finished(status));
   for (const run of mailRuns) {
-    if (run.status !== "running" && folds(run.finished_at)) {
-      folded.push(foldedRun(run, { at: run.finished_at, fromMail: true }));
-      continue;
-    }
     now.push(
       mailRunCard(run, {
         live: status.performing?.runId === run.id ? status.performing : null,
@@ -345,27 +338,6 @@ function render(status) {
   }
   const loud = [...needs, ...now, ...offers.slice(0, 1)].slice(0, K_LOUD);
 
-  // What was learned on this system, as one row. Not while a run is going:
-  // one browser, one hand -- the backend refuses a second run for this device,
-  // so every press here would come back refused.
-  if (status.deviceId && !status.performing) {
-    const here = learned(learnedHere(learnedJobs, tabHere.host), {
-      open: learnedOpen,
-      opened: learnedJob,
-      onToggle: (open) => {
-        learnedOpen = open;
-        render(lastStatus);
-      },
-      onOpen: (id) => {
-        learnedJob = id;
-        render(lastStatus);
-      },
-      onRun: runHere,
-      onReview: (job) => openConsole(`/jobs/${encodeURIComponent(job.id)}`),
-    });
-    if (here) standing.push(here);
-  }
-
   const trouble = troubles(status);
   if (!status.deviceId) {
     cards.push(
@@ -387,7 +359,7 @@ function render(status) {
   } else {
     cards.push(watching(status, loud.length + trouble.length > 0));
   }
-  cards.push(...trouble, ...loud, ...folded, ...standing);
+  cards.push(...trouble, ...loud);
   // A panel with nothing on it says so.
   //
   // Home is empty whenever nothing needs anybody, which is most of a good
@@ -445,21 +417,6 @@ function render(status) {
 
 /** How many loud cards Home draws at most (the user, 2026-09-29). */
 const K_LOUD = 3;
-
-/** How long a finished card stays whole on Home before it folds to one line. */
-const K_FOLD_MS = 10 * 60_000;
-
-/** Whether a card that ended at `at` is one line by now. A card whose end
- * nobody recorded stays whole. */
-function folds(at) {
-  const ended = when(at);
-  return Boolean(ended) && Date.now() - ended >= K_FOLD_MS;
-}
-
-/** Whether the learned row is unfolded, and whose ladder is open under it.
- * This window's, like the waiting banner's. */
-let learnedOpen = false;
-let learnedJob = null;
 
 const K_FRESH_MS = 20000;
 /** How long a card that has just arrived keeps its moving border. Long enough
@@ -1834,57 +1791,7 @@ function said(words) {
   $("candidates-note").textContent = words;
 }
 
-/** The jobs mined for this tenant, as the worker last fetched them. */
-let learnedJobs = null;
-let learnedAt = 0;
-
-/** How often the learned jobs are fetched. A job is mined, or earns its
- * writes, a few times a day; the two-second status poll is not the clock. */
-const K_LEARNED_EVERY_MS = 60_000;
-
-async function fetchLearned() {
-  if (Date.now() - learnedAt < K_LEARNED_EVERY_MS) return;
-  learnedAt = Date.now();
-  try {
-    const { jobs } = await ask({ kind: "learned-jobs" });
-    learnedJobs = jobs || [];
-    if (lastStatus) render(lastStatus);
-  } catch {
-    // Offline, or an older backend: the card is simply absent, and the next
-    // minute tries again.
-  }
-}
-
-/** "Run it here", off a learned job.
- *
- * By id, through the worker, and not as a sentence in the conversation. The
- * title was typed into the composer at first, which reads well until the
- * tenant holds three jobs called "Log in to Keycloak" -- then the press comes
- * back as "did you mean this one, this one, or that one", about a card the
- * operator had just pressed. The card knows which job it is.
- *
- * A job short of a required value parks and asks in the conversation, which
- * is where that question belongs; writes still wait for approval.
- */
-async function runHere(job, button) {
-  if (button) button.disabled = true;
-  try {
-    const started = await ask({ kind: "run-workflow", workflowId: job.id });
-    if (!started?.ok) {
-      if (button) button.disabled = false;
-      said(started?.error || "nothing happened");
-      return;
-    }
-    said(`started ${job.title} — watching it below`);
-  } catch (error) {
-    if (button) button.disabled = false;
-    said(error.message);
-  }
-  await refresh();
-}
-
 async function refresh() {
-  void fetchLearned();
   const status = await ask({ kind: "status" });
   // What the run being watched actually is: the worker knows its id and that
   // it is happening, and the run's own record knows what it is called, how

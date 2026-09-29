@@ -445,22 +445,6 @@ export const api = {
       await call(`/v1/workflow-runs?limit=${encodeURIComponent(limit)}&mine=true`)
     ).map(asPanelRun),
 
-  /** Every job this tenant has mined, with how proven each is (`runs.proven`
-   * of `runs.needed`) and whether the chat would offer it (`offered`). For
-   * the panel's learned-job card; `?device_id=` because the route refuses a
-   * browser named without its secret, the same pair `shapes` sends. */
-  workflows: async (deviceId) => {
-    const query = deviceId ? `?device_id=${encodeURIComponent(deviceId)}` : "";
-    const answered = await call(`/v1/workflows${query}`);
-    return (answered.workflows || []).map(({ id, title, systems, runs, offered }) => ({
-      id,
-      title,
-      systems,
-      runs,
-      offered,
-    }));
-  },
-
   /** A fresh conversation, when somebody asks for one. */
   newThread: () => call("/v1/threads", { method: "POST" }),
 

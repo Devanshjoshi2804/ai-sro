@@ -15,6 +15,7 @@ from sro.domain.chat.asking_the_asker import draft_for, worth_asking
 from sro.domain.chat.thread import Message, Speaker, ThreadId
 from sro.domain.execution.mail_job import DRAFTED, SENT
 from sro.domain.execution.waiting import read_wait
+from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import PrincipalId
 
 logger = logging.getLogger(__name__)
@@ -139,6 +140,8 @@ class SendTheDraft:
     async def execute(self, ctx: RequestContext, thread_id: ThreadId, message_id: str) -> str:
         async with self._uow as uow:
             thread = await uow.threads.get_for_answer(ctx.tenant_id, thread_id)
+            if thread.opened_by != ctx.principal_id:
+                raise Conflict("only the operator who opened this thread acts in it")
             draft = _the_draft(thread.messages, message_id)
             if draft is None:
                 logger.info("%s: no draft to send under %s", ctx.tenant_id.value, message_id)

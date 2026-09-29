@@ -19,6 +19,8 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import pytest
+
 from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.ask_the_asker import DRAFTED, DraftForTheAsker, SendTheDraft
 from sro.application.chat.mailbox import is_ours
@@ -28,6 +30,7 @@ from sro.domain.chat.asking import Pending
 from sro.domain.chat.thread import Speaker
 from sro.domain.execution.waiting import as_said, waiting_on
 from sro.domain.execution.workflow_run import WorkflowRun
+from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from tests import factories as f
 from tests.unit.fakes import FakeClock, FakeIdFactory, FakeUnitOfWork
@@ -386,15 +389,11 @@ async def test_one_mail_per_draft_when_no_run_stands_behind_it() -> None:
     assert len(mailbox.sent) == 1, "one card, two mails"
 
 
-async def test_one_mail_per_draft_whoever_presses_it() -> None:
-    """The claim is about the words, not about who is holding the panel.
-
-    `threads.get` is scoped to the tenant and not to the person, so a
-    colleague with the thread id reaches the same draft -- and a claim keyed
-    by principal gives each of them their own, which is a second mail to
-    somebody about one request. The run column does not cover this half: a
-    card asks before any run exists.
-    """
+async def test_a_draft_is_sent_only_by_the_operator_it_was_drafted_for() -> None:
+    """An ask chat's id is derived from tenant, operator and mail, so a
+    colleague can name it -- and `threads.get` is scoped to the tenant only.
+    The draft is this operator's to read and to send; a colleague's press is
+    refused before any claim is taken, so the owner can still send it."""
     uow, mailbox = FakeUnitOfWork(), _Mailbox()
     question = await _asked(uow)
     await _drafter(uow, mailbox).execute(CTX, _pending(), question=question, thread=THREAD)
@@ -403,10 +402,12 @@ async def test_one_mail_per_draft_whoever_presses_it() -> None:
     sender = SendTheDraft(uow, mailbox, FakeClock(), FakeIdFactory())
     colleague = replace(CTX, principal_id=PrincipalId("someone-else"))
 
-    assert await sender.execute(CTX, threads[0].id, drafted.id) == "tanisha@example.com"
-    assert await sender.execute(colleague, threads[0].id, drafted.id) == ""
+    with pytest.raises(Conflict):
+        await sender.execute(colleague, threads[0].id, drafted.id)
+    assert mailbox.sent == [], "a colleague sent another operator's draft"
 
-    assert len(mailbox.sent) == 1, "one draft, two mails, two operators"
+    assert await sender.execute(CTX, threads[0].id, drafted.id) == "tanisha@example.com"
+    assert len(mailbox.sent) == 1
 
 
 async def test_an_offer_naming_no_mail_asks_nobody() -> None:

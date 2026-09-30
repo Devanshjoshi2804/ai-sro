@@ -39,8 +39,10 @@ K_BRAIN_STEPS = 5
 
 K_LOGGED = 300
 
-# Shadow mode runs these and only these; everything else is recorded as "would".
-READ_ONLY = frozenset({"find_jobs", "run_status", "check_mail", "lookup"})
+# Shadow mode runs these and only these; everything else is recorded as "would". Not
+# check_mail: a look in the mailbox starts runs and writes questions, and shadow mode is
+# only ever a reading.
+READ_ONLY = frozenset({"find_jobs", "run_status", "lookup"})
 
 
 def _without_secrets(value: object) -> object:

@@ -559,3 +559,22 @@ def test_the_sight_lane_has_no_model_when_the_deployment_has_no_vision(
 
 def test_a_lookup_reaches_no_browser_socket(container: Container) -> None:
     assert not any(isinstance(one, SocketChannel) for one in vars(container.run_lookups()).values())
+
+
+def test_the_brain_is_wired_only_for_a_flagged_tenant_with_a_model(uow: FakeUnitOfWork) -> None:
+    from sro.config import Settings
+
+    def converse(*, model: bool = True, **flags: tuple[str, ...]) -> Any:
+        built = _FakeContainer(uow)
+        built.clock = FakeClock(FROZEN)
+        built.asker = FakeAsker() if model else None
+        built.settings = Settings(_env_file=None, **flags)
+        return built.converse()
+
+    on = converse(chat_brain_tenants=("acme",))
+    assert on._brain is not None and on._brain_tenants == frozenset({"acme"})
+    shadow = converse(chat_brain_shadow_tenants=("acme",))
+    assert shadow._brain is not None and shadow._brain_shadow_tenants == frozenset({"acme"})
+    assert converse()._brain is None
+    # No model, no brain: the chain answers (and refuses) as it always did.
+    assert converse(model=False, chat_brain_tenants=("acme",))._brain is None

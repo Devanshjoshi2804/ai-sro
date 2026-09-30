@@ -292,3 +292,14 @@ async def test_running_out_of_steps_with_no_tool_run_does_not_list_nothing() -> 
 
     assert "could not finish" in reply.said and "here is what I did: ." not in reply.said
     assert reply.steps == ()
+
+
+async def test_shadow_mode_never_looks_in_the_mail() -> None:
+    # A look starts runs and writes questions: shadow mode is only ever a reading.
+    acting = await _acting()
+    brain, _ = _brain(acting, _call("check_mail"), _say("done"))
+
+    reply = await brain.turn(CTX, message="check mail", history=[], origin=Origin("chat"), dry=True)
+
+    assert reply.steps[0][1].data == {"would": "check_mail"}
+    assert acting.started == []

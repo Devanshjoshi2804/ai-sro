@@ -1,0 +1,253 @@
+"""The brain's read-only tools: what it can see, and only what is its own.
+
+Each tool wraps the use case the panel and the worker already call, so what
+these pin is the shape the model is handed and the guards around it: real jobs
+only, the limits the reader checks, the caller's own runs, the tenant's own
+data, and a bounded, secret-free answer.
+"""
+
+from __future__ import annotations
+
+from dataclasses import replace
+from typing import Any
+
+from sro.application.chat.brain_tools import CheckMail, FindJobs, Lookup, RunStatus, described
+from sro.application.lookup.look_it_up import LookItUp
+from sro.application.lookup.plan_lookups import PlanLookups
+from sro.domain.chat.brain_turn import ToolResult
+from sro.domain.skill.workflow import Workflow
+from tests import factories as f
+from tests.unit.application.chat.brain_support import (
+    CTX,
+    THEIRS,
+    a_failed_step,
+    world_with_job,
+)
+from tests.unit.application.rig.test_from_the_mail import JOB
+from tests.unit.application.test_where_to_look_for_an_answer import KNOWN, _Knows
+from tests.unit.fakes import FakeAsker, FakeClock, FakeUnitOfWork
+from tests.unit.runtime_support import read_step
+
+
+def _jobs(result: ToolResult) -> list[dict[str, Any]]:
+    return list(result.data["jobs"])  # type: ignore[call-overload]
+
+
+def _runs(result: ToolResult) -> list[dict[str, Any]]:
+    return list(result.data["runs"])  # type: ignore[call-overload]
+
+
+async def test_find_jobs_answers_real_jobs_with_their_parameters_and_limits() -> None:
+    world = await world_with_job()
+    await world.uow.workflows.remember_limit(JOB, 0, 4)
+
+    result = await FindJobs(world.uow, FakeClock()).run(CTX, {"query": "create customer type"})
+
+    (job,) = [one for one in _jobs(result) if one["id"] == JOB]
+    assert job["title"] == "Create a Customer Type"
+    assert [(p["name"], p["required"]) for p in job["parameters"]] == [
+        ("Customer Type", True),
+        ("Customer Type Description", True),
+    ]
+    assert job["runnable"] is True
+    assert {p["name"]: p["max_length"] for p in job["parameters"]}["Customer Type"] == 4
+
+
+async def test_find_jobs_leaves_out_a_copy_that_writes_nothing() -> None:
+    world = await world_with_job()
+    stub, seen = read_step()
+    await world.uow.workflows.save(
+        Workflow(
+            id="wfl_copy",
+            tenant=f.TENANT.value,
+            title="Create a Customer Type",
+            narrative="",
+            steps=[replace(stub, order=0)],
+        )
+    )
+    await world.uow.gestures.add_gestures(
+        tuple(replace(one, tenant=f.TENANT.value) for one in seen.values())
+    )
+
+    result = await FindJobs(world.uow, FakeClock()).run(CTX, {"query": "create customer type"})
+
+    assert "wfl_copy" not in [one["id"] for one in _jobs(result)]
+
+
+async def test_find_jobs_includes_the_mail_built_ins() -> None:
+    world = await world_with_job()
+
+    result = await FindJobs(world.uow, FakeClock()).run(CTX, {"query": "send a mail"})
+
+    assert {"mail_send", "mail_reply", "mail_forward"} <= {one["id"] for one in _jobs(result)}
+
+
+async def test_find_jobs_shows_only_this_tenant_s_jobs() -> None:
+    world = await world_with_job()
+    other = await world.uow.workflows.get(f.TENANT, JOB)
+    await world.uow.workflows.save(replace(other, id="wfl_other", tenant="another-tenant"))
+
+    result = await FindJobs(world.uow, FakeClock()).run(CTX, {"query": "create customer type"})
+
+    assert "wfl_other" not in [one["id"] for one in _jobs(result)]
+
+
+async def test_check_mail_reports_what_the_look_did_as_data() -> None:
+    world = await world_with_job("hello, nothing to do here")
+
+    result = await CheckMail(world.look).run(CTX, {})
+
+    assert result.ok
+    assert "asks for no job here" in str(result.data["said"])
+    assert result.data["read"] == 1
+
+
+async def test_check_mail_bounds_what_a_mail_can_say() -> None:
+    world = await world_with_job("x")
+    said = "a" * 10_000
+
+    async def _long(*_: object, **__: object) -> Any:
+        return replace(await world.look.execute(CTX), why=said, offered=(), asks_nothing=(said,))
+
+    result = await CheckMail(_Look(_long)).run(CTX, {})
+
+    assert len(str(result.data["said"])) <= 2000
+
+
+class _Look:
+    def __init__(self, execute: Any) -> None:
+        self.execute = execute
+
+
+async def test_check_mail_says_when_the_cap_stopped_it() -> None:
+    world = await world_with_job("hello")
+    world.look._cap_usd = 0.0
+    async with world.uow as uow:
+        await uow.chats.record(_spent())
+        await uow.commit()
+
+    result = await CheckMail(world.look).run(CTX, {})
+
+    assert not result.ok and result.error
+
+
+def _spent() -> Any:
+    from sro.domain.chat.reading import ChatReading
+
+    return ChatReading(
+        id="c1",
+        tenant=f.TENANT.value,
+        at=FakeClock().now().isoformat(),
+        workflow_id=None,
+        in_tokens=1,
+        out_tokens=1,
+        thought_tokens=0,
+        cost_usd=5.0,
+        unpriced=False,
+        error="",
+    )
+
+
+async def test_run_status_names_the_run_its_values_and_its_state() -> None:
+    world = await world_with_job()
+    run = await world.ran("held", {"Customer Type": "SR11"})
+
+    result = await RunStatus(world.runs, world.threads).run(CTX, {})
+
+    (one,) = _runs(result)
+    assert (one["id"], one["state"], one["values"]) == (
+        run.id,
+        "held",
+        {"Customer Type": "SR11"},
+    )
+    assert one["from_mail"] is False and one["question"] == ""
+
+
+async def test_run_status_gives_the_system_s_reason_for_a_failed_run() -> None:
+    world = await world_with_job()
+    await world.ran("failed", {}, steps=(a_failed_step("Customer Type is too long"),))
+
+    result = await RunStatus(world.runs, world.threads).run(CTX, {})
+
+    assert _runs(result)[0]["stopped_because"] == "Customer Type is too long"
+
+
+async def test_run_status_says_a_run_came_from_mail_and_what_it_asks() -> None:
+    world = await world_with_job()
+    run = await world.ran("running", {}, mail={"thread": "t-9", "subject": "new type"})
+    await world.asked(run, "Which customer type code should I use?")
+
+    result = await RunStatus(world.runs, world.threads).run(CTX, {})
+
+    (one,) = _runs(result)
+    assert one["from_mail"] is True
+    assert one["question"] == "Which customer type code should I use?"
+
+
+async def test_run_status_shows_the_caller_s_own_runs_and_no_others() -> None:
+    world = await world_with_job()
+    await world.ran("held", {}, run_id="run_mine")
+    await world.ran("held", {}, run_id="run_theirs", by=THEIRS)
+    await world.ran("held", {}, run_id="run_elsewhere", tenant="another-tenant")
+
+    result = await RunStatus(world.runs, world.threads).run(CTX, {})
+
+    assert [one["id"] for one in _runs(result)] == ["run_mine"]
+
+
+async def test_run_status_never_shows_a_secret_value() -> None:
+    world = await world_with_job()
+    await world.ran("held", {"Customer Type": "SR11", "Password": "hunter2"})
+
+    result = await RunStatus(world.runs, world.threads).run(CTX, {})
+
+    assert "hunter2" not in str(result.data)
+
+
+async def _lookup_over(uow: FakeUnitOfWork, planned: Any) -> Lookup:
+    planner = PlanLookups(uow, _Knows(KNOWN), FakeAsker(planned), clock=FakeClock(), cap_usd=5.0)
+    return Lookup(LookItUp(planner, _NoRuns()))
+
+
+class _NoRuns:
+    async def execute(self, *_: object, **__: object) -> Any:
+        raise AssertionError("a plan that is not ready runs nothing")
+
+
+async def test_lookup_says_so_when_nothing_here_knows_how_to_look_it_up() -> None:
+    from sro.domain.shared.prices import Answer
+
+    tool = await _lookup_over(FakeUnitOfWork(), Answer(data={"why": "none", "lookups": []}))
+
+    result = await tool.run(CTX, {"question": "which suppliers are set up at SG"})
+
+    assert not result.ok and "look that up" in result.error
+
+
+async def test_lookup_answers_from_the_system_and_names_where_it_read() -> None:
+    from sro.domain.lookup.plan import Lookup as Asked
+    from sro.domain.lookup.plan import Plan
+
+    class _Read:
+        async def execute(self, *_: object, **__: object) -> Any:
+            from sro.application.lookup.run_lookups import Answers, Looked
+
+            asked = Asked(system="blue_yonder", how="call", target="/data/WM/wm/suppliers")
+            return Answers(plan=Plan(question="q", lookups=(asked,)), looked=(Looked(asked, True),))
+
+    class _Plans:
+        async def execute(self, *_: object, **__: object) -> Any:
+            from sro.application.lookup.plan_lookups import Planned
+
+            return Planned(Plan(question="q", lookups=(Asked(system="s", how="call", target="t"),)))
+
+    result = await Lookup(LookItUp(_Plans(), _Read())).run(CTX, {"question": "q"})
+
+    assert result.ok and "/data/WM/wm/suppliers" in str(result.data["source"])
+
+
+def test_every_tool_is_described_with_its_arguments() -> None:
+    tools = [FindJobs(FakeUnitOfWork(), FakeClock()), CheckMail(None)]
+    one, two = described(tools)
+    assert (one["name"], two["name"]) == ("find_jobs", "check_mail")
+    assert one["args"] == FindJobs.args

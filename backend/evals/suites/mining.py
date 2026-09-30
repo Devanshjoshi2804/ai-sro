@@ -78,6 +78,7 @@ def _shipped(workflow: Workflow, by_id: dict[str, Gesture], logins: Logins) -> s
 class Mining:
     name = "mining"
     prompt = MINE
+    floor = 0.0
 
     def asker(self, container: Container) -> Asker | None:
         return container.mining_asker()

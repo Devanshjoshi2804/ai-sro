@@ -1,0 +1,23 @@
+{
+ "id": "chat_32",
+ "suite": "chat",
+ "input": {
+  "message": "navigate to receiving",
+  "origin": "chat",
+  "runs": [],
+  "history": []
+ },
+ "expected": {
+  "tools": [
+   "work_it_out"
+  ],
+  "args": {}
+ },
+ "answer": {
+  "action": "call",
+  "tool": "work_it_out",
+  "args": {
+   "task": "navigate to receiving"
+  }
+ }
+}

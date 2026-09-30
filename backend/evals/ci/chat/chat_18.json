@@ -1,0 +1,31 @@
+{
+ "id": "chat_18",
+ "suite": "chat",
+ "input": {
+  "message": "create an equipment type",
+  "origin": "chat",
+  "runs": [],
+  "history": []
+ },
+ "expected": {
+  "tools": [
+   "find_jobs",
+   "ask_operator"
+  ],
+  "args": {},
+  "or": [
+   {
+    "tools": [
+     "ask_operator"
+    ]
+   }
+  ]
+ },
+ "answer": {
+  "action": "call",
+  "tool": "ask_operator",
+  "args": {
+   "question": "Which code, and warehouse or transport?"
+  }
+ }
+}

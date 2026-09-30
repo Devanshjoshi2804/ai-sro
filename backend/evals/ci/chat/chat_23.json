@@ -1,0 +1,46 @@
+{
+ "id": "chat_23",
+ "suite": "chat",
+ "input": {
+  "message": "what's running?",
+  "origin": "chat",
+  "runs": [
+   {
+    "id": "run_aite5",
+    "job": "wfl_transport_equipment_type",
+    "values": {
+     "Transport Equipment Type": "AITE5",
+     "Long Description": "eval"
+    },
+    "state": "running",
+    "stopped_because": "",
+    "from_mail": false,
+    "question": ""
+   },
+   {
+    "id": "run_aite4",
+    "job": "wfl_transport_equipment_type",
+    "values": {
+     "Transport Equipment Type": "AITE4",
+     "Long Description": "eval"
+    },
+    "state": "done",
+    "stopped_because": "",
+    "from_mail": false,
+    "question": ""
+   }
+  ],
+  "history": []
+ },
+ "expected": {
+  "tools": [
+   "run_status"
+  ],
+  "args": {}
+ },
+ "answer": {
+  "action": "call",
+  "tool": "run_status",
+  "args": {}
+ }
+}

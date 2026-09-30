@@ -1,0 +1,24 @@
+{
+ "id": "chat_15",
+ "suite": "chat",
+ "input": {
+  "message": "create customer type SROT1 with description x",
+  "origin": "chat",
+  "runs": [],
+  "history": []
+ },
+ "expected": {
+  "tools": [
+   "find_jobs"
+  ],
+  "args": {},
+  "refused_ok": true
+ },
+ "answer": {
+  "action": "call",
+  "tool": "find_jobs",
+  "args": {
+   "query": "customer type"
+  }
+ }
+}

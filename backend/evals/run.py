@@ -10,6 +10,7 @@ from typing import Protocol
 from evals.model import Case, Report, Scored, as_markdown, gate, report
 from evals.redact import redacted
 from evals.replay import Replayed
+from evals.suites.chat import Chat
 from evals.suites.mining import Mining
 from evals.suites.reader import Reader
 from sro.application.ports.model import Asker
@@ -25,6 +26,7 @@ HERE = Path(__file__).parent
 class Suite(Protocol):
     name: str
     prompt: Prompt
+    floor: float
 
     def asker(self, container: Container) -> Asker | None: ...
 
@@ -33,7 +35,7 @@ class Suite(Protocol):
     async def run(self, case: Case, asker: Asker) -> Scored: ...
 
 
-SUITES: dict[str, Suite] = {"mining": Mining(), "reader": Reader()}
+SUITES: dict[str, Suite] = {"mining": Mining(), "reader": Reader(), "chat": Chat()}
 
 
 def _thawed(path: Path) -> list[Case] | None:
@@ -100,7 +102,7 @@ async def run_suite(
             scored.append(one)
     now = report(name, suite.prompt, scored)
     base = results / f"baseline-{name}.json"
-    failed = gate(Report.load(base) if base.is_file() else None, now)
+    failed = gate(Report.load(base) if base.is_file() else None, now, floor=suite.floor)
     out = results / f"{name}-{suite.prompt.name}-v{suite.prompt.version}.md"
     out.write_text(as_markdown(now, failed), encoding="utf-8")
     if baseline and not failed:

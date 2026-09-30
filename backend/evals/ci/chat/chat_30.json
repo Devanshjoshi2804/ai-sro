@@ -1,0 +1,18 @@
+{
+ "id": "chat_30",
+ "suite": "chat",
+ "input": {
+  "message": "log in to keycloak",
+  "origin": "chat",
+  "runs": [],
+  "history": []
+ },
+ "expected": {
+  "tools": [],
+  "args": {}
+ },
+ "answer": {
+  "action": "say",
+  "text": "Signing in to Keycloak is automatic; nothing to start."
+ }
+}

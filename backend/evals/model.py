@@ -90,8 +90,10 @@ def report(suite: str, prompt: Prompt, scored: Sequence[Scored]) -> Report:
     )
 
 
-def gate(before: Report | None, after: Report) -> list[str]:
+def gate(before: Report | None, after: Report, *, floor: float = 0.0) -> list[str]:
     failed = [f"{after.errors} case(s) errored"] if after.errors else []
+    if after.accuracy < floor:
+        failed.append(f"accuracy {after.accuracy:.1%} is below the {floor:.0%} floor")
     if before is None:
         return failed
     if after.case_ids != before.case_ids:

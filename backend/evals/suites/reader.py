@@ -64,6 +64,7 @@ def _candidate(raw: dict[str, Any]) -> Candidate:
 class Reader:
     name = "reader"
     prompt = READ_REQUEST
+    floor = 0.0
 
     def asker(self, container: Container) -> Asker | None:
         return container.asker

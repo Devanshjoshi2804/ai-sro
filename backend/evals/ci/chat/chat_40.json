@@ -1,0 +1,36 @@
+{
+ "id": "chat_40",
+ "suite": "chat",
+ "input": {
+  "message": "what is the voice code for AITE4?",
+  "origin": "chat",
+  "runs": [
+   {
+    "id": "run_aite4",
+    "job": "wfl_transport_equipment_type",
+    "values": {
+     "Transport Equipment Type": "AITE4",
+     "Long Description": "eval"
+    },
+    "state": "done",
+    "stopped_because": "",
+    "from_mail": false,
+    "question": ""
+   }
+  ],
+  "history": []
+ },
+ "expected": {
+  "tools": [
+   "lookup"
+  ],
+  "args": {}
+ },
+ "answer": {
+  "action": "call",
+  "tool": "lookup",
+  "args": {
+   "question": "voice code for AITE4"
+  }
+ }
+}

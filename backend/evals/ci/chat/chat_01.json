@@ -1,0 +1,21 @@
+{
+ "id": "chat_01",
+ "suite": "chat",
+ "input": {
+  "message": "check mail for any new work",
+  "origin": "chat",
+  "runs": [],
+  "history": []
+ },
+ "expected": {
+  "tools": [
+   "check_mail"
+  ],
+  "args": {}
+ },
+ "answer": {
+  "action": "call",
+  "tool": "check_mail",
+  "args": {}
+ }
+}

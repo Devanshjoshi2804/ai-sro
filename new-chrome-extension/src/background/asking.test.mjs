@@ -5,7 +5,9 @@
 import assert from "node:assert";
 import { test } from "node:test";
 
-const { questionAmong, questionIn, questionsAmong } = await import("./asking.js");
+const { questionAmong, questionIn, questionsAmong, waitingOnReply } = await import(
+  "./asking.js"
+);
 
 const asked = {
   id: "msg_1",
@@ -89,4 +91,58 @@ test("every standing question is kept, newest first -- one card each", () => {
 
   assert.deepEqual(questionsAmong(threads).map((one) => one.id), ["msg_1", "msg_0"]);
   assert.equal(questionAmong(threads).id, "msg_1");
+});
+
+// A wait on a reply is read off the chats, never stored: a stored one went
+// stale (QA 2026-09-30, YPHD: "Waiting on a reply" two hours after the reply
+// was read and the run finished) and, with no thread recorded, matched every
+// other mail's question.
+const sentAt = (at, to = "asker@example.com") => ({
+  speaker: "system",
+  said_at: at,
+  text: "Sent.",
+  decision: { kind: "mail_sent", sent: true, to, draft_id: "d1" },
+});
+const drafted = { speaker: "system", text: "Draft.", decision: { kind: "mail_draft" } };
+const chat = (id, ...messages) => ({ id, messages });
+
+test("a chat whose mail was sent and whose question still stands is waiting on the reply", () => {
+  const waiting = waitingOnReply([
+    chat("thr_a", asked, drafted, sentAt("2026-09-30T13:00:00Z")),
+  ]);
+  assert.equal(waiting.to, "asker@example.com");
+  assert.equal(waiting.at, Date.parse("2026-09-30T13:00:00Z"));
+});
+
+test("a draft nobody sent is not a wait", () => {
+  assert.equal(waitingOnReply([chat("thr_a", asked, drafted)]), null);
+});
+
+test("a reply read, a run started and finished ends the wait, whatever else is asked", () => {
+  const yphd = chat(
+    "thr_yphd",
+    asked,
+    drafted,
+    sentAt("2026-09-30T11:00:00Z"),
+    { speaker: "assistant", text: "A reply answered", decision: { kind: "note" } },
+    { speaker: "assistant", text: "Should we?", decision: { kind: "job", workflow_id: "wfl_2" } },
+    { speaker: "operator", text: "yes" },
+    { speaker: "assistant", text: "Running", decision: { kind: "job", workflow_id: "wfl_2" } },
+    { speaker: "assistant", text: "Done", decision: { kind: "run_done" } },
+  );
+  const other = chat("thr_pj26", asked);
+  assert.equal(waitingOnReply([yphd, other]), null);
+});
+
+test("of two mails, only the one still awaiting its reply keeps a wait", () => {
+  const answered = chat(
+    "thr_1",
+    asked,
+    drafted,
+    sentAt("2026-09-30T11:00:00Z", "one@example.com"),
+    { speaker: "assistant", text: "A reply answered", decision: { kind: "needs_values", workflow_id: "wfl_2", missing: ["x"] } },
+  );
+  const waiting = chat("thr_2", asked, drafted, sentAt("2026-09-30T12:00:00Z", "two@example.com"));
+  assert.equal(waitingOnReply([answered, waiting]).to, "two@example.com");
+  assert.equal(waitingOnReply([answered]), null);
 });

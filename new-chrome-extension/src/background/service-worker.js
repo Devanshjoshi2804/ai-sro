@@ -5,7 +5,13 @@
 
 import { api, ApiError } from "./api.js";
 import { alsoWatch, alwaysWatched, hostOf } from "./always.js";
-import { offersAsked, questionAmong, questionIn, questionsAmong } from "./asking.js";
+import {
+  offersAsked,
+  questionAmong,
+  questionIn,
+  questionsAmong,
+  waitingOnReply,
+} from "./asking.js";
 import { waitBeforeLooking } from "./looking.js";
 import { MAX_SAID, narrate, said } from "./said.js";
 import { serially } from "./serially.js";
@@ -554,18 +560,6 @@ function stillAsking(thread) {
  * the day it goes quiet instead, counted among the ones they missed.
  */
 async function offerFromMail(offer) {
-  // The answer came. Nothing is waiting on a mailbox any more, and a panel
-  // still saying so under the card that answered it is a panel arguing with
-  // itself. Cleared on the offer rather than on the reply being read, because
-  // the offer is the thing this browser can actually see arrive.
-  const awaiting = await state.awaitingMail();
-  if (
-    awaiting &&
-    (!awaiting.thread || awaiting.thread === (offer.thread || ""))
-  ) {
-    await state.setAwaitingMail(null);
-    await narrate(`no longer waiting on ${awaiting.to}: an offer arrived`);
-  }
   // A run the answer already started. There is nothing here to offer.
   //
   // The operator pressed Yes on this request; that press is what sent the mail
@@ -1584,17 +1578,8 @@ async function handle(message, sender) {
             ? `asked ${answered.sent_to} about ${message.messageId}`
             : `nothing was sent for ${message.messageId}`,
         );
-        // What the panel draws a live wait from. Only where a mail actually
-        // went: "waiting for a reply" under a mail that was never sent is the
-        // panel telling somebody a story about itself.
-        if (answered.sent_to) {
-          await state.setAwaitingMail({
-            to: answered.sent_to,
-            at: Date.now(),
-            thread: message.mailThread || "",
-          });
-          await narrate(`waiting on a reply from ${answered.sent_to}`);
-        }
+        // The wait is read back from the chat the mail was sent in.
+        if (answered.sent_to) await lookForAQuestion();
         return { ok: true, sent_to: answered.sent_to || "" };
       } catch (error) {
         return { ok: false, error: error.problem?.detail || error.message };
@@ -3028,24 +3013,23 @@ async function holdTheQuestion(threads) {
   const ids = (list) => list.map((one) => one.id).join("|");
   if (ids(await state.questions()) !== ids(all)) await state.setQuestions(all);
   await endTheOffersAsked(offersAsked(threads));
-  await endTheWaitAnswered(threads);
+  await holdTheWait(threads);
   return waiting;
 }
 
-/** A wait on a mail's reply ends when the question it asked stops standing --
- * whichever look read the reply. QA 2026-09-30 (YPHD): the backend's sweep
- * read the reply and started the run, and Home said "Waiting on a reply" for
- * as long as the panel was open, because only this browser's own look ever
- * ended the wait. */
-async function endTheWaitAnswered(threads) {
-  const awaiting = await state.awaitingMail();
-  if (!awaiting) return;
-  const standing = threads
-    .map(questionIn)
-    .some((one) => one && (!awaiting.thread || one.mailThread === awaiting.thread));
-  if (standing) return;
-  await state.setAwaitingMail(null);
-  await narrate(`no longer waiting on ${awaiting.to}: its question was answered`);
+/** The wait on a mail's reply, held as what the chats say it is -- the mail
+ * that went out and nothing after it. QA 2026-09-30 (YPHD): a stored wait with
+ * no thread matched every other mail's question and outlived the run. */
+async function holdTheWait(threads) {
+  const waiting = waitingOnReply(threads);
+  const held = await state.awaitingMail();
+  if ((held?.at || 0) === (waiting?.at || 0) && (held?.to || "") === (waiting?.to || "")) return;
+  await state.setAwaitingMail(waiting);
+  await narrate(
+    waiting
+      ? `waiting on a reply from ${waiting.to}`
+      : `no longer waiting on ${held.to}: its question was answered`,
+  );
 }
 
 /** Every open card offering what a standing question now asks about, ended:

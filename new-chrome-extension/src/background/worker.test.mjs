@@ -1406,15 +1406,22 @@ test("a wait on a reply ends when the reply answers its question, whoever read i
         said_at: "2026-09-30T07:30:00Z",
         decision: { kind: "needs_values", workflow_id: "wfl_1", missing: ["Customer Type"], mail_thread: "t-1" },
       },
+      {
+        id: "m_sent",
+        speaker: "system",
+        text: "Sent to asker@example.com.",
+        said_at: "2026-09-30T07:31:00Z",
+        decision: { kind: "mail_sent", sent: true, to: "asker@example.com", draft_id: "m_d" },
+      },
       ...(last ? [last] : []),
     ],
   });
-  held.set("sro.awaitingMail", { to: "asker@example.com", at: Date.now(), thread: "t-1" });
+  held.set("sro.awaitingMail", { to: "old@example.com", at: 1, thread: "" });
   threadsAsked = [chat(null)];
 
   await globalThis.__beat({ name: "sro-heartbeat" });
   await new Promise((resolve) => setTimeout(resolve, 20));
-  assert.ok(held.get("sro.awaitingMail"), "a wait whose question stands was ended");
+  assert.equal(held.get("sro.awaitingMail")?.to, "asker@example.com", "the wait is the sent mail");
 
   threadsAsked = [
     chat({
@@ -1429,6 +1436,14 @@ test("a wait on a reply ends when the reply answers its question, whoever read i
   await new Promise((resolve) => setTimeout(resolve, 20));
 
   assert.equal(held.get("sro.awaitingMail") ?? null, null, "Home still waits on an answered reply");
+
+  // A stored wait with no thread is nobody's: another mail's question does not
+  // keep it alive (QA 2026-09-30, YPHD kept waiting on the PJ26 question).
+  held.set("sro.awaitingMail", { to: "asker@example.com", at: 1, thread: "" });
+  threadsAsked = [{ id: "thr_ask_2", messages: [chat(null).messages[0]] }];
+  await globalThis.__beat({ name: "sro-heartbeat" });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(held.get("sro.awaitingMail") ?? null, null, "an unrelated question kept the wait");
   threadsAsked = [];
 });
 

@@ -93,3 +93,21 @@ export function questionsAmong(threads, run = null) {
 export function questionAmong(threads, run = null) {
   return questionsAmong(threads, run)[0] || null;
 }
+
+/** The mail this operator is waiting on a reply to, or `null`.
+ *
+ * Read off the chats -- a standing question whose newest decision of any kind
+ * is the mail that went out. A reply, a run, an answer in the panel: anything
+ * after it ends the wait, so there is no second record of it to go stale. */
+export function waitingOnReply(threads) {
+  const waits = threads.flatMap((thread) => {
+    const last = [...(thread?.messages || [])]
+      .reverse()
+      .find((message) => message.decision?.kind);
+    if (last?.decision.kind !== "mail_sent" || !last.decision.sent) return [];
+    if (!questionIn(thread)) return [];
+    return [{ to: last.decision.to || "", at: Date.parse(last.said_at) || 0 }];
+  });
+  waits.sort((a, b) => b.at - a.at);
+  return waits[0] || null;
+}

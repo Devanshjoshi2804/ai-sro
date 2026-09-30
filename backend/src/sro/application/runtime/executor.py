@@ -128,4 +128,5 @@ class StepExecutor:
             "a read-back after signing back in shows the values written",
             read=lost.read,
             keyed=confirmed_keys(step, values, ctx),
+            answered=lost.answered,
         )

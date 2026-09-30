@@ -555,3 +555,34 @@ async def test_a_create_that_names_its_record_is_confirmed_by_reading_that_recor
         ("POST", WRITE),
         ("GET", f"{WRITE}/GT2%2A%21x"),
     ]
+
+
+@pytest.mark.parametrize("status", [400, 409, 500], ids=lambda status: f"answered-{status}")
+async def test_a_write_the_system_did_not_accept_keeps_what_it_answered_scrubbed(
+    status: int,
+) -> None:
+    """Greyorange, 2026-09-30: PJ26's save ended unclear and its step kept
+    nothing of what Blue Yonder answered -- not even the status. What the system
+    said is kept on the step, secrets scrubbed, its length bounded."""
+    http = FakeHttpCaller()
+    http.answer(
+        status,
+        json.dumps(
+            {
+                "errors": [{"message": "Voice code 42 is already used"}],
+                "password": "hunter2",
+                "trace": "x" * 5000,
+            }
+        ),
+        headers={"content-type": "application/json"},
+    )
+    step, by_id, ledger = proven_write_step(read_back=None)
+
+    result = await ApiLane(headers_broker({}, http=http)).execute(
+        step, RUN, lane_context(by_id, ledger=ledger)
+    )
+
+    assert result.answered["status"] == str(status)
+    assert "Voice code 42 is already used" in result.answered["said"]
+    assert "hunter2" not in str(dict(result.answered))
+    assert len(result.answered["said"]) <= 300

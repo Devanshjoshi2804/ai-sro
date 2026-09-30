@@ -576,6 +576,7 @@ class RunSteps:
                 planned_by=by,
                 reason=result.reason,
                 made=dict(result.read),
+                result=dict(result.answered) or None,
             )
         )
         await self._write(ctx, run, progress, save=True, index=index)
@@ -626,6 +627,7 @@ class RunSteps:
                 verdict_by=by,
                 planned_by=by,
                 reason=asked.question,
+                result=dict(last.answered) if last is not None and last.answered else None,
             )
         )
         await self._write(ctx, run, progress, save=True, index=index, open_step=step.order)

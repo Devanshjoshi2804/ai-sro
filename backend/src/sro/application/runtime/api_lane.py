@@ -21,7 +21,7 @@ from sro.domain.execution.lanes import (
     write_confirmed,
 )
 from sro.domain.execution.planning import Planned
-from sro.domain.execution.records import made_by
+from sro.domain.execution.records import made_by, told_by
 from sro.domain.execution.write_plan import learned_slots, seen_values
 from sro.domain.observation.trim import path_shape
 from sro.domain.recording.sensitivity import K_TOKENS, classify_header
@@ -90,20 +90,30 @@ class ApiLane:
                 "unknown", Lane.API, f"the call may have arrived: {type(lost).__name__}"
             )
         status = answered.status_code
+        told = told_by(status, answered.text, _content_type(answered.headers))
         if status in K_AUTH_REFUSED and ctx.reauthed:
             return StepResult(
                 "failed",
                 Lane.API,
                 f"the system refused this account ({status})",
                 fingerprint=fingerprint_of(Lane.API, str(status), path_shape(url)),
+                answered=told,
             )
         if status in K_AUTH_REFUSED:
             return StepResult(
-                "failed", Lane.API, f"the session was refused ({status})", expired=True
+                "failed",
+                Lane.API,
+                f"the session was refused ({status})",
+                expired=True,
+                answered=told,
             )
         if is_login(status, answered.headers.get("location"), url, answered.text):
             return StepResult(
-                "unknown", Lane.API, f"the system sent the call to sign in ({status})", expired=True
+                "unknown",
+                Lane.API,
+                f"the system sent the call to sign in ({status})",
+                expired=True,
+                answered=told,
             )
         verdict = write_confirmed(
             recorded=replace(recorded, url=url),
@@ -117,10 +127,13 @@ class ApiLane:
                 f"the system answered {status}",
                 never_left=True,
                 fingerprint=fingerprint_of(Lane.API, str(status), path_shape(url)),
+                answered=told,
             )
         made = made_by({"status": status, "body": answered.text})
         if verdict != "done":
-            return StepResult("unknown", Lane.API, f"the system answered {status}", read=made)
+            return StepResult(
+                "unknown", Lane.API, f"the system answered {status}", read=made, answered=told
+            )
         if method.upper() == "DELETE":
             # A delete leaves no values to read back: its record's own address
             # answering that it is gone is what confirms it.
@@ -130,7 +143,11 @@ class ApiLane:
                 raise
             except Exception as lost:
                 return StepResult(
-                    "unknown", Lane.API, f"the read-back was lost: {type(lost).__name__}", read=made
+                    "unknown",
+                    Lane.API,
+                    f"the read-back was lost: {type(lost).__name__}",
+                    read=made,
+                    answered=told,
                 )
             if after.status_code in _GONE:
                 return StepResult("done", Lane.API, "a read-back finds the record gone", read=made)
@@ -138,6 +155,7 @@ class ApiLane:
                 "unknown",
                 Lane.API,
                 f"the record still answers {after.status_code} after the delete",
+                answered=told,
             )
         try:
             confirmed = await self._its_record(planned, ctx, held, headers, made) or (
@@ -147,11 +165,19 @@ class ApiLane:
             raise
         except Exception as lost:
             return StepResult(
-                "unknown", Lane.API, f"the read-back was lost: {type(lost).__name__}", read=made
+                "unknown",
+                Lane.API,
+                f"the read-back was lost: {type(lost).__name__}",
+                read=made,
+                answered=told,
             )
         if not confirmed:
             return StepResult(
-                "unknown", Lane.API, "no read-back shows the values written", read=made
+                "unknown",
+                Lane.API,
+                "no read-back shows the values written",
+                read=made,
+                answered=told,
             )
         return StepResult(
             "done",
@@ -283,6 +309,10 @@ def _unsent(reason: str, kind: str, evidence: str = "") -> StepResult:
         never_left=True,
         fingerprint=fingerprint_of(Lane.API, kind, evidence),
     )
+
+
+def _content_type(headers: Mapping[str, str]) -> str | None:
+    return next((value for name, value in headers.items() if name.lower() == "content-type"), None)
 
 
 def _origin(url: str) -> tuple[str, str]:

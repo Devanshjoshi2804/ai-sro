@@ -1647,6 +1647,52 @@ test("a draft whose question was answered offers nothing to send", () => {
   assert.doesNotMatch(words(item), /the words/);
 });
 
+test("an answered draft stays closed when a later question lands in the chat", () => {
+  // The draft names the question it was written for. Answering it and then
+  // running short writes a NEW question into the same chat; "some question
+  // stands" reopened Send it on the old draft, which mails the sender a
+  // question already answered.
+  const draft = {
+    id: "m-draft",
+    speaker: "system",
+    text: "This is what I would send.",
+    said_at: "2026-09-18T13:00:00Z",
+    decision: {
+      kind: "mail_draft",
+      to: "tanisha@example.com",
+      subject: "Re: it",
+      body: "the words",
+      question: "m-asked",
+    },
+  };
+  const later = {
+    id: "m-later",
+    speaker: "assistant",
+    text: "Another value is missing.",
+    said_at: "2026-09-18T13:03:00Z",
+    decision: { ...ASKED.decision, workflow_id: "wfl_2", mail_thread: "t-other" },
+  };
+  const answer = {
+    id: "m-op",
+    speaker: "operator",
+    text: "VETC",
+    said_at: "2026-09-18T13:02:00Z",
+  };
+  const closing = {
+    id: "m-run",
+    speaker: "assistant",
+    text: "Running.",
+    said_at: "2026-09-18T13:02:30Z",
+    decision: { kind: "job", workflow_id: "wfl_1", mail_thread: "t-9", run_id: "r" },
+  };
+  const draw = (list) =>
+    messages(ledger({ id: "t", messages: list }, {}, { onPress: () => {} }))[1];
+  assert.ok(labelled(draw([ASKED, draft]), /Send it/), "the question stands");
+  const item = draw([ASKED, draft, answer, closing, later]);
+  assert.equal(labelled(item, /Send it/), undefined, "reopened by a later question");
+  assert.equal(item.dataset.answered, "answered");
+});
+
 test("a drafted mail is shown whole, with the press under it", () => {
   // The one thing this system writes that leaves the company, over the
   // operator's name, to somebody outside every system here -- and it cannot be

@@ -577,24 +577,37 @@ export function alreadyAnswered(messages) {
     if (decision?.offer && decision.run_id)
       done.set(`offer:${decision.offer}`, decision.run_id);
   }
-  // A draft asks about the question standing when it was written. Once that
-  // question is answered -- here, from the panel, or by the sender's reply --
-  // there is nothing left to ask them, and the backend refuses the send. The
-  // question stands while the newest thing the assistant decided is it: the
-  // rule `pending_job` keeps on the server.
-  const last = [...messages]
+  // A draft asks about the question it was written for, and that question
+  // stands while nothing later in the chat decided the same offer -- the rule
+  // `asked_under` keeps on the server. Once it is answered -- here, from the
+  // panel, or by the sender's reply -- there is nothing left to ask them, and
+  // the backend refuses the send. A later, different question does not reopen it.
+  const offer = (decision) => `${decision.workflow_id}|${decision.mail_thread || ""}`;
+  const asks = (decision) =>
+    decision?.kind === "needs_values" &&
+    Boolean(decision.workflow_id) &&
+    (decision.missing || []).length > 0;
+  const newest = [...messages]
     .reverse()
-    .find(
-      (one) =>
-        one.speaker === "assistant" && Object.keys(one.decision || {}).length,
-    );
-  const standing =
-    last?.decision?.kind === "needs_values" &&
-    Boolean(last.decision.workflow_id) &&
-    (last.decision.missing || []).length > 0;
-  if (!standing)
-    for (const one of messages)
-      if (one.decision?.kind === "mail_draft" && !done.has(one.id))
+    .find((one) => one.speaker === "assistant" && one.decision?.kind);
+  const stands = (id) => {
+    const at = messages.findIndex((one) => one.id === id);
+    const asked = messages[at];
+    if (at < 0 || asked.speaker !== "assistant" || !asks(asked.decision)) return false;
+    return !messages
+      .slice(at + 1)
+      .some(
+        (one) =>
+          one.speaker === "assistant" &&
+          one.decision?.workflow_id &&
+          offer(one.decision) === offer(asked.decision),
+      );
+  };
+  for (const one of messages)
+    if (one.decision?.kind === "mail_draft" && !done.has(one.id))
+      // A draft written before it named its question asks about whichever
+      // question is the newest thing decided.
+      if (!stands(one.decision.question || newest?.id))
         done.set(one.id, "answered");
   return done;
 }

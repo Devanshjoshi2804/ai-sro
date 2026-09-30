@@ -90,11 +90,14 @@ class Brain:
     ) -> BrainReply:
         trusted: dict[str, object] = {
             "origin": origin.kind,
-            "asking": asking,
-            "page": page,
             "tools": described(list(self._tools.values())),
         }
+        # The open question is built from a mail's words and a page title is anyone's text.
         untrusted = {"message": message, "history": "\n".join(history[-K_HISTORY:])}
+        if asking:
+            untrusted["asking"] = asking
+        if page:
+            untrusted["page"] = page
         if origin.kind == "mail":
             untrusted |= {"mail from": origin.sender, "mail subject": origin.subject}
         if (status := self._tools.get("run_status")) is not None:
@@ -155,7 +158,8 @@ class Brain:
                 return BrainReply(question, tuple(decisions), tuple(steps))
         did = ", ".join(call.tool for call, _ in steps)
         return BrainReply(
-            f"I could not finish that in {K_BRAIN_STEPS} steps; here is what I did: {did}.",
+            f"I could not finish that in {K_BRAIN_STEPS} steps"
+            + (f"; here is what I did: {did}." if did else "."),
             tuple(decisions),
             tuple(steps),
         )
@@ -174,4 +178,9 @@ class Brain:
             if key in started:
                 return ToolResult(False, error="that start was already tried this turn")
             started.add(key)
-        return await tool.run(ctx, call.args)
+        try:
+            return await tool.run(ctx, call.args)
+        except Exception:
+            # A bug or an outage in one tool is that step's failure, not the whole message's.
+            logger.exception("brain tool %s failed", call.tool)
+            return ToolResult(False, error="that tool failed")

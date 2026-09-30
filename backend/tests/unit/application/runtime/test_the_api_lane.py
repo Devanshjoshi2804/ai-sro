@@ -5,7 +5,7 @@ import httpx
 import pytest
 
 from sro.application.runtime.api_lane import K_AUTH_REFUSED, ApiLane
-from sro.domain.execution.lanes import Lane
+from sro.domain.execution.lanes import Lane, StepResult
 from sro.domain.execution.verified_writes import VerifiedWrite
 from sro.domain.observation.gesture import Action, Call, Gesture, Target
 from sro.domain.shared.hosts import REDACTED
@@ -134,7 +134,7 @@ async def test_a_conflicting_replay_is_in_doubt_and_never_handed_on() -> None:
     )
 
     assert result.verdict == "unknown" and not result.never_left
-    assert len(http.sent) == 1
+    assert _sent_once(http)
 
 
 async def test_a_server_error_on_a_write_is_in_doubt_not_failed() -> None:
@@ -147,7 +147,12 @@ async def test_a_server_error_on_a_write_is_in_doubt_not_failed() -> None:
     )
 
     assert result.verdict == "unknown"
-    assert len(http.sent) == 1
+    assert _sent_once(http)
+
+
+def _sent_once(http: FakeHttpCaller) -> bool:
+    methods = [one["method"] for one in http.sent]
+    return methods[0] == "POST" and set(methods[1:]) <= {"GET"}
 
 
 async def test_a_write_with_no_read_back_is_unknown() -> None:
@@ -402,7 +407,7 @@ async def test_a_read_back_on_another_origin_is_never_sent() -> None:
     )
 
     assert result.verdict == "unknown"
-    assert len(http.sent) == 1
+    assert not [one for one in http.sent if "analytics.example" in str(one["url"])]
 
 
 async def test_a_read_back_addressed_by_the_recorded_record_reads_this_runs_record() -> None:
@@ -429,7 +434,7 @@ async def test_a_read_back_naming_the_recorded_value_inside_a_segment_is_not_sen
     )
 
     assert result.verdict == "unknown"
-    assert len(http.sent) == 1
+    assert not [one for one in http.sent if "?" in str(one["url"])]
 
 
 async def test_a_redirect_off_the_host_is_in_doubt_and_asks_for_a_fresh_session() -> None:
@@ -473,7 +478,7 @@ async def test_a_replay_with_an_absent_optional_value_sends_no_key_for_it() -> N
         step, RUN, lane_context(by_id, ledger=ledger, workflow=job)
     )
 
-    (sent,) = http.sent
+    sent = http.sent[0]
     assert json.loads(str(sent["body"])) == {"name": "GT2"}
     assert "north" not in str(sent) and "south" not in str(sent)
 
@@ -586,3 +591,67 @@ async def test_a_write_the_system_did_not_accept_keeps_what_it_answered_scrubbed
     assert "Voice code 42 is already used" in result.answered["said"]
     assert "hunter2" not in str(dict(result.answered))
     assert len(result.answered["said"]) <= 300
+
+
+DESCRIBED = {"Customer Type": "GT2", "Description": "Pet shops"}
+
+
+async def _answered(*answers: tuple[int, str]) -> tuple[StepResult, FakeHttpCaller]:
+    http = FakeHttpCaller()
+    for status, text in answers:
+        http.answer(status, text)
+    step, by_id, ledger = proven_write_step(read_back=None, described=("d0", "d1"))
+    job = replace(
+        WORKFLOW,
+        parameters=[
+            {"name": "Customer Type", "seen_values": ["GT0", "GT1"]},
+            {"name": "Description", "seen_values": ["d0", "d1"]},
+        ],
+    )
+    result = await ApiLane(headers_broker({}, http=http)).execute(
+        step, DESCRIBED, lane_context(by_id, ledger=ledger, workflow=job)
+    )
+    return result, http
+
+
+async def test_a_clash_whose_record_is_absent_was_refused_in_the_system_s_own_words() -> None:
+    result, http = await _answered(
+        (409, '{"message": "Description Pet shops is already used"}'), (404, "")
+    )
+
+    assert result.verdict == "failed" and result.refused
+    assert "Description Pet shops is already used" in result.reason
+    assert [(one["method"], str(one["url"])) for one in http.sent] == [
+        ("POST", WRITE),
+        ("GET", f"{WRITE}/GT2"),
+    ]
+
+
+async def test_a_server_error_whose_record_reads_back_with_our_values_is_done() -> None:
+    result, _ = await _answered((502, ""), (200, '{"name": "GT2", "description": "Pet shops"}'))
+
+    assert result.verdict == "done" and not result.refused
+
+
+async def test_a_clash_whose_record_holds_other_values_already_exists() -> None:
+    result, _ = await _answered(
+        (409, '{"message": "exists"}'), (200, '{"name": "GT2", "description": "Vets"}')
+    )
+
+    assert result.verdict == "failed" and result.refused
+    assert "already exists with different values" in result.reason
+
+
+@pytest.mark.parametrize("read", [(500, ""), (200, "not json")], ids=["refused", "unreadable"])
+async def test_a_clash_whose_record_cannot_be_read_back_is_asked_about(
+    read: tuple[int, str],
+) -> None:
+    result, _ = await _answered((409, '{"message": "exists"}'), read)
+
+    assert result.verdict == "unknown" and not result.refused
+
+
+async def test_an_accepted_write_whose_record_is_absent_is_in_doubt_not_refused() -> None:
+    result, _ = await _answered((201, "{}"), (404, ""))
+
+    assert result.verdict == "unknown" and not result.refused

@@ -86,7 +86,7 @@ class StepExecutor:
                 else:
                     result = await self._lanes[lane].execute(step, values, again)
             tried.append(result)
-            if result.verdict != "failed" or result.expired:
+            if result.verdict != "failed" or result.expired or result.refused:
                 break
         if tried and tried[-1].verdict == "failed" and not tried[-1].expired:
             went = await self._by_its_address(step, ctx, page)

@@ -57,7 +57,7 @@ Code: `never_left: bool = False`
 > `never_left_step` combines every attempt tried for the step (X8's job)
 > before it reaches `settle`.
 
-## `never_left_step`, [line 144](../../../../../../../backend/src/sro/domain/execution/lanes.py#L144): Docstring
+## `never_left_step`, [line 145](../../../../../../../backend/src/sro/domain/execution/lanes.py#L145): Docstring
 
 > ANDs `never_left` across every lane tried for one step: the step itself
 > never left only if none of its attempts did. One lane that reached the
@@ -67,7 +67,7 @@ Code: `never_left: bool = False`
 > `True` on no attempts, which never happens through `RunSteps.step` (a
 > step always tries at least one lane) but keeps the function total.
 
-## `fingerprint_of`, [line 73](../../../../../../../backend/src/sro/domain/execution/lanes.py#L73): Docstring
+## `fingerprint_of`, [line 74](../../../../../../../backend/src/sro/domain/execution/lanes.py#L74): Docstring
 
 > Names a failure by its lane, its kind, and the evidence it happened
 > against -- not just the lane and the kind. §6.3's known-broken list is
@@ -79,7 +79,7 @@ Code: `never_left: bool = False`
 > the same broken entry, and a repaired step would still read as broken
 > against a doing that never actually failed on it.
 
-## `lanes_for`, [line 77](../../../../../../../backend/src/sro/domain/execution/lanes.py#L77): Docstring
+## `lanes_for`, [line 78](../../../../../../../backend/src/sro/domain/execution/lanes.py#L78): Docstring
 
 > §3's ladder, walked once per step per run: tool if the step uses one,
 > else API before UI before sight for a browser step, and never more than
@@ -95,7 +95,7 @@ Code: `never_left: bool = False`
 > A step with no lane at all (no tool, no replay, no gesture to aim at)
 > has an empty ladder: `()`, never an index into nothing.
 
-## `accepts`, [line 92](../../../../../../../backend/src/sro/domain/execution/lanes.py#L92): Docstring
+## `accepts`, [line 93](../../../../../../../backend/src/sro/domain/execution/lanes.py#L93): Docstring
 
 > The status test `write_confirmed` applies to a write's own call: one of the
 > statuses the belts expect, or any 2xx when none is recorded. Shared so a lane
@@ -110,7 +110,7 @@ Code: `K_CONFLICT = 409`
 > through (an operator's save, an earlier attempt). So it is in doubt, like a
 > 5xx: settled by a read-back or a question, never sent again.
 
-## `write_confirmed`, [line 111](../../../../../../../backend/src/sro/domain/execution/lanes.py#L111): Note
+## `write_confirmed`, [line 112](../../../../../../../backend/src/sro/domain/execution/lanes.py#L112): Note
 
 Code: `if any(status >= 500 or status == K_CONFLICT for status in statuses):`
 
@@ -123,7 +123,7 @@ Code: `if any(status >= 500 or status == K_CONFLICT for status in statuses):`
 > without `never_left`: the API lane's 409 then fell through to the UI lane,
 > which sent the write a second time, and a refused write was left in doubt.
 
-## `same_call`, [line 118](../../../../../../../backend/src/sro/domain/execution/lanes.py#L118): Docstring
+## `same_call`, [line 119](../../../../../../../backend/src/sro/domain/execution/lanes.py#L119): Docstring
 
 > Whether a seen call is the recorded one: same method, same path shape, same
 > host, sent from the frame this step acted in (`SeenCall.own_frame`, set by

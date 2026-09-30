@@ -66,3 +66,16 @@ async def test_a_save_answered_with_a_server_error_keeps_the_status_and_what_it_
     assert last.result is not None
     assert last.result["status"] == "502"
     assert last.result["said"] == "upstream timed out"
+
+
+async def test_a_clash_whose_record_is_absent_fails_in_its_own_words_and_is_not_redone() -> None:
+    world, http = await _saving((409, REFUSED), (404, ""))
+
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    last = (await world.saved_run()).steps[-1]
+    assert last.verdict == "failed", "a refusal the system can read back is not unclear"
+    assert "Description Pet shops is already used" in last.reason
+    assert "nothing confirms it" not in last.reason
+    assert world.lanes.ui.calls == 0, "a refused value was handed to another lane"
+    assert [one["method"] for one in http.sent] == ["POST", "GET"]

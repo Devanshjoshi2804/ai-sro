@@ -53,6 +53,7 @@ class StepResult:
     expired: bool = False
     keyed: Mapping[str, str] = field(default_factory=dict)
     answered: Mapping[str, str] = field(default_factory=dict)
+    refused: bool = False
 
 
 @dataclass(frozen=True, slots=True)

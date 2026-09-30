@@ -30,12 +30,17 @@ Code: `if result.verdict == "unknown":`
 
 ## `StepExecutor.run`, [line 89](../../../../../../../backend/src/sro/application/runtime/executor.py#L89): Note
 
-Code: `if result.verdict != "failed" or result.expired:`
+Code: `if result.verdict != "failed" or result.expired or result.refused:`
 
 > A lane still `expired` after signing back in stops the walk rather
 > than falling to the next lane: the session, not the step, is what is
 > wrong, and every lower lane drives the same session. Walking on would
 > spend each lane on the same refusal and mark lanes broken that are not.
+>
+> A `refused` write stops it for the same reason: the system refused the
+> VALUES (PJ26's voice code 42 belonged to REACH1), and the UI lane would
+> type the same values into the same form and be refused again. What
+> changes the outcome is a new value, which is asked for.
 
 ## `StepExecutor.run`, [line 66](../../../../../../../backend/src/sro/application/runtime/executor.py#L66): Note
 

@@ -12,8 +12,6 @@ import json
 import logging
 import time
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
-from typing import Literal
 
 from sro.application.chat.brain_tools import Tool, described
 from sro.application.context import RequestContext
@@ -23,7 +21,15 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock
 from sro.application.shared.asking import ask
 from sro.application.shared.refusals import OverCap
-from sro.domain.chat.brain_turn import BrainReply, ToolCall, ToolResult, fenced_result, step_of
+from sro.domain.chat.brain_turn import (
+    K_HISTORY,
+    BrainReply,
+    Origin,
+    ToolCall,
+    ToolResult,
+    fenced_result,
+    step_of,
+)
 from sro.domain.prompts.chat_brain import CHAT_BRAIN
 from sro.domain.recording.sensitivity import is_secret_field
 
@@ -31,19 +37,10 @@ logger = logging.getLogger(__name__)
 
 K_BRAIN_STEPS = 5
 
-K_HISTORY = 12
-
 K_LOGGED = 300
 
 # Shadow mode runs these and only these; everything else is recorded as "would".
 READ_ONLY = frozenset({"find_jobs", "run_status", "check_mail", "lookup"})
-
-
-@dataclass(frozen=True)
-class Origin:
-    kind: Literal["chat", "mail"]
-    sender: str = ""
-    subject: str = ""
 
 
 def _without_secrets(value: object) -> object:
@@ -163,6 +160,42 @@ class Brain:
             tuple(decisions),
             tuple(steps),
         )
+
+    async def shadow(
+        self,
+        ctx: RequestContext,
+        *,
+        message: str,
+        history: Sequence[str],
+        origin: Origin,
+        asking: str = "",
+        page: str = "",
+    ) -> None:
+        """A dry turn whose only effect is one log line; it never raises."""
+        try:
+            reply = await self.turn(
+                ctx,
+                message=message,
+                history=history,
+                origin=origin,
+                asking=asking,
+                page=page,
+                dry=True,
+            )
+            start = next((call for call, _ in reply.steps if call.tool == "start_job"), None)
+            title = ""
+            if start is not None:
+                async with self._uow as uow:
+                    job = await uow.workflows.get(ctx.tenant_id, str(start.args.get("job_id")))
+                title = job.title if job is not None else "an unknown job"
+            logger.info(
+                "brain shadow: tools=%s would_start=%r said=%r",
+                [call.tool for call, _ in reply.steps],
+                title,
+                reply.said[:K_LOGGED],
+            )
+        except Exception:
+            logger.exception("brain shadow failed")
 
     async def _run(
         self, ctx: RequestContext, call: ToolCall, *, dry: bool, started: set[str]

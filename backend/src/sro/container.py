@@ -15,6 +15,8 @@ from sro.application.analytics.summary import ReadSummary
 from sro.application.capture.devices import ReadRoster, RestoreDevice, RevokeDevice
 from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.ask_the_asker import DraftForTheAsker, SendTheDraft
+from sro.application.chat.brain import Brain
+from sro.application.chat.brain_tools import brain_tools
 from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.chat.look_lately import LookInTheMailLately
@@ -82,6 +84,7 @@ from sro.application.knowledge.open_questions import AskAbout
 from sro.application.knowledge.read_knowledge import ReadKnowledge
 from sro.application.knowledge.record_claim import RecordClaims
 from sro.application.knowledge.retrieve import Retrieve
+from sro.application.lookup.look_it_up import LookItUp
 from sro.application.lookup.plan_lookups import PlanLookups
 from sro.application.lookup.run_lookups import RunLookups
 from sro.application.observation.artifacts import StoreObservationArtifact
@@ -784,6 +787,36 @@ class Container:
             spawn=self.pursuits.spawn,
             attempts=self.record_attempt(),
             look=self.from_the_mail(),
+            brain=self.brain() if self._brain_wanted() else None,
+            brain_tenants=frozenset(self.settings.chat_brain_tenants),
+            brain_shadow_tenants=frozenset(self.settings.chat_brain_shadow_tenants),
+        )
+
+    def _brain_wanted(self) -> bool:
+        # No model, no brain: the chain then answers (and refuses) as it always did.
+        flagged = self.settings.chat_brain_tenants or self.settings.chat_brain_shadow_tenants
+        return bool(flagged) and self.asker is not None
+
+    def brain(self) -> Brain:
+        # Chat's offer is empty: a run the brain starts is not made under a mail's offer.
+        return Brain(
+            self.unit_of_work(),
+            asker_or_refuse(self.asker),
+            self.clock,
+            brain_tools(
+                uow=self.unit_of_work(),
+                clock=self.clock,
+                runs=self.list_workflow_runs(),
+                run=self.get_workflow_run(),
+                threads=self.read_threads(),
+                look_mail=self.from_the_mail(),
+                look_up=LookItUp(self.plan_lookups(), self.run_lookups()),
+                start=self.start_workflow_run(),
+                plan=self.plan_task(),
+                spawn=self.pursuits.spawn,
+                offer="",
+            ),
+            cap_usd=self.settings.daily_usd_cap,
         )
 
     def ask_about_the_offer(self) -> AskAboutTheOffer:

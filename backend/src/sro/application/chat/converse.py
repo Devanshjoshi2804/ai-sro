@@ -57,6 +57,7 @@ from sro.domain.chat.asking import (
     too_long_for,
     turned_down,
 )
+from sro.domain.chat.brain_turn import K_HISTORY, Origin
 from sro.domain.chat.request import Candidate
 from sro.domain.chat.standing import last_run, of_a_mail_run, of_the_run, stands
 from sro.domain.chat.thread import Message, MessageId, Said, Speaker, Thread, ThreadId
@@ -77,6 +78,7 @@ from sro.domain.shared.errors import Conflict, DomainError
 from sro.domain.skill.skill import Skill
 
 if TYPE_CHECKING:
+    from sro.application.chat.brain import Brain
     from sro.application.chat.from_the_mail import FromTheMail
     from sro.application.execution.workflow_runs import StartWorkflowRun
     from sro.application.runtime.answer_run import AnswerRun
@@ -146,8 +148,14 @@ class Converse:
         spawn: Callable[[Coroutine[object, object, None]], None] | None = None,
         attempts: RecordAttempt | None = None,
         look: FromTheMail | None = None,
+        brain: Brain | None = None,
+        brain_tenants: frozenset[str] = frozenset(),
+        brain_shadow_tenants: frozenset[str] = frozenset(),
     ) -> None:
         self._uow = uow
+        self._brain = brain
+        self._brain_tenants = brain_tenants
+        self._brain_shadow_tenants = brain_shadow_tenants
         self._look = look
         self._answer_run = answer_run
         self._resolver = resolver
@@ -282,7 +290,7 @@ class Converse:
         parameters: dict[str, str] | None,
         ask_again: Callable[[], Coroutine[object, object, Thread]],
     ) -> Thread:
-        placed = await self._placed_by_the_rig(ctx, text)
+        placed = None if self._the_brain(ctx) else await self._placed_by_the_rig(ctx, text)
         waits = placed is not None and not placed.cannot_run
         if waits:
             await ask_again()
@@ -432,6 +440,12 @@ class Converse:
                 text=text,
                 said=f"Say yes to run {offered.title}, or no to leave it.",
             )
+        if (brain := self._the_brain(ctx)) is not None:
+            return await self._brain_turn(
+                brain, ctx, thread_id=thread_id, text=text, system=system, answering=answering
+            )
+        if self._brain is not None and ctx.tenant_id.value in self._brain_shadow_tenants:
+            self._shadow(ctx, said_before, text, system, answering)
         if isinstance(placed, _NotAsked):
             placed = await self._placed_by_the_rig(ctx, text)
         if placed is not None:
@@ -507,6 +521,70 @@ class Converse:
             )
             await uow.threads.save(thread)
             await uow.commit()
+        return thread
+
+    def _the_brain(self, ctx: RequestContext) -> Brain | None:
+        return self._brain if ctx.tenant_id.value in self._brain_tenants else None
+
+    def _shadow(
+        self,
+        ctx: RequestContext,
+        said_before: Sequence[Message],
+        text: str,
+        system: str | None,
+        answering: str | None,
+    ) -> None:
+        # The chain answers; the brain reads the same message off the request path.
+        if self._brain is not None and self._spawn is not None:
+            self._spawn(
+                self._brain.shadow(
+                    ctx,
+                    message=text,
+                    history=_history(said_before),
+                    origin=Origin("chat"),
+                    asking=_open_question(said_before, answering),
+                    page=system or "",
+                )
+            )
+
+    async def _brain_turn(
+        self,
+        brain: Brain,
+        ctx: RequestContext,
+        *,
+        thread_id: ThreadId,
+        text: str,
+        system: str | None,
+        answering: str | None,
+    ) -> Thread:
+        said_before = (await self._also_said(ctx, thread_id=thread_id, text=text)).messages[:-1]
+        reply = await brain.turn(
+            ctx,
+            message=text,
+            history=_history(said_before),
+            origin=Origin("chat"),
+            asking=_open_question(said_before, answering),
+            page=system or "",
+        )
+        async with self._uow as uow:
+            thread = await uow.threads.get(ctx.tenant_id, thread_id)
+            self._told(thread, "", reply.said, reply.decisions[-1] if reply.decisions else None)
+            await uow.threads.save(thread)
+            await uow.commit()
+        if self._attempts is not None:
+            for call, result in reply.steps:
+                if call.tool == "start_job":
+                    await self._attempts.execute(
+                        ctx,
+                        asked_for="start a job from chat",
+                        came_of=DONE if result.ok else REFUSED,
+                        why=result.error,
+                        about={
+                            "run": str((result.data or {}).get("run_id") or ""),
+                            "workflow": str(call.args.get("job_id") or ""),
+                            "thread": thread_id.value,
+                        },
+                    )
         return thread
 
     async def _still_wanted(self, ctx: RequestContext, waiting: Pending | None) -> Pending | None:
@@ -1584,6 +1662,15 @@ def _last_asked(thread: Thread) -> str | None:
         if message.speaker is Speaker.OPERATOR:
             return message.text
     return None
+
+
+def _history(said: Sequence[Message]) -> list[str]:
+    return [f"{one.speaker.value}: {one.text}" for one in said[-K_HISTORY:]]
+
+
+def _open_question(said: Sequence[Message], answering: str | None) -> str:
+    asked = asked_under(said, answering)
+    return asked.text if asked is not None else ""
 
 
 def _awaiting(thread: Thread) -> str | None:

@@ -3,8 +3,18 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from typing import Literal
 
 from sro.domain.prompts.record import fenced
+
+K_HISTORY = 12
+
+
+@dataclass(frozen=True)
+class Origin:
+    kind: Literal["chat", "mail"]
+    sender: str = ""
+    subject: str = ""
 
 
 @dataclass(frozen=True, slots=True)

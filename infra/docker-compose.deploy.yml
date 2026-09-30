@@ -267,6 +267,10 @@ services:
       # '["greyorange"]'. Empty until rollout step 2: every tenant stays on the
       # extension. The api and the worker read the same list.
       SRO_STEEL_TENANTS: ${SRO_STEEL_TENANTS:-[]}
+      # Tenants the chat brain answers for, and tenants it only shadows (logs
+      # what it would have done); JSON lists. Empty: every tenant keeps the old chat.
+      SRO_CHAT_BRAIN_TENANTS: ${SRO_CHAT_BRAIN_TENANTS:-[]}
+      SRO_CHAT_BRAIN_SHADOW_TENANTS: ${SRO_CHAT_BRAIN_SHADOW_TENANTS:-[]}
       SRO_TEMPORAL_ADDRESS: temporal:7233
       SRO_OTLP_ENDPOINT: http://otel-collector:4318
       # Signs this deployment's credentials. Unset, every authenticated

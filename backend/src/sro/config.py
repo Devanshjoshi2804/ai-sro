@@ -128,6 +128,11 @@ class Settings(BaseSettings):
     steel_sessions_per_container: int = 20
     steel_tenants: tuple[str, ...] = ()
 
+    # Tenants the chat brain answers for, and tenants it only reads for (its
+    # would-have-done is logged). Off for every tenant until switched on.
+    chat_brain_tenants: tuple[str, ...] = ()
+    chat_brain_shadow_tenants: tuple[str, ...] = ()
+
     def steel_containers(self, tenant: str) -> tuple[tuple[str, str], ...]:
         return self.steel_urls.get(tenant) or ((self.steel_base_url, self.steel_cdp_url),)
 

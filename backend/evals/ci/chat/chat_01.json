@@ -16,6 +16,6 @@
  "answer": {
   "action": "call",
   "tool": "check_mail",
-  "args": {}
+  "args": "{}"
  }
 }

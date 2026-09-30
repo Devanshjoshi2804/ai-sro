@@ -24,8 +24,6 @@
  "answer": {
   "action": "call",
   "tool": "ask_operator",
-  "args": {
-   "question": "Which code, and warehouse or transport?"
-  }
+  "args": "{\"question\": \"Which code, and warehouse or transport?\"}"
  }
 }

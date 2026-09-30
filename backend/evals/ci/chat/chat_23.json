@@ -41,6 +41,6 @@
  "answer": {
   "action": "call",
   "tool": "run_status",
-  "args": {}
+  "args": "{}"
  }
 }

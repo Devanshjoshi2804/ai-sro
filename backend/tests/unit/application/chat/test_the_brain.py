@@ -7,6 +7,7 @@ step limit, what is fenced, what shadow mode refuses, and what is never logged.
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import ClassVar
 
@@ -24,7 +25,7 @@ from tests.unit.fakes import FakeAsker
 
 
 def _call(tool: str, **args: object) -> Answer:
-    return Answer(data={"action": "call", "tool": tool, "args": args})
+    return Answer(data={"action": "call", "tool": tool, "args": json.dumps(args)})
 
 
 def _say(text: str) -> Answer:

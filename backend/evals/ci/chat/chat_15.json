@@ -17,8 +17,6 @@
  "answer": {
   "action": "call",
   "tool": "find_jobs",
-  "args": {
-   "query": "customer type"
-  }
+  "args": "{\"query\": \"customer type\"}"
  }
 }

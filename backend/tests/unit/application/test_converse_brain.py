@@ -7,6 +7,7 @@ open offer) stay model-free, and a tenant that is not listed is the old chain.
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
@@ -34,7 +35,7 @@ TENANT = f.TENANT.value
 
 
 def _call(tool: str, **args: object) -> Answer:
-    return Answer(data={"action": "call", "tool": tool, "args": args})
+    return Answer(data={"action": "call", "tool": tool, "args": json.dumps(args)})
 
 
 def _say(text: str) -> Answer:

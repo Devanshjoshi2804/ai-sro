@@ -46,15 +46,25 @@ class BrainReply:
     steps: tuple[tuple[ToolCall, ToolResult], ...] = ()
 
 
+def _args_of(raw: object) -> dict[str, object]:
+    """The model writes its arguments as a JSON string (Gemini drops a free-form object)."""
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw) if raw.strip() else {}
+        except ValueError:
+            return {}
+    return dict(raw) if isinstance(raw, Mapping) else {}
+
+
 def step_of(data: Mapping[str, object] | None) -> BrainStep:
     if not isinstance(data, Mapping):
         return BrainStep(call=None, say=None)
     if data.get("action") == "call" and isinstance(data.get("tool"), str) and data["tool"]:
-        args = data.get("args")
+        args = _args_of(data.get("args"))
         return BrainStep(
             call=ToolCall(
                 str(data["tool"]),
-                dict(args) if isinstance(args, Mapping) else {},
+                args,
                 str(data.get("why") or ""),
             ),
             say=None,

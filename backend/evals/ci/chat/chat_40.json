@@ -29,8 +29,6 @@
  "answer": {
   "action": "call",
   "tool": "lookup",
-  "args": {
-   "question": "voice code for AITE4"
-  }
+  "args": "{\"question\": \"voice code for AITE4\"}"
  }
 }

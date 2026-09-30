@@ -48,6 +48,31 @@ RECORDS = (
 )
 
 
+# Found when the guard was written; not changed here (task 6b), only named so no new one joins.
+STILL_BARE = {"plan_lookup.lookups[].params", "read_sentence.values", "extract_values.items[]"}
+
+
+def _bare_objects(schema: object, path: str) -> list[str]:
+    if not isinstance(schema, dict):
+        return []
+    found = [path] if schema.get("type") == "object" and not schema.get("properties") else []
+    for name, sub in (schema.get("properties") or {}).items():
+        found += _bare_objects(sub, f"{path}.{name}")
+    return found + _bare_objects(schema.get("items"), f"{path}[]")
+
+
+@pytest.mark.parametrize("prompt", RECORDS, ids=lambda one: one.name)
+def test_no_answer_schema_declares_an_object_without_properties(prompt: Prompt) -> None:
+    bare = [
+        one for one in _bare_objects(prompt.output_schema, prompt.name) if one not in STILL_BARE
+    ]
+    assert not bare, (
+        f"{bare}: an object with no `properties` is sent to Gemini, which drops its "
+        "contents, so the model's answer arrives empty. Declare its properties, or make "
+        "it a string holding JSON."
+    )
+
+
 @pytest.mark.parametrize("prompt", RECORDS, ids=lambda one: one.name)
 def test_every_prompt_is_a_whole_record(prompt: Prompt) -> None:
     assert prompt.name and prompt.version >= 1 and prompt.model.startswith("gemini-")

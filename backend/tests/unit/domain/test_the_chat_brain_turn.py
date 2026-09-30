@@ -3,8 +3,28 @@ from sro.domain.prompts.chat_brain import ANSWER_SCHEMA, CHAT_BRAIN
 
 
 def test_a_call_answer_is_a_tool_call() -> None:
-    step = step_of({"action": "call", "tool": "check_mail", "args": {}, "why": "asked about mail"})
+    step = step_of(
+        {"action": "call", "tool": "check_mail", "args": "{}", "why": "asked about mail"}
+    )
     assert step == BrainStep(call=ToolCall("check_mail", {}, "asked about mail"), say=None)
+
+
+def _call_with(args: object) -> BrainStep:
+    return step_of({"action": "call", "tool": "start_job", "args": args})
+
+
+def test_the_arguments_arrive_as_a_json_string() -> None:
+    step = _call_with('{"job_id": "j", "values": {"Customer Type": "SR11"}}')
+    assert step.call == ToolCall("start_job", {"job_id": "j", "values": {"Customer Type": "SR11"}})
+
+
+def test_an_object_of_arguments_still_reads() -> None:
+    assert _call_with({"job_id": "j"}).call == ToolCall("start_job", {"job_id": "j"})
+
+
+def test_arguments_that_are_not_an_object_are_none() -> None:
+    for bad in ("", "{}", "not json", "[1]", '"x"', "null", None, 3):
+        assert _call_with(bad).call == ToolCall("start_job", {})
 
 
 def test_a_say_answer_is_words_to_the_operator() -> None:

@@ -2363,6 +2363,9 @@ function toTheNewest(force = false) {
  */
 function goToTheConversation(chat = null) {
   opened = chat;
+  // Until the fetch returns `threadId` still names the old conversation, and
+  // a fast Enter would post the answer into it.
+  if (chat) threadId = chat;
   pane = "chat";
   paintPanes();
   drawn = null;

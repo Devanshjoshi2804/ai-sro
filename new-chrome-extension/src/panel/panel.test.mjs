@@ -3895,6 +3895,57 @@ test("more than three loud cards: three, in the order somebody deals with them",
   assert.doesNotMatch(loud.join(" "), /AIWE2|Create a Client/, "a fourth loud card was drawn");
 });
 
+test("a run a reply started takes the operator to Home once, and lets them leave", async () => {
+  // YPHD on QA (2026-09-30): the sender's reply completed the question and the
+  // operator was left in the chat while the run went on elsewhere. The answer
+  // typed in the chat already walks them to Home (`goToTheRun`); this is the
+  // same walk for an answer that arrived by mail.
+  const asked = {
+    deviceId: "dev-1",
+    capturing: true,
+    watched: WATCHED,
+    question: {
+      id: "m-q",
+      offer: "mail:m-1",
+      threadId: "thr_ask_1",
+      title: "Create a Customer Type",
+      text: "What should Customer Type be?",
+    },
+  };
+  const started = {
+    deviceId: "dev-1",
+    capturing: true,
+    watched: WATCHED,
+    mailRuns: [
+      {
+        id: "run-1",
+        status: "running",
+        offer: "mail:m-1",
+        workflow_id: "wfl_a",
+        title: "Create a Customer Type",
+        values: { "Customer Type": "YPHD" },
+        started_at: new Date().toISOString(),
+        steps: [],
+        mail: aMail("customer type for pet shops"),
+      },
+    ],
+  };
+  let now = asked;
+  const drawn = panel(asked, TAB, { status: () => now });
+  await drawn.refresh();
+  drawn.toChat();
+  assert.equal(drawn.ids["cards"].hidden, true);
+
+  now = started;
+  await drawn.refresh();
+  assert.equal(drawn.ids["cards"].hidden, false, "the run started and the operator was left in the chat");
+  assert.match(words(drawn.ids["cards"]), /Mail: customer type for pet shops/);
+
+  drawn.toChat();
+  await drawn.refresh();
+  assert.equal(drawn.ids["cards"].hidden, true, "the panel would not let them leave Home");
+});
+
 test("a run on the server is said in plain words, not the machinery's", () => {
   // QA 2026-09-30 (V4): the card read "Started elsewhere. Step 0." over
   // "rig · 13:12".

@@ -43,7 +43,15 @@ from sro.application.ports.tools import ToolCaller, ToolsUnavailable
 from sro.application.runtime.answer_run import K_ANSWER, AnswerRun
 from sro.application.shared.refusals import OverCap
 from sro.application.skill.job_facts import JobFacts, job_facts
-from sro.domain.chat.asking import NEEDS, Pending, question, waiting_on_mail
+from sro.domain.chat.asking import (
+    FROM_THE_MAIL,
+    FROM_THE_REPLY,
+    NEEDS,
+    Pending,
+    question,
+    sourced,
+    waiting_on_mail,
+)
 from sro.domain.chat.thread import Said, Speaker
 from sro.domain.execution.learned_step import limits_for, too_long
 from sro.domain.execution.mail_job import MAIL_BODY, one_address_in
@@ -124,6 +132,8 @@ class Offered:
     arrived: str = ""
 
     offer: str = ""
+
+    answered: Sequence[str] = ()
 
     @property
     def named(self) -> str:
@@ -510,11 +520,7 @@ class FromTheMail:
     async def _arrived(self, ctx: RequestContext, one: Offered, run: WorkflowRun) -> None:
         if self._clock is None or self._ids is None:
             return
-        given = ", ".join(
-            f"{name} {value}"
-            for name, value in run.values.items()
-            if value.strip() and not is_secret_field(name)
-        )
+        given = sourced(run.values, dict.fromkeys(one.answered, FROM_THE_REPLY), FROM_THE_MAIL)
         try:
             asked = await ReadThreads(self._uow).asking(ctx, one.thread)
             await SayWhatHappened(self._uow, self._clock, self._ids).execute(
@@ -523,8 +529,8 @@ class FromTheMail:
                 about=one.thread if asked is not None else "",
                 text=(
                     f"A mail arrived{f' from {one.sender}' if one.sender else ''}: "
-                    f"{_about(one.subject)}. It asks for {one.title}"
-                    f"{f' with {given}' if given else ''}, so it is running now."
+                    f"{_about(one.subject)}. It asks for {one.title}, so it is running now."
+                    f"{given}"
                 ),
                 speaker=Speaker.ASSISTANT,
                 decision={
@@ -707,6 +713,7 @@ class FromTheMail:
             thread=thread,
             subject=subject,
             offer=asked.offer,
+            answered=[name for name in asked.missing if name not in missing],
         )
 
     async def _reply_says(

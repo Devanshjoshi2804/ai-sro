@@ -233,6 +233,8 @@ async def test_a_reply_that_completes_the_values_starts_the_run_at_once() -> Non
     assert run.values.get("Customer Type") == "YPHD"
     assert run.offer == "mail:m-1", "the reply's run is not the question's one offer"
     assert "job" not in _kinds(await doors.chat()), "the reply was offered, not started"
+    said = " ".join(one.text for one in (await doors.chat()).messages)
+    assert "Customer Type = YPHD (the reply)" in said, "the chat does not say what it ran with"
 
 
 async def test_a_reply_after_the_operator_answered_in_the_chat_starts_no_second_run() -> None:

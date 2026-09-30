@@ -183,7 +183,7 @@ async def test_a_typed_yes_in_the_console_starts_exactly_one_run() -> None:
     assert run.executor == "steel" and run.started_by == CTX.principal_id.value
     assert [started for started, _ in world.durable.runs_started] == [run_id]
     last = said.messages[-1]
-    assert last.text == f"Running {world.title} now."
+    assert last.text == f"Running {world.title} now. Values: Customer Type = GT2 (your request)."
     assert last.decision is not None and last.decision["run_id"] == run_id
 
 
@@ -200,7 +200,10 @@ async def test_the_last_answer_to_a_question_starts_the_run() -> None:
     (run_id,) = await world.runs()
     run = await world.uow.workflow_runs.get(f.TENANT, run_id)
     assert run is not None and run.values == {"Customer Type": "GT2"}
-    assert said.messages[-1].text == f"Running {world.title} now."
+    # The value the answer gave, and where it came from (YPHD, 2026-09-30).
+    assert said.messages[-1].text == (
+        f"Running {world.title} now. Values: Customer Type = GT2 (your answer in the chat)."
+    )
     assert (said.messages[-1].decision or {}).get("run_id") == run_id
 
 
@@ -283,7 +286,7 @@ async def test_an_extension_tenant_s_yes_runs_live_in_the_operator_s_own_browser
     assert (run.executor, run.device_id) == ("extension", LAPTOP.value)
     assert (run.live, run.allow_focus) == (True, True)
     assert run.offer == offer.id.value
-    assert said.messages[-1].text == f"Running {world.title} now."
+    assert said.messages[-1].text.startswith(f"Running {world.title} now.")
     assert (said.messages[-1].decision or {}).get("run_id") == run_id
     assert world.durable.runs_started == []
     (performing,) = world.spawned

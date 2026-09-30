@@ -34,6 +34,9 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.shared.refusals import OverCap, RunRefused
 from sro.domain.chat.asking import (
+    FROM_THE_CHAT,
+    FROM_THE_MAIL,
+    FROM_THE_REQUEST,
     NEEDS,
     Pending,
     answered,
@@ -49,6 +52,7 @@ from sro.domain.chat.asking import (
     pending_job,
     question,
     said_yes,
+    sourced,
     too_long_for,
     turned_down,
 )
@@ -652,6 +656,7 @@ class Converse:
             job=filled,
             offer=offer,
             mail=envelope_of(thread.messages, filled.mail_thread),
+            answered=[name for name in pending.missing if filled.values.get(name)],
         )
 
     async def _say_yes_to_it(
@@ -713,8 +718,14 @@ class Converse:
         job: Pending,
         offer: str,
         mail: Mapping[str, str] | None = None,
+        answered: Sequence[str] = (),
     ) -> Thread:
         decision = _to_run(job, offer, self._can_gather)
+        running = f"Running {job.title} now." + sourced(
+            job.values,
+            dict.fromkeys(answered, FROM_THE_CHAT),
+            FROM_THE_MAIL if job.mail_thread else FROM_THE_REQUEST,
+        )
         wrote: list[Thread] = []
 
         async def say_it(uow: UnitOfWork, run: WorkflowRun) -> None:
@@ -726,7 +737,7 @@ class Converse:
                     text=text,
                     asked=asked,
                     answering=answering,
-                    said=f"Running {job.title} now.",
+                    said=running,
                     decision={**decision, "resume": True, "run_id": run.id},
                 )
             )

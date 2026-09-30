@@ -11,6 +11,7 @@ from sro.domain.chat.thread import Message, Said, Speaker
 from sro.domain.execution.field_classes import FieldLimits
 from sro.domain.execution.mail_job import DRAFTED, SENT
 from sro.domain.lookup.asking import is_a_question
+from sro.domain.recording.sensitivity import is_secret_field
 from sro.domain.skill.signing_in import Logins
 
 NEEDS = "needs_values"
@@ -264,6 +265,20 @@ def of_the_offer(pending: Pending) -> str:
 
 
 NOTHING_NEW = "Nothing new was started."
+
+FROM_THE_MAIL = "the mail"
+FROM_THE_REPLY = "the reply"
+FROM_THE_CHAT = "your answer in the chat"
+FROM_THE_REQUEST = "your request"
+
+
+def sourced(values: Mapping[str, str], came: Mapping[str, str], rest: str) -> str:
+    said = [
+        f"{name} = {_short(value)} ({came.get(name, rest)})"
+        for name, value in values.items()
+        if value.strip() and not is_secret_field(name)
+    ]
+    return f" Values: {'; '.join(said)}." if said else ""
 
 
 def _held(pending: Pending) -> list[str]:

@@ -1817,6 +1817,7 @@ function said(words) {
 
 async function refresh() {
   const status = await ask({ kind: "status" });
+  toTheRunItStarted(status);
   // What the run being watched actually is: the worker knows its id and that
   // it is happening, and the run's own record knows what it is called, how
   // far through it is and which rung it is allowed to be on.
@@ -2687,6 +2688,26 @@ function startedByTheAnswer(thread) {
     return Boolean(decision.kind === "job" && decision.resume);
   }
   return false;
+}
+
+/** The offers of questions this panel has seen standing, and the runs it has
+ * already walked the operator to. */
+const askedOffers = new Set();
+const wentToRun = new Set();
+
+/** A run a mail reply started, for a question this panel saw standing: the
+ * operator goes to Home, where its card is, once per run -- like
+ * `toTheQuestion`, so the poll never keeps them there. YPHD on QA
+ * (2026-09-30): the reply completed the question and the operator was left in
+ * the chat. */
+function toTheRunItStarted(status) {
+  if (status?.question?.offer) askedOffers.add(status.question.offer);
+  for (const run of status?.mailRuns || []) {
+    if (run.status !== "running" || !askedOffers.has(run.offer)) continue;
+    if (wentToRun.has(run.id)) continue;
+    wentToRun.add(run.id);
+    if (pane !== "home") goToTheRun();
+  }
 }
 
 /** Show the half of the panel a run is drawn in.

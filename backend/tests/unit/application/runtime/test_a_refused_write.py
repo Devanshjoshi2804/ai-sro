@@ -241,3 +241,27 @@ async def test_the_run_says_what_it_waits_on_only_while_it_waits() -> None:
     assert "nothing confirms it" in parked.asking
     refused, _ = await _refused_run()
     assert WorkflowRunModel.of(await refused.saved_run()).asking == ""
+
+
+async def test_a_value_given_in_the_chat_is_carried_and_never_asked_again() -> None:
+    """The answer's run keeps what the chat already said: refused again on
+    another field, it asks only for that one."""
+    world, asking = await _refused_run()
+    chat = await _chat(world, world.run_id)
+    await asking.converse(world).execute(CTX, thread_id=chat.id, text="Vets")
+    (again,) = [one for one in world.uow.workflow_runs.rows.values() if one.id != world.run_id]
+    said = (await _chat(world, world.run_id)).messages[-1].text
+    assert "Description = Vets (your answer in the chat)" in said
+    assert "Customer Type = GT2 (your request)" in said
+    again.needs = ["Customer Type"]
+    again.outcome = "failed"
+    await world.uow.workflow_runs.save(again)
+    assert asking.start is not None
+
+    await asking.start.ask_for_values(CTX, again, "Save the customer type")
+
+    asked = standing((await _chat(world, world.run_id)).messages)
+    assert asked is not None
+    decision = asked.decision or {}
+    assert decision.get("missing") == ["Customer Type"]
+    assert (decision.get("values") or {}).get("Description") == "Vets"

@@ -638,8 +638,9 @@ class FromTheMail:
         titles: Mapping[str, str],
         held: Mapping[str, JobFacts] = MappingProxyType({}),
     ) -> Offered:
-        values = dict(back.values)
-        missing = [name for name in back.needs if name not in values]
+        # What a run still needs is unanswered, whatever the run last tried with.
+        values = {name: one for name, one in back.values.items() if name not in back.needs}
+        missing = list(back.needs)
         values |= await self._reply_says(ctx, said, held.get(back.workflow_id), missing)
         missing = [name for name in missing if name not in values]
         if missing and self._gather is not None:
@@ -679,8 +680,9 @@ class FromTheMail:
         subject: str,
         held: Mapping[str, JobFacts] = MappingProxyType({}),
     ) -> Offered:
-        values = dict(asked.values)
-        missing = [name for name in asked.missing if name not in values or not values[name]]
+        # A value the system refused is not an answer: it is asked for again.
+        values = {name: one for name, one in asked.values.items() if name not in asked.refused}
+        missing = [name for name in asked.missing if not values.get(name)]
         values |= await self._reply_says(
             ctx, said, held.get(asked.workflow_id), missing, question=question(asked)
         )

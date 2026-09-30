@@ -4,6 +4,7 @@ import re
 
 import pytest
 
+from sro.domain.prompts.chat_brain import CHAT_BRAIN
 from sro.domain.prompts.check_step import CHECK_SCREEN, CHECK_WAY_THROUGH
 from sro.domain.prompts.gather import GATHER
 from sro.domain.prompts.interpret import INTERPRET, JUDGE_VARIANT, JUDGE_WORKFLOW, NAME_SKILL
@@ -43,6 +44,7 @@ RECORDS = (
     JUDGE_VARIANT,
     JUDGE_WORKFLOW,
     TRANSCRIBE,
+    CHAT_BRAIN,
 )
 
 
@@ -75,6 +77,7 @@ _FLASH, _PRO = "gemini-3.8-flash", "gemini-3.1-pro-preview"
         (JUDGE_VARIANT, _PRO),
         (JUDGE_WORKFLOW, _PRO),
         (TRANSCRIBE, _FLASH),
+        (CHAT_BRAIN, _FLASH),
     ],
     ids=lambda one: one.name if isinstance(one, Prompt) else one,
 )
@@ -218,6 +221,7 @@ _ASKED_THROUGH_THE_SHARED_PATH = (
     READ_SENTENCE,
     EXTRACT_VALUES,
     TRANSCRIBE,
+    CHAT_BRAIN,
 )
 
 

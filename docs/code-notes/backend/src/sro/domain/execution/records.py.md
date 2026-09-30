@@ -13,7 +13,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/execution/records.
 > round, and copying the suffix rule into a second place is how two vocabularies
 > start drifting.
 
-## module, [line 8](../../../../../../../backend/src/sro/domain/execution/records.py#L8): Note on the line above
+## module, [line 9](../../../../../../../backend/src/sro/domain/execution/records.py#L9): Note on the line above
 
 Code: `K_IDENTIFIES = ("id", "code", "name", "number", "key")`
 
@@ -24,14 +24,14 @@ Code: `K_IDENTIFIES = ("id", "code", "name", "number", "key")`
 > body is kept -- a created record's answer is a row of somebody's data, and what
 > a person needs in order to go and look at it is what it is called.
 
-## module, [line 10](../../../../../../../backend/src/sro/domain/execution/records.py#L10): Note on the line above
+## module, [line 11](../../../../../../../backend/src/sro/domain/execution/records.py#L11): Note on the line above
 
 Code: `K_NAMED = 6`
 
 > How many of those fields are kept. A record is identified by one or two of
 > them; a body with a dozen matching names is a list, not a record.
 
-## module, [line 13](../../../../../../../backend/src/sro/domain/execution/records.py#L13): Note on the line above
+## module, [line 14](../../../../../../../backend/src/sro/domain/execution/records.py#L14): Note on the line above
 
 Code: `K_CREATED = 201`
 
@@ -52,7 +52,7 @@ Code: `K_CREATED = 201`
 > separate because that one is about recognising a job and this is about
 > trusting an answer.
 
-## `made_by`, [line 16](../../../../../../../backend/src/sro/domain/execution/records.py#L16): Docstring
+## `made_by`, [line 17](../../../../../../../backend/src/sro/domain/execution/records.py#L17): Docstring
 
 > What the warehouse called the record this create made.
 >
@@ -65,7 +65,7 @@ Code: `K_CREATED = 201`
 > is the handful of fields that NAME the row, and only where their values are
 > short enough to be an identifier rather than a paragraph.
 
-## `names_in`, [line 23](../../../../../../../backend/src/sro/domain/execution/records.py#L23): Docstring
+## `names_in`, [line 24](../../../../../../../backend/src/sro/domain/execution/records.py#L24): Docstring
 
 > The identifying fields of a body, whatever the answer's status was.
 >
@@ -76,14 +76,14 @@ Code: `K_CREATED = 201`
 > address PUT names the address it edited. `made_by` asks the stronger
 > question, "what did this call MAKE", and an edit makes nothing.
 
-## `made_by`, [line 18](../../../../../../../backend/src/sro/domain/execution/records.py#L18): Comment
+## `made_by`, [line 19](../../../../../../../backend/src/sro/domain/execution/records.py#L19): Comment
 
 Code: `return {}`
 
 > Nothing was made, so nothing is named. See `K_CREATED` above for the
 > navigation step whose grid query this used to read as a record.
 
-## `names_in`, [line 32](../../../../../../../backend/src/sro/domain/execution/records.py#L32): Comment
+## `names_in`, [line 33](../../../../../../../backend/src/sro/domain/execution/records.py#L33): Comment
 
 Code: `inner = parsed.get("data")`
 
@@ -99,7 +99,7 @@ Code: `inner = parsed.get("data")`
 > stops at a handful -- a body with a dozen identifying names is a
 > collection, and naming it as one row would be a lie on the run.
 
-## `told_by`, [line 54](../../../../../../../backend/src/sro/domain/execution/records.py#L54): Docstring
+## `told_by`, [line 55](../../../../../../../backend/src/sro/domain/execution/records.py#L55): Docstring
 
 > What a system said to a write it did not accept, kept on the step. PJ26
 > (greyorange, 2026-09-30): Blue Yonder refused the save and the step kept

@@ -62,7 +62,7 @@ test("running: arrived, noticed with its values, running -- and where to look", 
 test("held: completed, and nothing left to stop or watch", () => {
   const card = mailRunCard(run({ status: "held", finished_at: "2026-09-29T11:02:22" }));
 
-  assert.match(words(card), /Completed at \d\d:\d\d/);
+  assert.match(words(card), /Completed at \d\d:\d\d in 12 s\./);
   assert.deepEqual(
     buttons(card).map((one) => one.textContent),
     ["Open the mail", "Review in console", "Dismiss"],

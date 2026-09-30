@@ -48,7 +48,7 @@ from sro.domain.execution.mail_job import MAIL_BODY, sends_mail
 from sro.domain.execution.progress import Progress, StepMark
 from sro.domain.execution.takeover import OPERATOR
 from sro.domain.execution.waiting import read_wait
-from sro.domain.execution.workflow_run import RunStep, WorkflowRun, refused_names
+from sro.domain.execution.workflow_run import RunStep, WorkflowRun, how_long, refused_names
 from sro.domain.execution.write_plan import demonstrated_writes, scaffolding_for
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.identifiers import PrincipalId
@@ -896,7 +896,8 @@ def _how_it_ended(run: WorkflowRun, workflow: Workflow) -> str:
         given = ", ".join(
             f"{name} = {value}" for name, value in run.values.items() if value.strip()
         )
-        return f"Done: {workflow.title}" + (f" ({given})" if given else "") + "."
+        took = how_long(run.started_at, run.finished_at or run.started_at)
+        return f"Done in {took}: {workflow.title}" + (f" ({given})" if given else "") + "."
     stopped = next(
         (
             one

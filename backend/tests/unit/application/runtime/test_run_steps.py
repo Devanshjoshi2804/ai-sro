@@ -660,6 +660,22 @@ async def test_the_steps_that_only_fill_a_proven_call_are_not_needed() -> None:
     assert "Done" in said[-1].text and "GT2" in said[-1].text
 
 
+async def test_a_done_run_says_how_long_it_took_and_what_it_ran_with() -> None:
+    """QA 2026-09-30: "Done: Create a Customer Type (...)" said nothing of how
+    long the run took."""
+    world = await steel_run(steps=[type_step(), save_step(status=201)])
+    world.lanes.ui.answers(StepResult("done", Lane.UI), StepResult("done", Lane.UI))
+    for _ in range(2):
+        await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    world.clock.advance(84)
+
+    assert await world.run_steps.finish(CTX, world.run_id) == "held"
+
+    said = [one for thread in world.uow.threads.rows.values() for one in thread.messages]
+    assert said[-1].text.startswith("Done in 1 min 24 s: ")
+    assert "Customer Type = GT1" in said[-1].text
+
+
 async def test_a_run_that_did_not_finish_says_so() -> None:
     """Greyorange, 2026-09-28: every run ended on "Running ... now" and the
     thread never said how it ended -- the operator saw a blank."""

@@ -5,6 +5,7 @@ import secrets
 from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Literal
 
 from sro.domain.shared.errors import Conflict
@@ -142,6 +143,24 @@ def end_the_steps(steps: list[RunStep], reason: str) -> None:
         )
     else:
         last.verdict, last.verdict_by, last.reason = "failed", "none", reason
+
+
+def how_long(started_at: str, finished_at: str) -> str:
+    try:
+        seconds = round(
+            (
+                datetime.fromisoformat(finished_at) - datetime.fromisoformat(started_at)
+            ).total_seconds()
+        )
+    except (TypeError, ValueError):
+        return "an unknown time"
+    seconds = max(seconds, 0)
+    hours, rest = divmod(seconds, 3600)
+    minutes, seconds = divmod(rest, 60)
+    said = [f"{hours} h"] if hours else []
+    said += [f"{minutes} min"] if minutes else []
+    said += [f"{seconds} s"] if seconds or not said else []
+    return " ".join(said)
 
 
 def refused_by(run: WorkflowRun) -> str:

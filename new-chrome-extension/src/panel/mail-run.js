@@ -14,6 +14,15 @@ function mailClock(at) {
   return `${pad(when.getHours())}:${pad(when.getMinutes())}`;
 }
 
+// How long the run took, in plain words: " in 24 s", " in 1 min 5 s".
+function mailTook(run) {
+  const took = Math.round((new Date(run.finished_at) - new Date(run.started_at)) / 1000);
+  if (!Number.isFinite(took) || took < 0) return "";
+  const minutes = Math.floor(took / 60);
+  const seconds = took % 60;
+  return ` in ${[minutes ? `${minutes} min` : "", seconds || !minutes ? `${seconds} s` : ""].filter(Boolean).join(" ")}`;
+}
+
 function mailLine(text, className = "detail") {
   const said = document.createElement("p");
   said.className = className;
@@ -36,7 +45,8 @@ function mailHowItWent(run, waits) {
   if (run.status === "running")
     return run.doing ? `Running — ${run.doing}…` : "Running…";
   const at = mailClock(run.finished_at);
-  if (run.status === "held") return `Completed${at ? ` at ${at}` : ""}.`;
+  if (run.status === "held")
+    return `Completed${at ? ` at ${at}` : ""}${mailTook(run)}.`;
   const why = [...(run.steps || [])]
     .reverse()
     .find((step) => step.outcome === "failed" && step.reason)?.reason;

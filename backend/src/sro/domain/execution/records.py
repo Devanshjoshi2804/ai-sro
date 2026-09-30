@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Mapping
 
 from sro.domain.recording.redaction import redact_body
@@ -60,7 +61,7 @@ def _plain(text: str) -> str:
     try:
         parsed = json.loads(text)
     except ValueError:
-        return " ".join(text.split())
+        return _first_line(text)
     said: list[str] = []
 
     def walk(node: object, key: str = "") -> None:
@@ -74,7 +75,15 @@ def _plain(text: str) -> str:
             said.append(" ".join(node.split()))
 
     walk(parsed)
-    return "; ".join(dict.fromkeys(said)) or " ".join(text.split())
+    return "; ".join(dict.fromkeys(said))
+
+
+def _first_line(text: str) -> str:
+    """No message-like field: only the first line of the body, without markup.
+    A page's later lines are hostnames, stack frames and whatever else it holds."""
+    lines = re.sub(r"<[^>]*>", "\n", text).splitlines()
+    first = next((" ".join(line.split()) for line in lines if line.strip()), "")
+    return redact_body(first, content_type=None)[0]
 
 
 __all__ = ["K_CREATED", "K_IDENTIFIES", "K_NAMED", "made_by", "told_by"]

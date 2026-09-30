@@ -41,6 +41,10 @@ class DraftForTheAsker:
             return False
         async with self._uow as uow:
             run = await uow.workflow_runs.get(ctx.tenant_id, run_id) if run_id else None
+        if run is not None and not run.mail:
+            # A mail is only ever drafted for a run that came from one: whoever
+            # works in the panel answers the question there.
+            return False
         waiting = read_wait(run.awaiting) if run else None
         conversation = (
             thread.strip() or pending.mail_thread.strip() or (waiting.thread if waiting else "")

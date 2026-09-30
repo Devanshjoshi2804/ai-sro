@@ -198,6 +198,14 @@ async def test_a_refusal_ends_the_run_and_asks_for_the_refused_value_in_its_own_
     assert "could not find" not in asked.text
 
 
+async def test_a_panel_started_refusal_asks_in_its_chat_and_drafts_no_mail() -> None:
+    world, asking = await _refused_run()
+
+    chat = await _chat(world, world.run_id)
+    assert [one for one in chat.messages if (one.decision or {}).get("kind") == DRAFTED] == []
+    assert asking.mailbox.sent == [], "a run nobody mailed about wrote to somebody"
+
+
 async def test_the_answer_to_a_refusal_starts_one_new_run_with_the_corrected_value() -> None:
     world, asking = await _refused_run()
     chat = await _chat(world, world.run_id)

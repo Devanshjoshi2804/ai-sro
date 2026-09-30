@@ -111,7 +111,9 @@ def _pending(**over: object) -> Pending:
     return Pending(**fields)
 
 
-async def _a_run(uow: FakeUnitOfWork, *, thread: str = THREAD, asked: bool = False) -> WorkflowRun:
+async def _a_run(
+    uow: FakeUnitOfWork, *, thread: str = THREAD, asked: bool = False, from_mail: bool = True
+) -> WorkflowRun:
     run = WorkflowRun(
         id="run_1",
         tenant=f.TENANT.value,
@@ -125,6 +127,7 @@ async def _a_run(uow: FakeUnitOfWork, *, thread: str = THREAD, asked: bool = Fal
         outcome="stopped",
         needs=["Customer Type"],
         asked_the_asker=asked,
+        mail={"thread": thread} if from_mail else None,
         awaiting=as_said(waiting_on("gmail", thread, now=datetime.now(tz=UTC))),
     )
     await uow.workflow_runs.save(run)
@@ -168,6 +171,18 @@ async def test_a_draft_is_put_in_front_of_somebody_and_nothing_is_sent() -> None
     assert decision["thread"] == THREAD
     assert decision["in_reply_to"] == "<abc@mail>"
     assert "needs to be 4 characters or fewer" in str(decision["body"])
+
+
+async def test_a_run_that_did_not_come_from_a_mail_never_drafts_one() -> None:
+    uow, mailbox = FakeUnitOfWork(), _Mailbox()
+    await _a_run(uow, from_mail=False)
+
+    assert not await _drafter(uow, mailbox).execute(
+        CTX, _pending(), question=UNASKED, run_id="run_1"
+    )
+    assert not await _drafter(uow, mailbox).execute(
+        CTX, _pending(), question=UNASKED, run_id="run_1", thread=THREAD
+    )
 
 
 async def test_the_words_sent_are_the_words_that_were_read() -> None:

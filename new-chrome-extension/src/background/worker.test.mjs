@@ -1391,6 +1391,47 @@ test("a mail the backend asked about is its question, never a card beside it", a
   assert.deepEqual(startedHere(), []);
 });
 
+test("a wait on a reply ends when the reply answers its question, whoever read it", async () => {
+  // QA 2026-09-30 (YPHD): the backend's sweep read the reply and ran the job;
+  // Home kept saying "Waiting on a reply" because only this browser's look
+  // ever ended the wait.
+  ready();
+  const chat = (last) => ({
+    id: "thr_ask_1",
+    messages: [
+      {
+        id: "m_q",
+        speaker: "assistant",
+        text: "What should Customer Type be?",
+        said_at: "2026-09-30T07:30:00Z",
+        decision: { kind: "needs_values", workflow_id: "wfl_1", missing: ["Customer Type"], mail_thread: "t-1" },
+      },
+      ...(last ? [last] : []),
+    ],
+  });
+  held.set("sro.awaitingMail", { to: "asker@example.com", at: Date.now(), thread: "t-1" });
+  threadsAsked = [chat(null)];
+
+  await globalThis.__beat({ name: "sro-heartbeat" });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.ok(held.get("sro.awaitingMail"), "a wait whose question stands was ended");
+
+  threadsAsked = [
+    chat({
+      id: "m_note",
+      speaker: "assistant",
+      text: "A reply answered: Customer Type YPHD.",
+      said_at: "2026-09-30T07:41:13Z",
+      decision: { kind: "note", workflow_id: "wfl_1", mail_thread: "t-1" },
+    }),
+  ];
+  await globalThis.__beat({ name: "sro-heartbeat" });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
+  assert.equal(held.get("sro.awaitingMail") ?? null, null, "Home still waits on an answered reply");
+  threadsAsked = [];
+});
+
 test("a card already held for a mail stands down once its question is written", async () => {
   // The other order: the card was made, then a question about the same mail
   // was written -- by the backend's own look, with no panel open.

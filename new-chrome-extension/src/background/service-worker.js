@@ -5,7 +5,7 @@
 
 import { api, ApiError } from "./api.js";
 import { alsoWatch, alwaysWatched, hostOf } from "./always.js";
-import { offersAsked, questionAmong } from "./asking.js";
+import { offersAsked, questionAmong, questionIn } from "./asking.js";
 import { waitBeforeLooking } from "./looking.js";
 import { MAX_SAID, narrate, said } from "./said.js";
 import { serially } from "./serially.js";
@@ -3025,7 +3025,24 @@ async function holdTheQuestion(threads) {
   const held = await state.question();
   if ((held?.id || null) !== (waiting?.id || null)) await state.setQuestion(waiting);
   await endTheOffersAsked(offersAsked(threads));
+  await endTheWaitAnswered(threads);
   return waiting;
+}
+
+/** A wait on a mail's reply ends when the question it asked stops standing --
+ * whichever look read the reply. QA 2026-09-30 (YPHD): the backend's sweep
+ * read the reply and started the run, and Home said "Waiting on a reply" for
+ * as long as the panel was open, because only this browser's own look ever
+ * ended the wait. */
+async function endTheWaitAnswered(threads) {
+  const awaiting = await state.awaitingMail();
+  if (!awaiting) return;
+  const standing = threads
+    .map(questionIn)
+    .some((one) => one && (!awaiting.thread || one.mailThread === awaiting.thread));
+  if (standing) return;
+  await state.setAwaitingMail(null);
+  await narrate(`no longer waiting on ${awaiting.to}: its question was answered`);
 }
 
 /** Every open card offering what a standing question now asks about, ended:

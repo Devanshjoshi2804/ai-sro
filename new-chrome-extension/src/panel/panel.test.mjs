@@ -3319,6 +3319,14 @@ test("a mail waiting on somebody is on Home as well as in the conversation", asy
   assert.ok(waiting, "Home said nothing about the mail it is waiting on");
   assert.match(words(waiting), /Asked asker@example\.com 2m ago/);
   assert.match(words(waiting), /Last read the mailbox 30s ago/);
+  // The poll is its own line, not part of what is being waited on (QA
+  // 2026-09-30: "Asked … 7m ago. Last read the mailbox 1m ago" read as one
+  // state).
+  const lines = (el) => [el.textContent || "", ...(el.kids || []).flatMap(lines)];
+  assert.ok(
+    !lines(waiting).some((one) => one.includes("Asked") && one.includes("Last read")),
+    lines(waiting).join(" | "),
+  );
   // The turning indicator the gather card already uses, rather than a second
   // animation meaning the same thing.
   assert.equal(waiting.dataset.tone, "live");

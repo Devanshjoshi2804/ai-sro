@@ -53,6 +53,9 @@ export function questionIn(thread) {
       // The offer it asks about -- `mail:<id>` for a mail's -- so the card
       // offering the same mail can stand down for it.
       offer: decision.offer || null,
+      // The mail conversation it is about, so a wait on that mail's reply can
+      // end when the question does.
+      mailThread: decision.mail_thread || null,
       text: message.text || "",
       title: decision.title || "",
       workflowId: decision.workflow_id,

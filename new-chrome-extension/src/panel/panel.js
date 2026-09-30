@@ -482,7 +482,10 @@ function mailCard(status) {
     title: "Waiting on a reply",
     says: mail.looking
       ? `Reading the mailbox for ${to}'s answer`
-      : `Asked ${to} ${ago(mail.awaiting.at)}. Last read the mailbox ${ago(mail.lookedAt)}`,
+      : `Asked ${to} ${ago(mail.awaiting.at)}.`,
+    // The poll on a line of its own: it is the look's schedule, not the state
+    // of what is waited on, and it is only drawn while something is waiting.
+    metrics: mail.looking ? null : `Last read the mailbox ${ago(mail.lookedAt)}`,
     tone: "live",
   });
 }

@@ -964,15 +964,20 @@ function performing(status) {
     // 2026-09-16 it sat there for three and a half minutes while the model
     // retried a 5xx, which reads exactly like a run that has hung. Everything
     // a run does is a step except this one thing, so this one thing says so.
+    // Plain words, not the machinery's (QA 2026-09-30): a run this browser
+    // did not start is running on the server, "Step 0" says nothing, and
+    // "rig" is a word for the people who built it.
     says: run.doing
       ? `${run.doing}…`
-      : (run.because || "Started elsewhere") +
-        (done === null
+      : (run.because || "Running on the server") +
+        (!done
           ? "."
           : total
             ? `. Step ${done} of ${total}.`
             : `. Step ${done}.`),
-    metrics: `${run.kind} · ${clock(run.since)}`,
+    metrics: [run.kind === "rig" ? "" : run.kind, clock(run.since)]
+      .filter(Boolean)
+      .join(" · "),
     stage: run.stage || null,
     progress: total ? { done, of: total } : null,
     tone: "live",

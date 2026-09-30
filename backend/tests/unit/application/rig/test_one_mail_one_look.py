@@ -12,6 +12,9 @@ left for the second door to offer.
 from __future__ import annotations
 
 import json
+import logging
+
+import pytest
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.ask_the_asker import DRAFTED, DraftForTheAsker
@@ -26,10 +29,12 @@ from sro.domain.chat.asking import NEEDS, Pending
 from sro.domain.chat.thread import Thread
 from sro.interface.http.schemas import FromTheMailResponse
 from tests import factories as f
+from tests.unit.application.rig.test_a_job_declares_its_fields import _field
 from tests.unit.application.rig.test_from_the_mail import (
     CTX,
     JOB,
     _found,
+    _Gathers,
     _mail,
     _Mailbox,
     _Reads,
@@ -39,24 +44,35 @@ from tests.unit.fakes import FakeClock, FakeDurableExecution, FakeIdFactory, Fak
 
 THREAD = "t-1"
 
-ASKER = json.dumps(
-    {
-        "id": THREAD,
-        "messages": [
-            {
-                "id": "m-1",
-                "from": "Tanisha <tanisha@example.com>",
-                "subject": "vet shops",
-                "body": "please add a customer type for vet shops",
-                "rfc822_message_id": "<a@mail>",
-            }
-        ],
-    }
-)
+
+def _asker(body: str) -> str:
+    return json.dumps(
+        {
+            "id": THREAD,
+            "messages": [
+                {
+                    "id": "m-1",
+                    "from": "Tanisha <tanisha@example.com>",
+                    "subject": "vet shops",
+                    "body": body,
+                    "rfc822_message_id": "<a@mail>",
+                }
+            ],
+        }
+    )
 
 
-def _reads() -> _Reads:
-    return _Reads({"job": JOB, "values": [], "missing": ["Customer Type"], "sure": True})
+def _reads(**values: str) -> _Reads:
+    return _Reads(
+        {
+            "job": JOB,
+            "values": [
+                {"field": name, "value": value, "quote": value} for name, value in values.items()
+            ],
+            "missing": [name for name in ("Customer Type",) if name not in values],
+            "sure": True,
+        }
+    )
 
 
 class _Doors:
@@ -64,12 +80,18 @@ class _Doors:
     `FromTheMail` each, over one store and one mailbox, the ask drafting to
     whoever sent the mail."""
 
-    def __init__(self, uow: FakeUnitOfWork, start: StartWorkflowRun) -> None:
+    def __init__(self, uow: FakeUnitOfWork, start: StartWorkflowRun, **values: str) -> None:
         self.uow = uow
         self.start = start
+        self.values = values
+        self.gather: _Gathers | None = None
+        body = " ".join(["please add a customer type", *values.values()])
         self.mailbox = _Mailbox(
             search=_found("m-1"),
-            **{"m-1": _mail("please add a customer type for vet shops", THREAD), THREAD: ASKER},
+            **{
+                "m-1": _mail(body, THREAD),
+                THREAD: _asker(body),
+            },
         )
 
     def look(self) -> FromTheMail:
@@ -82,8 +104,9 @@ class _Doors:
         return FromTheMail(
             self.uow,
             self.mailbox,
-            _reads(),
+            _reads(**self.values),
             answer=AnswerRun(self.uow, FakeDurableExecution()),
+            gather=self.gather,
             clock=clock,
             ids=ids,
             start=self.start,
@@ -103,9 +126,9 @@ class _Doors:
         return found
 
 
-async def _doors() -> _Doors:
+async def _doors(**values: str) -> _Doors:
     world = await mail_world(sure=True, values={}, steel=True, thread=THREAD)
-    return _Doors(world.uow, world.start)
+    return _Doors(world.uow, world.start, **values)
 
 
 def _kinds(chat: Thread) -> list[str]:
@@ -144,3 +167,21 @@ async def test_the_worker_then_the_panel_is_one_question_and_nothing_to_offer() 
 
     assert _kinds(await doors.chat()) == [NEEDS, DRAFTED]
     assert said.offered == [], "the second door offered a mail already asked about"
+
+
+async def test_a_value_the_box_will_not_hold_is_logged_as_refused_not_as_found(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """V4: the log said "gathered 1 of 1 (every value was found in the
+    mailbox)" for a VETSHOP whose code the box would not take."""
+    doors = await _doors(**{"Customer Type": "PHARM26"})
+    await doors.uow.knowledge.add(_field("customerType", ["Customer Type"], 4))
+    doors.gather = _Gathers(**{"Customer Type": "PHARM26"})
+
+    with caplog.at_level(logging.INFO):
+        said = await doors.panel()
+
+    assert "Customer Type is 7 characters, takes 4" in caplog.text
+    (offer,) = said.offered
+    assert offer.asked and not offer.started
+    assert "What should it be?" in (await doors.chat()).messages[0].text

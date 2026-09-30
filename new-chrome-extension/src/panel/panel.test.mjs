@@ -3895,6 +3895,23 @@ test("more than three loud cards: three, in the order somebody deals with them",
   assert.doesNotMatch(loud.join(" "), /AIWE2|Create a Client/, "a fourth loud card was drawn");
 });
 
+test("a run on the server is said in plain words, not the machinery's", () => {
+  // QA 2026-09-30 (V4): the card read "Started elsewhere. Step 0." over
+  // "rig · 13:12".
+  const status = {
+    deviceId: "dev-1",
+    capturing: true,
+    watched: WATCHED,
+    performing: { runId: "run-9", kind: "rig", source: "rig", workflowId: "wfl_run", since: new Date().toISOString(), step: 0 },
+  };
+  const said = words(panel(status, TAB).ids["cards"]);
+
+  assert.match(said, /Running on the server\./);
+  assert.doesNotMatch(said, /Started elsewhere|Step 0|\brig\b/);
+  const later = { ...status, performing: { ...status.performing, step: 2 } };
+  assert.match(words(panel(later, TAB).ids["cards"]), /Running on the server\. Step 2\./);
+});
+
 test("a refused mail run's question is its mail card's Needs you, not a second card", () => {
   // QA 2026-09-30: PJ26's save was refused; its question and its mail card
   // are one mail, and Home draws it once.

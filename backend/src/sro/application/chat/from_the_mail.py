@@ -322,11 +322,11 @@ class FromTheMail:
             values |= {name: one.value for name, one in found.values.items()}
             missing = [name for name in missing if name not in values]
             logger.info(
-                "%s: gathered %d of %d for %s (%s)",
+                "%s: gathered for %s -- found %s; still missing %s (%s)",
                 tenant,
-                len(found.values),
-                len(found.values) + len(missing),
                 titles.get(got.workflow_id, got.workflow_id),
+                ", ".join(found.values) or "nothing",
+                ", ".join(missing) or "nothing",
                 found.why or "no reason given",
             )
         return Offered(
@@ -363,6 +363,16 @@ class FromTheMail:
         self, ctx: RequestContext, one: Offered, workflows: Sequence[Workflow]
     ) -> Offered:
         (one,) = await self._what_will_not_fit(ctx, [one], workflows)
+        if one.too_long:
+            logger.info(
+                "%s: %s cannot take what the mail gave -- %s",
+                ctx.tenant_id.value,
+                one.title,
+                "; ".join(
+                    f"{name} is {len(one.values.get(name, ''))} characters, takes {holds}"
+                    for name, holds in one.too_long.items()
+                ),
+            )
         if one.cannot_run and self._asks is not None:
             await self._asks.cannot_run(
                 ctx,

@@ -18,7 +18,10 @@ and starting the run, and `SendTheDraft`.
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Awaitable, Callable, Mapping
+
+import pytest
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.announce import SayWhatHappened
@@ -197,6 +200,23 @@ async def test_a_draft_whose_question_was_answered_is_never_sent() -> None:
     assert ask.mailbox.sent == [], "the sender was asked for a value given"
     after = await ask.chat()
     assert not any("carry on when they reply" in one.text for one in after.messages)
+
+
+async def test_a_mail_sent_for_a_question_says_what_it_was_about_in_the_log(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """V4: the log read "asked tanisha@example.com about " -- an ask from a
+    mail has no run, and the empty run id was all it named."""
+    world = await _World().ready()
+    ask = _Ask(world)
+    await ask.asks()
+    chat = await ask.chat()
+
+    with caplog.at_level(logging.INFO):
+        await ask.sender().execute(CTX, chat.id, _draft(chat).id.value)
+
+    assert f"about the mail thread {THREAD}" in caplog.text
+    assert "about \n" not in caplog.text + "\n"
 
 
 async def test_a_question_still_standing_can_still_be_asked_by_mail() -> None:

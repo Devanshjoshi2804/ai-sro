@@ -61,7 +61,7 @@ class DraftForTheAsker:
             logger.info(
                 "%s: %s has nobody to ask -- the conversation names no sender",
                 ctx.tenant_id.value,
-                run_id,
+                run_id or conversation,
             )
             return False
 
@@ -218,7 +218,12 @@ class SendTheDraft:
             to,
             sent=True,
         )
-        logger.info("%s: asked %s about %s", ctx.tenant_id.value, to, run_id)
+        logger.info(
+            "%s: asked %s about %s",
+            ctx.tenant_id.value,
+            to,
+            run_id or f"the mail thread {draft.get('thread') or '?'}",
+        )
         return to
 
     async def _claim(self, uow: UnitOfWork, ctx: RequestContext, message_id: str) -> bool:

@@ -1360,10 +1360,10 @@ test("a sentence in the panel becomes the same offer a recognised walk makes", a
 
 /** A thread whose yes was said somewhere else: the backend's "Running", then a
  * later "no longer open" from a second press that lost the race to it. */
-test("a mail the backend asked about in the conversation is a card too, under the question's offer", async () => {
-  // The ruling (2026-09-28): a request that came by mail still gets its card.
-  // The thread asks about it as well, so the card carries the offer name the
-  // question does, and whichever is answered first is the one run.
+test("a mail the backend asked about is its question, never a card beside it", async () => {
+  // QA 2026-09-30 (VETSHOP): the question "Customer Type takes 4" and an offer
+  // "Want me to do it?" stood on Home at once for one mail. One mail, one card:
+  // the question is it, whichever door looked.
   ready();
   mailLooked = {
     offered: [
@@ -1383,15 +1383,60 @@ test("a mail the backend asked about in the conversation is a card too, under th
 
   await lookInTheMail();
 
-  const card = openOnes().find((one) => one.offer === "mail:m-8");
-  assert.ok(card, "a request that came by mail got no card");
-  await send({ kind: "start-rig-run", nudgeId: card.id, values: {} });
-  const [press] = startedHere();
   assert.equal(
-    JSON.parse(press.body).offer,
-    "mail:m-8",
-    "the card's press and the thread's yes would be two runs",
+    openOnes().find((one) => one.offer === "mail:m-8"),
+    undefined,
+    "a mail asked about in its own chat got a second card",
   );
+  assert.deepEqual(startedHere(), []);
+});
+
+test("a card already held for a mail stands down once its question is written", async () => {
+  // The other order: the card was made, then a question about the same mail
+  // was written -- by the backend's own look, with no panel open.
+  ready();
+  mailLooked = {
+    offered: [
+      {
+        message: "m-9",
+        offer: "mail:m-9",
+        workflow_id: "wfl_1",
+        title: "Create a Customer Type",
+        values: { "Customer Type": "PHARM26" },
+        missing: [],
+      },
+    ],
+    read: 1,
+    why: "offered Create a Customer Type",
+  };
+  await lookInTheMail();
+  assert.ok(openOnes().find((one) => one.offer === "mail:m-9"), "no card to stand down");
+  threadsAsked = [
+    {
+      id: "thr_ask_9",
+      messages: [
+        {
+          id: "m_q",
+          speaker: "assistant",
+          text: "Customer Type takes 4 characters. What should it be?",
+          said_at: "2026-09-30T10:00:00Z",
+          decision: {
+            kind: "needs_values",
+            workflow_id: "wfl_1",
+            missing: ["Customer Type"],
+            offer: "mail:m-9",
+          },
+        },
+      ],
+    },
+  ];
+
+  await globalThis.__beat({ name: "sro-heartbeat" });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
+  assert.equal(openOnes().find((one) => one.offer === "mail:m-9"), undefined);
+  assert.equal(held.get("sro.question")?.id, "m_q", "the question is the one card");
+  threadsAsked = [];
 });
 
 test("a mail becomes a card that waits, not a line in the conversation", async () => {

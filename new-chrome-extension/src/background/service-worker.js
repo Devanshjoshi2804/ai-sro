@@ -5,7 +5,7 @@
 
 import { api, ApiError } from "./api.js";
 import { alsoWatch, alwaysWatched, hostOf } from "./always.js";
-import { questionAmong } from "./asking.js";
+import { offersAsked, questionAmong } from "./asking.js";
 import { waitBeforeLooking } from "./looking.js";
 import { MAX_SAID, narrate, said } from "./said.js";
 import { serially } from "./serially.js";
@@ -583,12 +583,18 @@ async function offerFromMail(offer) {
     );
     return;
   }
-  // Asked in the conversation as well, and still a card: a request that
-  // came by mail gets one, and the Waiting pane folds them. Its press and a
-  // yes in the thread carry one offer name (`offer.offer`), so whichever comes
-  // first starts the run and the other is answered with it.
-  if (offer.asked)
-    await narrate(`${offer.title || offer.workflow_id} is asked in the conversation too`);
+  // Asked in a chat of its own, and so not a card. The question IS this
+  // mail's card -- Home draws it, "waiting on you", with Answer it -- and an
+  // offer beside it is a second card for one mail whose Yes is a second path
+  // round the question (QA 2026-09-30, VETSHOP: "Customer Type takes 4" and
+  // "Want me to do it?" on Home at once). Whichever door looked first, the
+  // backend asked, so this is the same outcome as the worker's own look.
+  if (offer.asked) {
+    await narrate(
+      `mail offer mail_${offer.message} not kept: ${offer.title || offer.workflow_id} is asked in a chat of its own`,
+    );
+    return;
+  }
   const shape = (await shapesFor()).find((one) => one.id === offer.workflow_id);
   const now = Date.now();
   const made = fire(
@@ -3018,7 +3024,27 @@ async function holdTheQuestion(threads) {
   const waiting = questionAmong(threads);
   const held = await state.question();
   if ((held?.id || null) !== (waiting?.id || null)) await state.setQuestion(waiting);
+  await endTheOffersAsked(offersAsked(threads));
   return waiting;
+}
+
+/** Every open card offering what a standing question now asks about, ended:
+ * one mail, one card, whichever door wrote the question -- the backend's own
+ * look writes one with no panel open, and a card this browser was already
+ * holding for that mail would otherwise sit beside it. */
+async function endTheOffersAsked(asked) {
+  if (!asked.size) return;
+  await serially(async () => {
+    const held = await state.nudges();
+    const now = Date.now();
+    let ended = false;
+    const kept = held.map((one) => {
+      if (one.state !== "open" || !one.offer || !asked.has(one.offer)) return one;
+      ended = true;
+      return { ...one, state: "accepted", endedAt: now };
+    });
+    if (ended) await state.setNudges(kept);
+  });
 }
 
 /** The newest run the conversation names, whoever's yes started it. */

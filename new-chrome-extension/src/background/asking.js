@@ -50,6 +50,9 @@ export function questionIn(thread) {
       threadId: thread.id || null,
       // The run whose coming up short wrote it, where one did.
       run: decision.from_run || null,
+      // The offer it asks about -- `mail:<id>` for a mail's -- so the card
+      // offering the same mail can stand down for it.
+      offer: decision.offer || null,
       text: message.text || "",
       title: decision.title || "",
       workflowId: decision.workflow_id,
@@ -58,6 +61,13 @@ export function questionIn(thread) {
     };
   }
   return null;
+}
+
+/** The offers the questions standing in these threads ask about. */
+export function offersAsked(threads) {
+  return new Set(
+    threads.map(questionIn).flatMap((one) => (one?.offer ? [one.offer] : [])),
+  );
 }
 
 /**

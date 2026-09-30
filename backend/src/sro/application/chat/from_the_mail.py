@@ -48,13 +48,14 @@ from sro.domain.chat.asking import (
     FROM_THE_REPLY,
     NEEDS,
     Pending,
+    asked_by_mail,
     question,
     sourced,
     waiting_on_mail,
 )
 from sro.domain.chat.thread import Said, Speaker
 from sro.domain.execution.learned_step import limits_for, too_long
-from sro.domain.execution.mail_job import MAIL_BODY, one_address_in
+from sro.domain.execution.mail_job import MAIL_BODY, addresses_in, one_address_in
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.waiting import read_wait, still_waiting
 from sro.domain.execution.workflow_run import WorkflowRun, answers_for
@@ -303,8 +304,8 @@ class FromTheMail:
             return None
         if back is not None:
             return await self._carrying_on(ctx, message, back, said, thread, subject, titles, held)
-        asked = await self._was_asked(ctx, thread)
-        if asked is not None:
+        asked, asked_of = await self._was_asked(ctx, thread)
+        if asked is not None and (not asked_of or asked_of in addresses_in(mail.sender)):
             return await self._answered_by_mail(ctx, message, asked, said, thread, subject, held)
         whole, earlier = await self._conversation(ctx, thread, message) if thread else ("", "")
         text = whole or said
@@ -623,9 +624,14 @@ class FromTheMail:
         reply = bool(said.get("in_reply_to") or said.get("references"))
         return one_address_in(str(said.get("body") or ""), reply=reply)
 
-    async def _was_asked(self, ctx: RequestContext, thread: str) -> Pending | None:
+    async def _was_asked(self, ctx: RequestContext, thread: str) -> tuple[Pending | None, str]:
+        """The question standing on a mail thread, and the address it was mailed
+        to (empty while no mail went out): only that address answers it."""
         found = await ReadThreads(self._uow).asking(ctx, thread)
-        return waiting_on_mail(found.messages, thread) if found is not None else None
+        if found is None:
+            return None, ""
+        (asked_of, *_) = (*addresses_in(asked_by_mail(found.messages, thread)), "")
+        return waiting_on_mail(found.messages, thread), asked_of
 
     async def _carrying_on(
         self,

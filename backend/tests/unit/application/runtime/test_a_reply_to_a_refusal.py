@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 
+from sro.application.chat.ask_the_asker import DRAFTED, SendTheDraft
 from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.runtime.answer_run import AnswerRun
 from tests.unit.application.rig.test_from_the_mail import _found, _Mailbox, _Reads
@@ -21,18 +22,18 @@ from tests.unit.runtime_support import WORKFLOW, SteelRun
 ENVELOPE = {"thread": THREAD, "subject": "new customer type", "sender": "tanisha@example.com"}
 
 
-def _reply(said: str) -> str:
+def _reply(said: str, sender: str = "") -> str:
     return json.dumps(
-        {"id": "m-2", "subject": "Re: x", "body": said, "thread_id": THREAD, "from": "x"}
+        {"id": "m-2", "subject": "Re: x", "body": said, "thread_id": THREAD, "from": sender}
     )
 
 
 async def _replied(
-    world: SteelRun, asking: _Asking, said: str, *reading: dict[str, object]
+    world: SteelRun, asking: _Asking, said: str, *reading: dict[str, object], sender: str = ""
 ) -> None:
     await FromTheMail(
         world.uow,
-        _Mailbox(search=_found("m-2"), **{"m-2": _reply(said)}),
+        _Mailbox(search=_found("m-2"), **{"m-2": _reply(said, sender)}),
         _Reads(*reading),
         answer=AnswerRun(world.uow, FakeDurableExecution()),
         clock=FakeClock(),
@@ -101,3 +102,32 @@ async def test_the_chat_then_the_mail_answering_the_same_refusal_start_one_run()
     await _replied(world, asking, "Description :- Vets", _VETS)
 
     assert len(_new_runs(world)) == 1
+
+
+async def _sent_to_the_sender() -> tuple[SteelRun, _Asking]:
+    world, asking = await _refused_run(mail=ENVELOPE)
+    chat = await _chat(world, THREAD)
+    (draft,) = [one for one in chat.messages if (one.decision or {}).get("kind") == DRAFTED]
+    sent = SendTheDraft(world.uow, asking.mailbox, FakeClock(), FakeIdFactory())
+    assert await sent.execute(CTX, chat.id, draft.id.value) == "tanisha@example.com"
+    return world, asking
+
+
+async def test_a_reply_from_somebody_the_question_was_not_mailed_to_answers_nothing() -> None:
+    world, asking = await _sent_to_the_sender()
+
+    await _replied(world, asking, "Description :- Vets", _VETS, sender="mallory@example.com")
+
+    # It may still be read as a request of its own, but it is never the answer.
+    chat = await _chat(world, THREAD)
+    assert not [one for one in chat.messages if one.text.startswith("A reply")]
+
+
+async def test_a_reply_from_the_address_the_question_was_mailed_to_answers_it() -> None:
+    world, asking = await _sent_to_the_sender()
+
+    await _replied(
+        world, asking, "Description :- Vets", _VETS, sender="Tanisha <TANISHA@example.com>"
+    )
+
+    assert _new_runs(world) == [{"Customer Type": "GT2", "Description": "Vets"}]

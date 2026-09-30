@@ -15,6 +15,7 @@ from sro.application.runtime.step import Held, LaneContext, Stopped
 from sro.domain.execution.belts import carries_in_slot, confirming_read, expected_statuses
 from sro.domain.execution.evidence import recorded_call
 from sro.domain.execution.lanes import (
+    K_CONFLICT,
     Lane,
     SeenCall,
     StepResult,
@@ -176,7 +177,13 @@ class ApiLane:
                 read=made,
                 answered=told,
             )
-        refused = verdict == "unknown" and found is not None and found[0] != "ours"
+        # Absent at a guessed address is a refusal only after the system's own
+        # rejection (409); after a 5xx the record may live at an id we cannot guess.
+        refused = (
+            verdict == "unknown"
+            and found is not None
+            and (found[0] == "other" or (found[0] == "absent" and status == K_CONFLICT))
+        )
         if refused and found is not None:
             said = told["said"] or f"it answered {status}"
             return StepResult(

@@ -655,3 +655,14 @@ async def test_an_accepted_write_whose_record_is_absent_is_in_doubt_not_refused(
     result, _ = await _answered((201, "{}"), (404, ""))
 
     assert result.verdict == "unknown" and not result.refused
+
+
+@pytest.mark.parametrize("status", [500, 502, 503, 504])
+async def test_a_server_error_whose_guessed_record_address_is_absent_is_not_a_refusal(
+    status: int,
+) -> None:
+    # The system may have saved the record at an id we cannot guess: a 404 at
+    # the guessed address proves nothing about the write.
+    result, _ = await _answered((status, ""), (404, ""))
+
+    assert result.verdict == "unknown" and not result.refused and not result.never_left

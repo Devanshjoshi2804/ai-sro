@@ -262,13 +262,16 @@ function render(status) {
   const now = [];
   const offers = [];
 
-  // A question nobody has answered: the one thing here waiting on THEM.
-  if (status.question) needs.push(theQuestion(status.question));
-
   // A run a mail started is drawn as its mail card -- arrived, noticed, how it
   // went -- and never twice: its performing or finished card stands aside.
   const mailRuns = status.mailRuns || [];
   const fromMail = new Set(mailRuns.map((run) => run.id));
+
+  // A question nobody has answered: the one thing here waiting on THEM. One
+  // that names a mail's run is that mail card's "Needs you" -- one mail, one
+  // card.
+  if (status.question && !fromMail.has(status.question.run))
+    needs.push(theQuestion(status.question));
   if (status.performing && !fromMail.has(status.performing.runId))
     now.push(performing(status));
   // A look back at the last thing this browser did, after the run happening
@@ -279,7 +282,12 @@ function render(status) {
     now.push(
       mailRunCard(run, {
         live: status.performing?.runId === run.id ? status.performing : null,
+        question: status.question,
         onOpen: (url) => void chrome.tabs.create({ url }),
+        onAnswer: (question) => {
+          goToTheConversation(question?.threadId || null);
+          $("ask-bar").querySelector?.("input")?.focus();
+        },
         onReview: (one) => openConsole(`/jobs/runs/${one.id}`),
         onStop: async (one, button) => {
           button.disabled = true;

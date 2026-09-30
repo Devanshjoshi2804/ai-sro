@@ -30441,6 +30441,11 @@
                 "type": "null"
               }
             ]
+          },
+          "asking": {
+            "type": "string",
+            "title": "Asking",
+            "default": ""
           }
         },
         "type": "object",

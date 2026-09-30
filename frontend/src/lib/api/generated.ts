@@ -4749,6 +4749,11 @@ export interface components {
             /** Offer */
             offer?: string | null;
             mail?: components["schemas"]["RunMailModel"] | null;
+            /**
+             * Asking
+             * @default
+             */
+            asking: string;
         };
         /**
          * WorkflowRunStepModel

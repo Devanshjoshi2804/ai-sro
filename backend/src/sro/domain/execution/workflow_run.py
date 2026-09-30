@@ -158,8 +158,7 @@ def refused_names(workflow: Workflow, values: Mapping[str, str], said: str) -> l
         name
         for name in given
         if "".join(_words(name)) in heard
-        or (set(_words(values[name])) <= set(_words(said))
-        and bool(_words(values[name])))
+        or (set(_words(values[name])) <= set(_words(said)) and bool(_words(values[name])))
     ]
     return named or given[:1]
 

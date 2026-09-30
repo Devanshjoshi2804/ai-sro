@@ -845,6 +845,8 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
             "thread": "t-1",
             "link": "https://mail.google.com/mail/#all/t-1",
         },
+        # A finished run waits on nobody.
+        "asking": "",
     }
 
 

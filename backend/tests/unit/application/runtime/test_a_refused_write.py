@@ -32,6 +32,7 @@ from sro.domain.execution.waiting import as_said, waiting_on
 from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.observation.gesture import Gesture
 from sro.domain.skill.workflow import Step, Workflow
+from sro.interface.http.schemas import WorkflowRunModel
 from tests.unit.application.rig.test_asking_the_asker import THREAD
 from tests.unit.application.rig.test_asking_the_asker import _Mailbox as _Asker
 from tests.unit.fakes import (
@@ -227,3 +228,16 @@ async def test_a_mail_started_refusal_drafts_a_reply_naming_the_field_and_why() 
     assert asking.mailbox.sent == [], "the reply went out without the operator"
     run = await world.saved_run()
     assert run.awaiting is None, "a reply would be taken by the ended run, not its question"
+
+
+async def test_the_run_says_what_it_waits_on_only_while_it_waits() -> None:
+    """V1d: the mail card said "Running..." for a run parked on a person."""
+    world, _ = await _saving((409, REFUSED), (500, ""))
+
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    parked = WorkflowRunModel.of(await world.saved_run())
+    assert parked.outcome == "running"
+    assert "nothing confirms it" in parked.asking
+    refused, _ = await _refused_run()
+    assert WorkflowRunModel.of(await refused.saved_run()).asking == ""

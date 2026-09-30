@@ -106,6 +106,9 @@ export function asPanelRun(run) {
     // 10:49: `watched=true` on the row, "nobody was watching" on the card.
     watched: Boolean(run.watched),
     needs: run.needs || [],
+    // The question a running run is parked on: a run waiting on a person is
+    // not "Running…" (QA 2026-09-30, PJ26).
+    asking: run.asking || "",
     // What the run wrote, so the card can name the record rather than only
     // reporting the machinery that made it. Added here THIRD, after the row
     // and the card, which is precisely the mistake the paragraph above

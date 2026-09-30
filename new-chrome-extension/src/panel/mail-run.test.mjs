@@ -81,8 +81,62 @@ test("did not finish: says why", () => {
     }),
   );
 
-  assert.match(words(card), /Did not finish at \d\d:\d\d: the session expired/);
+  assert.match(words(card), /Not created: the session expired\./);
+  assert.doesNotMatch(words(card), /Running/);
   assert.equal(card.dataset.tone, "attention");
+});
+
+test("parked on a person: Needs you and the question, never Running", () => {
+  const answered = [];
+  const card = mailRunCard(
+    run({ asking: "'Click the save button.' was sent and nothing confirms it" }),
+    { onAnswer: (question, one) => answered.push([question, one.id]) },
+  );
+  const said = words(card);
+
+  assert.match(said, /Needs you: 'Click the save button.' was sent/);
+  assert.doesNotMatch(said, /Running/);
+  assert.equal(card.dataset.tone, "attention");
+  const labels = buttons(card).map((one) => one.textContent);
+  assert.equal(labels[0], "Answer it", "the way out is the first thing on the card");
+  assert.ok(labels.includes("Stop"), "a parked run can still be stopped");
+  buttons(card)[0].listeners.click[0]();
+  assert.deepEqual(answered, [[null, "run_1"]]);
+});
+
+test("refused, with its question standing: Needs you, not Not created", () => {
+  const question = {
+    id: "m-9",
+    run: "run_1",
+    threadId: "thr_ask_1",
+    text: "Create a Customer Type was not done: the system refused it: code 42 is used. What should Voice Code be?",
+  };
+  const answered = [];
+  const card = mailRunCard(
+    run({
+      status: "failed",
+      finished_at: "2026-09-29T11:03:00",
+      steps: [{ index: 0, outcome: "failed", reason: "the system refused it: code 42 is used" }],
+    }),
+    { question, onAnswer: (one) => answered.push(one.threadId) },
+  );
+  const said = words(card);
+
+  assert.match(said, /Needs you: .*What should Voice Code be\?/);
+  assert.doesNotMatch(said, /Running|Not created/);
+  assert.equal(buttons(card)[0].textContent, "Answer it");
+  buttons(card)[0].listeners.click[0]();
+  assert.deepEqual(answered, ["thr_ask_1"]);
+});
+
+test("another run's question is not this card's", () => {
+  const card = mailRunCard(
+    run({ status: "failed", steps: [{ index: 0, outcome: "failed", reason: "refused" }] }),
+    { question: { id: "m-1", run: "run_2", text: "What should X be?" } },
+  );
+
+  assert.match(words(card), /Not created: refused\./);
+  assert.ok(!buttons(card).some((one) => one.textContent === "Answer it"));
 });
 
 test("each press hands the run to its caller", () => {

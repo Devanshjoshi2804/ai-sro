@@ -55,6 +55,13 @@ def asks_a_person(run: WorkflowRun) -> bool:
     )
 
 
+def standing_question(run: WorkflowRun) -> str:
+    asking = Progress.of(run.progress).asking
+    if run.outcome != "running" or not asking.get("id") or asking.get("answered"):
+        return ""
+    return asking.get("text", "")
+
+
 def stuck(run: WorkflowRun, *, budget_s: float, now: datetime, durable: Durably) -> bool:
     if run.outcome != "running" or durable == "open":
         return False

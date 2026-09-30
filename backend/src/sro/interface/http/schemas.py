@@ -37,6 +37,7 @@ from sro.domain.chat.thread import Thread
 from sro.domain.execution.account import K_USERNAME_MAX_LEN
 from sro.domain.execution.belts import K_EARNED_RUNS
 from sro.domain.execution.run import Medium, Run, StepOutcome
+from sro.domain.execution.waiting import standing_question
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.lookup.plan import Asked, Lookup
 from sro.domain.observation.attempts import Attempt
@@ -3052,6 +3053,12 @@ class WorkflowRunModel(BaseModel):
     read: the panel's Home draws a card per mail-started run from the list it
     polls. Null for every run no mail started."""
 
+    asking: str = ""
+    """The question a running run is parked on, while nobody has answered it;
+    empty otherwise. A run waiting on a person is not running: the mail card
+    said "Running..." over PJ26's parked save (QA, 2026-09-30), and this is
+    how it says "Needs you" instead."""
+
     @classmethod
     def of(
         cls,
@@ -3093,6 +3100,7 @@ class WorkflowRunModel(BaseModel):
             live_view_url=live_view_url or None,
             offer=run.offer,
             mail=RunMailModel.of(run.mail) if run.mail else None,
+            asking=standing_question(run),
         )
 
 

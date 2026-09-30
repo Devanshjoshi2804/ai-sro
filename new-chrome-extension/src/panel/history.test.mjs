@@ -194,6 +194,11 @@ test("nothing said draws no heading", () => {
   );
 });
 
+test("a run's standing question crosses the seam, so its card can say Needs you", () => {
+  assert.equal(asPanelRun({ id: "run_1", outcome: "running", asking: "What now?" }).asking, "What now?");
+  assert.equal(asPanelRun({ id: "run_1", outcome: "held" }).asking, "");
+});
+
 test("the list is drawn from what the worker actually keeps, not from the backend row", () => {
   // How this broke: `asPanelRun` is a whitelist -- what is not named in it
   // does not reach the panel -- and it named neither `started_at` nor a time

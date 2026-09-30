@@ -80,11 +80,11 @@ Code: `until: str`
 > is one nothing can say the age of, and treating an unknown age as young is
 > how a row from last year answers a mail that arrived this morning.
 
-## `as_said`, [line 70](../../../../../../../backend/src/sro/domain/execution/waiting.py#L70): Docstring
+## `as_said`, [line 77](../../../../../../../backend/src/sro/domain/execution/waiting.py#L77): Docstring
 
 > The wait as it is stored on a run row.
 
-## `read_wait`, [line 76](../../../../../../../backend/src/sro/domain/execution/waiting.py#L76): Docstring
+## `read_wait`, [line 83](../../../../../../../backend/src/sro/domain/execution/waiting.py#L83): Docstring
 
 > The wait a stored row holds, or None where it holds nothing usable.
 >
@@ -123,7 +123,7 @@ Code: `Durably = Literal["open", "closed", "unknown"]`
 > never heard of -- a run whose handoff was lost, or an extension run, which has
 > none -- and leaves the decision to the clock.
 
-## `stuck`, [line 58](../../../../../../../backend/src/sro/domain/execution/waiting.py#L58): Note
+## `stuck`, [line 65](../../../../../../../backend/src/sro/domain/execution/waiting.py#L65): Note
 
 > Whether a `running` row is stuck: its workflow ended without running `finish`
 > (timed out, lost with its worker, terminated) and nothing will ever close it.

@@ -971,7 +971,7 @@ test("a run a mail started is one card on Home: arrived, noticed, how it went", 
   assert.match(words(running), /Noticed: Create a Transport Equipment Type — Equipment: AITE4/);
   assert.match(words(running), /Running/);
   const failed = cards.find((one) => words(one).includes("AITE3 please"));
-  assert.match(words(failed), /Did not finish at \d\d:\d\d: the session expired/);
+  assert.match(words(failed), /Not created: the session expired/);
 
   const press = (label) => buttons(running).find((one) => one.textContent === label);
   press("Watch it run").listeners[0]();
@@ -3893,6 +3893,42 @@ test("more than three loud cards: three, in the order somebody deals with them",
   assert.match(loud[1], /performing here/);
   assert.match(loud[2], /Mail: AITE8/);
   assert.doesNotMatch(loud.join(" "), /AIWE2|Create a Client/, "a fourth loud card was drawn");
+});
+
+test("a refused mail run's question is its mail card's Needs you, not a second card", () => {
+  // QA 2026-09-30: PJ26's save was refused; its question and its mail card
+  // are one mail, and Home draws it once.
+  const status = {
+    deviceId: "dev-1",
+    capturing: true,
+    watched: WATCHED,
+    question: {
+      id: "m-9",
+      run: "run-1",
+      threadId: "thr_ask_1",
+      title: "Create a Warehouse Equipment Type",
+      text: "Create a Warehouse Equipment Type was not done: the system refused it: voice code 42 is used. What should Voice Code be?",
+    },
+    mailRuns: [
+      {
+        id: "run-1",
+        status: "failed",
+        workflow_id: "wfl_a",
+        title: "Create a Warehouse Equipment Type",
+        values: { Code: "PJ26" },
+        started_at: new Date().toISOString(),
+        finished_at: new Date().toISOString(),
+        steps: [{ index: 0, outcome: "failed", reason: "the system refused it: voice code 42 is used" }],
+        mail: aMail("create PJ26"),
+      },
+    ],
+  };
+  const { ids } = panel(status, TAB);
+
+  const loud = ids["cards"].kids.map(words);
+  assert.equal(loud.filter((one) => /What should Voice Code be/.test(one)).length, 1, loud.join(" | "));
+  assert.match(loud.join(" "), /Mail: create PJ26.*Needs you: .*What should Voice Code be/);
+  assert.doesNotMatch(loud.join(" "), /waiting on you|Not created|Running/);
 });
 
 test("a finished mail card draws whole no matter how long ago it finished", () => {

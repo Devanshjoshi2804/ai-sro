@@ -319,7 +319,7 @@ Code: `pinned: Workflow | None = None`
 > leaves it out. None on an extension run, which holds its job in memory for
 > its whole life.
 
-## `answers_for`, [line 172](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L172): Note
+## `answers_for`, [line 171](../../../../../../../backend/src/sro/domain/execution/workflow_run.py#L171): Note
 
 Code: `return principal in {run.started_by, opened_by} - {""}`
 

@@ -169,17 +169,30 @@ def refused_by(run: WorkflowRun) -> str:
 
 
 def refused_names(workflow: Workflow, values: Mapping[str, str], said: str) -> list[str]:
+    """The fields the system's own words name: the field's name, or its value
+    (three or more characters, not a bare number) as whole words. Words that
+    name none leave every field open, for the person to say which changes."""
     given = [
         str(one.get("name")) for one in workflow.parameters if values.get(str(one.get("name")))
     ]
-    heard = "".join(_words(said))
+    heard = _words(said)
     named = [
         name
         for name in given
-        if "".join(_words(name)) in heard
-        or (set(_words(values[name])) <= set(_words(said)) and bool(_words(values[name])))
+        if _within(heard, _words(name))
+        or (
+            len(values[name].strip()) >= 3
+            and not values[name].strip().isdigit()
+            and _within(heard, _words(values[name]))
+        )
     ]
-    return named or given[:1]
+    return named or given
+
+
+def _within(heard: list[str], wanted: list[str]) -> bool:
+    return bool(wanted) and any(
+        heard[at : at + len(wanted)] == wanted for at in range(len(heard) - len(wanted) + 1)
+    )
 
 
 def _words(text: str) -> list[str]:

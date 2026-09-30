@@ -312,3 +312,41 @@ async def test_a_retried_finish_still_asks_when_the_first_ask_never_happened() -
 
 async def test_a_retried_finish_does_not_ask_again_when_the_question_already_stands() -> None:
     assert await _asked_after_a_retry(after=True) == 1
+
+
+async def _needs_after(said: str, values: dict[str, str]) -> list[str]:
+    asking = _Asking()
+    job_values = {"Customer Type": values["Customer Type"], "Description": values["Description"]}
+    world, _ = await _saving((409, json.dumps({"message": said})), (404, ""), asking=asking)
+    world.uow.workflow_runs.rows[world.run_id].values = job_values
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    await world.run_steps.finish(CTX, world.run_id)
+    return (await world.saved_run()).needs
+
+
+async def test_a_short_value_in_unrelated_words_does_not_name_a_field() -> None:
+    needs = await _needs_after(
+        "Warehouse 42 could not be saved", {"Customer Type": "42", "Description": "Vets"}
+    )
+
+    assert needs == ["Customer Type", "Description"], "a bare 42 named a field it is not in"
+
+
+async def test_a_field_the_reason_names_is_the_one_asked_about() -> None:
+    needs = await _needs_after(
+        "Description Pet shops is already used",
+        {"Customer Type": "GT2", "Description": "Pet shops"},
+    )
+
+    assert needs == ["Description"]
+
+
+async def test_a_value_the_reason_quotes_names_its_field_only_as_a_whole_word() -> None:
+    quoted = await _needs_after(
+        "GT2 is already used", {"Customer Type": "GT2", "Description": "GT"}
+    )
+    inside = await _needs_after(
+        "The code GT2 is taken", {"Customer Type": "GT2", "Description": "Pet shops"}
+    )
+
+    assert quoted == ["Customer Type"] and inside == ["Customer Type"]

@@ -17,7 +17,7 @@ FRONTEND := cd frontend &&
         lint lint-backend recipe check-code-notes lint-frontend format test test-unit test-integration \
         test-replay record-histories \
         test-contract test-browser types check ingest-kb gen-recorder eval eval-ci eval-redact \
-        mutants-backend images smoke gen-deployment migrate-vault-keys \
+        mutants-backend images smoke gen-deployment package-extension migrate-vault-keys \
         steel-up steel-down steel-env
 
 help: ## Show this help
@@ -143,6 +143,9 @@ gen-deployment: ## Tell the extension which deployment it is for: make gen-deplo
 	@# this writes. An operator then pastes a credential and nothing else.
 	@test -n "$(api)" || { echo "api= is required, e.g. api=http://10.11.9.25:8088/api"; exit 2; }
 	$(BACKEND) uv run python scripts/write_deployment.py --api $(api) --console $(or $(console),)
+
+package-extension: ## The zip the Chrome Web Store is given (run gen-deployment first): dist/ai-sro-<version>.zip
+	$(BACKEND) uv run python scripts/package_extension.py
 
 gen-recorder: ## Regenerate the extension's copy of the page recorder, secrets baked in
 	$(BACKEND) uv run python -m sro.infrastructure.steel.generate_extension_recorder

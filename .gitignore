@@ -99,3 +99,6 @@ new_agent_arch/
 backend/evals/cases/
 backend/evals/results/
 backend/evals/candidates/
+
+# The Chrome Web Store zip (make package-extension)
+/dist/

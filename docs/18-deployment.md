@@ -41,7 +41,7 @@ docker build --build-context page=new-chrome-extension/src/page \
 
 docker build -t ai-sro-web:$REV \
   --build-arg NEXT_PUBLIC_API_URL=http://10.11.9.25:8000 \
-  --build-arg NEXT_PUBLIC_EXTENSION_ORIGINS=chrome-extension://onfmljaebeipeiinflhgdochbcjeoehl \
+  --build-arg NEXT_PUBLIC_EXTENSION_ORIGINS=chrome-extension://onfmljaebeipeiinflhgdochbcjeoehl,chrome-extension://fokdlimdngfkjpnpeogpeeldcoikabpj \
   frontend/
 ```
 
@@ -58,6 +58,17 @@ image promotes from QA to production unchanged.**
 `NEXT_PUBLIC_EXTENSION_ORIGINS` is still per-build, because it is read in
 `headers()` during the build. It is the extension's id, which is the same
 everywhere, so it does not divide environments the way a hostname would.
+
+**There are two ids, and both must be listed** (comma-separated here, a JSON
+list in `SRO_CORS_ORIGINS`): `onfmljae...` is the unpacked build, pinned by the
+manifest `key`; `fokdlimdng...` is the Chrome Web Store item, whose key the
+store issues. Drop either and that build's panel connects to nothing.
+
+**Publishing the extension:** `make gen-deployment api=... console=...`, then
+`make package-extension`, then upload `dist/ai-sro-<version>.zip` on the item's
+Package tab. The zip carries no manifest `key` (the store adds its own) and no
+tests. Raise `version` in `new-chrome-extension/manifest.json` first: the store
+refuses a version it already has.
 
 ## The VM
 

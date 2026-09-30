@@ -22,6 +22,7 @@ from typing import Any
 import pytest
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
+from sro.application.chat.announce import SayWhatHappened
 from sro.application.chat.ask_the_asker import DRAFTED, DraftForTheAsker, SendTheDraft
 from sro.application.chat.mailbox import is_ours
 from sro.application.context import RequestContext
@@ -381,6 +382,31 @@ async def test_one_draft_per_request_before_a_run_exists() -> None:
 
     assert await drafter.execute(CTX, _pending(), question=UNASKED, thread=THREAD) is True
     assert await drafter.execute(CTX, _pending(), question=UNASKED, thread=THREAD) is False
+
+
+async def test_a_second_refusal_on_one_mail_is_drafted_once_the_first_is_answered() -> None:
+    uow, mailbox = FakeUnitOfWork(), _Mailbox()
+    clock, ids = FakeClock(), FakeIdFactory()
+    drafter = DraftForTheAsker(uow, mailbox, clock, ids)
+    asked = AskAboutTheOffer(uow, clock, ids)
+    await asked.execute(CTX, _pending(mail_thread=THREAD), mail_thread=THREAD)
+    assert await drafter.execute(CTX, _pending(), question=UNASKED, thread=THREAD) is True
+
+    await asked.execute(CTX, _pending(mail_thread=THREAD), mail_thread=THREAD)
+    assert await drafter.execute(CTX, _pending(), question=UNASKED, thread=THREAD) is False, (
+        "the first question still stands: asking again is not an answer"
+    )
+    await SayWhatHappened(uow, clock, ids).execute(
+        CTX,
+        for_operator=CTX.principal_id,
+        text="Vets",
+        speaker=Speaker.OPERATOR,
+        about=THREAD,
+        decision={},
+    )
+    await asked.execute(CTX, _pending(mail_thread=THREAD), mail_thread=THREAD)
+
+    assert await drafter.execute(CTX, _pending(), question=UNASKED, thread=THREAD) is True
 
 
 async def test_one_mail_per_draft_when_no_run_stands_behind_it() -> None:

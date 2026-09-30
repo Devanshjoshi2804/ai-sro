@@ -10,7 +10,7 @@ from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
-from sro.domain.chat.asking import Pending, pending_job
+from sro.domain.chat.asking import NEEDS, Pending, pending_job
 from sro.domain.chat.asking_the_asker import draft_for, worth_asking
 from sro.domain.chat.thread import Message, Speaker, ThreadId
 from sro.domain.execution.mail_job import DRAFTED, SENT
@@ -96,15 +96,21 @@ class DraftForTheAsker:
         return True
 
     async def _already_drafted(self, owner: RequestContext, conversation: str) -> bool:
+        """One draft per question: it stands until something other than more
+        asking (an answer, a note, a run) follows it, and a second refusal on
+        the same mail is then asked again."""
         thread = await ReadThreads(self._uow).asking(owner, conversation)
         if thread is None:
             return False
-        return any(
-            isinstance(message.decision, dict)
-            and message.decision.get("kind") == DRAFTED
-            and message.decision.get("thread") == conversation
-            for message in thread.messages
-        )
+        asking = (NEEDS, DRAFTED, SENT)
+        drafted = False
+        for message in thread.messages:
+            decision = message.decision if isinstance(message.decision, dict) else {}
+            if decision.get("kind") == DRAFTED and decision.get("thread") == conversation:
+                drafted = True
+            elif drafted and decision.get("kind") not in asking:
+                drafted = False
+        return drafted
 
     async def _who_asked(self, ctx: RequestContext, thread: str) -> tuple[str, str, str]:
         try:

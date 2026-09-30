@@ -11,10 +11,26 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any
 
-from sro.application.chat.brain_tools import CheckMail, FindJobs, Lookup, RunStatus, described
+from sro.application.chat.brain_tools import (
+    AskOperator,
+    CheckMail,
+    FindJobs,
+    Lookup,
+    RunStatus,
+    StartJob,
+    UndoRun,
+    WorkItOut,
+    brain_tools,
+    described,
+)
+from sro.application.context import RequestContext
+from sro.application.execution.workflow_runs import GetWorkflowRun, StartWorkflowRun
+from sro.application.intent.plan_task import PlanTask
+from sro.application.knowledge.retrieve import Retrieve
 from sro.application.lookup.look_it_up import LookItUp
 from sro.application.lookup.plan_lookups import PlanLookups
 from sro.domain.chat.brain_turn import ToolResult
+from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.skill.workflow import Workflow
 from tests import factories as f
 from tests.unit.application.chat.brain_support import (
@@ -24,9 +40,16 @@ from tests.unit.application.chat.brain_support import (
     world_with_job,
 )
 from tests.unit.application.rig.test_from_the_mail import JOB
+from tests.unit.application.rig.test_start_workflow_run import _starter
 from tests.unit.application.test_where_to_look_for_an_answer import KNOWN, _Knows
-from tests.unit.fakes import FakeAsker, FakeClock, FakeUnitOfWork
-from tests.unit.runtime_support import read_step
+from tests.unit.fakes import (
+    FakeAsker,
+    FakeClock,
+    FakeDurableExecution,
+    FakeEmbedder,
+    FakeUnitOfWork,
+)
+from tests.unit.runtime_support import read_step, save_job
 
 
 def _jobs(result: ToolResult) -> list[dict[str, Any]]:
@@ -251,3 +274,248 @@ def test_every_tool_is_described_with_its_arguments() -> None:
     one, two = described(tools)
     assert (one["name"], two["name"]) == ("find_jobs", "check_mail")
     assert one["args"] == FindJobs.args
+
+
+GIVEN = {"Customer Type": "SR11", "Customer Type Description": "new"}
+
+
+class _Counting(StartWorkflowRun):
+    tried = 0
+
+    async def execute(self, *args: Any, **kwargs: Any) -> Any:
+        self.tried += 1
+        return await super().execute(*args, **kwargs)
+
+
+class _Acting:
+    """The real start use case over the fakes: a Steel run, so nothing drives a browser."""
+
+    def __init__(self, world: Any, *, cap_usd: float = 5.0) -> None:
+        self.world, self.durable = world, FakeDurableExecution()
+        self.spawned: list[Any] = []
+        real = _starter(
+            world.uow,
+            durable=self.durable,
+            steel_tenants=frozenset({f.TENANT.value}),
+            cap_usd=cap_usd,
+            clock=world.clock,
+        )
+        self.start = _Counting.__new__(_Counting)
+        self.start.__dict__.update(real.__dict__)
+        self.job = StartJob(world.uow, world.clock, self.start, self.spawned.append)
+        self.undo = UndoRun(GetWorkflowRun(world.uow), self.start, self.spawned.append)
+
+    @property
+    def started(self) -> list[str]:
+        return [one for one, _ in self.durable.runs_started]
+
+
+async def _acting(*, cap_usd: float = 5.0) -> _Acting:
+    world = await world_with_job()
+    await world.uow.workflows.remember_limit(JOB, 0, 4)
+    return _Acting(world, cap_usd=cap_usd)
+
+
+async def test_start_job_starts_at_once_with_the_given_values() -> None:
+    acting = await _acting()
+
+    result = await acting.job.run(CTX, {"job_id": JOB, "values": GIVEN})
+
+    assert result.ok and result.data["state"] == "running"
+    assert acting.started == [result.data["run_id"]]
+    assert result.decision == {"kind": "run", "run_id": result.data["run_id"]}
+    run = await acting.world.uow.workflow_runs.get(f.TENANT, str(result.data["run_id"]))
+    assert run is not None and run.values == GIVEN and run.started_by == CTX.principal_id.value
+
+
+async def test_a_value_the_field_cannot_hold_is_refused_by_name_and_nothing_starts() -> None:
+    acting = await _acting()
+
+    result = await acting.job.run(
+        CTX, {"job_id": JOB, "values": {**GIVEN, "Customer Type": "SROT1"}}
+    )
+
+    assert not result.ok and "Customer Type you gave is longer than 4" in result.error
+    assert "SROT1" not in result.error
+    assert acting.started == [] and acting.start.tried == 0
+
+
+async def test_a_missing_required_value_comes_back_as_a_question_for_the_model() -> None:
+    acting = await _acting()
+
+    result = await acting.job.run(CTX, {"job_id": JOB, "values": {"Customer Type": "SR11"}})
+
+    assert not result.ok and "missing: Customer Type Description" in result.error
+    assert acting.started == [] and acting.start.tried == 0
+
+
+async def test_an_offer_a_run_already_took_answers_that_run() -> None:
+    acting = await _acting()
+    call = {"job_id": JOB, "values": GIVEN, "offer": "mail:abc"}
+
+    first = await acting.job.run(CTX, call)
+    again = await acting.job.run(CTX, call)
+
+    assert again.ok and again.data["run_id"] == first.data["run_id"]
+    assert again.data["state"] == "already running" and again.decision is None
+    assert len(acting.started) == 1
+
+
+async def test_a_job_that_is_not_real_is_never_started() -> None:
+    acting = await _acting()
+    other = await acting.world.uow.workflows.get(f.TENANT, JOB)
+    await acting.world.uow.workflows.save(replace(other, id="wfl_copy"))
+
+    for job_id in ("wfl_copy", "wfl_nowhere"):
+        result = await acting.job.run(CTX, {"job_id": job_id, "values": GIVEN})
+        assert not result.ok
+    assert acting.started == [] and acting.start.tried == 0
+
+
+async def test_another_tenant_s_job_is_not_startable_here() -> None:
+    acting = await _acting()
+    theirs = RequestContext(TenantId("another-tenant"), PrincipalId("devansh"))
+
+    result = await acting.job.run(theirs, {"job_id": JOB, "values": GIVEN})
+
+    assert not result.ok and acting.started == [] and acting.start.tried == 0
+
+
+async def test_a_secret_is_never_taken_and_never_repeated() -> None:
+    acting = await _acting()
+
+    result = await acting.job.run(CTX, {"job_id": JOB, "values": {**GIVEN, "Password": "hunter2"}})
+
+    assert not result.ok and "Password" in result.error and "hunter2" not in result.error
+    assert acting.started == [] and acting.start.tried == 0
+
+
+async def test_a_parameter_the_job_does_not_have_is_refused() -> None:
+    acting = await _acting()
+
+    result = await acting.job.run(CTX, {"job_id": JOB, "values": {**GIVEN, "Colour": "red"}})
+
+    assert not result.ok and "no Colour" in result.error and acting.start.tried == 0
+
+
+async def test_a_refusal_from_the_system_is_data_and_is_tried_once() -> None:
+    acting = await _acting(cap_usd=0.0)
+
+    result = await acting.job.run(CTX, {"job_id": JOB, "values": GIVEN})
+
+    assert not result.ok and result.error and not result.ends_turn
+    assert acting.start.tried == 1 and acting.started == []
+
+
+async def test_a_mail_built_in_is_startable_through_the_same_guards() -> None:
+    acting = await _acting()
+
+    secret = await acting.job.run(CTX, {"job_id": "mail_send", "values": {"token": "x"}})
+    unknown = await acting.job.run(CTX, {"job_id": "mail_nope", "values": {}})
+
+    assert not secret.ok and not unknown.ok and acting.start.tried == 0
+
+
+async def test_undo_run_refuses_a_run_that_is_not_the_callers() -> None:
+    acting = await _acting()
+    theirs = await acting.world.ran("done", GIVEN, by=THEIRS)
+
+    result = await acting.undo.run(CTX, {"run_id": theirs.id})
+
+    assert not result.ok and "not yours" in result.error and acting.start.tried == 0
+
+
+async def test_undo_run_refuses_a_run_that_made_nothing_or_does_not_exist() -> None:
+    acting = await _acting()
+    mine = await acting.world.ran("done", GIVEN)
+
+    nothing = await acting.undo.run(CTX, {"run_id": mine.id})
+    gone = await acting.undo.run(CTX, {"run_id": "run_nope"})
+
+    assert not nothing.ok and not gone.ok and acting.start.tried == 0
+
+
+async def test_undo_run_starts_the_delete_job_taking_the_run_back() -> None:
+    acting = await _acting()
+    mine = await acting.world.ran("done", GIVEN)
+
+    await save_job(acting.world.uow, "wfl_del")
+
+    async def _delete(self: GetWorkflowRun, ctx: Any, run: Any) -> tuple[str, str, str]:
+        return "wfl_del", "Customer Type", "SR11"
+
+    GetWorkflowRun.undo_for, was = _delete, GetWorkflowRun.undo_for  # type: ignore[method-assign]
+    try:
+        result = await acting.undo.run(CTX, {"run_id": mine.id})
+        undo = await acting.world.uow.workflow_runs.get(f.TENANT, str(result.data["run_id"]))
+        assert undo is not None
+        await acting.world.uow.workflow_runs.save(replace(undo, outcome="held"))
+        again = await acting.undo.run(CTX, {"run_id": mine.id})
+    finally:
+        GetWorkflowRun.undo_for = was  # type: ignore[method-assign]
+
+    assert result.ok and undo.undoes_run == mine.id
+    assert undo.values == {"Customer Type": "SR11"}
+    assert not again.ok and "already taken back" in again.error and len(acting.started) == 1
+
+
+async def test_ask_operator_ends_the_turn_with_one_question() -> None:
+    result = await AskOperator().run(CTX, {"question": "Which customer type?"})
+
+    assert result.ok and result.ends_turn
+    assert result.decision == {"kind": "brain_asks", "question": "Which customer type?"}
+    assert not (await AskOperator().run(CTX, {"question": "  "})).ok
+
+
+async def test_work_it_out_returns_the_plan_and_says_it_changes_the_system() -> None:
+    uow = FakeUnitOfWork()
+    tool = WorkItOut(PlanTask(Retrieve(uow, FakeEmbedder())))
+
+    result = await tool.run(CTX, {"task": "delete equipment type 4471"})
+
+    assert result.ok and result.data["changes_the_system"] is True
+    assert "delete equipment type 4471" in str(result.data["plan"]) and result.data["say"]
+
+
+class _Plans:
+    pass
+
+
+async def test_the_registry_is_in_the_planned_order() -> None:
+    acting = await _acting()
+    world = acting.world
+    tools = brain_tools(
+        uow=world.uow,
+        clock=world.clock,
+        runs=world.runs,
+        run=GetWorkflowRun(world.uow),
+        threads=world.threads,
+        look_mail=world.look,
+        look_up=LookItUp(_Plans(), _NoRuns()),
+        start=acting.start,
+        plan=PlanTask(Retrieve(world.uow, FakeEmbedder())),
+        spawn=acting.spawned.append,
+    )
+
+    assert [one.name for one in tools] == [
+        "find_jobs",
+        "start_job",
+        "run_status",
+        "check_mail",
+        "undo_run",
+        "lookup",
+        "ask_operator",
+        "work_it_out",
+    ]
+
+
+async def test_a_run_in_the_operator_s_browser_is_handed_to_the_spawner_not_awaited() -> None:
+    world = await world_with_job()
+    await world.uow.devices.add(f.device(id=DeviceId("dev-1"), principal_id=CTX.principal_id))
+    spawned: list[Any] = []
+    tool = StartJob(world.uow, world.clock, _starter(world.uow), spawned.append)
+
+    result = await tool.run(CTX, {"job_id": JOB, "values": GIVEN})
+
+    assert result.ok and len(spawned) == 1
+    spawned[0].close()

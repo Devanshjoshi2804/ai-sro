@@ -5,6 +5,7 @@ The model is a scripted FakeAsker. Nothing here reads a database or a model.
 
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 from types import SimpleNamespace
 from typing import cast
@@ -25,7 +26,7 @@ from tests.unit.fakes import FakeAsker
 
 
 def _call(tool: str, **args: object) -> Answer:
-    return Answer(data={"action": "call", "tool": tool, "args": args}, cost_usd=0.001)
+    return Answer(data={"action": "call", "tool": tool, "args": json.dumps(args)}, cost_usd=0.001)
 
 
 def _say(text: str = "Done.") -> Answer:
@@ -181,7 +182,7 @@ async def test_the_scored_turn_carries_cost_the_first_answer_and_no_error() -> N
     one = await _score(case, _call("check_mail"), _say("Nothing new."))
 
     assert one.cost_usd == 0.002 and one.error is None and not one.fell_back
-    assert one.answer == {"action": "call", "tool": "check_mail", "args": {}}
+    assert one.answer == {"action": "call", "tool": "check_mail", "args": "{}"}
 
 
 async def test_a_model_that_cannot_answer_is_an_error_not_a_sure_miss() -> None:
@@ -241,3 +242,19 @@ def test_looking_twice_before_starting_is_still_the_right_answer() -> None:
     assert not passed(
         {"tools": ["find_jobs"]}, [ToolCall("find_jobs", {}), ToolCall("start_job", {})]
     )
+
+
+def test_a_look_first_and_an_answer_from_the_evidence_are_right_where_the_case_allows() -> None:
+    from evals.suites.chat import passed
+
+    from sro.domain.chat.brain_turn import ToolCall
+
+    def expected(said: str) -> dict[str, object]:
+        return next(right for one, right in CASES if one["message"] == said)
+
+    nav = expected("navigate to receiving")
+    assert passed(nav, [ToolCall("find_jobs", {}), ToolCall("work_it_out", {})])
+    assert passed(nav, [ToolCall("work_it_out", {})])
+    mail = expected("was the AITE11 mail request done?")
+    assert passed(mail, []) and passed(mail, [ToolCall("run_status", {})])
+    assert not passed(mail, [ToolCall("start_job", {})])

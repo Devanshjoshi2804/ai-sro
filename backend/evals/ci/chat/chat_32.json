@@ -11,13 +11,19 @@
   "tools": [
    "work_it_out"
   ],
-  "args": {}
+  "args": {},
+  "or": [
+   {
+    "tools": [
+     "find_jobs",
+     "work_it_out"
+    ]
+   }
+  ]
  },
  "answer": {
   "action": "call",
   "tool": "work_it_out",
-  "args": {
-   "task": "navigate to receiving"
-  }
+  "args": "{\"task\": \"navigate to receiving\"}"
  }
 }

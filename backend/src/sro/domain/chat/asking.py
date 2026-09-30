@@ -96,6 +96,8 @@ class Pending:
 
     known: Candidate | None = None
 
+    offer: str = ""
+
     @property
     def asking_for(self) -> str:
         return self.missing[0] if self.missing else ""
@@ -444,6 +446,7 @@ def pending_job(messages: Sequence[Message], answering: str | None = None) -> Pe
         dropped=_names(decision.get("dropped")),
         doubted=_names(decision.get("doubted")),
         refused=_strings(decision.get("refused")),
+        offer=str(decision.get("offer") or ""),
     )
 
 

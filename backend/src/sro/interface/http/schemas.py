@@ -19,7 +19,6 @@ from sro.application.analytics.audit import Audit, AuditedRun
 from sro.application.analytics.summary import Summary
 from sro.application.capture.devices import DeviceLine
 from sro.application.chat.from_the_mail import LookedInTheMail
-from sro.application.chat.mailbox import mail_key
 from sro.application.chat.understand import Understood
 from sro.application.execution.effects import can_try_again
 from sro.application.execution.mail_job import K_BODY
@@ -3332,7 +3331,7 @@ class FromTheMailResponse(BaseModel):
             offered=[
                 MailOfferModel(
                     message=one.message,
-                    offer=mail_key(one.message),
+                    offer=one.named,
                     workflow_id=one.workflow_id,
                     title=one.title,
                     values=dict(one.values),

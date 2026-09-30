@@ -156,6 +156,7 @@ class AskAboutTheOffer:
         sent_to: Sequence[str] = (),
         offer: str = "",
         mail: Mapping[str, str] | None = None,
+        sure: bool = False,
     ) -> str:
         pending = replace(pending, limits=await self._what_the_boxes_hold(ctx, pending))
         pending = await self._only_required(ctx, pending)
@@ -190,7 +191,7 @@ class AskAboutTheOffer:
                 "mail_thread": pending.mail_thread,
                 "from_step": pending.from_step,
                 "watched": pending.watched,
-                **({"unconfirmed": True} if ask_to_run else {}),
+                **({"unconfirmed": True} if ask_to_run and not sure else {}),
                 **({"offer": offer} if offer else {}),
                 **({"mail": dict(mail)} if mail else {}),
                 **asking_state(pending),

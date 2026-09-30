@@ -123,6 +123,12 @@ class Offered:
 
     arrived: str = ""
 
+    offer: str = ""
+
+    @property
+    def named(self) -> str:
+        return self.offer or mail_key(self.message)
+
 
 @dataclass(frozen=True, slots=True)
 class LookedInTheMail:
@@ -408,8 +414,9 @@ class FromTheMail:
             about=one.subject,
             mail_thread=one.thread,
             ask_to_run=True,
+            sure=one.sure and not one.sent_to,
             sent_to=one.sent_to,
-            offer=mail_key(one.message),
+            offer=one.named,
             mail=_envelope(one),
         )
         return replace(one, asked=True)
@@ -478,7 +485,7 @@ class FromTheMail:
                 live=True,
                 allow_focus=False,
                 conversation=(SERVER, one.thread),
-                offer=mail_key(one.message),
+                offer=one.named,
                 mail=_envelope(one),
             )
         except OverCap:
@@ -699,6 +706,7 @@ class FromTheMail:
             missing=missing,
             thread=thread,
             subject=subject,
+            offer=asked.offer,
         )
 
     async def _reply_says(

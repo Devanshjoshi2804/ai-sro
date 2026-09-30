@@ -9,8 +9,8 @@
     "id": "run_aite4",
     "job": "wfl_transport_equipment_type",
     "values": {
-     "Transport Equipment Type": "AITE4",
-     "Long Description": "eval"
+     "Equipment": "AITE4",
+     "longDescription": "eval"
     },
     "state": "done",
     "stopped_because": "",

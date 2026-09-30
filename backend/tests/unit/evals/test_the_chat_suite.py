@@ -221,3 +221,23 @@ def test_the_gate_holds_the_chat_suite_to_90_percent_with_or_without_a_baseline(
 
 async def test_offline_replay_covers_the_chat_suite() -> None:
     assert await run_ci(live=False) == 0
+
+
+def test_looking_twice_before_starting_is_still_the_right_answer() -> None:
+    from evals.suites.chat import passed
+
+    from sro.domain.chat.brain_turn import ToolCall
+
+    right = {"tools": ["find_jobs", "start_job"], "args": {"job_id": "wfl_customer_type"}}
+    twice = [
+        ToolCall("find_jobs", {"query": "customer type"}),
+        ToolCall("find_jobs", {"query": "create customer type SR11"}),
+        ToolCall("start_job", {"job_id": "wfl_customer_type", "values": {}}),
+    ]
+    assert passed(right, twice)
+    # ... but a start of the wrong job is still wrong, however many looks came first.
+    assert not passed(right, [*twice[:2], ToolCall("start_job", {"job_id": "wfl_other"})])
+    # ... and acting when nothing was wanted is still wrong.
+    assert not passed(
+        {"tools": ["find_jobs"]}, [ToolCall("find_jobs", {}), ToolCall("start_job", {})]
+    )

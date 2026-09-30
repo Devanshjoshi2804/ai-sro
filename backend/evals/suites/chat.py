@@ -43,6 +43,9 @@ TRANSPORT = "wfl_transport_equipment_type"
 K_FLOOR = 0.9
 
 # The tenant's jobs, as find_jobs shows them: (id, title, [(parameter, required, max_length)]).
+# Names and required flags are greyorange's real ones (read from QA, 2026-09-30). Limits are
+# the real ones where known (Customer Type 4, Warehouse Equipment Type 10, Description 250,
+# Voice Code 8); the transport limits and LPN Limit are not verified.
 # The sign-in job is not here: real_jobs never lists one.
 _JOBS = (
     (
@@ -59,9 +62,9 @@ _JOBS = (
         WAREHOUSE,
         "Create a Warehouse Equipment Type",
         [
-            ("Warehouse Equipment Type", True, 10),
-            ("Description", True, 50),
-            ("Voice Code", False, 10),
+            ("Warehouse Equipment Type", False, 10),
+            ("Description", False, 250),
+            ("Voice Code", False, 8),
             ("LPN Limit", False, 4),
         ],
     ),
@@ -69,9 +72,9 @@ _JOBS = (
         TRANSPORT,
         "Create a Transport Equipment Type",
         [
-            ("Transport Equipment Type", True, 10),
-            ("Long Description", True, 50),
-            ("Short Description", True, 20),
+            ("Equipment", False, 10),
+            ("longDescription", False, 250),
+            ("shortDescription", False, 20),
         ],
     ),
 )
@@ -108,9 +111,9 @@ def _run(
     }
 
 
-_AITE = "Transport Equipment Type"
-_AITE4 = _run("run_aite4", TRANSPORT, {_AITE: "AITE4", "Long Description": "eval"}, "done")
-_RUNNING = _run("run_aite5", TRANSPORT, {_AITE: "AITE5", "Long Description": "eval"}, "running")
+_AITE = "Equipment"
+_AITE4 = _run("run_aite4", TRANSPORT, {_AITE: "AITE4", "longDescription": "eval"}, "done")
+_RUNNING = _run("run_aite5", TRANSPORT, {_AITE: "AITE5", "longDescription": "eval"}, "running")
 _FROM_MAIL = _run("run_aite11", TRANSPORT, {_AITE: "AITE11"}, "done", mail=True)
 
 
@@ -149,9 +152,7 @@ def _customer(code: str, said: str, **more: str) -> dict[str, object]:
 
 
 def _transport(code: str, long: str, short: str) -> dict[str, object]:
-    return _create(
-        TRANSPORT, Transport_Equipment_Type=code, Long_Description=long, Short_Description=short
-    )
+    return _create(TRANSPORT, Equipment=code, longDescription=long, shortDescription=short)
 
 
 _MAIL_SEND: dict[str, object] = {"job_id": "mail_send"}
@@ -356,11 +357,23 @@ def _args_ok(wanted: Mapping[str, object], called: Mapping[str, object]) -> bool
     return True
 
 
+def _squeezed(calls: Sequence[ToolCall]) -> list[ToolCall]:
+    """One step per run of the same tool, the last call's arguments: looking twice is looking."""
+    out: list[ToolCall] = []
+    for one in calls:
+        if out and out[-1].tool == one.tool:
+            out[-1] = one
+        else:
+            out.append(one)
+    return out
+
+
 def _right(option: Mapping[str, Any], calls: Sequence[ToolCall], *, refused_ok: bool) -> bool:
     wanted = list(option["tools"])
-    if [one.tool for one in calls[: len(wanted)]] != wanted:
+    steps = _squeezed(calls)
+    if [one.tool for one in steps[: len(wanted)]] != wanted:
         return False
-    if wanted and not _args_ok(option.get("args") or {}, calls[len(wanted) - 1].args):
+    if wanted and not _args_ok(option.get("args") or {}, steps[len(wanted) - 1].args):
         return False
     acted = {
         one.tool

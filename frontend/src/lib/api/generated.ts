@@ -1349,7 +1349,8 @@ export interface paths {
         };
         /**
          * Asking Threads
-         * @description The chats this operator was asked a question in, newest first, whole.
+         * @description The chats whose question to this operator still stands, newest question
+         *     first, whole.
          *
          *     A question -- from a mail, or from a run that came up short -- is asked in
          *     a chat of its own, with the mail drafted to its sender beside it and the

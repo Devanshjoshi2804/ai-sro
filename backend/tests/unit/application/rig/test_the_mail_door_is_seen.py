@@ -231,7 +231,7 @@ async def test_the_thread_says_the_mail_arrived_and_names_the_run_it_started() -
     }
     assert "A mail arrived from Alex R <alex.r@example.com>: 'new type'" in told.text
     assert "Save the customer type" in told.text
-    assert "Customer Type = GT2 (the mail)" in told.text
+    assert "Customer Type = 'GT2' (the mail)" in told.text
     assert "7781" not in told.text
 
 

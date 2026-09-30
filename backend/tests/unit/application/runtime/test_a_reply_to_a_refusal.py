@@ -131,3 +131,18 @@ async def test_a_reply_from_the_address_the_question_was_mailed_to_answers_it() 
     )
 
     assert _new_runs(world) == [{"Customer Type": "GT2", "Description": "Vets"}]
+
+
+async def test_what_a_reply_said_is_shown_as_quoted_data_and_bounded() -> None:
+    world, asking = await _refused_run(mail=ENVELOPE)
+    long = "Vets " + "x" * 400
+    await _replied(
+        world,
+        asking,
+        f"Description :- {long}",
+        {**_VETS, "values": [{"field": "Description", "value": long, "quote": long}]},
+    )
+
+    chat = await _chat(world, THREAD)
+    (note,) = [one for one in chat.messages if one.text.startswith("A reply to 'Re: x'")]
+    assert "Description 'Vets " in note.text and len(note.text) < 300

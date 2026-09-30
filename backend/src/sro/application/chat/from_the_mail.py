@@ -50,6 +50,7 @@ from sro.domain.chat.asking import (
     Pending,
     asked_by_mail,
     question,
+    quoted,
     sourced,
     waiting_on_mail,
 )
@@ -765,8 +766,10 @@ class FromTheMail:
             return
         try:
             filled = {name: values[name] for name in asked.missing if values.get(name)}
-            named = ", ".join(f"{name} {value}" for name, value in filled.items())
-            about = f" to {said_by}" if said_by.strip() else ""
+            named = ", ".join(
+                f"{name} {quoted(value, FROM_THE_REPLY)}" for name, value in filled.items()
+            )
+            about = f" to {_about(said_by)}" if said_by.strip() else ""
             still = Pending(
                 workflow_id=asked.workflow_id,
                 title=asked.title,

@@ -274,11 +274,17 @@ FROM_THE_REQUEST = "your request"
 
 def sourced(values: Mapping[str, str], came: Mapping[str, str], rest: str) -> str:
     said = [
-        f"{name} = {_short(value)} ({came.get(name, rest)})"
+        f"{name} = {quoted(value, came.get(name, rest))} ({came.get(name, rest)})"
         for name, value in values.items()
         if value.strip() and not is_secret_field(name)
     ]
     return f" Values: {'; '.join(said)}." if said else ""
+
+
+def quoted(value: str, source: str) -> str:
+    """A value that came out of somebody else's mail is shown as quoted data,
+    bounded; one the operator gave is shown plain."""
+    return f"'{_short(value)}'" if source in (FROM_THE_REPLY, FROM_THE_MAIL) else _short(value)
 
 
 def _held(pending: Pending) -> list[str]:

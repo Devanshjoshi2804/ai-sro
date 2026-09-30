@@ -89,6 +89,8 @@ class Pending:
 
     refused: Mapping[str, str] = field(default_factory=dict)
 
+    changing: bool = False
+
     which: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
 
     doubted: tuple[str, ...] = ()
@@ -110,15 +112,42 @@ class Pending:
 
 def _holds(pending: Pending, name: str) -> str:
     said = []
-    if (holds := pending.limits.get(name)) is not None:
+    holds = pending.limits.get(name)
+    if holds is not None and (not pending.changing or len(pending.values.get(name, "")) > holds):
         said.append(f"takes {holds} characters")
     if choices := pending.options.get(name):
         said.append("is one of " + ", ".join(choices))
     return f"{name} {' and '.join(said)}." if said else ""
 
 
+def _the_values(pending: Pending) -> str:
+    return "; ".join(f"{name}: {_short(value)}" for name, value in pending.values.items())
+
+
+def refusal_question(pending: Pending, reason: str, also: str = "") -> str:
+    """What is asked when the system refused a write: its words as quoted data,
+    then the question. A limit is said only for a value that exceeds it."""
+    said = f'{pending.title} was not done: "{_short(reason.strip().rstrip("."))}". '
+    over = {
+        name: holds
+        for name, holds in pending.limits.items()
+        if len(pending.values.get(name, "")) > holds
+    }
+    return said + (f"{also} " if also else "") + question(replace(pending, limits=over))
+
+
 def question(pending: Pending) -> str:
     wanted = pending.missing
+    if pending.changing:
+        held = [one for one in (_holds(pending, name) for name in wanted) if one]
+        return " ".join(
+            [
+                *held,
+                f"It has {_the_values(pending)}.",
+                "Which value should change?",
+                f"Say it like {wanted[0]}: … for whichever it is.",
+            ]
+        )
     if len(wanted) <= 1:
         asked = pending.asking_for
         holds = _holds(pending, asked)
@@ -151,6 +180,7 @@ def asking_state(pending: Pending) -> dict[str, object]:
         **({"dropped": list(pending.dropped)} if pending.dropped else {}),
         **({"doubted": list(pending.doubted)} if pending.doubted else {}),
         **({"refused": dict(pending.refused)} if pending.refused else {}),
+        **({"changing": True} if pending.changing else {}),
         **(
             {"options": {name: list(one) for name, one in pending.options.items()}}
             if pending.options
@@ -331,7 +361,7 @@ def too_long_for(pending: Pending, said: str) -> int | None:
     asked = pending.asking_for
     holds = pending.limits.get(asked)
     value = said.strip()[:K_SAID]
-    if named_in(pending, value):
+    if pending.changing or named_in(pending, value):
         return None
     return holds if holds is not None and len(value) > holds else None
 
@@ -467,6 +497,7 @@ def pending_job(messages: Sequence[Message], answering: str | None = None) -> Pe
         dropped=_names(decision.get("dropped")),
         doubted=_names(decision.get("doubted")),
         refused=_strings(decision.get("refused")),
+        changing=bool(decision.get("changing")),
         offer=str(decision.get("offer") or ""),
     )
 
@@ -765,6 +796,20 @@ def _read(pending: Pending, said: str) -> _Reply:
     return replace(reply, dropped=tuple(dict.fromkeys(dropped)), holding=holding)
 
 
+def changes(pending: Pending, given: Mapping[str, str]) -> dict[str, str]:
+    """What a reply to a refusal that named no value changes: only a value that
+    is not the one the system already refused (case and spacing aside)."""
+    return {
+        name: value
+        for name, value in given.items()
+        if _plain_words(value) != _plain_words(pending.values.get(name, ""))
+    }
+
+
+def _plain_words(value: str) -> str:
+    return " ".join(value.split()).casefold()
+
+
 def _askable(pending: Pending) -> tuple[str, ...]:
     return (*pending.missing, *(name for name, _ in pending.offered))
 
@@ -806,6 +851,8 @@ def answered(pending: Pending, said: str, logins: Logins = Logins()) -> Pending:
         if (why := refusal(one, value, _limits(pending, name), logins))
     }
     taken = {name: one for name, one in named.items() if name not in refused}
+    if pending.changing:
+        taken = changes(pending, taken)
     not_had = (
         *reply.dropped,
         *(
@@ -814,7 +861,9 @@ def answered(pending: Pending, said: str, logins: Logins = Logins()) -> Pending:
             if reply.all_the_rest and name not in taken and name not in refused
         ),
     )
-    gone = set(taken) | set(not_had)
+    gone = (
+        set(taken) | set(not_had) | (set(pending.missing) if taken and pending.changing else set())
+    )
     return replace(
         pending,
         values={**pending.values, **taken},

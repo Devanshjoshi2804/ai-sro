@@ -46,6 +46,7 @@ from sro.domain.chat.asking import (
     asking_state,
     cannot_without,
     question,
+    refusal_question,
     still_to_ask,
 )
 from sro.domain.chat.thread import K_ASKING, Speaker
@@ -64,6 +65,7 @@ from sro.domain.execution.workflow_run import (
     WorkflowRun,
     already_running,
     answers_for,
+    named_by,
     new_run_id,
     pin,
     refused_by,
@@ -526,6 +528,12 @@ class StartWorkflowRun:
                     if one.limits.options and one.name in run.needs
                 },
                 refused=dict.fromkeys(run.needs, refusal) if refusal else {},
+                changing=bool(
+                    refusal
+                    and workflow
+                    and len(run.needs) > 1
+                    and not named_by(workflow, run.values, refusal)
+                ),
             ),
             thread.messages if thread else (),
         )
@@ -548,12 +556,12 @@ class StartWorkflowRun:
             about=mail_thread or run.id,
             in_thread=asked_in,
             text=(
-                f"{title} was not done: {refusal}. "
+                refusal_question(pending, refusal, also_set(pending))
                 if refusal
                 else _asking(pending.missing, title, limits)
-            )
-            + (f"{also} " if (also := also_set(pending)) else "")
-            + question(pending),
+                + (f"{also} " if (also := also_set(pending)) else "")
+                + question(pending)
+            ),
             speaker=Speaker.ASSISTANT,
             decision={
                 "kind": NEEDS,

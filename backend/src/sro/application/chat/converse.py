@@ -520,7 +520,7 @@ class Converse:
             return waiting
         fields = field_classes(job, {}, {})
         known = Candidate(job.id, job.title, fields, alias_map(aliases), {})
-        wanted = {one.name for one in fields if one.kind == "required"}
+        wanted = {one.name for one in fields if (one.kind == "required" or waiting.changing)}
         still = tuple(name for name in waiting.missing if name in wanted or name in waiting.refused)
         return replace(waiting, missing=still, known=known) if still else None
 

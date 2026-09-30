@@ -168,17 +168,13 @@ def refused_by(run: WorkflowRun) -> str:
     return last.reason if last is not None and last.verdict == "failed" and last.result else ""
 
 
-def refused_names(workflow: Workflow, values: Mapping[str, str], said: str) -> list[str]:
+def named_by(workflow: Workflow, values: Mapping[str, str], said: str) -> list[str]:
     """The fields the system's own words name: the field's name, or its value
-    (three or more characters, not a bare number) as whole words. Words that
-    name none leave every field open, for the person to say which changes."""
-    given = [
-        str(one.get("name")) for one in workflow.parameters if values.get(str(one.get("name")))
-    ]
+    (three or more characters, not a bare number) as whole words."""
     heard = _words(said)
-    named = [
+    return [
         name
-        for name in given
+        for name in _given(workflow, values)
         if _within(heard, _words(name))
         or (
             len(values[name].strip()) >= 3
@@ -186,7 +182,16 @@ def refused_names(workflow: Workflow, values: Mapping[str, str], said: str) -> l
             and _within(heard, _words(values[name]))
         )
     ]
-    return named or given
+
+
+def refused_names(workflow: Workflow, values: Mapping[str, str], said: str) -> list[str]:
+    """Words that name no field leave every field open, for the person to say
+    which changes."""
+    return named_by(workflow, values, said) or _given(workflow, values)
+
+
+def _given(workflow: Workflow, values: Mapping[str, str]) -> list[str]:
+    return [str(one.get("name")) for one in workflow.parameters if values.get(str(one.get("name")))]
 
 
 def _within(heard: list[str], wanted: list[str]) -> bool:

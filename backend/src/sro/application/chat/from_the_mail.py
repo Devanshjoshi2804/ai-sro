@@ -49,6 +49,7 @@ from sro.domain.chat.asking import (
     NEEDS,
     Pending,
     asked_by_mail,
+    changes,
     question,
     quoted,
     sourced,
@@ -690,11 +691,23 @@ class FromTheMail:
         # A value the system refused is not an answer: it is asked for again.
         values = {name: one for name, one in asked.values.items() if name not in asked.refused}
         missing = [name for name in asked.missing if not values.get(name)]
-        values |= await self._reply_says(
-            ctx, said, held.get(asked.workflow_id), missing, question=question(asked)
-        )
-        missing = [name for name in missing if name not in values]
-        if missing and self._gather is not None:
+        if asked.changing:
+            # The system named no value: any one that changes answers, the rest stay.
+            values = dict(asked.values)
+            changed = changes(
+                asked,
+                await self._reply_says(
+                    ctx, said, held.get(asked.workflow_id), missing, question=question(asked)
+                ),
+            )
+            values |= changed
+            missing = [] if changed else list(asked.missing)
+        else:
+            values |= await self._reply_says(
+                ctx, said, held.get(asked.workflow_id), missing, question=question(asked)
+            )
+            missing = [name for name in missing if name not in values]
+        if missing and self._gather is not None and not asked.changing:
             found = await self._gather.execute(
                 ctx,
                 job=asked.title,
@@ -780,6 +793,7 @@ class FromTheMail:
                 limits=asked.limits,
                 from_step=asked.from_step,
                 mail_thread=asked.mail_thread,
+                changing=asked.changing,
             )
             said = f"A reply{about} answered: {named or 'nothing I could use'}." + (
                 f" {question(still)}" if missing else ""
@@ -802,6 +816,7 @@ class FromTheMail:
                         "limits": dict(still.limits),
                         "from_step": still.from_step,
                         "mail_thread": still.mail_thread,
+                        **({"changing": True} if still.changing else {}),
                     }
                     if missing
                     else {

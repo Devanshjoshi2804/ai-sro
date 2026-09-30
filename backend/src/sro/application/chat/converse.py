@@ -19,7 +19,8 @@ from sro.application.intent.narrow import NarrowARead, NeedToAsk, value_key
 from sro.application.intent.next_steps import SuggestNext
 from sro.application.intent.resolve import Resolution, ResolveIntent
 from sro.application.knowledge.open_questions import Ambiguity, AskAbout
-from sro.application.lookup.answer import as_seen, subject_of
+from sro.application.lookup.answer import as_seen
+from sro.application.lookup.look_it_up import LookItUp, what_was_found
 from sro.application.lookup.plan_lookups import PlanLookups
 from sro.application.lookup.run_lookups import (
     K_WHILE_TALKING,
@@ -1329,14 +1330,9 @@ class Converse:
             return None
         if resolution.matched is not None or not is_a_question(text):
             return None
-        try:
-            planned = await self._plan_lookups.execute(ctx, question=text)
-        except DomainError as refusal:
-            logger.info("%s: the lookup could not be planned: %s", ctx.tenant_id.value, refusal)
-            return None
-        if not planned.plan.ready:
-            return None
-        return await self._run_lookups.execute(ctx, plan=planned.plan, within=K_WHILE_TALKING)
+        return await LookItUp(self._plan_lookups, self._run_lookups).execute(
+            ctx, text, within=K_WHILE_TALKING
+        )
 
     async def _say_what_was_found(
         self, ctx: RequestContext, *, thread_id: ThreadId, text: str, found: Answers
@@ -1356,7 +1352,7 @@ class Converse:
                 Message(
                     id=self._ids.new_message_id(),
                     speaker=Speaker.ASSISTANT,
-                    text=_what_was_found(found),
+                    text=what_was_found(found),
                     said_at=now,
                     decision={
                         "kind": LOOKED,
@@ -1605,14 +1601,6 @@ def _awaiting(thread: Thread) -> str | None:
 LOOKED = "looked"
 
 
-K_RAN_OUT = ("timeout", "timed out", "deadline")
-
-
-def _ran_out(detail: str) -> bool:
-    said = (detail or "").lower()
-    return any(word in said for word in K_RAN_OUT)
-
-
 def _seen(looked: Looked, question: str = "") -> dict[str, object]:
     return as_seen(
         system=looked.lookup.system,
@@ -1623,24 +1611,6 @@ def _seen(looked: Looked, question: str = "") -> dict[str, object]:
         read=looked.read,
         question=question,
     )
-
-
-def _what_was_found(found: Answers) -> str:
-    answered = [one for one in found.looked if one.ok]
-    if not answered:
-        why = next((one.detail for one in found.looked if one.detail), "")
-        if any(_ran_out(one.detail) for one in found.looked):
-            return "I could not read that in time. Ask again and I will try once more."
-        return f"I could not read that. {why}".strip()
-    said = [
-        one.read.sentence(subject_of(one.lookup.target) or "record")
-        for one in answered
-        if one.read is not None
-    ]
-    if said:
-        return " ".join(said)
-    where = ", ".join(sorted({one.lookup.target for one in answered}))
-    return f"Read from {where}."
 
 
 def _nothing_back(said: Sequence[Message]) -> str:

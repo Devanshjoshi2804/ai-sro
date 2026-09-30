@@ -3,7 +3,7 @@
   "name": "AI-SRO",
   "version": "0.2.0",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAopqTxVh/vK+O6dCdz6A66/mvJtwW9Vermz3n/XPTSv1zvLBbOjDT5O9aRbr9eujfCZWaA8+FaoRSQmD/8PIDYP+h5AlG+d2Qzu2t8FuFDszhqEEgMIlvsoirqPCn/6FH73TlEecX3mRxeoLIUbuswT57pOc1Ww9hKjG/TEyNKVu0pX/y/t+rGd4fRZYKlE/txuimr1D9xBYV6E0Y2FxuX+Wi38WxK3/NmvinrZvtkSTF/M6W01rEUQ2IO8+C2vScWe8mL3dXyA/sglGL9pgXMbYcxY455a8LuDHnXB5PTccZmn271fwRTkF1DPqbcR3lbtSi7gwQlz1hym/EQf/X9QIDAQAB",
-  "description": "Watches how work is done.",
+  "description": "Learns the jobs you repeat in your warehouse web systems and runs them on your organisation's server. Gmail connected.",
   "minimum_chrome_version": "116",
   "background": {
     "service_worker": "src/background/service-worker.js",

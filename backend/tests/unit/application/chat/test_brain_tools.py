@@ -351,14 +351,30 @@ async def test_a_missing_required_value_comes_back_as_a_question_for_the_model()
 
 async def test_an_offer_a_run_already_took_answers_that_run() -> None:
     acting = await _acting()
-    call = {"job_id": JOB, "values": GIVEN, "offer": "mail:abc"}
+    job = StartJob(
+        acting.world.uow, acting.world.clock, acting.start, acting.spawned.append, offer="mail:abc"
+    )
+    call = {"job_id": JOB, "values": GIVEN}
 
-    first = await acting.job.run(CTX, call)
-    again = await acting.job.run(CTX, call)
+    first = await job.run(CTX, call)
+    again = await job.run(CTX, call)
 
     assert again.ok and again.data["run_id"] == first.data["run_id"]
     assert again.data["state"] == "already running" and again.decision is None
     assert len(acting.started) == 1
+
+
+async def test_the_model_cannot_choose_the_offer_a_run_is_made_under() -> None:
+    acting = await _acting()
+    first = await acting.job.run(CTX, {"job_id": JOB, "values": GIVEN})
+
+    hijack = await acting.job.run(
+        CTX, {"job_id": JOB, "values": GIVEN, "offer": f"mail:{first.data['run_id']}"}
+    )
+
+    assert "offer" not in StartJob.args["properties"]
+    assert hijack.ok and hijack.data["run_id"] != first.data["run_id"]
+    assert len(acting.started) == 2
 
 
 async def test_a_job_that_is_not_real_is_never_started() -> None:

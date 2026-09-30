@@ -250,22 +250,24 @@ class StartJob:
     about = (
         "Start a job at once with the values given for its parameters. Refused, with the "
         "reason, when a value is too long or not allowed or a required one is missing: "
-        "ask the operator, never retry the same values. Pass `offer` only to repeat an offer."
+        "ask the operator, never retry the same values."
     )
     args: ClassVar[dict[str, object]] = {
         "type": "object",
         "properties": {
             "job_id": {"type": "string"},
             "values": {"type": "object"},
-            "offer": {"type": "string"},
         },
         "required": ["job_id"],
     }
 
     def __init__(
-        self, uow: UnitOfWork, clock: Clock, start: StartWorkflowRun, spawn: Spawn
+        self, uow: UnitOfWork, clock: Clock, start: StartWorkflowRun, spawn: Spawn, offer: str = ""
     ) -> None:
+        # The offer a run is made under is the caller's (a mail's id), never the model's:
+        # it is what makes a second start answer the first run.
         self._uow, self._clock, self._start, self._spawn = uow, clock, start, spawn
+        self._offer = offer
 
     async def run(self, ctx: RequestContext, args: Mapping[str, object]) -> ToolResult:
         job_id = str(args.get("job_id") or "")
@@ -316,7 +318,7 @@ class StartJob:
             ctx,
             workflow_id=job_id,
             values=values,
-            offer=str(args.get("offer") or ""),
+            offer=self._offer,
         )
 
 
@@ -416,10 +418,11 @@ def brain_tools(
     start: StartWorkflowRun,
     plan: PlanTask,
     spawn: Spawn,
+    offer: str = "",
 ) -> tuple[Tool, ...]:
     return (
         FindJobs(uow, clock),
-        StartJob(uow, clock, start, spawn),
+        StartJob(uow, clock, start, spawn, offer),
         RunStatus(runs, threads),
         CheckMail(look_mail),
         UndoRun(run, start, spawn),

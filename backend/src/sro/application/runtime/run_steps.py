@@ -327,7 +327,9 @@ class RunSteps:
                 speaker=Speaker.ASSISTANT,
                 decision={"kind": "run_done", "run_id": run.id, "outcome": run.outcome},
             )
-        if first and run.needs and self._asks is not None:
+        # Not gated on `first`: a retry after a lost ask must ask, and the ask
+        # itself does nothing while this run's question stands.
+        if run.needs and self._asks is not None:
             await self._asks(ctx, run, workflow.title)
         return run.outcome
 

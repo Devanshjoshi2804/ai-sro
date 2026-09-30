@@ -10,6 +10,7 @@ nothing confirms it; check it and answer", keeping nothing of the answer.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 from dataclasses import replace
 
@@ -273,3 +274,41 @@ async def test_a_value_given_in_the_chat_is_carried_and_never_asked_again() -> N
     decision = asked.decision or {}
     assert decision.get("missing") == ["Customer Type"]
     assert (decision.get("values") or {}).get("Description") == "Vets"
+
+
+def _fails_once(asking: _Asking, *, after: bool) -> list[int]:
+    """The ask dies once, before it is written or right after (the worker lost)."""
+    assert asking.start is not None
+    real, calls = asking.start.ask_for_values, [0]
+
+    async def ask(ctx: RequestContext, run: WorkflowRun, title: str) -> None:
+        calls[0] += 1
+        if after:
+            await real(ctx, run, title)
+        if calls[0] == 1:
+            raise RuntimeError("the worker died")
+        if not after:
+            await real(ctx, run, title)
+
+    asking.start.ask_for_values = ask  # type: ignore[method-assign]
+    return calls
+
+
+async def _asked_after_a_retry(*, after: bool) -> int:
+    asking = _Asking()
+    world, _ = await _saving((409, REFUSED), (404, ""), asking=asking)
+    _fails_once(asking, after=after)
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    with contextlib.suppress(RuntimeError):
+        await world.run_steps.finish(CTX, world.run_id)
+    await world.run_steps.finish(CTX, world.run_id)
+    chat = await _chat(world, world.run_id)
+    return len([one for one in chat.messages if (one.decision or {}).get("kind") == NEEDS])
+
+
+async def test_a_retried_finish_still_asks_when_the_first_ask_never_happened() -> None:
+    assert await _asked_after_a_retry(after=False) == 1
+
+
+async def test_a_retried_finish_does_not_ask_again_when_the_question_already_stands() -> None:
+    assert await _asked_after_a_retry(after=True) == 1

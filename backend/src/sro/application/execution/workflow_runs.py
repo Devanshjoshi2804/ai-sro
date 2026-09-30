@@ -496,6 +496,13 @@ class StartWorkflowRun:
         # A run started by an answer in an ask chat asks again in that chat: its
         # own id would open another, and the question would leave its history.
         asked_in = named.id if named is not None and named.id.value.startswith(K_ASKING) else None
+        chat = await ReadThreads(self._uow).asking(owner, mail_thread or run.id)
+        if chat is not None and any(
+            (one.decision or {}).get("kind") == NEEDS
+            and (one.decision or {}).get("from_run") == run.id
+            for one in chat.messages
+        ):
+            return
         refusal = refused_by(run)
         pending = still_to_ask(
             Pending(

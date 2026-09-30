@@ -27,7 +27,9 @@ def _reply(said: str) -> str:
     )
 
 
-async def _replied(world: SteelRun, asking: _Asking, said: str, *reading: dict[str, object]) -> None:
+async def _replied(
+    world: SteelRun, asking: _Asking, said: str, *reading: dict[str, object]
+) -> None:
     await FromTheMail(
         world.uow,
         _Mailbox(search=_found("m-2"), **{"m-2": _reply(said)}),

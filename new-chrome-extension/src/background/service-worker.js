@@ -2111,11 +2111,18 @@ async function handle(message, sender) {
       void watchTheRunIn(thread);
       return thread;
     }
-    case "question":
+    case "question": {
+      // One run's own question, wherever it was written -- never the newest
+      // question of some other mail. Nothing until the backend has written it.
+      if (message.runId) {
+        const [thread, asked] = await Promise.all([api.currentThread(), api.askedThreads()]);
+        return questionAmong([thread, ...asked], message.runId);
+      }
       // Read now rather than on the beat: the panel is about to take somebody
       // to it.
       await lookForAQuestion();
       return state.question();
+    }
     case "new-thread":
       // A conversation somebody deliberately started. `current` answers with
       // the newest, so nothing else has to be told which one to draw.

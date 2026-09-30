@@ -509,6 +509,88 @@ test("a press whose answer is a question takes them to where it was asked", asyn
   );
 });
 
+const SHORT_RUN = {
+  id: "run_7",
+  source: "rig",
+  needs: ["Customer Type"],
+  title: "Create a Customer Type",
+  state: "waiting",
+};
+
+test("a run that came up short opens its own question, not another mail's", async () => {
+  // A question from another mail stands; this run's is not written yet. The
+  // worker answers "none for this run", and the panel must stay put -- then
+  // open the run's chat when the next status finds it written.
+  let written = false;
+  const { ids, render, sent } = panel({ deviceId: "dev-1", nudges: [] }, null, {
+    question: (message) =>
+      message.runId === "run_7" && written
+        ? { threadId: "thr_run", id: "m_run" }
+        : null,
+    thread: (message) => ({ id: message.threadId || "thr_long", messages: [] }),
+  });
+  render({ deviceId: "dev-1", nudges: [], finished: SHORT_RUN });
+  await settled();
+  assert.equal(sentOf(sent, "question")[0].runId, "run_7");
+  assert.equal(ids["thread"].hidden, true, "opened a chat that is not this run's");
+  assert.ok(sentOf(sent, "thread").every((one) => !one.threadId));
+
+  written = true;
+  render({ deviceId: "dev-1", nudges: [], finished: SHORT_RUN });
+  await settled();
+  assert.equal(sentOf(sent, "question").length, 2, "did not retry");
+  assert.equal(ids["thread"].hidden, false);
+  assert.equal(sentOf(sent, "thread").at(-1).threadId, "thr_run");
+});
+
+test("a failed look for the run's question is retried and does not throw", async () => {
+  let fail = true;
+  const { ids, render, sent } = panel({ deviceId: "dev-1", nudges: [] }, null, {
+    question: () => {
+      if (fail) throw new Error("offline");
+      return { threadId: "thr_run" };
+    },
+    thread: (message) => ({ id: message.threadId || "thr_long", messages: [] }),
+  });
+  render({ deviceId: "dev-1", nudges: [], finished: SHORT_RUN });
+  await settled();
+  assert.equal(ids["thread"].hidden, true);
+  fail = false;
+  render({ deviceId: "dev-1", nudges: [], finished: SHORT_RUN });
+  await settled();
+  assert.equal(sentOf(sent, "thread").at(-1).threadId, "thr_run");
+});
+
+test("an answer typed while the question's chat is still loading goes to that chat", async () => {
+  // Between pressing "Answer it" and the fetch returning, `threadId` was still
+  // the long conversation, so a fast Enter posted the answer into it.
+  let release;
+  const gate = new Promise((done) => (release = done));
+  const { ids, render, sent } = panel({ deviceId: "dev-1", nudges: [] }, null, {
+    question: { threadId: "thr_run", id: "m_run" },
+    thread: async (message) => {
+      if (message.threadId === "thr_run") await gate;
+      return { id: message.threadId || "thr_long", messages: [] };
+    },
+    "thread-say": { id: "thr_run", messages: [] },
+  });
+  navTab(ids, "chat").listeners[0]();
+  await settled();
+  render({ deviceId: "dev-1", nudges: [], finished: SHORT_RUN });
+  await settled();
+  const walk = (el, out = []) => {
+    out.push(el);
+    for (const kid of el?.kids || []) walk(kid, out);
+    return out;
+  };
+  inputs(ids["ask-bar"])[0].value = "VETC";
+  walk(ids["ask-bar"]).find((el) => el?.textContent === "\u2191").listeners[0]();
+  await settled();
+  assert.equal(sentOf(sent, "thread-say")[0]?.threadId, "thr_run");
+  release();
+  await settled();
+});
+
 test("a sentence shows the moment it is sent, not when the answer lands", async () => {
   // What a sentence costs varies from nothing to several seconds: an answer to
   // a standing question is decided without a model call, a sentence the
@@ -2530,7 +2612,10 @@ test("a run that came up short takes the operator to the question", async () => 
       },
     },
     { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+    // The backend has written this run's question by now.
+    { question: { threadId: "thr_run" } },
   );
+  await settled();
 
   const said = cards.map(words).join(" ");
   assert.match(said, /could not find Customer Type/);

@@ -48,6 +48,8 @@ export function questionIn(thread) {
       // The chat it is asked in: a question from a mail or a run that came up
       // short has one of its own, and "Answer it" opens it.
       threadId: thread.id || null,
+      // The run whose coming up short wrote it, where one did.
+      run: decision.from_run || null,
       text: message.text || "",
       title: decision.title || "",
       workflowId: decision.workflow_id,
@@ -65,8 +67,10 @@ export function questionIn(thread) {
  * question from a mail, or from a run that came up short, is asked in a chat
  * of its own, so reading the conversation alone finds none of them.
  */
-export function questionAmong(threads) {
-  const waiting = threads.map(questionIn).filter(Boolean);
+export function questionAmong(threads, run = null) {
+  const waiting = threads
+    .map(questionIn)
+    .filter((one) => one && (!run || one.run === run));
   waiting.sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")));
   return waiting[0] || null;
 }

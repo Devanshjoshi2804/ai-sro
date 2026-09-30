@@ -529,6 +529,7 @@ function theQuestion(question) {
 /** The run that has already been taken to its question, so the panel moves
  * somebody once and not on every poll. */
 let askedAbout = null;
+let lookingFor = null;
 
 /** A run that came up short asks, and the asking is in the conversation.
  *
@@ -547,13 +548,21 @@ let askedAbout = null;
  */
 function toTheQuestion(run) {
   if (!run || run.source !== "rig" || !(run.needs || []).length) return;
-  if (run.id === askedAbout) return;
-  askedAbout = run.id;
-  pane = "chat";
-  // In the chat it was asked in, which the worker finds.
-  void ask({ kind: "question" }).then((waiting) =>
-    goToTheConversation(waiting?.threadId || null),
-  );
+  if (run.id === askedAbout || run.id === lookingFor) return;
+  lookingFor = run.id;
+  // The question that names THIS run, in the chat it was asked in. The backend
+  // writes it as the run closes, so it may not be there yet: stay where we are
+  // and look again on the next status rather than opening another mail's.
+  ask({ kind: "question", runId: run.id })
+    .then((waiting) => {
+      if (!waiting?.threadId) return;
+      askedAbout = run.id;
+      goToTheConversation(waiting.threadId);
+    })
+    .catch(() => paintPanes())
+    .finally(() => {
+      lookingFor = null;
+    });
 }
 
 /** Watch this system wherever it opens, from now on.

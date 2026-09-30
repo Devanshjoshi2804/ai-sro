@@ -3264,6 +3264,27 @@ test("a question asked in a chat of its own is found there, and its chat opens",
   threadsAsked = [];
 });
 
+test("a run's question is the one that names it, not the newest anywhere", async () => {
+  ready();
+  const ask = (id, at, from_run) => ({
+    id: `thr_${id}`,
+    messages: [
+      {
+        id: `m_${id}`,
+        speaker: "assistant",
+        text: "?",
+        said_at: at,
+        decision: { kind: "needs_values", workflow_id: "wfl_ct", missing: ["X"], from_run },
+      },
+    ],
+  });
+  threadsAsked = [ask("mail", "2026-09-29T10:30:00Z", undefined)];
+  assert.equal(await send({ kind: "question", runId: "run_7" }), null);
+  threadsAsked = [ask("mail", "2026-09-29T10:30:00Z"), ask("run", "2026-09-29T10:20:00Z", "run_7")];
+  assert.equal((await send({ kind: "question", runId: "run_7" }))?.threadId, "thr_run");
+  threadsAsked = [];
+});
+
 test("an answer in one chat leaves another chat's question standing", async () => {
   ready();
   const other = {

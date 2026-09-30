@@ -66,6 +66,7 @@ from sro.domain.execution.workflow_run import (
     answers_for,
     new_run_id,
     pin,
+    refused_by,
 )
 from sro.domain.execution.write_plan import begins_again_at, seen_values
 from sro.domain.knowledge.entry import EntryKind
@@ -434,7 +435,7 @@ class StartWorkflowRun:
         else:
             await secrets.finished()
             await self._settle_the_wait(ctx, done)
-            await self._ask_for_values(ctx, done, title)
+            await self.ask_for_values(ctx, done, title)
 
     async def _settle_the_wait(self, ctx: RequestContext, run: WorkflowRun) -> None:
         if not run.awaiting:
@@ -457,7 +458,7 @@ class StartWorkflowRun:
             await uow.workflow_runs.save(saved)
             await uow.commit()
 
-    async def _ask_for_values(self, ctx: RequestContext, run: WorkflowRun, title: str) -> None:
+    async def ask_for_values(self, ctx: RequestContext, run: WorkflowRun, title: str) -> None:
         if not run.needs or self._ids is None:
             return
         async with self._uow as uow:
@@ -495,6 +496,7 @@ class StartWorkflowRun:
         # A run started by an answer in an ask chat asks again in that chat: its
         # own id would open another, and the question would leave its history.
         asked_in = named.id if named is not None and named.id.value.startswith(K_ASKING) else None
+        refusal = refused_by(run)
         pending = still_to_ask(
             Pending(
                 workflow_id=run.workflow_id,
@@ -516,6 +518,7 @@ class StartWorkflowRun:
                     for one in fields
                     if one.limits.options and one.name in run.needs
                 },
+                refused=dict.fromkeys(run.needs, refusal) if refusal else {},
             ),
             thread.messages if thread else (),
         )
@@ -537,7 +540,11 @@ class StartWorkflowRun:
             for_operator=operator,
             about=mail_thread or run.id,
             in_thread=asked_in,
-            text=_asking(pending.missing, title, limits)
+            text=(
+                f"{title} was not done: {refusal}. "
+                if refusal
+                else _asking(pending.missing, title, limits)
+            )
             + (f"{also} " if (also := also_set(pending)) else "")
             + question(pending),
             speaker=Speaker.ASSISTANT,

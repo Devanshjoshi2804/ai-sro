@@ -184,7 +184,7 @@ class ApiLane:
                 Lane.API,
                 f"{found[1]} already exists with different values"
                 if found[0] == "other"
-                else f"the system refused it ({status}): {said}",
+                else f"the system refused it: {said}",
                 never_left=True,
                 refused=True,
                 answered=told,

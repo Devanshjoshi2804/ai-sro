@@ -157,7 +157,7 @@ Code: `offers: Sequence[tuple[str, str]] = ()`
 > was last time.
 >
 > On the CARD, because for a mail that supplied everything required there is
-> no question and therefore nowhere else to say it. `_ask_for_values` offers
+> no question and therefore nowhere else to say it. `ask_for_values` offers
 > these when a run comes up short, and a request that came up short of
 > nothing never reaches it -- so on the path an operator who works from
 > their mailbox actually uses, the optional fields could never be set at

@@ -309,6 +309,7 @@ class Container:
             self.clock,
             self.ids,
             fill=self.fill_field(),
+            asks=self.start_workflow_run().ask_for_values,
         )
 
     def answer_run(self) -> AnswerRun:

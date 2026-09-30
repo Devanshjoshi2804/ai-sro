@@ -59,7 +59,7 @@ from sro.application.runtime.api_lane import ApiLane
 from sro.application.runtime.broker import SessionBroker
 from sro.application.runtime.executor import StepExecutor
 from sro.application.runtime.fill_field import Filled, FillField
-from sro.application.runtime.run_steps import RunSteps
+from sro.application.runtime.run_steps import AsksForValues, RunSteps
 from sro.application.runtime.step import Held, LaneContext, ReadsBack, StepLane
 from sro.application.runtime.teach import Teach
 from sro.domain.execution.account import K_LEASE_TTL, Account, Lease, LeaseState, new_lease_id
@@ -913,6 +913,7 @@ async def steel_run(
     values: Mapping[str, str] | None = None,
     job: Workflow | None = None,
     http: FakeHttpCaller | None = None,
+    asks: AsksForValues | None = None,
 ) -> SteelRun:
     uow, driver, clock, vault = (
         FakeUnitOfWork(),
@@ -958,7 +959,7 @@ async def steel_run(
         *(RecordingLane(lane, settles=None) for lane in (Lane.TOOL, Lane.API, Lane.UI, Lane.SIGHT))
     )
     fill = ScriptedFill()
-    broker, run_steps = _worker(uow, driver, vault, clock, lanes, fill, http)
+    broker, run_steps = _worker(uow, driver, vault, clock, lanes, fill, http, asks=asks)
     return SteelRun(
         uow,
         run_id,
@@ -984,6 +985,8 @@ def _worker(
     fill: FillField | None = None,
     http: FakeHttpCaller | None = None,
     tool: StepLane | None = None,
+    *,
+    asks: AsksForValues | None = None,
 ) -> tuple[SessionBroker, RunSteps]:
     broker = SessionBroker(
         uow,
@@ -1006,6 +1009,7 @@ def _worker(
         clock,
         FakeIdFactory(),
         fill=fill or ScriptedFill(),
+        asks=asks,
     )
 
 

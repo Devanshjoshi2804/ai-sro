@@ -266,7 +266,7 @@ async def test_a_run_that_came_up_short_asks_in_the_chat_of_its_mail() -> None:
     run.outcome = "stopped"
     await world.uow.workflow_runs.save(run)
 
-    await world.start._ask_for_values(CTX, run, world.title)
+    await world.start.ask_for_values(CTX, run, world.title)
 
     asked = (await ask.chat()).messages[-1]
     assert asked.speaker is Speaker.ASSISTANT
@@ -292,11 +292,11 @@ async def test_a_run_with_no_mail_asks_in_a_chat_of_its_own() -> None:
     run.needs = ["Customer Type"]
     await world.uow.workflow_runs.save(run)
 
-    await world.start._ask_for_values(CTX, run, world.title)
+    await world.start.ask_for_values(CTX, run, world.title)
 
     chat = await ReadThreads(world.uow).asking(CTX, run_id)
     assert chat is not None and _kinds(chat) == [NEEDS]
-    await world.start._ask_for_values(CTX, run, world.title)
+    await world.start.ask_for_values(CTX, run, world.title)
     mine = await world.uow.threads.list_for_tenant(
         f.TENANT, opened_by=PrincipalId(CTX.principal_id.value)
     )
@@ -322,7 +322,7 @@ async def test_an_answered_draft_stays_answered_when_the_run_asks_again() -> Non
     run.needs = ["Customer Type"]
     run.outcome = "stopped"
     await world.uow.workflow_runs.save(run)
-    await world.start._ask_for_values(CTX, run, world.title)
+    await world.start.ask_for_values(CTX, run, world.title)
 
     sent_to = await ask.sender().execute(CTX, chat.id, old.id.value)
 
@@ -346,7 +346,7 @@ async def test_a_run_answered_in_its_ask_chat_asks_again_in_that_chat() -> None:
     run.needs = ["Customer Type"]
     run.outcome = "stopped"
     await world.uow.workflow_runs.save(run)
-    await world.start._ask_for_values(CTX, run, world.title)
+    await world.start.ask_for_values(CTX, run, world.title)
     chat = await ReadThreads(world.uow).asking(CTX, first)
     assert chat is not None
 
@@ -357,7 +357,7 @@ async def test_a_run_answered_in_its_ask_chat_asks_again_in_that_chat() -> None:
     resumed.needs = ["Customer Type"]
     resumed.outcome = "stopped"
     await world.uow.workflow_runs.save(resumed)
-    await world.start._ask_for_values(CTX, resumed, world.title)
+    await world.start.ask_for_values(CTX, resumed, world.title)
 
     mine = await world.uow.threads.list_for_tenant(
         f.TENANT, opened_by=PrincipalId(CTX.principal_id.value)

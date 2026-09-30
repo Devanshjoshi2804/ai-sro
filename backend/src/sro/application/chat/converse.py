@@ -517,7 +517,7 @@ class Converse:
         fields = field_classes(job, {}, {})
         known = Candidate(job.id, job.title, fields, alias_map(aliases), {})
         wanted = {one.name for one in fields if one.kind == "required"}
-        still = tuple(name for name in waiting.missing if name in wanted)
+        still = tuple(name for name in waiting.missing if name in wanted or name in waiting.refused)
         return replace(waiting, missing=still, known=known) if still else None
 
     async def _what_stands(self, ctx: RequestContext, thread: Thread) -> str | None:

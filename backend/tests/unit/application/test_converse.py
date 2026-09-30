@@ -473,7 +473,7 @@ async def test_a_deployment_that_cannot_look_still_asks_for_the_value() -> None:
 async def _asked(uow: FakeUnitOfWork, missing: list[str]) -> tuple[Converse, ThreadId]:
     """A thread where a run has asked for what it could not find.
 
-    Written the way `StartWorkflowRun._ask_for_values` writes it -- the run is
+    Written the way `StartWorkflowRun.ask_for_values` writes it -- the run is
     over by then, and what it left behind is this message.
     """
     converse = await _with_a_job(uow, None)
@@ -819,7 +819,7 @@ async def test_a_question_that_arrives_while_this_door_is_thinking_is_not_talked
 
     `execute` reads the thread once at the top and then spends seconds in model
     calls. The question it must not talk over is written by somebody else --
-    `RunWorkflow._ask_for_values`, from a task the start-run route spawned and
+    `RunWorkflow.ask_for_values`, from a task the start-run route spawned and
     never awaited, after a live browser run has been to look in the operator's
     mail. The operator typed `i will type` while it was looking, this door had
     read a thread that held only the job offer, and the plan went out over a

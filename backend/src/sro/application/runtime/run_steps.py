@@ -5,7 +5,7 @@ import contextlib
 import json
 import math
 import secrets
-from collections.abc import Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 
 from sro.application.chat.announce import SayWhatHappened
@@ -48,7 +48,7 @@ from sro.domain.execution.mail_job import MAIL_BODY, sends_mail
 from sro.domain.execution.progress import Progress, StepMark
 from sro.domain.execution.takeover import OPERATOR
 from sro.domain.execution.waiting import read_wait
-from sro.domain.execution.workflow_run import RunStep, WorkflowRun
+from sro.domain.execution.workflow_run import RunStep, WorkflowRun, refused_names
 from sro.domain.execution.write_plan import demonstrated_writes, scaffolding_for
 from sro.domain.observation.gesture import Gesture
 from sro.domain.shared.identifiers import PrincipalId
@@ -59,6 +59,9 @@ from sro.domain.skill.workflow import Step, Workflow, cited_ids, field_key
 
 _RUN_VERDICT = {"done": "held", "read": "held", "failed": "failed", "unknown": "unclear"}
 _KEPT = ("held", "withheld", "skipped", "not_needed")
+
+
+AsksForValues = Callable[[RequestContext, WorkflowRun, str], Awaitable[None]]
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,10 +89,11 @@ class RunSteps:
         ids: IdFactory,
         *,
         fill: FillField,
+        asks: AsksForValues | None = None,
     ) -> None:
         self._uow, self._broker, self._executor = uow, broker, executor
         self._teach, self._api, self._clock, self._ids = teach, api, clock, ids
-        self._fill = fill
+        self._fill, self._asks = fill, asks
 
     async def prepare(self, ctx: RequestContext, run_id: str) -> Prepared:
         run, workflow, by_id = await self._load(ctx, run_id)
@@ -264,6 +268,10 @@ class RunSteps:
             outcome = await self._settled(
                 ctx, run, progress, step, ordered, index, values, lane, last
             )
+        elif last.refused:
+            run.needs, run.awaiting = refused_names(workflow, run.values, last.reason), None
+            await self._advance(ctx, run, progress, step, ordered, index, last)
+            outcome = StepOutcome(more=False, failed=True)
         elif last.verdict == "failed":
             asked = NeedsAPerson(f"'{step.says}' could not be done: {last.reason}", kind="step")
             outcome = StepOutcome(
@@ -319,6 +327,8 @@ class RunSteps:
                 speaker=Speaker.ASSISTANT,
                 decision={"kind": "run_done", "run_id": run.id, "outcome": run.outcome},
             )
+        if first and run.needs and self._asks is not None:
+            await self._asks(ctx, run, workflow.title)
         return run.outcome
 
     async def stopped(self, ctx: RequestContext, run_id: str) -> None:

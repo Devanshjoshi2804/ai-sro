@@ -25,7 +25,12 @@ def draft_for(pending: Pending, *, about: str = "", signed: str = "") -> tuple[s
         lines += ["What I have so far:", *held, ""]
 
     had = pending.values.get(wanted, "")
-    if holds is not None and had.strip():
+    if why := pending.refused.get(wanted):
+        lines.append(
+            f"{wanted}{f' {shortened(had)}' if had.strip() else ''} could not be used: {why}."
+            f" What should {wanted} be instead?"
+        )
+    elif holds is not None and had.strip():
         lines.append(
             f"{wanted} needs to be {holds} characters or fewer. The request said"
             f" {shortened(had)}, which is {len(had)}."

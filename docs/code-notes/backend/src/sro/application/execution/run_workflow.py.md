@@ -2393,7 +2393,7 @@ Code: `run.needs = _too_long_for(step, values, holds)`
 > -- and the run starts again on the yes they already gave.
 > A run that stops dead here is an operator who pressed
 > once and got a dead card, which is the thing
-> `_ask_for_values` was built to end.
+> `ask_for_values` was built to end.
 
 ## `run_workflow`, [line 1696](../../../../../../../backend/src/sro/application/execution/run_workflow.py#L1696): Comment
 

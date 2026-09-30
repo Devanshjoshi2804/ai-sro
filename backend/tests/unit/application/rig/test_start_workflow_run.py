@@ -1338,7 +1338,7 @@ async def test_the_question_says_which_step_the_run_had_reached() -> None:
         one_time_secrets=OneTimeSecrets(),
         ids=FakeIdFactory(),
     )
-    await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
+    await starter.ask_for_values(_ctx(), run, "Create a Customer Type")
 
     # In the thread of whoever the run was FOR, which the fixture calls `form`
     # -- a question in the wrong conversation is worse than none.
@@ -1392,7 +1392,7 @@ async def test_the_question_offers_the_fields_the_page_does_not_ask_for() -> Non
         one_time_secrets=OneTimeSecrets(),
         ids=FakeIdFactory(),
     )
-    await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
+    await starter.ask_for_values(_ctx(), run, "Create a Customer Type")
 
     threads = await uow.threads.list_for_tenant(
         TENANT, opened_by=PrincipalId(run.started_by), limit=1
@@ -1500,7 +1500,7 @@ async def test_a_run_short_of_several_values_asks_for_all_of_them_in_one_questio
         values={"Customer Type": "NEWSROTEST", "Description": "north dock"},
     )
 
-    await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
+    await starter.ask_for_values(_ctx(), run, "Create a Customer Type")
 
     asked = await _asked_last(uow, run)
     assert asked.text.count("?") == 1, asked.text
@@ -1513,7 +1513,7 @@ async def test_the_run_an_answer_started_does_not_offer_again_what_that_ask_offe
     uow = await _held()
     run, starter = await _short_of(uow, ["Customer Type"], "Customer Type: GGD, Description: first")
 
-    await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
+    await starter.ask_for_values(_ctx(), run, "Create a Customer Type")
 
     asked = await _asked_last(uow, run)
     assert asked.decision is not None and asked.decision["kind"] == NEEDS
@@ -1530,7 +1530,7 @@ async def test_a_run_started_some_other_way_is_a_fresh_ask() -> None:
         values={"Customer Type": "NEWSROTEST", "Description": "first"},
     )
 
-    await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
+    await starter.ask_for_values(_ctx(), run, "Create a Customer Type")
 
     asked = await _asked_last(uow, run)
     assert "I can also set Department and Manufacturer" in asked.text, asked.text
@@ -1552,7 +1552,7 @@ async def test_a_run_that_needs_a_field_its_ask_dropped_stops_and_stops_waiting(
     run.awaiting = {"kind": "values"}
     await uow.workflow_runs.save(run)
 
-    await starter._ask_for_values(_ctx(), run, "Create a Customer Type")
+    await starter.ask_for_values(_ctx(), run, "Create a Customer Type")
 
     asked = await _asked_last(uow, run)
     assert "stopped — it needs Manufacturer to run" in asked.text, asked.text

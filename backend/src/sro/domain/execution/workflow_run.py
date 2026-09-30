@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import re
 import secrets
+from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Literal
@@ -140,6 +142,30 @@ def end_the_steps(steps: list[RunStep], reason: str) -> None:
         )
     else:
         last.verdict, last.verdict_by, last.reason = "failed", "none", reason
+
+
+def refused_by(run: WorkflowRun) -> str:
+    last = max(run.steps, key=lambda one: one.order, default=None)
+    return last.reason if last is not None and last.verdict == "failed" and last.result else ""
+
+
+def refused_names(workflow: Workflow, values: Mapping[str, str], said: str) -> list[str]:
+    given = [
+        str(one.get("name")) for one in workflow.parameters if values.get(str(one.get("name")))
+    ]
+    heard = "".join(_words(said))
+    named = [
+        name
+        for name in given
+        if "".join(_words(name)) in heard
+        or (set(_words(values[name])) <= set(_words(said))
+        and bool(_words(values[name])))
+    ]
+    return named or given[:1]
+
+
+def _words(text: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", text.lower())
 
 
 def answers_for(run: WorkflowRun, principal: str, *, opened_by: str = "") -> bool:

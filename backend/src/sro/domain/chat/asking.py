@@ -147,6 +147,7 @@ def asking_state(pending: Pending) -> dict[str, object]:
         **({"offered": [list(one) for one in pending.offered]} if pending.offered else {}),
         **({"dropped": list(pending.dropped)} if pending.dropped else {}),
         **({"doubted": list(pending.doubted)} if pending.doubted else {}),
+        **({"refused": dict(pending.refused)} if pending.refused else {}),
         **(
             {"options": {name: list(one) for name, one in pending.options.items()}}
             if pending.options
@@ -442,6 +443,7 @@ def pending_job(messages: Sequence[Message], answering: str | None = None) -> Pe
         options=_choices(decision.get("options")),
         dropped=_names(decision.get("dropped")),
         doubted=_names(decision.get("doubted")),
+        refused=_strings(decision.get("refused")),
     )
 
 

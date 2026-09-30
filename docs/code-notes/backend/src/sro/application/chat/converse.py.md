@@ -211,7 +211,7 @@ Code: `K_RAN_OUT = ("timeout", "timed out", "deadline")`
 > `execute` reads the thread once, at the top, and everything after that
 > is a model call: the reading, the placement, the resolver. Seconds. And
 > the question this door would talk over is written by somebody else --
-> `RunWorkflow._ask_for_values` (`workflow_runs.py:589`), from a task the
+> `RunWorkflow.ask_for_values` (`workflow_runs.py:589`), from a task the
 > start-run route spawned and never awaited (`routers/workflow_runs.py:
 > 139`), after a whole live browser run has tried and failed to find the
 > values. Two independent transactions on one thread, no lock between

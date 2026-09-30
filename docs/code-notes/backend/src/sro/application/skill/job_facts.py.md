@@ -42,7 +42,7 @@ Notes for [`backend/src/sro/application/skill/job_facts.py`](../../../../../../.
 >
 > `declared` (C2 round 0b, corrected round 1 I2): the knowledge base's field
 > limits for this job, so every caller of `job_facts`, not only the pending
-> question `_ask_for_values` (`application.execution.workflow_runs`) already
+> question `ask_for_values` (`application.execution.workflow_runs`) already
 > asked, compiles a job whose `Compiled.fields` carry a knowledge-base-only
 > limit (spec's controller amendment, 2026-09-26: the stricter of page and
 > knowledge base wins, and a limit the page never shows is still enforced).

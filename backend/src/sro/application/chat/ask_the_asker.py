@@ -42,7 +42,9 @@ class DraftForTheAsker:
         async with self._uow as uow:
             run = await uow.workflow_runs.get(ctx.tenant_id, run_id) if run_id else None
         waiting = read_wait(run.awaiting) if run else None
-        conversation = thread.strip() or (waiting.thread if waiting else "")
+        conversation = (
+            thread.strip() or pending.mail_thread.strip() or (waiting.thread if waiting else "")
+        )
         if not conversation:
             return False
         if run is not None and run.asked_the_asker:

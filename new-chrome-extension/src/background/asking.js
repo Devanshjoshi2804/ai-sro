@@ -74,16 +74,22 @@ export function offersAsked(threads) {
 }
 
 /**
- * The newest question waiting in any of these threads, or `null`.
+ * Every question waiting in these threads, newest first.
  *
  * The operator's own conversation and each chat a question was asked in: a
  * question from a mail, or from a run that came up short, is asked in a chat
- * of its own, so reading the conversation alone finds none of them.
+ * of its own, so reading the conversation alone finds none of them. All of
+ * them, because each mail's card is drawn from its own question.
  */
-export function questionAmong(threads, run = null) {
+export function questionsAmong(threads, run = null) {
   const waiting = threads
     .map(questionIn)
     .filter((one) => one && (!run || one.run === run));
   waiting.sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")));
-  return waiting[0] || null;
+  return waiting;
+}
+
+/** The newest question waiting in any of these threads, or `null`. */
+export function questionAmong(threads, run = null) {
+  return questionsAmong(threads, run)[0] || null;
 }

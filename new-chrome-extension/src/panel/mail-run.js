@@ -36,7 +36,7 @@ function mailLine(text, className = "detail") {
 // for a run nobody is holding up (QA 2026-09-30: PJ26's card said Running
 // while its save waited on the operator).
 function mailWaitsOn(run, question) {
-  if (question?.run === run.id && question.text) return question.text;
+  if (question?.text) return question.text;
   return run.status === "running" ? run.asking || "" : "";
 }
 
@@ -55,16 +55,18 @@ function mailHowItWent(run, waits) {
 
 /**
  * `live` is the performing run's record when this run is the one performing,
- * for its Watch it run. `question` is the standing question, drawn here when
- * it names this run. `onOpen(url)` opens a tab; `onAnswer(question, run)`
+ * for its Watch it run. `questions` are the standing questions; the one naming
+ * this run is drawn here. `onOpen(url)` opens a tab; `onAnswer(question, run)`
  * opens where it is answered (`question` null for a run parked on a step);
  * `onReview`, `onStop` and `onDismiss` get the run.
  */
 export function mailRunCard(
   run,
-  { live = null, question = null, onOpen, onAnswer, onReview, onStop, onDismiss } = {},
+  { live = null, questions = [], onOpen, onAnswer, onReview, onStop, onDismiss } = {},
 ) {
   const mail = run.mail || {};
+  // Its own question, never another mail's: every standing one is held.
+  const question = questions.find((one) => one.run === run.id) || null;
   const running = run.status === "running";
   const waits = mailWaitsOn(run, question);
   const card = document.createElement("section");
@@ -106,7 +108,7 @@ export function mailRunCard(
   if (waits)
     press(
       "Answer it",
-      () => onAnswer?.(question?.run === run.id ? question : null, run),
+      () => onAnswer?.(question, run),
       false,
     );
   if (mail.link) press("Open the mail", () => onOpen?.(mail.link), !waits);

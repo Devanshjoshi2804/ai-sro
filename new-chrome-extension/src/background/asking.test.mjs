@@ -5,7 +5,7 @@
 import assert from "node:assert";
 import { test } from "node:test";
 
-const { questionAmong, questionIn } = await import("./asking.js");
+const { questionAmong, questionIn, questionsAmong } = await import("./asking.js");
 
 const asked = {
   id: "msg_1",
@@ -81,4 +81,12 @@ test("of several chats, the newest question waiting is the one held", () => {
   assert.equal(found.id, "msg_old");
   assert.equal(found.threadId, "thr_ask_1");
   assert.equal(questionAmong([answered]), null);
+});
+
+test("every standing question is kept, newest first -- one card each", () => {
+  const older = { ...asked, id: "msg_0", said_at: "2026-09-17T03:00:00Z" };
+  const threads = [{ id: "t1", messages: [older] }, { id: "t2", messages: [asked] }];
+
+  assert.deepEqual(questionsAmong(threads).map((one) => one.id), ["msg_1", "msg_0"]);
+  assert.equal(questionAmong(threads).id, "msg_1");
 });

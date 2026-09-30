@@ -5,7 +5,7 @@
 
 import { api, ApiError } from "./api.js";
 import { alsoWatch, alwaysWatched, hostOf } from "./always.js";
-import { offersAsked, questionAmong, questionIn } from "./asking.js";
+import { offersAsked, questionAmong, questionIn, questionsAmong } from "./asking.js";
 import { waitBeforeLooking } from "./looking.js";
 import { MAX_SAID, narrate, said } from "./said.js";
 import { serially } from "./serially.js";
@@ -3021,9 +3021,12 @@ async function register(label) {
  * listener and redraws the column.
  */
 async function holdTheQuestion(threads) {
-  const waiting = questionAmong(threads);
+  const all = questionsAmong(threads);
+  const waiting = all[0] || null;
   const held = await state.question();
   if ((held?.id || null) !== (waiting?.id || null)) await state.setQuestion(waiting);
+  const ids = (list) => list.map((one) => one.id).join("|");
+  if (ids(await state.questions()) !== ids(all)) await state.setQuestions(all);
   await endTheOffersAsked(offersAsked(threads));
   await endTheWaitAnswered(threads);
   return waiting;
@@ -3377,6 +3380,9 @@ async function status(sender = null) {
     // Drawn in the column that cannot be swept, because that is the whole
     // point: the run that asked it is long gone and the question is not.
     question: await state.question(),
+    // All of them, one card each: a mail asked about has no card but its own
+    // question, and only the newest was held.
+    questions: await state.questions(),
     // Which kind of run it is, off the same mirrored record the `abort-run`
     // case and `finishing.js` read -- so the panel's "details" link and its
     // Stop agree without a second answer to the question. Missing means a

@@ -118,7 +118,7 @@ test("refused, with its question standing: Needs you, not Not created", () => {
       finished_at: "2026-09-29T11:03:00",
       steps: [{ index: 0, outcome: "failed", reason: "the system refused it: code 42 is used" }],
     }),
-    { question, onAnswer: (one) => answered.push(one.threadId) },
+    { questions: [question], onAnswer: (one) => answered.push(one.threadId) },
   );
   const said = words(card);
 
@@ -132,7 +132,7 @@ test("refused, with its question standing: Needs you, not Not created", () => {
 test("another run's question is not this card's", () => {
   const card = mailRunCard(
     run({ status: "failed", steps: [{ index: 0, outcome: "failed", reason: "refused" }] }),
-    { question: { id: "m-1", run: "run_2", text: "What should X be?" } },
+    { questions: [{ id: "m-1", run: "run_2", text: "What should X be?" }] },
   );
 
   assert.match(words(card), /Not created: refused\./);
@@ -158,4 +158,24 @@ test("each press hands the run to its caller", () => {
     ["stop", "run_1"],
     ["dismiss", "run_1"],
   ]);
+});
+
+test("two mails asked about: each card is drawn from its own question", () => {
+  // The newest question was the only one held, so the older refused mail said
+  // "Not created" with no way to answer while its question still stood.
+  const failed = { status: "failed", steps: [{ index: 0, outcome: "failed", reason: "refused" }] };
+  const questions = [
+    { id: "m-2", run: "run_2", threadId: "thr_2", text: "What should Y be?" },
+    { id: "m-1", run: "run_1", threadId: "thr_1", text: "What should X be?" },
+  ];
+  const answered = [];
+  const onAnswer = (one) => answered.push(one.threadId);
+
+  const older = mailRunCard(run({ id: "run_1", ...failed }), { questions, onAnswer });
+  const newer = mailRunCard(run({ id: "run_2", ...failed }), { questions, onAnswer });
+
+  assert.match(words(older), /Needs you: What should X be\?/);
+  assert.match(words(newer), /Needs you: What should Y be\?/);
+  buttons(older)[0].listeners.click[0]();
+  assert.deepEqual(answered, ["thr_1"], "Answer it went to another mail's chat");
 });

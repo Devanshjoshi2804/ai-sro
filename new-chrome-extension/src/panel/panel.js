@@ -270,8 +270,9 @@ function render(status) {
   // A question nobody has answered: the one thing here waiting on THEM. One
   // that names a mail's run is that mail card's "Needs you" -- one mail, one
   // card.
-  if (status.question && !fromMail.has(status.question.run))
-    needs.push(theQuestion(status.question));
+  const questions = status.questions || (status.question ? [status.question] : []);
+  for (const asked of questions)
+    if (!fromMail.has(asked.run)) needs.push(theQuestion(asked));
   if (status.performing && !fromMail.has(status.performing.runId))
     now.push(performing(status));
   // A look back at the last thing this browser did, after the run happening
@@ -282,7 +283,7 @@ function render(status) {
     now.push(
       mailRunCard(run, {
         live: status.performing?.runId === run.id ? status.performing : null,
-        question: status.question,
+        questions,
         onOpen: (url) => void chrome.tabs.create({ url }),
         onAnswer: (question) => {
           goToTheConversation(question?.threadId || null);

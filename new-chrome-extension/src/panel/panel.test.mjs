@@ -2592,6 +2592,26 @@ test("a question nobody answered survives the next run", async () => {
   );
 });
 
+test("two standing questions are two cards, each with its own Answer it", async () => {
+  const { cards } = panel(
+    {
+      deviceId: "dev-1",
+      capturing: true,
+      watched: [{ tabId: 7, host: "wms.example", since: new Date().toISOString() }],
+      question: { id: "m_2", title: "Job B", text: "What should B be?", threadId: "thr_2" },
+      questions: [
+        { id: "m_2", title: "Job B", text: "What should B be?", threadId: "thr_2" },
+        { id: "m_1", title: "Job A", text: "What should A be?", threadId: "thr_1" },
+      ],
+    },
+    { id: 7, host: "wms.example", url: "https://wms.example/portal" },
+  );
+
+  const said = cards.map(words).join(" ");
+  assert.match(said, /What should A be\?/);
+  assert.match(said, /What should B be\?/);
+});
+
 test("a run that came up short takes the operator to the question", async () => {
   // The dead end this replaces: the run went looking for a value nobody typed,
   // could not find it, and the panel drew "The run stopped" on the Home tab

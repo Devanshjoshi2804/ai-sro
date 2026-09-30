@@ -1480,6 +1480,43 @@ test("a card already held for a mail stands down once its question is written", 
   threadsAsked = [];
 });
 
+test("every mail asked about keeps its own question, not only the newest", async () => {
+  ready();
+  const asked = (id, offer, at) => ({
+    id: `thr_${id}`,
+    messages: [
+      {
+        id,
+        speaker: "assistant",
+        text: `What should ${id} be?`,
+        said_at: at,
+        decision: { kind: "needs_values", workflow_id: "wfl_1", missing: ["X"], offer },
+      },
+    ],
+  });
+  threadsAsked = [
+    asked("m_old", "mail:m-1", "2026-09-30T09:00:00Z"),
+    asked("m_new", "mail:m-2", "2026-09-30T10:00:00Z"),
+  ];
+
+  await globalThis.__beat({ name: "sro-heartbeat" });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
+  assert.equal(held.get("sro.question")?.id, "m_new");
+  assert.deepEqual(
+    (held.get("sro.questions") || []).map((one) => one.id),
+    ["m_new", "m_old"],
+    "the older mail's question was dropped",
+  );
+
+  // Answering the newest leaves the other standing.
+  threadsAsked = [threadsAsked[0]];
+  await globalThis.__beat({ name: "sro-heartbeat" });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual((held.get("sro.questions") || []).map((one) => one.id), ["m_old"]);
+  threadsAsked = [];
+});
+
 test("a mail becomes a card that waits, not a line in the conversation", async () => {
   // The rule this surface already keeps: the thread is the record of what was
   // DECIDED, and a prompt nobody answered decided nothing. So the offer is

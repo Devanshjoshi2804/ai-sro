@@ -44,6 +44,7 @@ const KEYS = {
   shotTimes: "sro.shotTimes",
   finishedRun: "sro.finishedRun",
   question: "sro.question",
+  questions: "sro.questions",
   activeRun: "sro.activeRun",
   answer: "sro.answer",
   arrivals: "sro.arrivals",
@@ -337,6 +338,9 @@ export const state = {
    * panel polls twice a second and the thread is a network round trip. */
   question: () => read(KEYS.question, null),
   setQuestion: (question) => write(KEYS.question, question),
+  /** Every question standing, newest first: one mail card each. */
+  questions: () => read(KEYS.questions, []),
+  setQuestions: (questions) => write(KEYS.questions, questions),
   setFinishedRun: (run) => write(KEYS.finishedRun, run),
 
   /** The run the panel is watching, and when it started watching it:

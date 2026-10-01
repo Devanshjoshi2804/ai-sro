@@ -1,24 +1,25 @@
 {
- "id": "chat_15",
+ "id": "chat_42",
  "suite": "chat",
  "input": {
-  "message": "create customer type SROT1 with description x",
+  "message": "make me a customer type",
   "origin": "chat",
   "runs": [],
   "history": []
  },
  "expected": {
   "tools": [
-   "find_jobs"
+   "find_jobs",
+   "ask_operator"
   ],
   "args": {},
-  "refused": {
-   "job_id": "wfl_3c8f1a5e9d7b4026b1e8a4c7d0f5923e",
-   "values": {
-    "Customer Type": "SROT1",
-    "Customer Type Description": "x"
+  "or": [
+   {
+    "tools": [
+     "ask_operator"
+    ]
    }
-  }
+  ]
  },
  "answer": {
   "action": "call",
@@ -34,11 +35,11 @@
   {
    "action": "call",
    "tool": "ask_operator",
-   "args": "{\"question\": \"A customer type is at most 4 characters; which shorter code should I use?\"}"
+   "args": "{\"question\": \"Which customer type code and description should I use?\"}"
   },
   {
    "action": "say",
-   "text": "I asked for a shorter code."
+   "text": "I asked which code and description."
   }
  ]
 }

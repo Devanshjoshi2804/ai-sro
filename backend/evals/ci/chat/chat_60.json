@@ -1,0 +1,41 @@
+{
+ "id": "chat_60",
+ "suite": "chat",
+ "input": {
+  "message": "orders shipped yesterday",
+  "origin": "chat",
+  "runs": [],
+  "history": []
+ },
+ "expected": {
+  "tools": [
+   "lookup"
+  ],
+  "args": {},
+  "mentions": [
+   "2026-09-29",
+   "29 Sep",
+   "Sep 29",
+   "29/09",
+   "09/29",
+   "29-09",
+   "29.09"
+  ]
+ },
+ "answer": {
+  "action": "call",
+  "tool": "lookup",
+  "args": "{\"question\": \"orders shipped on 2026-09-29\"}"
+ },
+ "answers": [
+  {
+   "action": "call",
+   "tool": "lookup",
+   "args": "{\"question\": \"orders shipped on 2026-09-29\"}"
+  },
+  {
+   "action": "say",
+   "text": "I looked up the orders shipped on 2026-09-29."
+  }
+ ]
+}

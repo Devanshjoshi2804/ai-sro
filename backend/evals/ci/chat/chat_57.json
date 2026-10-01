@@ -1,0 +1,25 @@
+{
+ "id": "chat_57",
+ "suite": "chat",
+ "input": {
+  "message": "Location: A-01\nAction: Open",
+  "origin": "mail",
+  "sender": "alerts@wms.example",
+  "runs": [],
+  "history": []
+ },
+ "expected": {
+  "tools": [],
+  "args": {}
+ },
+ "answer": {
+  "action": "say",
+  "text": "That is an alert, not a request."
+ },
+ "answers": [
+  {
+   "action": "say",
+   "text": "That is an alert, not a request."
+  }
+ ]
+}

@@ -1,0 +1,24 @@
+{
+ "id": "chat_45",
+ "suite": "chat",
+ "input": {
+  "message": "undo the putaway",
+  "origin": "chat",
+  "runs": [],
+  "history": []
+ },
+ "expected": {
+  "tools": [],
+  "args": {}
+ },
+ "answer": {
+  "action": "say",
+  "text": "A putaway cannot be undone from here."
+ },
+ "answers": [
+  {
+   "action": "say",
+   "text": "A putaway cannot be undone from here."
+  }
+ ]
+}

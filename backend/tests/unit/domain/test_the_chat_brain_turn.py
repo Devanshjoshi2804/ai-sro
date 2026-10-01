@@ -1,3 +1,5 @@
+import re
+
 from sro.domain.chat.brain_turn import BrainStep, ToolCall, ToolResult, fenced_result, step_of
 from sro.domain.prompts.chat_brain import ANSWER_SCHEMA, CHAT_BRAIN
 
@@ -56,5 +58,11 @@ def test_the_record_states_the_rulings() -> None:
 
 
 def test_the_contract_names_today_and_the_prompt_version_moved_with_it() -> None:
-    assert "`today`" in CHAT_BRAIN.input_contract and CHAT_BRAIN.version == 4
+    assert "`today`" in CHAT_BRAIN.input_contract and CHAT_BRAIN.version >= 4
     assert any("relative date" in one for one in CHAT_BRAIN.rules)
+
+
+def test_the_prompt_s_example_job_id_is_opaque_like_a_real_one() -> None:
+    cases = " ".join(f"{one.given} {one.answer}" for one in CHAT_BRAIN.edge_cases)
+    ids = re.findall(r"wfl_\w+", cases)
+    assert ids and all(re.fullmatch(r"wfl_[0-9a-f]{32}", one) for one in ids)

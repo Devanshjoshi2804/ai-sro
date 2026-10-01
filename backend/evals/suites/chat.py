@@ -35,9 +35,9 @@ from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.infrastructure.system import SystemClock
 
-CUSTOMER = "wfl_customer_type"
-WAREHOUSE = "wfl_warehouse_equipment_type"
-TRANSPORT = "wfl_transport_equipment_type"
+CUSTOMER = "wfl_3c8f1a5e9d7b4026b1e8a4c7d0f5923e"
+WAREHOUSE = "wfl_a47d0e6b2f9c4815c3e7b1d8f0a62594"
+TRANSPORT = "wfl_91e5b3d7c0a84f26e8b4d1a7f3c6095b"
 
 K_FLOOR = 0.9
 

@@ -6,6 +6,7 @@ The model is a scripted FakeAsker. Nothing here reads a database or a model.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import replace
 from types import SimpleNamespace
 from typing import cast
@@ -229,11 +230,14 @@ def test_looking_twice_before_starting_is_still_the_right_answer() -> None:
 
     from sro.domain.chat.brain_turn import ToolCall
 
-    right = {"tools": ["find_jobs", "start_job"], "args": {"job_id": "wfl_customer_type"}}
+    right = {
+        "tools": ["find_jobs", "start_job"],
+        "args": {"job_id": "wfl_3c8f1a5e9d7b4026b1e8a4c7d0f5923e"},
+    }
     twice = [
         ToolCall("find_jobs", {"query": "customer type"}),
         ToolCall("find_jobs", {"query": "create customer type SR11"}),
-        ToolCall("start_job", {"job_id": "wfl_customer_type", "values": {}}),
+        ToolCall("start_job", {"job_id": "wfl_3c8f1a5e9d7b4026b1e8a4c7d0f5923e", "values": {}}),
     ]
     assert passed(right, twice)
     # ... but a start of the wrong job is still wrong, however many looks came first.
@@ -258,3 +262,10 @@ def test_a_look_first_and_an_answer_from_the_evidence_are_right_where_the_case_a
     mail = expected("was the AITE11 mail request done?")
     assert passed(mail, []) and passed(mail, [ToolCall("run_status", {})])
     assert not passed(mail, [ToolCall("start_job", {})])
+
+
+def test_the_suite_s_job_ids_are_opaque_like_a_real_one() -> None:
+    from evals.suites.chat import CUSTOMER, TRANSPORT, WAREHOUSE
+
+    for one in (CUSTOMER, TRANSPORT, WAREHOUSE):
+        assert re.fullmatch(r"wfl_[0-9a-f]{32}", one)

@@ -23,7 +23,7 @@ ANSWER_SCHEMA: dict[str, object] = {
 
 CHAT_BRAIN = Prompt(
     name="chat_brain",
-    version=4,
+    version=5,
     model="gemini-3.8-flash",
     fallback_model="gemini-3.7-flash",
     thinking=None,
@@ -73,9 +73,11 @@ CHAT_BRAIN = Prompt(
             "call start_job at once with the code; no offer, no question",
         ),
         EdgeCase(
-            '"create customer type SR11" and find_jobs showed job wfl_customer_type',
+            '"create customer type SR11" and find_jobs showed the job with id '
+            "wfl_5b1e0c9a7d2f4e68a3c1d9f07b2e4a56",
             "call start_job with args "
-            '\'{"job_id": "wfl_customer_type", "values": {"Customer Type": "SR11"}}\'',
+            '\'{"job_id": "wfl_5b1e0c9a7d2f4e68a3c1d9f07b2e4a56", '
+            '"values": {"Customer Type": "SR11"}}\'',
         ),
         EdgeCase(
             '"create an equipment type" with no code given',

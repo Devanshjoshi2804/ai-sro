@@ -7,7 +7,7 @@
   "runs": [
    {
     "id": "run_aite5",
-    "job": "wfl_transport_equipment_type",
+    "job": "wfl_91e5b3d7c0a84f26e8b4d1a7f3c6095b",
     "values": {
      "Equipment": "AITE5",
      "longDescription": "eval"
@@ -19,7 +19,7 @@
    },
    {
     "id": "run_aite4",
-    "job": "wfl_transport_equipment_type",
+    "job": "wfl_91e5b3d7c0a84f26e8b4d1a7f3c6095b",
     "values": {
      "Equipment": "AITE4",
      "longDescription": "eval"

@@ -23,7 +23,7 @@ from sro.application.knowledge.retrieve import Retrieve
 from sro.application.observation.record_attempt import RecordAttempt
 from sro.config import Settings
 from sro.domain.chat.brain_turn import BrainReply, ToolCall, ToolResult
-from sro.domain.observation.attempts import DONE
+from sro.domain.observation.attempts import DONE, REFUSED
 from sro.domain.shared.prices import Answer
 from tests import factories as f
 from tests.unit.application.chat.brain_support import CTX
@@ -173,6 +173,36 @@ async def test_only_a_question_is_handed_to_the_brain_as_the_open_question() -> 
 
     assert 'name="asking"' not in str(asker.asked[1]["evidence"])
     assert '<untrusted name="asking">\nWhich department?' in str(asker.asked[2]["evidence"])
+
+
+async def test_a_run_the_brain_took_back_is_recorded_as_an_attempt() -> None:
+    acting = await _acting()
+    converse = _converse(acting, FakeAsker(), on=(TENANT,))
+    done = ToolResult(
+        True,
+        {"run_id": "run_undo"},
+        decision={"kind": "run", "run_id": "run_undo"},
+        said="Started it.",
+    )
+    refused = ToolResult(False, error="already taken back")
+    converse._brain = _Scripted(  # type: ignore[assignment]
+        BrainReply(
+            "ok",
+            (done.decision or {},),
+            (
+                (ToolCall("undo_run", {"run_id": "run_a"}), done),
+                (ToolCall("undo_run", {"run_id": "run_b"}), refused),
+            ),
+        )
+    )
+
+    await converse.execute(CTX, thread_id=await _thread(acting), text="undo that")
+
+    rows = acting.world.uow.attempts.rows
+    assert [(r.asked_for, r.came_of, r.about.get("run", "")) for r in rows] == [
+        ("take back a run", DONE, "run_undo"),
+        ("take back a run", REFUSED, ""),
+    ]
 
 
 async def test_a_question_of_the_brain_is_an_ordinary_question_message() -> None:

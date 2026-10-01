@@ -581,10 +581,10 @@ class Converse:
             await uow.commit()
         if self._attempts is not None:
             for call, result in reply.steps:
-                if call.tool == "start_job":
+                if call.tool in _STARTS:
                     await self._attempts.execute(
                         ctx,
-                        asked_for="start a job from chat",
+                        asked_for=_STARTS[call.tool],
                         came_of=DONE if result.ok else REFUSED,
                         why=result.error,
                         about={
@@ -1670,6 +1670,10 @@ def _last_asked(thread: Thread) -> str | None:
         if message.speaker is Speaker.OPERATOR:
             return message.text
     return None
+
+
+# The brain's tools that start a run, and what each is recorded as.
+_STARTS = {"start_job": "start a job from chat", "undo_run": "take back a run"}
 
 
 def _history(said: Sequence[Message]) -> list[str]:

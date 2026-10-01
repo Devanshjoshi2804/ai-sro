@@ -86,6 +86,16 @@ test("did not finish: says why", () => {
   assert.equal(card.dataset.tone, "attention");
 });
 
+test("only a failed create says Not created; a delete, an update or a stopped run did not finish", () => {
+  const steps = [{ index: 0, outcome: "failed", reason: "the session expired" }];
+  const said = (over) => words(mailRunCard(run({ finished_at: "2026-09-29T11:03:00", steps, ...over })));
+
+  assert.match(said({ status: "failed", title: "Create a Customer Type" }), /Not created: the session expired\./);
+  assert.match(said({ status: "failed", title: "Delete a Customer Type" }), /Did not finish: the session expired\./);
+  assert.match(said({ status: "failed", title: "Update a Client" }), /Did not finish: the session expired\./);
+  assert.match(said({ status: "stopped", title: "Create a Customer Type", steps: [] }), /Did not finish: stopped\./);
+});
+
 test("parked on a person: Needs you and the question, never Running", () => {
   const answered = [];
   const asking = "'Click the save button.' was sent and nothing confirms it";

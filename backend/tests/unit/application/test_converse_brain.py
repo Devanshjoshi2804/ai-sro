@@ -155,6 +155,26 @@ async def test_every_run_a_turn_started_keeps_its_card_and_the_question_follows(
     assert thread.messages[-1].text == "Which department?"
 
 
+async def test_only_a_question_is_handed_to_the_brain_as_the_open_question() -> None:
+    acting = await _acting()
+    asker = FakeAsker(
+        _call("start_job", job_id=JOB, values=GIVEN),
+        _call("ask_operator", question="Which department?"),
+        _say("Noted."),
+    )
+    converse = _converse(acting, asker, on=(TENANT,))
+    thread_id = await _thread(acting)
+
+    await converse.execute(
+        CTX, thread_id=thread_id, text="create customer type SR11 with the description new"
+    )
+    await converse.execute(CTX, thread_id=thread_id, text="which department can I use?")
+    await converse.execute(CTX, thread_id=thread_id, text="Returns")
+
+    assert 'name="asking"' not in str(asker.asked[1]["evidence"])
+    assert '<untrusted name="asking">\nWhich department?' in str(asker.asked[2]["evidence"])
+
+
 async def test_a_question_of_the_brain_is_an_ordinary_question_message() -> None:
     acting = await _acting()
     asker = FakeAsker(_call("ask_operator", question="Which customer type?"))

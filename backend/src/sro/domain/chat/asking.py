@@ -16,6 +16,9 @@ from sro.domain.skill.signing_in import Logins
 
 NEEDS = "needs_values"
 
+# The decisions that wait on the operator's answer: a missing value, a run's question, the brain's.
+ASKS = frozenset({NEEDS, "run_asks", "brain_asks"})
+
 JOB = "job"
 
 SAID_YES = frozenset(

@@ -35,6 +35,7 @@ from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.application.shared.refusals import OverCap, RunRefused
 from sro.domain.chat.asking import (
+    ASKS,
     FROM_THE_CHAT,
     FROM_THE_MAIL,
     FROM_THE_REQUEST,
@@ -1676,8 +1677,9 @@ def _history(said: Sequence[Message]) -> list[str]:
 
 
 def _open_question(said: Sequence[Message], answering: str | None) -> str:
+    # Only a message that asks: a finished run's card is not a question to answer.
     asked = asked_under(said, answering)
-    return asked.text if asked is not None else ""
+    return asked.text if asked is not None and (asked.decision or {}).get("kind") in ASKS else ""
 
 
 def _awaiting(thread: Thread) -> str | None:

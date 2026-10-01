@@ -10,6 +10,7 @@ back through a door nothing on this side can read it with.
 
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator
 
 import httpx
@@ -64,7 +65,7 @@ def _plan_answer(**over: object) -> Answer:
         "system": WMS,
         "how": "call",
         "target": SUPPLIERS,
-        "params": {"siteId": "SG"},
+        "params": json.dumps({"siteId": "SG"}),
         "cites": [SUPPLIERS],
     }
     lookup.update(over)

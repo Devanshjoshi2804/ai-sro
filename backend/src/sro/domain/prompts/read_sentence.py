@@ -17,14 +17,12 @@ continues:  true only when the sentence has no subject of its own and leans on
             the previous one -- "I want them in detail", "do it again". A
             sentence that names its own subject does not continue, however
             conversational it sounds.
-values:     anything they supplied that looks like a value, by name if they
-            gave one.
 confidence: 0 to 1, how sure you are. Be honest; a low number costs a
             clarifying question and a wrong high one costs a wrong action."""
 
 READ_SENTENCE = Prompt(
     name="read_sentence",
-    version=1,
+    version=2,
     model="gemini-3.8-flash",
     fallback_model="gemini-3.7-flash",
     thinking=None,
@@ -41,7 +39,6 @@ READ_SENTENCE = Prompt(
             "verb": {"type": "string"},
             "entity": {"type": "string"},
             "continues": {"type": "boolean"},
-            "values": {"type": "object"},
             "confidence": {"type": "number"},
         },
         "required": ["wants", "verb", "entity", "continues", "confidence"],
@@ -77,7 +74,7 @@ _EXTRACT_TASK = (
 
 EXTRACT_VALUES = Prompt(
     name="extract_values",
-    version=1,
+    version=2,
     model="gemini-3.8-flash",
     fallback_model="gemini-3.7-flash",
     thinking=None,
@@ -92,7 +89,8 @@ EXTRACT_VALUES = Prompt(
         "properties": {
             "items": {
                 "type": "array",
-                "items": {"type": "object", "properties": {}},
+                # One property per named parameter: the call replaces this stand-in with them.
+                "items": {"type": "object", "properties": {"parameter": {"type": "string"}}},
             },
             "missing": {"type": "array", "items": {"type": "string"}},
             "note": {"type": "string"},

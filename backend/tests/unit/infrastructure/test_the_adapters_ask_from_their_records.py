@@ -96,7 +96,9 @@ async def test_the_intent_parser_reads_on_its_records_with_the_sentence_fenced()
     assert set(sent["properties"]["items"]["items"]["properties"]) == {"sku", "qty"}
     shared = EXTRACT_VALUES.output_schema["properties"]
     assert isinstance(shared, dict)
-    assert shared["items"]["items"]["properties"] == {}, "the record itself is never changed"
+    assert set(shared["items"]["items"]["properties"]) == {"parameter"}, (
+        "the record is never changed"
+    )
 
 
 async def test_parameter_names_are_fenced_because_they_are_page_labels() -> None:

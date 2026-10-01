@@ -29,7 +29,7 @@ not."""
 
 PLAN_LOOKUP = Prompt(
     name="plan_lookup",
-    version=1,
+    version=2,
     model="gemini-3.8-flash",
     fallback_model="gemini-3.7-flash",
     thinking=None,
@@ -49,7 +49,13 @@ PLAN_LOOKUP = Prompt(
                         "system": {"type": "string"},
                         "how": {"type": "string", "enum": list(HOW)},
                         "target": {"type": "string"},
-                        "params": {"type": "object"},
+                        "params": {
+                            "type": "string",
+                            "description": (
+                                "the endpoint's query parameters as one JSON object written as "
+                                'a string, e.g. {"siteId": "SG"}; "{}" when it takes none'
+                            ),
+                        },
                         "cites": {"type": "array", "items": {"type": "string"}},
                     },
                     "required": ["why", "system", "how", "target", "cites"],

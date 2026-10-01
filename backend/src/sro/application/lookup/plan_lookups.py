@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime
@@ -101,7 +102,11 @@ class PlanLookups:
         if answer.error or not isinstance(answer.data, dict):
             return Planned(Plan(question=asked), answer=answer, refused=answer.error or "no answer")
 
-        lookups = _read(answer.data)
+        try:
+            lookups = _read(answer.data)
+        except ValueError as unreadable:
+            # A lookup sent without the filter the model chose would still look like it worked.
+            return Planned(Plan(question=asked), answer=answer, refused=str(unreadable))
         if unknown := unknown_targets(lookups, known):
             return Planned(
                 Plan(question=asked),
@@ -125,6 +130,19 @@ class PlanLookups:
         )
 
 
+def _params(raw: object) -> dict[str, str]:
+    """The model writes a lookup's parameters as a JSON string; anything else is an error."""
+    if raw is None:
+        return {}
+    try:
+        found = json.loads(raw) if isinstance(raw, str) else None
+    except ValueError:
+        found = None
+    if not isinstance(found, dict):
+        raise ValueError("a lookup's params were not a JSON object")
+    return {str(k): str(v) for k, v in found.items()}
+
+
 def _read(data: dict[str, object]) -> list[Lookup]:
     raw = data.get("lookups")
     if not isinstance(raw, list):
@@ -137,16 +155,13 @@ def _read(data: dict[str, object]) -> list[Lookup]:
         target = str(one.get("target") or "").strip()
         if how not in ("call", "screen") or not target:
             continue
-        params = one.get("params")
         cites = one.get("cites")
         found.append(
             Lookup(
                 system=str(one.get("system") or ""),
                 how=how,
                 target=target,
-                params=(
-                    {str(k): str(v) for k, v in params.items()} if isinstance(params, dict) else {}
-                ),
+                params=_params(one.get("params")),
                 why=str(one.get("why") or ""),
                 cites=tuple(str(c) for c in cites if c) if isinstance(cites, list) else (),
             )

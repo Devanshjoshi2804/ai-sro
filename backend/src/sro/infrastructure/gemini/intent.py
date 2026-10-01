@@ -35,13 +35,11 @@ class GeminiIntentParser:
         if answer is None:
             logger.warning("the intent parser did not answer with a reading")
             return Reading()
-        values = answer.get("values")
         return Reading(
             wants=str(answer["wants"]),
             verb=str(answer["verb"]),
             entity=str(answer["entity"]),
             continues=bool(answer["continues"]),
-            values={str(k): str(v) for k, v in values.items()} if isinstance(values, dict) else {},
             confidence=float(str(answer["confidence"])),
         )
 

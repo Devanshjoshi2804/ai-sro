@@ -14,6 +14,8 @@ warehouse.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from sro.application.context import RequestContext
@@ -104,7 +106,7 @@ def _said(**over: object) -> Answer:
         "system": WMS,
         "how": "call",
         "target": SUPPLIERS,
-        "params": {"siteId": "SG"},
+        "params": json.dumps({"siteId": "SG"}),
         "cites": [SUPPLIERS],
     }
     lookup.update(over)
@@ -286,7 +288,7 @@ async def test_a_screen_is_planned_where_no_endpoint_answers() -> None:
     # The other half of what the operator asked for: where there is no call,
     # open the page and read it. The route comes from the knowledge base too.
     planner, _ = _planner(
-        _said(how="screen", target=SUPPLIER_SCREEN, params={}, cites=[SUPPLIER_SCREEN])
+        _said(how="screen", target=SUPPLIER_SCREEN, params="{}", cites=[SUPPLIER_SCREEN])
     )
 
     planned = await planner.execute(CTX, question="where do I see suppliers")
@@ -348,7 +350,7 @@ async def test_a_model_that_answered_nothing_usable_is_a_refusal_not_a_plan() ->
     planned = await planner.execute(CTX, question="which suppliers are set up at SG")
 
     assert planned.plan.lookups == ()
-    assert planned.refused == "plan_lookup v1: the answer does not match its schema"
+    assert planned.refused == "plan_lookup v2: the answer does not match its schema"
 
 
 @pytest.mark.parametrize("how", ["post", "delete", "write", ""])
@@ -369,8 +371,30 @@ async def test_a_parameter_the_endpoint_does_not_declare_never_reaches_the_addre
     """The model picks values for the slots the endpoint declares. A key it
     invents -- or one that would overwrite what the recording asked with --
     is not the model's to set on a request that leaves the building."""
-    planner, _ = _planner(_said(params={"siteId": "MEL", "libraryContext": "x", "limit": "1"}))
+    planner, _ = _planner(
+        _said(params=json.dumps({"siteId": "MEL", "libraryContext": "x", "limit": "1"}))
+    )
 
     planned = await planner.execute(CTX, question="which suppliers are there in MEL")
 
     assert planned.plan.lookups[0].params == {"siteId": "MEL"}
+
+
+async def test_params_that_are_not_a_json_object_refuse_the_plan_not_drop_the_filter() -> None:
+    for bad in ("{bad", "[1]", '"x"', "null", ""):
+        planner, _ = _planner(_said(params=bad))
+
+        planned = await planner.execute(CTX, question="which suppliers are set up at SG")
+
+        assert planned.refused and "params" in planned.refused and not planned.plan.lookups
+
+
+async def test_a_lookup_that_takes_no_params_says_so_in_a_string_or_not_at_all() -> None:
+    absent = _said()
+    del absent.data["lookups"][0]["params"]
+    for said in (_said(params="{}"), absent):
+        planner, _ = _planner(said)
+
+        planned = await planner.execute(CTX, question="which suppliers are set up at SG")
+
+        assert planned.refused is None and planned.plan.lookups[0].params == {}

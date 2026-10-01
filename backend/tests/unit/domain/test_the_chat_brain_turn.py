@@ -48,3 +48,8 @@ def test_the_record_states_the_rulings() -> None:
     assert "at once" in rules and "missing" in rules
     assert "work_it_out" in rules
     assert ANSWER_SCHEMA["properties"]["action"]["enum"] == ["call", "say"]
+
+
+def test_the_contract_names_today_and_the_prompt_version_moved_with_it() -> None:
+    assert "`today`" in CHAT_BRAIN.input_contract and CHAT_BRAIN.version == 3
+    assert any("relative date" in one for one in CHAT_BRAIN.rules)

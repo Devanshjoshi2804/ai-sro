@@ -115,6 +115,16 @@ async def test_a_mail_is_fenced_and_named_by_its_sender() -> None:
     assert '"origin": "mail"' in evidence
 
 
+async def test_the_brain_is_told_today_s_date_and_its_timezone() -> None:
+    acting = await _acting()
+    brain, asker = _brain(acting, _say("ok"))
+
+    await brain.turn(CTX, message="due tomorrow", history=[], origin=Origin("chat"))
+
+    today = acting.world.clock.now().date().isoformat()
+    assert f'"today": "{today} (UTC)"' in str(asker.asked[0]["evidence"])
+
+
 async def test_a_tool_result_goes_back_fenced_as_data() -> None:
     acting = await _acting()
     brain, asker = _brain(acting, _call("check_mail"), _say("done"))

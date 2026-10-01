@@ -12,6 +12,7 @@ import json
 import logging
 import time
 from collections.abc import Mapping, Sequence
+from datetime import UTC
 
 from sro.application.chat.brain_tools import Tool, described, start_key
 from sro.application.context import RequestContext
@@ -92,6 +93,8 @@ class Brain:
     ) -> BrainReply:
         trusted: dict[str, object] = {
             "origin": origin.kind,
+            # No operator timezone is held, so the day is UTC's and says so.
+            "today": f"{self._clock.now().astimezone(UTC).date().isoformat()} (UTC)",
             "tools": described(list(self._tools.values())),
         }
         # The open question is built from a mail's words and a page title is anyone's text.

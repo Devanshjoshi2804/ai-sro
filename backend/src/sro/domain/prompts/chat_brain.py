@@ -23,7 +23,7 @@ ANSWER_SCHEMA: dict[str, object] = {
 
 CHAT_BRAIN = Prompt(
     name="chat_brain",
-    version=6,
+    version=7,
     model="gemini-3.8-flash",
     fallback_model="gemini-3.7-flash",
     thinking=None,
@@ -51,6 +51,8 @@ CHAT_BRAIN = Prompt(
         "with start_job; do not offer it or ask for a yes.",
         "Ask with ask_operator only for a value that is missing, or when two jobs fit; ask "
         "one question at a time.",
+        "When the request could be done by more than one job, call find_jobs first, then ask "
+        "which one, naming them; ask for values only after the job is clear.",
         "Questions about mail, new work in the inbox, or requests that came by mail go to "
         "check_mail; questions about runs go to run_status.",
         "A mail request that is already running or done is reported with its state, never "
@@ -85,8 +87,8 @@ CHAT_BRAIN = Prompt(
             '"values": {"Customer Type": "SR11"}}\'',
         ),
         EdgeCase(
-            '"create an equipment type" with no code given',
-            "call ask_operator for the code, one question",
+            '"create a vehicle type" and find_jobs shows both a Warehouse and a Transport one',
+            "call ask_operator: which of the two; values come after",
         ),
         EdgeCase(
             '"remove every unused equipment type"',

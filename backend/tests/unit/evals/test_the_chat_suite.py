@@ -183,15 +183,23 @@ async def test_a_too_long_customer_type_is_never_a_successful_start() -> None:
     assert not trimmed.passed, "cutting the value to fit is a start nobody asked for"
 
 
-async def test_an_equipment_type_with_no_code_is_asked_about_not_started() -> None:
+async def test_an_equipment_type_is_asked_which_kind_before_its_code_and_never_started() -> None:
     case = await _case("create an equipment type")
 
-    asked = await _score(case, _call("find_jobs"), _call("ask_operator", question="Which code?"))
+    which = await _score(
+        case,
+        _call("find_jobs"),
+        _call("ask_operator", question="Warehouse or Transport equipment type?"),
+    )
+    code_first = await _score(
+        case, _call("find_jobs"), _call("ask_operator", question="Which code?")
+    )
     started = await _score(
         case, _call("find_jobs"), _call("start_job", job_id=TRANSPORT, values={})
     )
 
-    assert asked.passed and not started.passed and started.sure
+    assert which.passed and not code_first.passed
+    assert not started.passed and started.sure
 
 
 async def test_a_value_nobody_gave_is_refused_and_shown_as_a_refusal() -> None:

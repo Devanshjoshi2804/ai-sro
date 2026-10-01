@@ -276,12 +276,12 @@ CASES = [
     _case(
         "create an equipment type",
         ["find_jobs", "ask_operator"],
-        otherwise=[{"tools": ["ask_operator"]}],
+        mentions=("warehouse", "transport"),
     ),
     _case(
         "add a new equipment type",
         ["find_jobs", "ask_operator"],
-        otherwise=[{"tools": ["ask_operator"]}],
+        mentions=("warehouse", "transport"),
     ),
     # mail goes out only on the operator's Send it press: the honest answer starts nothing
     _case(
@@ -511,7 +511,9 @@ def _right(
         if not _args_ok(option.get("args") or {}, last.args):
             return False
         said = str(last.args.get("question") or "")
-        if (needs := option.get("mentions")) and not any(one in said for one in needs):
+        if (needs := option.get("mentions")) and not any(
+            one.lower() in said.lower() for one in needs
+        ):
             return False
     acted = Counter(one.tool for one in calls if one.tool in ACTING)
     return acted <= Counter(one for one in wanted if one in ACTING)

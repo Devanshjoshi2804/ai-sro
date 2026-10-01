@@ -2,7 +2,7 @@
 
 The request-reader suite: given a real request mail, does READ_REQUEST pick the job, know it is sure, and read each value into its field?
 
-## `Reader.cases`, [line 71](../../../../../backend/evals/suites/reader.py#L71): Design
+## `Reader.cases`, [line 72](../../../../../backend/evals/suites/reader.py#L72): Design
 
 > One case per mail behind a work job (`mails_behind`). A sign-in job's
 > mails are no case: `rank_jobs` never offers a sign-in job, so the case
@@ -15,7 +15,7 @@ The request-reader suite: given a real request mail, does READ_REQUEST pick the 
 > copies of one job are both right), and each seen value the mail quotes,
 > under its field.
 
-## `Reader.run`, [line 104](../../../../../backend/evals/suites/reader.py#L104): Design
+## `Reader.run`, [line 105](../../../../../backend/evals/suites/reader.py#L105): Design
 
 > Runs the production `understand`. Passes only when the job is right, the
 > reader is sure, and every expected value is read into its field.

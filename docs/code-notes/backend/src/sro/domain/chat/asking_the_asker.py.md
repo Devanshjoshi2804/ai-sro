@@ -37,7 +37,7 @@ Code: `K_RE = "Re: "`
 > id and every other client threads on the subject, so this matters to the person
 > reading it rather than to us.
 
-## module, [line 53](../../../../../../../backend/src/sro/domain/chat/asking_the_asker.py#L53): Note on the line above
+## module, [line 54](../../../../../../../backend/src/sro/domain/chat/asking_the_asker.py#L54): Note on the line above
 
 Code: `K_SUBJECT = 200`
 
@@ -57,7 +57,7 @@ Code: `K_SUBJECT = 200`
 > anonymous: somebody receiving "what should the Customer Type be?" from a
 > system they have never heard of deletes it, and rightly.
 
-## `worth_asking`, [line 56](../../../../../../../backend/src/sro/domain/chat/asking_the_asker.py#L56): Docstring
+## `worth_asking`, [line 57](../../../../../../../backend/src/sro/domain/chat/asking_the_asker.py#L57): Docstring
 
 > Whether there is anything here a person could answer.
 >
@@ -80,7 +80,7 @@ Code: `had = pending.values.get(wanted, "")`
 > What is wrong, and why, in that order. A person told only "I need the
 > Customer Type" sends back the one they already sent.
 
-## `draft_for`, [line 43](../../../../../../../backend/src/sro/domain/chat/asking_the_asker.py#L43): Comment
+## `draft_for`, [line 44](../../../../../../../backend/src/sro/domain/chat/asking_the_asker.py#L44): Comment
 
 Code: `rest = list(pending.missing[1:])`
 

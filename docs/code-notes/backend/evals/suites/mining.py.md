@@ -21,13 +21,13 @@ The mining suite: does MINE find a job the operator really did?
 > that stored search-as-you-type fragments as seen values makes those
 > fragments expected (`wfl_b8b3` misses its own case on two of them).
 
-## `Mining.cases`, [line 85](../../../../../backend/evals/suites/mining.py#L85): Design
+## `Mining.cases`, [line 86](../../../../../backend/evals/suites/mining.py#L86): Design
 
 > One case per known job: its cited gestures plus the noise around them, as
 > `as_evidence` renders them for the real pass, and the crossings over that
 > day. Expected: the job's cites and its `request_values`.
 
-## `Mining.run`, [line 138](../../../../../backend/evals/suites/mining.py#L138): Design
+## `Mining.run`, [line 139](../../../../../backend/evals/suites/mining.py#L139): Design
 
 > Runs the production `propose`, so the case measures the prompt that ships.
 > Passes when one proposed job cites at least `K_COVERS` of the expected
@@ -46,7 +46,7 @@ The mining suite: does MINE find a job the operator really did?
 > uses (its timeout is the mining one, not the default 120 s). Sure means anything at all was proposed: a proposal that covers
 > nothing is a confident wrong answer.
 
-## `Mining.cases`, [line 95](../../../../../backend/evals/suites/mining.py#L95): Comment
+## `Mining.cases`, [line 96](../../../../../backend/evals/suites/mining.py#L96): Comment
 
 Code: `if workflow.chore:`
 

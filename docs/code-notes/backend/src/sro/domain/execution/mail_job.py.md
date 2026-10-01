@@ -163,7 +163,7 @@ Code: `K_SEND_WINDOW_S = 120.0`
 > rather than half-read by a pattern. An internationalised address is refused
 > too; the operator is asked instead.
 
-## `participants`, [line 187](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L187): Docstring
+## `participants`, [line 195](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L195): Docstring
 
 > Who the conversation lets a draft go to: the sender of every message, and the
 > To and Cc of every message the operator's own mailbox sent (`sent`, Gmail's
@@ -173,7 +173,7 @@ Code: `K_SEND_WINDOW_S = 120.0`
 > invariant 7): a reply-all to somebody only a sender cc'd asks first. Headers,
 > never bodies.
 
-## `sent_from`, [line 197](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L197): Docstring
+## `sent_from`, [line 205](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L205): Docstring
 
 > For each Send the job's evidence pressed, when it was pressed and the Gmail
 > threads its own send call (`POST mail.google.com/sync/u/N/i/s`, answered 2xx)
@@ -188,7 +188,7 @@ Code: `K_SEND_WINDOW_S = 120.0`
 > `msg-a:r…` id the API does not know. `thread-f` sits on the same calls. A
 > click with no thread, or no single SENT mail in the window, grants nobody.
 
-## `check_draft`, [line 235](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L235): Docstring
+## `check_draft`, [line 243](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L243): Docstring
 
 > Whether a draft may go, and to whom (`Checked`).
 >
@@ -216,12 +216,12 @@ Code: `K_SEND_WINDOW_S = 120.0`
 > the mail goes to is checked exactly as before, and it never names a
 > recipient.
 
-## `named_in`, [line 179](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L179): Docstring
+## `named_in`, [line 187](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L187): Docstring
 
 > Every address the operator's own words name: `addresses_in`, the one rule
 > for a person's words.
 
-## `addresses_in`, [line 157](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L157): Docstring
+## `addresses_in`, [line 165](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L165): Docstring
 
 > The addresses a person's words name, casefolded, in order, once each (Q1).
 > An operator answers who a mail goes to the way they would tell a colleague --
@@ -235,7 +235,7 @@ Code: `K_SEND_WINDOW_S = 120.0`
 > name can hold an address (`"bob@evil.com" <alice@x.example>`), and only a
 > parse says which one the mail goes to.
 
-## `one_address_in`, [line 161](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L161): Docstring
+## `one_address_in`, [line 169](../../../../../../../backend/src/sro/domain/execution/mail_job.py#L169): Docstring
 
 > The one address an operator's mail names in its own text, or `""`. The quote
 > is found by structure, never by an English "On …": the first `>` line starts

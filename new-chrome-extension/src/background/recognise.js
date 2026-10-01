@@ -243,11 +243,15 @@ export function resting(shape, now = Date.now()) {
 export function match(tail, shapes) {
   let best = null;
   let shared = false;
-  // How many served jobs hold each triple: a gesture only one of them has is
-  // one that says which job this is.
+  // How many served jobs hold each gesture, wherever it is made: one only a
+  // single job has, across the whole tenant, says which job this is. Not the
+  // screen-keyed triple -- on its own screen every triple is one job's, and
+  // `longDescription` then `saveButton` named "Create a Transport Equipment
+  // Type" for an operator editing a record (Opus day-end review, P).
   const holders = new Map();
+  const gesture = ([, ...rest]) => rest.join(" ");
   for (const shape of shapes) {
-    for (const entry of new Set((shape.shape || []).map(key))) {
+    for (const entry of new Set((shape.shape || []).map(gesture))) {
       holders.set(entry, (holders.get(entry) || 0) + 1);
     }
   }
@@ -269,7 +273,7 @@ export function match(tail, shapes) {
     // to name this job: Add, a field or Save on this screen can be any job's
     // on it, and one that only this job has cannot.
     const entry = Math.min(...reach.at.keys());
-    const telling = [...reach.at.keys()].some((i) => holders.get(key(shape.shape[i])) === 1);
+    const telling = [...reach.at.keys()].some((i) => holders.get(gesture(shape.shape[i])) === 1);
     if (entry > K_MISSED && !telling) continue;
     // A strict prefix, as before: a tail that reached the end of the shape is
     // a job the operator finished, and there is nothing left to offer.

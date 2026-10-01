@@ -14,6 +14,7 @@ import {
   workflowRunKeys,
   type WorkflowRunStepModel,
 } from "@/features/workflow/api";
+import { PasswordPrompt } from "@/features/workflow/components/password-prompt";
 import { money, outcomeLabel, when } from "@/features/workflow/format";
 
 /** A verdict a reader must not have to squint at. */
@@ -125,6 +126,8 @@ export function WorkflowRunDetail({ runId }: { runId: string }) {
           )}
         </div>
       </header>
+
+      <PasswordPrompt run={it} onSent={again} />
 
       <section className="space-y-2">
         {it.steps.map((s: WorkflowRunStepModel) => (

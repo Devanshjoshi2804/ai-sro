@@ -4,6 +4,7 @@ export type WorkflowModel = Schemas["WorkflowModel"];
 export type WorkflowStepModel = Schemas["WorkflowStepModel"];
 export type WorkflowRunModel = Schemas["WorkflowRunModel"];
 export type WorkflowRunStepModel = Schemas["WorkflowRunStepModel"];
+export type AnswerPasswordRequest = Schemas["AnswerPasswordRequest"];
 export type DeviceLineModel = Schemas["DeviceLineModel"];
 
 export type EvidenceResponse = Schemas["EvidenceResponse"];
@@ -68,6 +69,11 @@ export const approveWorkflowRun = (runId: string) =>
 
 export const abortWorkflowRun = (runId: string) =>
   api.post<WorkflowRunModel>(`/v1/workflow-runs/${encodeURIComponent(runId)}/abort`);
+
+/** The password a run asked for: stored (or lent to this run alone) and the
+ * run told, in one call. Nothing comes back, and nothing here keeps it. */
+export const answerRunPassword = (runId: string, body: AnswerPasswordRequest) =>
+  api.post<void>(`/v1/workflow-runs/${encodeURIComponent(runId)}/password`, body);
 
 export const listBrowsers = () =>
   api.get<{ devices: DeviceLineModel[] }>("/v1/devices").then((r) => r.devices);

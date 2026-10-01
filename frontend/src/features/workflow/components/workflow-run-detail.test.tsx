@@ -4,7 +4,8 @@
  * press that sends one on a run that is past taking it.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { renderWithQuery } from "@/test/render";
 import { WorkflowRunDetail } from "@/features/workflow/components/workflow-run-detail";
 import * as workflowApi from "@/features/workflow/api";
@@ -161,5 +162,65 @@ describe("WorkflowRunDetail", () => {
     vi.spyOn(workflowApi, "getWorkflowRun").mockRejectedValue(new Error("no such run"));
     renderWithQuery(<WorkflowRunDetail runId="run_1" />);
     expect(await screen.findByText(/no such run/)).toBeInTheDocument();
+  });
+
+  describe("a run waiting on its password", () => {
+    const asks = {
+      id: "q_1",
+      kind: "password",
+      text: "no usable password is stored for clerk at login.idp.example",
+      origin: "login.idp.example",
+      username: "clerk",
+      field: "password",
+    };
+
+    it("asks for it on the run, for the account the question names", async () => {
+      show({ question: asks });
+      expect(await screen.findByText(/needs your password for login\.idp\.example/)).toBeInTheDocument();
+      const box = screen.getByLabelText("Password");
+      expect(box).toHaveAttribute("type", "password");
+      expect(box).toHaveAttribute("autocomplete", "off");
+      expect(screen.getByRole("button", { name: "Save for next time" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Just this once" })).toBeInTheDocument();
+    });
+
+    it("sends the question, the value and the choice, then empties the box", async () => {
+      const sent = vi
+        .spyOn(workflowApi, "answerRunPassword")
+        .mockResolvedValue(undefined as never);
+      show({ question: asks });
+      const box = await screen.findByLabelText("Password");
+
+      await userEvent.type(box, "not-in-any-fixture-42");
+      await userEvent.click(screen.getByRole("button", { name: "Just this once" }));
+
+      await waitFor(() =>
+        expect(sent).toHaveBeenCalledWith("run_1", {
+          question_id: "q_1",
+          value: "not-in-any-fixture-42",
+          keep: false,
+        }),
+      );
+      expect(box).toHaveValue("");
+    });
+
+    it("sends nothing for an empty box", async () => {
+      const sent = vi.spyOn(workflowApi, "answerRunPassword");
+      show({ question: asks });
+      await userEvent.click(await screen.findByRole("button", { name: "Save for next time" }));
+      expect(sent).not.toHaveBeenCalled();
+    });
+
+    it("draws no box for any other question, none, or a question that names no account", async () => {
+      show({ question: { ...asks, kind: "value" } });
+      expect(await screen.findByRole("button", { name: "Stop" })).toBeInTheDocument();
+      expect(screen.queryByLabelText("Password")).toBeNull();
+    });
+
+    it("draws no box once the run is over", async () => {
+      show({ outcome: "failed", finished_at: "2026-09-10T10:31:02+00:00", question: asks });
+      expect(await screen.findByText(/failed/)).toBeInTheDocument();
+      expect(screen.queryByLabelText("Password")).toBeNull();
+    });
   });
 });

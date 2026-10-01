@@ -2202,7 +2202,7 @@ def test_a_standing_password_question_is_on_the_run_with_the_account_it_is_for()
         "asking": {
             "id": "q_1",
             "kind": "password",
-            "text": "clerk at https://idp.example has no usable password. Enter it on the run's card.",
+            "text": "clerk at https://idp.example needs its password.",
             "origin": "https://idp.example",
             "username": "clerk",
             "field": "password",
@@ -2232,7 +2232,7 @@ async def test_a_password_is_given_on_the_run_and_nothing_gives_it_back(
         "asking": {
             "id": "q_1",
             "kind": "password",
-            "text": "clerk at login.idp.example has no usable password. Enter it on the run's card.",
+            "text": "clerk at login.idp.example needs its password.",
             "origin": "login.idp.example",
             "username": "clerk",
             "field": "password",

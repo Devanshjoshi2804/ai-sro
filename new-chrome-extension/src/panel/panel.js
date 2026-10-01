@@ -241,17 +241,19 @@ function render(status) {
   // for it. Everything else is a fact a line states and a card would nag about.
   $("expanded").hidden = !(why || expanded);
 
-  // Home is what is true right now, and at most three loud cards of it (the
-  // user, 2026-09-29), in the order somebody deals with them:
+  // Home is what is true right now, and it hides nothing (the user,
+  // 2026-09-30: a question, a run card or a mail card is never dropped; the
+  // panel scrolls). In the order somebody deals with them:
   //
-  //   1. what needs the operator -- a run's question;
-  //   2. what is running or just finished -- run cards, mail cards, the wait
-  //      on a reply. A finished one draws whole until it is dismissed or the
-  //      day ends (the user, 2026-09-29 -- it used to fold after ten minutes,
-  //      and the operator wants the mail's info, Open mail, Review in
-  //      console and the steps done kept on screen);
-  //   3. one offer at most, for this page's job, and none for a job a card
-  //      above is already doing.
+  //   1. one offer at most, for this page's job, and none for a job a card
+  //      below is already doing -- on top so a day of finished cards never
+  //      pushes it out of sight;
+  //   2. what needs the operator -- a run's question;
+  //   3. what is running or just finished -- run cards, mail cards newest
+  //      first, the wait on a reply. A finished one draws whole until it is
+  //      dismissed or the day ends (the user, 2026-09-29 -- it used to fold
+  //      after ten minutes, and the operator wants the mail's info, Open
+  //      mail, Review in console and the steps done kept on screen).
   //
   // Seen on QA before this: a mail card, an offer for another page's job and
   // a full ladder card per learned job, stacked. Learned jobs stay in the
@@ -279,7 +281,8 @@ function render(status) {
   // now.
   const last = status.finished;
   if (last && !fromMail.has(last.id)) now.push(finished(status));
-  for (const run of mailRuns) {
+  const newestFirst = [...mailRuns].sort((a, b) => when(b.started_at) - when(a.started_at));
+  for (const run of newestFirst) {
     now.push(
       mailRunCard(run, {
         live: status.performing?.runId === run.id ? status.performing : null,
@@ -345,7 +348,7 @@ function render(status) {
     if (justArrived(newest)) one.dataset.fresh = "1";
     offers.push(one);
   }
-  const loud = [...needs, ...now, ...offers.slice(0, 1)].slice(0, K_LOUD);
+  const loud = [...offers.slice(0, 1), ...needs, ...now];
   openOffers = loud.filter((one) => offers.includes(one)).length;
 
   const trouble = troubles(status);
@@ -424,9 +427,6 @@ function render(status) {
   paintWaiting();
   return status;
 }
-
-/** How many loud cards Home draws at most (the user, 2026-09-29). */
-const K_LOUD = 3;
 
 const K_FRESH_MS = 20000;
 /** How long a card that has just arrived keeps its moving border. Long enough

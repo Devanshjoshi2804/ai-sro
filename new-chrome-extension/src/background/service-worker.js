@@ -308,7 +308,19 @@ async function considerNudge(tabId, url, visit) {
 async function rulesHere(url) {
   const here = rulePage(url);
   if (!here) return [];
-  const rules = (await state.arrivals()).filter((rule) => rule.page === here);
+  const held = await state.arrivals();
+  // A rule made before pages carried their screen's route is `host/path` and
+  // never equals a routed screen's page again. Landing on a routed screen of
+  // its path is the evidence that its host is routed: flag it, so the panel
+  // says it must be made again (it stays unmatched -- per-screen matching of
+  // new rules is the point of 96d3a8c5).
+  const route = here.indexOf("#");
+  const old = route < 0 ? [] : held.filter((rule) => !rule.stale && rule.page === here.slice(0, route));
+  if (old.length) {
+    const ids = new Set(old.map((rule) => rule.id));
+    await state.setArrivals(held.map((rule) => (ids.has(rule.id) ? { ...rule, stale: true } : rule)));
+  }
+  const rules = held.filter((rule) => rule.page === here);
   if (!rules.length) return [];
   const shapes = await shapesFor();
   return rules.map((rule) => {
@@ -2836,6 +2848,8 @@ export async function refreshArrivals() {
   if (!deviceId) return state.setArrivals([]);
   try {
     const triggers = await api.arrivals(deviceId);
+    // What was learned about a rule outlives the list being re-read.
+    const stale = new Set((await state.arrivals()).filter((rule) => rule.stale).map((rule) => rule.id));
     await state.setArrivals(
       (triggers || [])
         .filter((trigger) => trigger.arrival?.page)
@@ -2845,6 +2859,7 @@ export async function refreshArrivals() {
           page: trigger.arrival.page,
           workflowId: trigger.workflow_id,
           values: trigger.parameters || {},
+          ...(stale.has(trigger.id) && { stale: true }),
         })),
     );
   } catch (error) {
@@ -3356,6 +3371,8 @@ async function status(sender = null) {
   void lookForMailRuns();
   const shown = watchedRun(active);
   return {
+    // Page rules that can no longer fire (made before screens were keyed).
+    staleRules: (await state.arrivals()).filter((rule) => rule.stale),
     // Today's runs a mail started, one card each on Home.
     mailRuns: await state.mailRuns(),
     capturing: allowed.on,

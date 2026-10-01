@@ -190,3 +190,37 @@ test("the browser's own pages are not a system to offer work on", async () => {
 
   assert.equal(open().length, 0);
 });
+
+const statusNow = () => new Promise((resolve) => globalThis.__handle({ kind: "status" }, {}, resolve));
+
+test("a rule made before screens were keyed is said to need re-making, and nothing else is", async () => {
+  // Opus day-end review Q: `host/portal/page` (no route) stopped matching any
+  // Blue Yonder screen when pages gained their fragment route. Leaving it
+  // silent is a rule that looks active and never fires. Landing on a routed
+  // screen of its path is the worker's evidence that the host is routed.
+  const OLD = { ...RULE, id: "trg-old", page: `${WMS}/portal/page` };
+  const KEYCLOAK = { ...RULE, id: "trg-kc", page: "keycloak.example/auth/realms/x" };
+  ready({ rules: [OLD, RULE, KEYCLOAK] });
+
+  await navigated({ frameId: 0, tabId: 7, url: PAGE_URL, timeStamp: 6000 });
+  await new Promise((r) => setTimeout(r, 30));
+
+  assert.deepEqual(
+    (await statusNow()).staleRules.map((one) => one.id),
+    ["trg-old"],
+    "the route-less rule was not flagged, or a good one was",
+  );
+  // The heartbeat re-reads the list from the backend; the flag survives it.
+  served = [OLD, RULE].map((one) => ({
+    id: one.id,
+    workflow_id: one.workflowId,
+    parameters: one.values,
+    arrival: { page: one.page },
+  }));
+  await worker.refreshArrivals();
+  assert.deepEqual((await statusNow()).staleRules.map((one) => one.id), ["trg-old"]);
+  // Re-made (the old one gone): nothing left to say.
+  served = served.slice(1);
+  await worker.refreshArrivals();
+  assert.deepEqual((await statusNow()).staleRules, []);
+});

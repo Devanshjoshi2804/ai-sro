@@ -1782,6 +1782,18 @@ function troubles(status) {
       }),
     );
   }
+  // A rule made before screens were told apart looks active and never fires.
+  for (const rule of status.staleRules || [])
+    cards.push(
+      card({
+        title: "A page rule needs making again",
+        says:
+          `The rule for ${rule.page.split("#")[0]} was made before each screen ` +
+          "was told apart, so it no longer fires. Make it again on the screen " +
+          "you want (Always on this page), then remove this one in the console.",
+        tone: "attention",
+      }),
+    );
   if (status.lastError) {
     cards.push(
       card({

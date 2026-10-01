@@ -3952,6 +3952,16 @@ test("three finished mail cards do not push the offer or a fourth card off Home"
   for (const subject of ["AAA1", "BBB2", "CCC3", "DDD4"]) assert.match(loud.join(" "), new RegExp(subject));
 });
 
+test("a page rule that can no longer fire says it must be made again", () => {
+  const status = {
+    deviceId: "dev-1",
+    capturing: true,
+    watched: WATCHED,
+    staleRules: [{ id: "trg-old", page: "wms.example/portal" }],
+  };
+  assert.match(words(panel(status, TAB).ids["cards"]), /needs making again.*wms\.example\/portal/);
+});
+
 test("three standing questions and a performing card are all drawn", () => {
   const ask = (n) => ({ id: `q${n}`, title: `Job ${n}`, text: `What is value ${n}?` });
   const status = {

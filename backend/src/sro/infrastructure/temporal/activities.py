@@ -151,6 +151,16 @@ class RunActivities:
     def __init__(self, container: Container) -> None:
         self._container = container
 
+    def registered(self) -> list[Callable[..., Any]]:
+        """Every activity of this class, for the runs worker to register: one list read off
+        the class, so an activity the workflow calls cannot be left off by hand (it was:
+        `run.answered`, and no answer to a Steel run's question ever reached the run)."""
+        return [
+            getattr(self, name)
+            for name, one in vars(type(self)).items()
+            if hasattr(one, "__temporal_activity_definition")
+        ]
+
     @activity.defn(name="run.prepare")
     async def prepare(self, ref: RunRef) -> Prepared:
         ctx = _context(ref.tenant_id, ref.principal_id)

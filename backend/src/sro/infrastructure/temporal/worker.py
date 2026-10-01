@@ -180,14 +180,7 @@ async def run() -> None:
         task_queue=RUNS_QUEUE,
         graceful_shutdown_timeout=timedelta(seconds=K_STEP_HEARTBEAT_S),
         workflows=[RunWorkflow],
-        activities=[
-            run_activities.prepare,
-            run_activities.acquire,
-            run_activities.step,
-            run_activities.stopped,
-            run_activities.finish,
-            run_activities.release,
-        ],
+        activities=run_activities.registered(),
     )
     try:
         rekeyed = await rekey_everything(container)

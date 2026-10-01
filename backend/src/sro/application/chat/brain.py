@@ -11,7 +11,8 @@ from __future__ import annotations
 import json
 import logging
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
+from dataclasses import replace
 from datetime import UTC
 
 from sro.application.chat.brain_tools import Checks, Tool, described, start_key
@@ -34,7 +35,7 @@ from sro.domain.chat.brain_turn import (
     step_of,
 )
 from sro.domain.prompts.chat_brain import CHAT_BRAIN
-from sro.domain.recording.sensitivity import is_secret_field, redact_shapes
+from sro.domain.recording.sensitivity import without_secrets
 
 logger = logging.getLogger(__name__)
 
@@ -47,18 +48,6 @@ K_LOGGED = 300
 # only ever a reading. Not lookup: it takes a Steel session beside the chain's own look and
 # its model spend would count against the day's cap.
 READ_ONLY = frozenset({"find_jobs", "run_status"})
-
-
-def _without_secrets(value: object) -> object:
-    if isinstance(value, Mapping):
-        return {
-            k: "<secret>" if is_secret_field(str(k)) else _without_secrets(v)
-            for k, v in value.items()
-        }
-    if isinstance(value, list):
-        return [_without_secrets(one) for one in value]
-    # A secret can sit inside a value whose name is harmless (a mail body, a description).
-    return redact_shapes(value) if isinstance(value, str) else value
 
 
 def _cannot(
@@ -115,15 +104,17 @@ class Brain:
     ) -> BrainReply:
         steps: list[tuple[ToolCall, ToolResult]] = []
         decisions: list[dict[str, object]] = []
+        trouble: list[str] = []
         try:
-            return await self._turn(
-                ctx, message, history, origin, asking, page, offer, dry, steps, decisions
+            reply = await self._turn(
+                ctx, message, history, origin, asking, page, offer, dry, steps, decisions, trouble
             )
         except Exception:
             # Whatever broke is the log's; the operator is told it plainly, and what the turn
             # already did (a run it started) stays on the record.
             logger.exception("brain turn failed")
-            return _cannot("something went wrong", decisions, steps)
+            reply = _cannot("something went wrong", decisions, steps)
+        return replace(reply, trouble=tuple(dict.fromkeys(trouble)))
 
     async def _turn(
         self,
@@ -137,6 +128,7 @@ class Brain:
         dry: bool,
         steps: list[tuple[ToolCall, ToolResult]],
         decisions: list[dict[str, object]],
+        trouble: list[str],
     ) -> BrainReply:
         trusted: dict[str, object] = {
             "origin": origin.kind,
@@ -176,6 +168,7 @@ class Brain:
         calls, spent = 0, 0.0
         for _ in range(K_BRAIN_STEPS):
             if calls >= self._max_calls or 0 <= self._max_turn_usd <= spent:
+                trouble.append("budget")
                 return _stopped(decisions, steps)
             async with self._uow as uow:
                 why = await over_cap(
@@ -194,6 +187,8 @@ class Brain:
                 return _cannot(str(refused), decisions, steps)
             # A fallback is a second call on the same prompt.
             calls += 2 if answer.fell_back else 1
+            if answer.fell_back:
+                trouble.append("fell_back")
             spent += answer.cost_usd
             if answer.data is None:
                 # The model's own error text is the log's, not the operator's.
@@ -211,12 +206,14 @@ class Brain:
                 )
                 continue
             call = step.call
+            if call.unreadable:
+                trouble.append("unreadable_args")
             begun = time.monotonic()
             result = await self._run(ctx, call, turn, dry=dry, started=started)
             logger.info(
                 "brain step: tool=%s args=%s ok=%s error=%s latency=%.3fs cost=%s",
                 call.tool,
-                json.dumps(_without_secrets(call.args), ensure_ascii=False, default=str)[:K_LOGGED],
+                json.dumps(without_secrets(call.args), ensure_ascii=False, default=str)[:K_LOGGED],
                 result.ok,
                 result.error[:K_LOGGED],
                 time.monotonic() - begun,
@@ -228,6 +225,7 @@ class Brain:
             results.append(fenced_result(call, result))
             if result.ends_turn:
                 return BrainReply(result.said, tuple(decisions), tuple(steps))
+        trouble.append("budget")
         return _stopped(decisions, steps, f"in {K_BRAIN_STEPS} steps")
 
     async def shadow(
@@ -239,8 +237,9 @@ class Brain:
         origin: Origin,
         asking: str = "",
         page: str = "",
-    ) -> None:
-        """A dry turn whose only effect is one log line; it never raises."""
+    ) -> BrainReply | None:
+        """A dry turn whose only effect is one log line, and its reply (None when it broke); it
+        never raises."""
         try:
             reply = await self.turn(
                 ctx,
@@ -263,8 +262,10 @@ class Brain:
                 title,
                 reply.said[:K_LOGGED],
             )
+            return reply
         except Exception:
             logger.exception("brain shadow failed")
+            return None
 
     async def _run(
         self, ctx: RequestContext, call: ToolCall, turn: Turn, *, dry: bool, started: set[str]
@@ -283,7 +284,7 @@ class Brain:
             # One start per distinct job and values a turn: a refusal is answered, not retried.
             key = start_key(call.args)
             if key in started:
-                return ToolResult(False, error="that start was already tried this turn")
+                return ToolResult(False, error="that start was already tried this turn", guard=True)
             started.add(key)
         try:
             return await tool.run(ctx, call.args, turn)

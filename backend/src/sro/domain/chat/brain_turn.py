@@ -50,6 +50,8 @@ class ToolResult:
     decision: dict[str, object] | None = None
     # What the operator is told of this result, when it has a card of its own.
     said: str = ""
+    # A code guard refused the call (not the world): the model's own mistake.
+    guard: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +59,9 @@ class BrainReply:
     said: str
     decisions: tuple[dict[str, object], ...] = ()
     steps: tuple[tuple[ToolCall, ToolResult], ...] = ()
+    # What went wrong on the way that the operator is not told of: "budget" (the turn hit its
+    # steps, calls or spend), "fell_back" (a second model answered), "unreadable_args".
+    trouble: tuple[str, ...] = ()
 
 
 def _args_of(raw: object) -> dict[str, object] | None:

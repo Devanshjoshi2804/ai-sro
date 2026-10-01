@@ -77,7 +77,7 @@ Code: `FAILURE = "failure"`
 
 > A run that could not go on, and the one thing that would help.
 
-## `Message`, [line 57](../../../../../../../backend/src/sro/domain/chat/thread.py#L57): Note on the line above
+## `Message`, [line 59](../../../../../../../backend/src/sro/domain/chat/thread.py#L59): Note on the line above
 
 Code: `decision: dict[str, object] = field(default_factory=dict)`
 
@@ -86,7 +86,7 @@ Code: `decision: dict[str, object] = field(default_factory=dict)`
 > Kept structured as well as in prose because "why did it do that" is
 > answered by the resolution, not by the sentence that reported it.
 
-## `Thread.title`, [line 84](../../../../../../../backend/src/sro/domain/chat/thread.py#L84): Docstring
+## `Thread.title`, [line 86](../../../../../../../backend/src/sro/domain/chat/thread.py#L86): Docstring
 
 > What this conversation was about, and what came of it.
 >
@@ -95,15 +95,15 @@ Code: `decision: dict[str, object] = field(default_factory=dict)`
 > other. What tells them apart is what was done in them, so the last task
 > that actually ran is added when there was one.
 
-## `Thread._what_was_done`, [line 89](../../../../../../../backend/src/sro/domain/chat/thread.py#L89): Docstring
+## `Thread._what_was_done`, [line 91](../../../../../../../backend/src/sro/domain/chat/thread.py#L91): Docstring
 
 > The last thing this conversation actually performed, if anything.
 
-## `Thread.say`, [line 97](../../../../../../../backend/src/sro/domain/chat/thread.py#L97): Docstring
+## `Thread.say`, [line 99](../../../../../../../backend/src/sro/domain/chat/thread.py#L99): Docstring
 
 > Append. Nothing in a thread is ever edited or removed.
 
-## `Thread.unsaved`, [line 102](../../../../../../../backend/src/sro/domain/chat/thread.py#L102): Note
+## `Thread.unsaved`, [line 104](../../../../../../../backend/src/sro/domain/chat/thread.py#L104): Note
 
 Code: `return tuple(self._messages[self._kept :])`
 

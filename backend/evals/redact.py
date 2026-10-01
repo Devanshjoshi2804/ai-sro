@@ -111,7 +111,10 @@ def _roots(case: Case) -> dict[str, tuple[object, str]]:
     return {
         "input": ({k: v for k, v in case.input.items() if k != "crossings"}, "prose"),
         "crossings": (case.input.get("crossings", {}), "crossings"),
-        "expected": ({k: v for k, v in case.expected.items() if k != "values"}, "prose"),
+        "expected": (
+            {k: v for k, v in case.expected.items() if k not in ("values", "tools")},
+            "prose",
+        ),
         "values": (values, "labels" if isinstance(values, dict) else "value"),
         "answer": (case.answer, "prose"),
         "answers": (case.answers, "prose"),
@@ -127,10 +130,12 @@ def redacted(case: Case, *, tenant: str = "") -> Case:
     }
     crossings = {"crossings": done["crossings"]} if "crossings" in case.input else {}
     values = {"values": done["values"]} if "values" in case.expected else {}
+    # A chat case's tool names are ours, never the operator's data.
+    tools = {"tools": case.expected["tools"]} if "tools" in case.expected else {}
     return replace(
         case,
         input=done["input"] | crossings,  # type: ignore[operator]
-        expected=done["expected"] | values,  # type: ignore[operator]
+        expected=tools | done["expected"] | values,  # type: ignore[operator]
         answer=done["answer"],  # type: ignore[arg-type]
         answers=done["answers"],  # type: ignore[arg-type]
     )

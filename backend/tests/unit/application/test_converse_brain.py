@@ -16,6 +16,7 @@ import pytest
 from sro.application.chat.brain import Brain
 from sro.application.chat.brain_tools import brain_tools
 from sro.application.chat.converse import Converse, StartThread
+from sro.application.chat.feedback import RecordFeedback
 from sro.application.execution.workflow_runs import GetWorkflowRun
 from sro.application.intent.plan_task import PlanTask
 from sro.application.intent.resolve import ResolveIntent
@@ -49,8 +50,11 @@ def _converse(
     *,
     on: tuple[str, ...] = (),
     shadow: tuple[str, ...] = (),
+    max_calls: int = 6,
 ) -> Converse:
     world = acting.world
+    feedback = RecordFeedback(world.uow, FakeIdFactory(), world.clock)
+    acting.start._feedback = feedback
     tools = brain_tools(
         uow=world.uow,
         clock=world.clock,
@@ -62,6 +66,7 @@ def _converse(
         start=acting.start,
         plan=PlanTask(Retrieve(world.uow, FakeEmbedder())),
         spawn=acting.spawned.append,
+        feedback=feedback,
     )
     return Converse(
         world.uow,
@@ -72,9 +77,10 @@ def _converse(
         start=acting.start,
         spawn=acting.spawned.append,
         attempts=RecordAttempt(world.uow, FakeIdFactory(), world.clock),
-        brain=Brain(world.uow, asker, world.clock, tools, cap_usd=5.0),
+        brain=Brain(world.uow, asker, world.clock, tools, cap_usd=5.0, max_calls=max_calls),
         brain_tenants=frozenset(on),
         brain_shadow_tenants=frozenset(shadow),
+        feedback=feedback,
     )
 
 

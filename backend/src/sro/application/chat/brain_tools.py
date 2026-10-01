@@ -6,6 +6,7 @@ from collections.abc import Callable, Collection, Coroutine, Mapping, Sequence
 from typing import ClassVar, Protocol, runtime_checkable
 
 from sro.application.chat.candidates import rank_jobs, real_jobs
+from sro.application.chat.feedback import RecordFeedback
 from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.chat.mailbox import SERVER
 from sro.application.chat.open_offers import OpenOffer, standing_offers
@@ -176,8 +177,13 @@ class RunStatus:
         "properties": {"run_id": {"type": "string"}},
     }
 
-    def __init__(self, runs: ListWorkflowRuns, threads: ReadThreads) -> None:
-        self._runs, self._threads = runs, threads
+    def __init__(
+        self,
+        runs: ListWorkflowRuns,
+        threads: ReadThreads,
+        feedback: RecordFeedback | None = None,
+    ) -> None:
+        self._runs, self._threads, self._feedback = runs, threads, feedback
 
     async def run(
         self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
@@ -186,7 +192,13 @@ class RunStatus:
             ctx, workflow_id=None, limit=K_RECENT_RUNS, awaiting=False, mine=True
         )
         wanted = str(args.get("run_id") or "")
-        rows = [await self._row(ctx, one) for one in found if not wanted or one.id == wanted]
+        shown = [one for one in found if not wanted or one.id == wanted]
+        rows = [await self._row(ctx, one) for one in shown]
+        if self._feedback is not None:
+            # No hook sits where every run's outcome is written; the operator's next look at
+            # their runs is the least invasive place to notice that a run the brain started failed.
+            for run, row in zip(shown, rows, strict=True):
+                await self._feedback.failed(ctx, run, str(row["stopped_because"]))
         return ToolResult(ok=True, data={"runs": rows})
 
     async def _row(self, ctx: RequestContext, run: WorkflowRun) -> dict[str, object]:
@@ -383,7 +395,9 @@ class StartJob:
         job_id = str(args.get("job_id") or "")
         values = values_of(args)
         if values is None:
-            return ToolResult(ok=False, error="values is an object of parameter name to value")
+            return ToolResult(
+                ok=False, error="values is an object of parameter name to value", guard=True
+            )
         async with self._uow as uow:
             known = await uow.workflows.known(ctx.tenant_id)
             facts = await job_facts(uow, ctx.tenant_id, known, now=self._clock.now())
@@ -393,7 +407,9 @@ class StartJob:
         job = next((one for one in facts if one.workflow.id == job_id and job_id in real), None)
         sent = job.workflow if job else built_in(job_id, ctx.tenant_id.value)
         if sent is None:
-            return ToolResult(ok=False, error="that is not a job this team has; use find_jobs")
+            return ToolResult(
+                ok=False, error="that is not a job this team has; use find_jobs", guard=True
+            )
         # By what the job does, not its name: mail goes out only on the operator's Send it press.
         by_id = job.by_id if job else {}
         if is_mail_only(sent, by_id) or any(sends_mail(one, by_id) for one in sent.steps):
@@ -401,6 +417,7 @@ class StartJob:
                 ok=False,
                 error="that job sends mail, and mail goes out only when the operator presses "
                 "Send it; tell the operator you cannot send mail from chat",
+                guard=True,
             )
         fields = (
             {one.name: one for one in job.compiled.fields if one.kind != "never"} if job else {}
@@ -414,7 +431,7 @@ class StartJob:
                 if (shown := labelled(normal(name), job.compiled.fields)) is not None:
                     fields[name] = shown
         wrong = what_is_wrong(values, fields, turn.said, logins, placeable)
-        return ToolResult(ok=False, error="; ".join(wrong)) if wrong else None
+        return ToolResult(ok=False, error="; ".join(wrong), guard=True) if wrong else None
 
     async def _offers(self, ctx: RequestContext) -> tuple[OpenOffer, ...]:
         return await standing_offers(self._uow, ctx, self._clock.now())
@@ -549,11 +566,12 @@ def brain_tools(
     start: StartWorkflowRun,
     plan: PlanTask,
     spawn: Spawn,
+    feedback: RecordFeedback | None = None,
 ) -> tuple[Tool, ...]:
     return (
         FindJobs(uow, clock),
         StartJob(uow, clock, start, spawn),
-        RunStatus(runs, threads),
+        RunStatus(runs, threads, feedback),
         CheckMail(look_mail),
         UndoRun(run, start, spawn),
         Lookup(look_up),

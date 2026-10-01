@@ -222,6 +222,19 @@ def redact_shapes(text: str) -> str:
     return _SHAPE_ANY_CASE.sub(REDACTED, _SHAPE.sub(REDACTED, text))
 
 
+def without_secrets(value: object) -> object:
+    """A value as it may be logged or kept: a secret field's value gone, and a secret's shape
+    gone from any text (it can sit inside a value whose name is harmless: a mail body)."""
+    if isinstance(value, dict):
+        return {
+            k: "<secret>" if is_secret_field(str(k)) else without_secrets(v)
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [without_secrets(one) for one in value]
+    return redact_shapes(value) if isinstance(value, str) else value
+
+
 _ACRONYM_BOUNDARY = (
     (re.compile(r"([a-z0-9])([A-Z])"), r"\1 \2"),
     (re.compile(r"([A-Z]{2,})([A-Z][a-z])"), r"\1 \2"),

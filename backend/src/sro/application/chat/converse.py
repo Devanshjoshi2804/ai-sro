@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Callable, Coroutine, Mapping, Sequence
 from dataclasses import replace
@@ -80,6 +81,7 @@ from sro.domain.skill.skill import Skill
 
 if TYPE_CHECKING:
     from sro.application.chat.brain import Brain
+    from sro.application.chat.feedback import RecordFeedback
     from sro.application.chat.from_the_mail import FromTheMail
     from sro.application.execution.workflow_runs import StartWorkflowRun
     from sro.application.runtime.answer_run import AnswerRun
@@ -152,8 +154,10 @@ class Converse:
         brain: Brain | None = None,
         brain_tenants: frozenset[str] = frozenset(),
         brain_shadow_tenants: frozenset[str] = frozenset(),
+        feedback: RecordFeedback | None = None,
     ) -> None:
         self._uow = uow
+        self._feedback = feedback
         self._brain = brain
         self._brain_tenants = brain_tenants
         self._brain_shadow_tenants = brain_shadow_tenants
@@ -445,8 +449,46 @@ class Converse:
             return await self._brain_turn(
                 brain, ctx, thread_id=thread_id, text=text, system=system, answering=answering
             )
-        if self._brain is not None and ctx.tenant_id.value in self._brain_shadow_tenants:
-            self._shadow(ctx, said_before, text, system, answering)
+        if self._brain is None or ctx.tenant_id.value not in self._brain_shadow_tenants:
+            return await self._the_chain(
+                ctx,
+                thread_id=thread_id,
+                text=text,
+                system=system,
+                parameters=parameters,
+                placed=placed,
+                standing=standing,
+            )
+        # The chain answers; the brain reads the same message off the request path, and when the
+        # chain's reply is written the two are compared (see `_compared`).
+        written: asyncio.Future[Thread | None] = asyncio.get_running_loop().create_future()
+        self._shadow(ctx, thread_id, said_before, text, system, answering, written)
+        answered: Thread | None = None
+        try:
+            answered = await self._the_chain(
+                ctx,
+                thread_id=thread_id,
+                text=text,
+                system=system,
+                parameters=parameters,
+                placed=placed,
+                standing=standing,
+            )
+            return answered
+        finally:
+            written.set_result(answered)
+
+    async def _the_chain(
+        self,
+        ctx: RequestContext,
+        *,
+        thread_id: ThreadId,
+        text: str,
+        system: str | None,
+        parameters: dict[str, str] | None,
+        placed: Understood | _NotAsked | None,
+        standing: bool,
+    ) -> Thread:
         if isinstance(placed, _NotAsked):
             placed = await self._placed_by_the_rig(ctx, text)
         if placed is not None:
@@ -530,23 +572,63 @@ class Converse:
     def _shadow(
         self,
         ctx: RequestContext,
+        thread_id: ThreadId,
         said_before: Sequence[Message],
         text: str,
         system: str | None,
         answering: str | None,
+        written: asyncio.Future[Thread | None],
     ) -> None:
-        # The chain answers; the brain reads the same message off the request path.
         if self._brain is not None and self._spawn is not None:
             self._spawn(
-                self._brain.shadow(
+                self._compared(
+                    self._brain,
                     ctx,
+                    thread_id,
+                    written,
                     message=text,
                     history=_history(said_before),
-                    origin=Origin("chat"),
                     asking=_open_question(said_before, answering),
                     page=system or "",
                 )
             )
+
+    async def _compared(
+        self,
+        brain: Brain,
+        ctx: RequestContext,
+        thread_id: ThreadId,
+        written: asyncio.Future[Thread | None],
+        *,
+        message: str,
+        history: list[str],
+        asking: str,
+        page: str,
+    ) -> None:
+        """The dry brain turn, then, once the chain's reply stands, what the two did compared.
+        Off the request path: it raises nothing and holds nothing up."""
+        reply = await brain.shadow(
+            ctx, message=message, history=history, origin=Origin("chat"), asking=asking, page=page
+        )
+        try:
+            answered = await written
+            if reply is None or answered is None or self._feedback is None:
+                return
+            said = answered.messages
+            spoke = [n for n, one in enumerate(said) if one.speaker is Speaker.OPERATOR]
+            if not spoke:
+                return
+            chain = [one for one in said[spoke[-1] + 1 :] if one.speaker is Speaker.ASSISTANT]
+            await self._feedback.turn(
+                ctx,
+                thread_id=thread_id.value,
+                operator=said[spoke[-1]],
+                reply=reply,
+                mode="shadow",
+                chain=chain[-1] if chain else None,
+            )
+        except Exception:
+            logger.exception("brain shadow comparison failed")
 
     async def _brain_turn(
         self,
@@ -579,6 +661,10 @@ class Converse:
             self._told(thread, "", reply.said, cards[-1][1] if cards else None)
             await uow.threads.save(thread)
             await uow.commit()
+        if self._feedback is not None:
+            await self._feedback.turn(
+                ctx, thread_id=thread_id.value, operator=said[-1], reply=reply, mode="live"
+            )
         if self._attempts is not None:
             for call, result in reply.steps:
                 if call.tool in _STARTS:
@@ -1698,7 +1784,7 @@ def _awaiting(thread: Thread) -> str | None:
     return None
 
 
-LOOKED = "looked"
+LOOKED = Said.LOOKED.value
 
 
 def _seen(looked: Looked, question: str = "") -> dict[str, object]:

@@ -167,3 +167,18 @@ async def test_the_mail_and_the_panel_start_a_refusal_s_answer_under_the_questio
     for by_mail in (True, False):
         question, offers = await _question_and_new_run_offers(by_mail)
         assert offers == [question], by_mail
+
+
+async def test_a_display_name_holding_the_asked_address_does_not_answer_for_its_owner() -> None:
+    world, asking = await _sent_to_the_sender()
+
+    await _replied(
+        world,
+        asking,
+        "Description :- Vets",
+        _VETS,
+        sender='"tanisha@example.com" <mallory@example.com>',
+    )
+
+    chat = await _chat(world, THREAD)
+    assert not [one for one in chat.messages if one.text.startswith("A reply")]

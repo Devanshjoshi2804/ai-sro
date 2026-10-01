@@ -154,6 +154,14 @@ def mailboxes(text: str) -> tuple[str, ...] | None:
     return tuple(dict.fromkeys(address.casefold() for _, address in found))
 
 
+def sender_address(header: str) -> str:
+    """The one real mailbox of a From header, lower-cased; empty for anything odd.
+    A display name is the sender's own words, so an address inside it never counts."""
+    odd = not header.isprintable() or header.count("<") != header.count(">")
+    found = None if odd else mailboxes(header)
+    return found[0] if found and len(found) == 1 else ""
+
+
 def addresses_in(said: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys(one.casefold() for one in _ADDRESS.findall(said)))
 

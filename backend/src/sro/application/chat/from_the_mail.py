@@ -57,7 +57,7 @@ from sro.domain.chat.asking import (
 )
 from sro.domain.chat.thread import Said, Speaker
 from sro.domain.execution.learned_step import limits_for, too_long
-from sro.domain.execution.mail_job import MAIL_BODY, addresses_in, one_address_in
+from sro.domain.execution.mail_job import MAIL_BODY, addresses_in, one_address_in, sender_address
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.waiting import read_wait, still_waiting
 from sro.domain.execution.workflow_run import WorkflowRun, answers_for
@@ -307,7 +307,7 @@ class FromTheMail:
         if back is not None:
             return await self._carrying_on(ctx, message, back, said, thread, subject, titles, held)
         asked, asked_of = await self._was_asked(ctx, thread)
-        if asked is not None and (not asked_of or asked_of in addresses_in(mail.sender)):
+        if asked is not None and (not asked_of or asked_of == sender_address(mail.sender)):
             return await self._answered_by_mail(ctx, message, asked, said, thread, subject, held)
         whole, earlier = await self._conversation(ctx, thread, message) if thread else ("", "")
         text = whole or said

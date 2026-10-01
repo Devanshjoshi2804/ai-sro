@@ -8,6 +8,7 @@ import json
 from sro.application.chat.ask_the_asker import DRAFTED, SendTheDraft
 from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.runtime.answer_run import AnswerRun
+from sro.domain.chat.asking import NEEDS
 from tests.unit.application.rig.test_from_the_mail import _found, _Mailbox, _Reads
 from tests.unit.application.runtime.test_a_refused_write import (
     CTX,
@@ -146,3 +147,23 @@ async def test_what_a_reply_said_is_shown_as_quoted_data_and_bounded() -> None:
     chat = await _chat(world, THREAD)
     (note,) = [one for one in chat.messages if one.text.startswith("A reply to 'Re: x'")]
     assert "Description 'Vets " in note.text and len(note.text) < 300
+
+
+async def _question_and_new_run_offers(by_mail: bool) -> tuple[str, list[str]]:
+    world, asking = await _refused_run(mail=ENVELOPE)
+    chat = await _chat(world, THREAD)
+    (question,) = [one for one in chat.messages if (one.decision or {}).get("kind") == NEEDS]
+    if by_mail:
+        await _replied(world, asking, "Description :- Vets", _VETS)
+    else:
+        await asking.converse(world).execute(CTX, thread_id=chat.id, text="Vets")
+    offers = [one.offer for one in world.uow.workflow_runs.rows.values() if one.id != world.run_id]
+    return question.id.value, offers
+
+
+async def test_the_mail_and_the_panel_start_a_refusal_s_answer_under_the_questions_own_key() -> None:
+    # One question, one key: otherwise uq_workflow_runs_one_per_offer cannot
+    # stop the operator's typed answer and a mail reply both starting a run.
+    for by_mail in (True, False):
+        question, offers = await _question_and_new_run_offers(by_mail)
+        assert offers == [question], by_mail

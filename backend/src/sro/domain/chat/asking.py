@@ -474,7 +474,7 @@ def _chats_about(message: Message, workflow_id: str) -> bool:
 def pending_job(messages: Sequence[Message], answering: str | None = None) -> Pending | None:
     asked = asked_under(messages, answering)
     decision = asked.decision if asked is not None else None
-    if not decision or decision.get("kind") != NEEDS:
+    if asked is None or not decision or decision.get("kind") != NEEDS:
         return None
     listed = decision.get("missing")
     missing = tuple(str(one) for one in listed) if isinstance(listed, list | tuple) else ()
@@ -498,7 +498,9 @@ def pending_job(messages: Sequence[Message], answering: str | None = None) -> Pe
         doubted=_names(decision.get("doubted")),
         refused=_strings(decision.get("refused")),
         changing=bool(decision.get("changing")),
-        offer=str(decision.get("offer") or ""),
+        # The question's own message id unless it re-asks one: the mail door and
+        # the panel both key a run on this, so one question starts one run.
+        offer=str(decision.get("offer") or asked.id.value),
     )
 
 

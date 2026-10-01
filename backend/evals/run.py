@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Protocol
 
 from evals.model import Case, Report, Scored, as_markdown, every_time, gate, report
+from evals.models import chosen
 from evals.redact import redacted
 from evals.replay import Replayed
 from evals.suites.chat import Chat
@@ -88,11 +89,20 @@ async def run_suite(
     limit: int | None = None,
     rebuild: bool = False,
     repeat: int = 1,
+    provider: str = "gemini",
+    model: str | None = None,
+    thinking: str | None = None,
 ) -> int:
     suite, container = SUITES[name], build_container()
     asker = suite.asker(container)
-    if asker is None:
+    if asker is None and provider == "gemini":
         raise SystemExit("make eval needs gemini_api_key and interpretation_enabled")
+    if provider != "gemini" or model or thinking:
+        shown = model or "the recorded model"
+        print(f"asking {provider} {shown}, thinking {thinking or 'as recorded'}")  # noqa: T201
+        asker = chosen(asker, provider=provider, model=model, thinking=thinking)
+    if asker is None:
+        raise SystemExit("make eval needs a model to ask")
 
     async def build() -> list[Case]:
         async with container.unit_of_work() as uow:

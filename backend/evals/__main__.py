@@ -30,6 +30,9 @@ def arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
         default=1,
         help="run every case N times; it counts only if all N pass (pass^k)",
     )
+    one.add_argument("--provider", choices=["gemini", "openrouter"], default="gemini")
+    one.add_argument("--model", help="ask this model instead of the prompt record's")
+    one.add_argument("--thinking", choices=["default", "minimal", "low", "medium", "high"])
     probe = sub.add_parser("scenarios", help="the chat scenarios through the live brain (a probe)")
     probe.add_argument("--tenant", required=True)
     probe.add_argument("--repeat", type=_at_least_one, default=1)
@@ -60,6 +63,9 @@ def main() -> int:
                 limit=args.limit,
                 rebuild=args.rebuild,
                 repeat=args.repeat,
+                provider=args.provider,
+                model=args.model,
+                thinking=args.thinking,
             )
         )
     if args.command == "scenarios":

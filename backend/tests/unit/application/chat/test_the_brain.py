@@ -87,6 +87,20 @@ async def test_an_unknown_tool_is_told_back_not_run() -> None:
     assert reply.said == "I can't do that."
 
 
+async def test_unreadable_arguments_are_told_back_and_the_tool_does_not_run() -> None:
+    acting = await _acting()
+    for bad in ("{bad", "[1]"):
+        brain, asker = _brain(
+            acting, Answer(data={"action": "call", "tool": "check_mail", "args": bad}), _say("ok")
+        )
+
+        reply = await brain.turn(CTX, message="mail?", history=[], origin=Origin("chat"))
+
+        ((_, result),) = reply.steps
+        assert not result.ok and result.error == "args is not a JSON object"
+        assert "args is not a JSON object" in str(asker.asked[1]["evidence"])
+
+
 async def test_a_malformed_answer_counts_as_a_step_and_is_told_back() -> None:
     acting = await _acting()
     brain, asker = _brain(acting, *[Answer(data={"action": "call"})] * 6)

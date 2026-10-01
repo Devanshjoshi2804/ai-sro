@@ -22,9 +22,14 @@ def test_an_object_of_arguments_still_reads() -> None:
     assert _call_with({"job_id": "j"}).call == ToolCall("start_job", {"job_id": "j"})
 
 
-def test_arguments_that_are_not_an_object_are_none() -> None:
-    for bad in ("", "{}", "not json", "[1]", '"x"', "null", None, 3):
-        assert _call_with(bad).call == ToolCall("start_job", {})
+def test_no_arguments_at_all_is_an_empty_object() -> None:
+    for none in ("", "{}", None):
+        assert _call_with(none).call == ToolCall("start_job", {})
+
+
+def test_arguments_that_are_not_an_object_are_unreadable_not_empty() -> None:
+    for bad in ("{bad", "not json", "[1]", '"x"', "null", 3):
+        assert _call_with(bad).call == ToolCall("start_job", {}, unreadable=True)
 
 
 def test_a_say_answer_is_words_to_the_operator() -> None:

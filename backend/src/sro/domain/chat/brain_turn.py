@@ -31,6 +31,8 @@ class ToolCall:
     tool: str
     args: dict[str, object]
     why: str = ""
+    # The arguments were not a JSON object: the tool is not run, the model is told.
+    unreadable: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,14 +59,17 @@ class BrainReply:
     steps: tuple[tuple[ToolCall, ToolResult], ...] = ()
 
 
-def _args_of(raw: object) -> dict[str, object]:
-    """The model writes its arguments as a JSON string (Gemini drops a free-form object)."""
+def _args_of(raw: object) -> dict[str, object] | None:
+    """The model writes its arguments as a JSON string (Gemini drops a free-form object).
+    None when what it wrote is not an object: that is an error to tell it, not no arguments."""
+    if raw is None:
+        return {}
     if isinstance(raw, str):
         try:
             raw = json.loads(raw) if raw.strip() else {}
         except ValueError:
-            return {}
-    return dict(raw) if isinstance(raw, Mapping) else {}
+            return None
+    return dict(raw) if isinstance(raw, Mapping) else None
 
 
 def step_of(data: Mapping[str, object] | None) -> BrainStep:
@@ -74,9 +79,7 @@ def step_of(data: Mapping[str, object] | None) -> BrainStep:
         args = _args_of(data.get("args"))
         return BrainStep(
             call=ToolCall(
-                str(data["tool"]),
-                args,
-                str(data.get("why") or ""),
+                str(data["tool"]), args or {}, str(data.get("why") or ""), unreadable=args is None
             ),
             say=None,
         )

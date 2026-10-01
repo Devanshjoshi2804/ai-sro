@@ -228,6 +228,8 @@ class Brain:
         tool = self._tools.get(call.tool)
         if tool is None:
             return ToolResult(False, error=f"no such tool: {call.tool}")
+        if call.unreadable:
+            return ToolResult(False, error="args is not a JSON object")
         if dry and call.tool not in READ_ONLY:
             return ToolResult(True, {"would": call.tool})
         if call.tool == "start_job":

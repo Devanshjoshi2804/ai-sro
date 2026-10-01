@@ -36,8 +36,8 @@ def _tree(root: Path, api: str = "https://sro.example/api") -> Path:
     (root / "src" / "panel" / "test-support" / "fake.js").write_text("fake")
     (root / "fixtures" / "batch.json").write_text("{}")
     (root / "README.md").write_text("dev")
-    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
-    subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)  # noqa: S607
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True)  # noqa: S607
     return root
 
 

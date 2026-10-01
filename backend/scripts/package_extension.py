@@ -37,7 +37,7 @@ def _api_url(source: Path) -> str:
 
 def _tracked(source: Path) -> list[str]:
     listed = subprocess.run(
-        ["git", "ls-files", "-z", "--", "src"],
+        ["git", "ls-files", "-z", "--", "src"],  # noqa: S607 - git is on PATH or it is not
         cwd=source,
         check=True,
         capture_output=True,
@@ -56,7 +56,10 @@ def package(source: Path, out: Path, *, allow_insecure: bool = False) -> Path:
                 "`make gen-deployment api=https://...` first "
                 "(or --allow-insecure for a local QA zip)."
             )
-        print(f"WARNING: INSECURE BUILD, talks to {api!r} -- never upload this to the store", file=sys.stderr)
+        print(
+            f"WARNING: INSECURE BUILD, talks to {api!r} -- never upload this to the store",
+            file=sys.stderr,
+        )
     manifest = json.loads((source / "manifest.json").read_text())
     manifest.pop("key", None)
     out.mkdir(parents=True, exist_ok=True)
@@ -74,7 +77,9 @@ def package(source: Path, out: Path, *, allow_insecure: bool = False) -> Path:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, default=ROOT / "dist")
-    parser.add_argument("--allow-insecure", action="store_true", help="local QA zip: allow a non-https API url")
+    parser.add_argument(
+        "--allow-insecure", action="store_true", help="local QA zip: allow a non-https API url"
+    )
     args = parser.parse_args(argv)
     built = package(EXTENSION, args.out, allow_insecure=args.allow_insecure)
     print(f"wrote {built.relative_to(ROOT) if built.is_relative_to(ROOT) else built}")

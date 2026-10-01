@@ -20,6 +20,8 @@
 //
 // Pure: state in, DOM out. What a press means is the caller's.
 
+import { passwordBox, standingPassword } from "./password-box.js";
+
 /** Which values a step will render, read off whatever plan it carries. */
 const NAMES = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
 
@@ -95,7 +97,7 @@ export function glyphFor(outcome) {
  */
 export function runCard(
   { run, skill, message, notes = [] },
-  { onPress, onChange, onSecret, stop = true } = {},
+  { onPress, onChange, onSecret, onPassword, stop = true } = {},
 ) {
   const card = document.createElement("div");
   card.className = "run";
@@ -106,6 +108,11 @@ export function runCard(
   title.className = "what";
   title.textContent = message?.text || `Running ${skill?.name || ""}`.trim();
   card.append(title);
+
+  // A Steel run that could not sign in, asking for its password right here.
+  const asked = standingPassword(run);
+  if (asked && onPassword)
+    card.append(passwordBox(asked, { runId: run.id, onPassword }));
 
   // What nobody typed.
   //

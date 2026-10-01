@@ -288,6 +288,7 @@ function render(status) {
         live: status.performing?.runId === run.id ? status.performing : null,
         questions,
         onOpen: (url) => void chrome.tabs.create({ url }),
+        onPassword: sendPassword,
         onAnswer: (question) => {
           goToTheConversation(question?.threadId || null);
           $("ask-bar").querySelector?.("input")?.focus();
@@ -1077,11 +1078,29 @@ function performing(status) {
             await refresh();
           },
           onSecret: keepSecret,
+          onPassword: sendPassword,
         },
       ),
     );
   }
   return holder;
+}
+
+/** The password a run asked for, on its way to the backend's one door for it.
+ *
+ * Same rules as `keepSecret`: the worker takes it, the backend stores it and
+ * tells the run, and nothing is kept on this side -- not in `chrome.storage`,
+ * not in a variable that outlives the call. A worker's `error` is caught and
+ * said, so the person who typed it is never left looking at a box that said
+ * nothing. */
+async function sendPassword({ runId, questionId, value, keep }) {
+  try {
+    const sent = await ask({ kind: "answer-password", runId, questionId, value, keep });
+    if (sent?.ok) said("password sent — the run carries on");
+    return sent;
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
 }
 
 /** One password, on its way to the vault and gone.
@@ -1188,7 +1207,7 @@ function madeCard(run, wrote, ending) {
   steps.append(
     runCard(
       { run, skill: null, message: { text: "" } },
-      { onSecret: keepSecret },
+      { onSecret: keepSecret, onPassword: sendPassword },
     ),
   );
   holder.append(steps);
@@ -1522,7 +1541,7 @@ function finished(status) {
             : short || RIG_ENDINGS[run.status] || "The run ended.",
         },
       },
-      { onSecret: keepSecret },
+      { onSecret: keepSecret, onPassword: sendPassword },
     );
     // What the run was working on, when it did not get to say what it made.
     //

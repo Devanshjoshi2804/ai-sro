@@ -199,6 +199,12 @@ test("a run's standing question crosses the seam, so its card can say Needs you"
   assert.equal(asPanelRun({ id: "run_1", outcome: "held" }).asking, "");
 });
 
+test("a standing password question crosses the seam whole, so the card can draw its box", () => {
+  const question = { id: "q_1", kind: "password", origin: "login.idp.example", username: "clerk" };
+  assert.deepEqual(asPanelRun({ id: "run_1", outcome: "running", question }).question, question);
+  assert.equal(asPanelRun({ id: "run_1", outcome: "held" }).question, null);
+});
+
 test("the list is drawn from what the worker actually keeps, not from the backend row", () => {
   // How this broke: `asPanelRun` is a whitelist -- what is not named in it
   // does not reach the panel -- and it named neither `started_at` nor a time

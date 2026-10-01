@@ -109,6 +109,9 @@ export function asPanelRun(run) {
     // The question a running run is parked on: a run waiting on a person is
     // not "Running…" (QA 2026-09-30, PJ26).
     asking: run.asking || "",
+    // The same question whole -- its id, and for a password the account it is
+    // for -- so the card can draw the box that answers it. Never a value.
+    question: run.question || null,
     // What the run wrote, so the card can name the record rather than only
     // reporting the machinery that made it. Added here THIRD, after the row
     // and the card, which is precisely the mistake the paragraph above
@@ -559,6 +562,20 @@ export const api = {
     call("/v1/secrets/once", {
       method: "POST",
       body: { system, field, value, run_id: runId },
+      asDevice: false,
+    }),
+
+  /** The password a run asked for, stored and the run told in one call.
+   *
+   * `keep` stores it for every later run of the account; false hands it to
+   * this run alone. The backend takes the key from the QUESTION, so nothing
+   * here says where it goes, and nothing keeps the value on this side: it is
+   * read out of the field, sent, and the field is cleared. Never in
+   * `chrome.storage`, never logged. */
+  answerPassword: ({ runId, questionId, value, keep }) =>
+    call(`/v1/workflow-runs/${encodeURIComponent(runId)}/password`, {
+      method: "POST",
+      body: { question_id: questionId, value, keep },
       asDevice: false,
     }),
 

@@ -51,6 +51,7 @@ const SOURCE = [
   readFileSync(path.join(here, "ledger.js"), "utf-8"),
   readFileSync(path.join(here, "strip.js"), "utf-8"),
   readFileSync(path.join(here, "today.js"), "utf-8"),
+  readFileSync(path.join(here, "password-box.js"), "utf-8"),
   readFileSync(path.join(here, "run-card.js"), "utf-8"),
   readFileSync(path.join(here, "waiting.js"), "utf-8"),
   readFileSync(path.join(here, "panes.js"), "utf-8"),

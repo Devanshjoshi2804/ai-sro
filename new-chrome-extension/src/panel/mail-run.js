@@ -7,6 +7,8 @@
 // Pure: a run in, DOM out. `textContent` only -- the subject and the sender are
 // the mail's words. What a press means is the caller's.
 
+import { passwordBox, standingPassword } from "./password-box.js";
+
 function mailClock(at) {
   const when = new Date(at || "");
   if (Number.isNaN(when.getTime())) return "";
@@ -65,7 +67,16 @@ function mailHowItWent(run, waits) {
  */
 export function mailRunCard(
   run,
-  { live = null, questions = [], onOpen, onAnswer, onReview, onStop, onDismiss } = {},
+  {
+    live = null,
+    questions = [],
+    onOpen,
+    onAnswer,
+    onPassword,
+    onReview,
+    onStop,
+    onDismiss,
+  } = {},
 ) {
   const mail = run.mail || {};
   // Its own question, never another mail's: every standing one is held.
@@ -97,6 +108,10 @@ export function mailRunCard(
     mailLine(`Noticed: ${run.title || run.workflow_id}${values ? ` — ${values}` : ""}`),
   );
   card.append(mailLine(mailHowItWent(run, waits), "what"));
+  // A run parked on its password is answered right here, not in the chat.
+  const asked = standingPassword(run);
+  if (asked && onPassword)
+    card.append(passwordBox(asked, { runId: run.id, onPassword }));
 
   const row = document.createElement("div");
   row.className = "row";

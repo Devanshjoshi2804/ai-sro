@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { asMarkup, install, words } from "./test-support/fake-document.mjs";
+import { asMarkup, install, of, words } from "./test-support/fake-document.mjs";
 
 install();
 
@@ -204,4 +204,43 @@ test("two mails asked about: each card is drawn from its own question", () => {
   assert.match(words(newer), /Needs you: What should Y be\?/);
   buttons(older)[0].listeners.click[0]();
   assert.deepEqual(answered, ["thr_1"], "Answer it went to another mail's chat");
+});
+
+const asksForAPassword = {
+  id: "q_1",
+  kind: "password",
+  text: "no usable password is stored for clerk at login.idp.example",
+  origin: "login.idp.example",
+  username: "clerk",
+  field: "password",
+};
+
+test("a run waiting on its password draws the box, and a press goes to onPassword", async () => {
+  const sent = [];
+  const card = mailRunCard(
+    run({ asking: asksForAPassword.text, question: asksForAPassword }),
+    { onPassword: (one) => (sent.push(one), { ok: true }) },
+  );
+
+  assert.match(words(card), /Needs you: no usable password is stored/);
+  assert.match(words(card), /needs your password for login\.idp\.example \(clerk\)/);
+  const box = of(card, "input")[0];
+  assert.equal(box.type, "password");
+  box.value = "not-in-any-fixture-77aa";
+  const save = buttons(card).find((one) => one.textContent === "Save for next time");
+  await save.listeners.click[0]();
+
+  assert.deepEqual(sent, [
+    { runId: "run_1", questionId: "q_1", value: "not-in-any-fixture-77aa", keep: true },
+  ]);
+  assert.equal(box.value, "");
+  assert.deepEqual(asMarkup, []);
+});
+
+test("no box for a run that waits on anything but a password", () => {
+  const card = mailRunCard(run({ asking: "which one?", question: { ...asksForAPassword, kind: "value" } }), {
+    onPassword: () => ({ ok: true }),
+  });
+
+  assert.equal(of(card, "input").length, 0);
 });

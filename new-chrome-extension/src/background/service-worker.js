@@ -1691,6 +1691,21 @@ async function handle(message, sender) {
         return { ok: false, error: error.problem?.detail || error.message };
       }
     }
+    case "answer-password": {
+      // The same one-way trip as `keep-secret`: the value goes to the backend's
+      // one door for a run's password and is held nowhere here.
+      try {
+        await api.answerPassword({
+          runId: message.runId,
+          questionId: message.questionId,
+          value: message.value,
+          keep: message.keep,
+        });
+        return { ok: true };
+      } catch (error) {
+        return { ok: false, error: error.problem?.detail || error.message };
+      }
+    }
     case "answer-waiting": {
       // The press on a card a rule left waiting. Here rather than in the panel
       // because the credential lives in this worker, and the backend takes the

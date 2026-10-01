@@ -277,6 +277,7 @@ const rigServer = async (url, options = {}) => {
   // The backend answers the whole row, where the rig answered `{run_id}`.
   if (path === "/v1/workflow-runs")
     return json({ ...rigRunServed, id: "run-9" }, 201);
+  if (path === "/v1/workflow-runs/run_g33f1/password") return json(null, 202);
   if (path === "/v1/workflow-runs/run-9/abort")
     return json({ ...rigRunServed }, 202);
   if (path === `/v1/workflow-runs/${rigRunServed.id}`) {
@@ -1994,6 +1995,36 @@ test("just this once sends a password to the door that keeps nothing", async () 
     value: "lent-33f1",
     run_id: "run_g33f1",
   });
+});
+
+test("a password given on a run goes to the one door that stores it and tells the run", async () => {
+  ready();
+  held.set("sro.deviceId", "dev-start-a17f");
+  held.set("sro.deviceSecret", "secret-start-33c9");
+  held.set("sro.token", "tok-start-6d20");
+
+  const answered = await send({
+    kind: "answer-password",
+    runId: "run_g33f1",
+    questionId: "q_77",
+    value: "typed-33f1",
+    keep: false,
+  });
+
+  assert.equal(
+    calls.find((call) => call.path === "/v1/secrets" || call.path === "/v1/secrets/once"),
+    undefined,
+    "the password took a door that does not tell the run",
+  );
+  const door = calls.find((call) => call.path === "/v1/workflow-runs/run_g33f1/password");
+  assert.ok(door, "the press never reached `POST /v1/workflow-runs/{id}/password`");
+  assert.equal(door.method, "POST");
+  assert.deepEqual(JSON.parse(door.body), {
+    question_id: "q_77",
+    value: "typed-33f1",
+    keep: false,
+  });
+  assert.deepEqual(answered, { ok: true }, "the worker answered with more than whether it worked");
 });
 
 test("one row has one reader: the run is not fetched twice in a second", async () => {

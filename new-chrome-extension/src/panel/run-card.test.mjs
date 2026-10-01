@@ -826,6 +826,39 @@ test("a run nobody watched says it replayed the call", () => {
 });
 
 let failed = 0;
+test("a run waiting on its password draws the box above its steps", async () => {
+  const sent = [];
+  const card = runCard(
+    {
+      run: {
+        id: "run_7",
+        source: "rig",
+        status: "running",
+        steps: [],
+        question: {
+          id: "q_9",
+          kind: "password",
+          text: "no usable password is stored",
+          origin: "login.idp.example",
+          username: "clerk",
+          field: "password",
+        },
+      },
+    },
+    { onPassword: (one) => (sent.push(one), { ok: true }) },
+  );
+
+  assert.match(words(card), /needs your password for login\.idp\.example \(clerk\)/);
+  of(card, "input")[0].value = "lent-5e5e";
+  await of(card, "button")
+    .find((one) => one.textContent === "Just this once")
+    .listeners.click[0]();
+
+  assert.deepEqual(sent, [
+    { runId: "run_7", questionId: "q_9", value: "lent-5e5e", keep: false },
+  ]);
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

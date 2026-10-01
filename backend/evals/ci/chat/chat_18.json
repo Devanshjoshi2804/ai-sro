@@ -25,5 +25,16 @@
   "action": "call",
   "tool": "ask_operator",
   "args": "{\"question\": \"Which code, and warehouse or transport?\"}"
- }
+ },
+ "answers": [
+  {
+   "action": "call",
+   "tool": "ask_operator",
+   "args": "{\"question\": \"Which code, and warehouse or transport?\"}"
+  },
+  {
+   "action": "say",
+   "text": "I asked which one you mean."
+  }
+ ]
 }

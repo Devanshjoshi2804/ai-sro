@@ -30,5 +30,16 @@
   "action": "call",
   "tool": "lookup",
   "args": "{\"question\": \"voice code for AITE4\"}"
- }
+ },
+ "answers": [
+  {
+   "action": "call",
+   "tool": "lookup",
+   "args": "{\"question\": \"voice code for AITE4\"}"
+  },
+  {
+   "action": "say",
+   "text": "AITE4 has voice code 12."
+  }
+ ]
 }

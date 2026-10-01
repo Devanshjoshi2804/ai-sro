@@ -25,5 +25,16 @@
   "action": "call",
   "tool": "work_it_out",
   "args": "{\"task\": \"navigate to receiving\"}"
- }
+ },
+ "answers": [
+  {
+   "action": "call",
+   "tool": "work_it_out",
+   "args": "{\"task\": \"navigate to receiving\"}"
+  },
+  {
+   "action": "say",
+   "text": "I have planned it on the screen."
+  }
+ ]
 }

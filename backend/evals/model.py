@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 
 from sro.domain.prompts.record import Prompt
@@ -19,6 +19,8 @@ class Case:
     input: dict[str, object]
     expected: dict[str, object]
     answer: dict[str, object] | None = None
+    # Every answer the model gave across the turn, in order: a replay needs all of them.
+    answers: list[dict[str, object]] | None = None
 
     def save(self, folder: Path) -> Path:
         folder.mkdir(parents=True, exist_ok=True)
@@ -29,7 +31,14 @@ class Case:
     @classmethod
     def load(cls, path: Path) -> Case:
         raw = json.loads(path.read_text(encoding="utf-8"))
-        return cls(raw["id"], raw["suite"], raw["input"], raw["expected"], raw.get("answer"))
+        return cls(
+            raw["id"],
+            raw["suite"],
+            raw["input"],
+            raw["expected"],
+            raw.get("answer"),
+            raw.get("answers"),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +51,21 @@ class Scored:
     answer: dict[str, object] | None = None
     error: str | None = None
     fell_back: bool = False
+    answers: tuple[dict[str, object], ...] = ()
+
+
+def every_time(runs: Sequence[Scored]) -> Scored:
+    """pass^k: a case counts only if every one of its runs passed; it is sure if any run was."""
+    first, n = runs[0], len(runs)
+    return replace(
+        first,
+        passed=all(one.passed for one in runs),
+        sure=any(one.sure for one in runs),
+        cost_usd=sum(one.cost_usd for one in runs) / n,
+        latency_s=sum(one.latency_s for one in runs) / n,
+        error=next((one.error for one in runs if one.error is not None), None),
+        fell_back=any(one.fell_back for one in runs),
+    )
 
 
 @dataclass(frozen=True, slots=True)

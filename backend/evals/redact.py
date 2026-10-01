@@ -114,6 +114,7 @@ def _roots(case: Case) -> dict[str, tuple[object, str]]:
         "expected": ({k: v for k, v in case.expected.items() if k != "values"}, "prose"),
         "values": (values, "labels" if isinstance(values, dict) else "value"),
         "answer": (case.answer, "prose"),
+        "answers": (case.answers, "prose"),
     }
 
 
@@ -131,4 +132,5 @@ def redacted(case: Case, *, tenant: str = "") -> Case:
         input=done["input"] | crossings,  # type: ignore[operator]
         expected=done["expected"] | values,  # type: ignore[operator]
         answer=done["answer"],  # type: ignore[arg-type]
+        answers=done["answers"],  # type: ignore[arg-type]
     )

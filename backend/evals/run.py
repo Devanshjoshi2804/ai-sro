@@ -7,7 +7,7 @@ from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Protocol
 
-from evals.model import Case, Report, Scored, as_markdown, gate, report
+from evals.model import Case, Report, Scored, as_markdown, every_time, gate, report
 from evals.redact import redacted
 from evals.replay import Replayed
 from evals.suites.chat import Chat
@@ -81,7 +81,13 @@ async def frozen(
 
 
 async def run_suite(
-    name: str, tenant: str, *, baseline: bool, limit: int | None = None, rebuild: bool = False
+    name: str,
+    tenant: str,
+    *,
+    baseline: bool,
+    limit: int | None = None,
+    rebuild: bool = False,
+    repeat: int = 1,
 ) -> int:
     suite, container = SUITES[name], build_container()
     asker = suite.asker(container)
@@ -97,8 +103,10 @@ async def run_suite(
     scored = []
     with about(tenant=tenant):
         for case in cases:
-            one = await suite.run(case, asker)
-            replace(case, answer=one.answer).save(results / name)
+            runs = [await suite.run(case, asker) for _ in range(repeat)]
+            one = every_time(runs)
+            answers = list(runs[0].answers) or ([runs[0].answer] if runs[0].answer else [])
+            replace(case, answer=one.answer, answers=answers or None).save(results / name)
             scored.append(one)
     now = report(name, suite.prompt, scored)
     base = results / f"baseline-{name}.json"
@@ -118,12 +126,19 @@ async def run_ci(*, live: bool, folder: Path = HERE / "ci") -> int:
         for path in sorted((folder / name).glob("*.json")):
             seen += 1
             case = Case.load(path)
-            if case.answer is not None and not conforms(case.answer, suite.prompt.output_schema):
-                bad.append(f"{path.name}: the recorded answer does not match {suite.prompt.name}")
+            if case.answer is not None and case.answers is None:
+                bad.append(
+                    f"{path.name}: only the first answer is recorded; a replay needs them all"
+                )
                 continue
-            asker = suite.asker(container) if container else Replayed(case.answer)
+            recorded = case.answers or []
+            if any(not conforms(one, suite.prompt.output_schema) for one in recorded):
+                bad.append(f"{path.name}: a recorded answer does not match {suite.prompt.name}")
+                continue
+            replay = Replayed(case.answers if case.answers is not None else case.answer)
+            asker = suite.asker(container) if container else replay
             with about(tenant="eval"):
-                one = await suite.run(case, asker or Replayed(case.answer))
+                one = await suite.run(case, asker or replay)
             if not one.passed:
                 bad.append(f"{path.name}: expected to pass, did not")
     if not seen:

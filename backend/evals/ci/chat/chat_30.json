@@ -14,5 +14,11 @@
  "answer": {
   "action": "say",
   "text": "Signing in to Keycloak is automatic; nothing to start."
- }
+ },
+ "answers": [
+  {
+   "action": "say",
+   "text": "Signing in to Keycloak is automatic; nothing to start."
+  }
+ ]
 }

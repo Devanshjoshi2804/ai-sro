@@ -42,5 +42,16 @@
   "action": "call",
   "tool": "run_status",
   "args": "{}"
- }
+ },
+ "answers": [
+  {
+   "action": "call",
+   "tool": "run_status",
+   "args": "{}"
+  },
+  {
+   "action": "say",
+   "text": "One run is running and one is done."
+  }
+ ]
 }

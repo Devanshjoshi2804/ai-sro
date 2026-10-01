@@ -3,10 +3,11 @@ from dataclasses import replace
 from pathlib import Path
 from tempfile import mkdtemp
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 from evals.__main__ import arguments
-from evals.model import K_COST_TOLERANCE, Case, Report, Scored, gate, report
+from evals.model import K_COST_TOLERANCE, Case, Report, Scored, every_time, gate, report
 from evals.redact import redacted, shape
 from evals.replay import Replayed
 from evals.run import frozen, run_ci, write_candidates
@@ -576,3 +577,63 @@ def test_a_report_counts_the_calls_that_fell_back_and_the_gate_ignores_them() ->
 async def test_a_suite_carries_the_fallback_off_the_answer() -> None:
     assert (await Mining().run(_mining_case(), _Refusing())).fell_back
     assert not (await Mining().run(_mining_case(), Replayed({"workflows": []}))).fell_back
+
+
+_ASK: dict[str, Any] = {"model": "m", "instructions": "i", "evidence": "e", "schema": {}}
+
+
+async def test_a_replay_gives_each_recorded_answer_once_in_order_and_never_repeats() -> None:
+    first: dict[str, object] = {"action": "call"}
+    second: dict[str, object] = {"action": "say", "text": "x"}
+    asker = Replayed([first, second])
+
+    got = [await asker.ask(**_ASK), await asker.ask(**_ASK), await asker.ask(**_ASK)]
+
+    assert [one.data for one in got] == [first, second, None]
+    assert got[2].error == "the recording ran out of answers"
+
+
+async def test_one_recorded_answer_still_answers_every_ask_of_a_single_call_suite() -> None:
+    asker = Replayed({"workflows": []})
+
+    assert [(await asker.ask(**_ASK)).data for _ in range(2)] == [{"workflows": []}] * 2
+
+
+def test_a_case_counts_only_if_every_run_of_it_passed() -> None:
+    def one(passed: bool, sure: bool = False) -> Scored:
+        return Scored("c", passed, sure, 0.02, 2.0)
+
+    assert every_time([one(True), one(True), one(True)]).passed
+    both = every_time([one(True), one(False, sure=True), one(True)])
+    assert not both.passed and both.sure and both.cost_usd == 0.02
+
+
+def test_repeat_is_at_least_one_and_defaults_to_one() -> None:
+    base = ["run", "--suite", "chat", "--tenant", "t"]
+    assert arguments(base).repeat == 1
+    assert arguments([*base, "--repeat", "3"]).repeat == 3
+    with pytest.raises(SystemExit):
+        arguments([*base, "--repeat", "0"])
+
+
+async def test_ci_refuses_a_case_that_recorded_only_its_first_answer() -> None:
+    folder = Path(mkdtemp())
+    one = Case("chat_x", "chat", {"message": "m", "origin": "chat"}, {"tools": []})
+    replace(one, answer={"action": "say", "text": "ok"}).save(folder / "chat")
+
+    assert await run_ci(live=False, folder=folder) == 1
+
+
+async def test_a_redacted_case_redacts_every_recorded_answer() -> None:
+    case = Case(
+        "chat_y",
+        "chat",
+        {"message": "create customer type SR11", "origin": "chat"},
+        {"tools": []},
+        answers=[{"action": "say", "text": "Started SR11 for greyorange."}],
+    )
+
+    out = redacted(case, tenant="greyorange")
+
+    assert out.answers is not None and "SR11" not in str(out.answers)
+    assert "greyorange" not in str(out.answers)

@@ -22,6 +22,12 @@ def arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     one.add_argument("--baseline", action="store_true")
     one.add_argument("--limit", type=_at_least_one)
     one.add_argument("--rebuild", action="store_true")
+    one.add_argument(
+        "--repeat",
+        type=_at_least_one,
+        default=1,
+        help="run every case N times; it counts only if all N pass (pass^k)",
+    )
     ci = sub.add_parser("ci")
     ci.add_argument("--live", action="store_true")
     red = sub.add_parser("redact")
@@ -43,6 +49,7 @@ def main() -> int:
                 baseline=args.baseline,
                 limit=args.limit,
                 rebuild=args.rebuild,
+                repeat=args.repeat,
             )
         )
     if args.command == "ci":

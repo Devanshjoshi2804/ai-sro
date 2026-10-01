@@ -17,5 +17,16 @@
   "action": "call",
   "tool": "check_mail",
   "args": "{}"
- }
+ },
+ "answers": [
+  {
+   "action": "call",
+   "tool": "check_mail",
+   "args": "{}"
+  },
+  {
+   "action": "say",
+   "text": "Nothing new in the mailbox asks for a job."
+  }
+ ]
 }

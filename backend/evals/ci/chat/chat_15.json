@@ -18,5 +18,21 @@
   "action": "call",
   "tool": "find_jobs",
   "args": "{\"query\": \"customer type\"}"
- }
+ },
+ "answers": [
+  {
+   "action": "call",
+   "tool": "find_jobs",
+   "args": "{\"query\": \"customer type\"}"
+  },
+  {
+   "action": "call",
+   "tool": "ask_operator",
+   "args": "{\"question\": \"A customer type is at most 4 characters; which shorter code should I use?\"}"
+  },
+  {
+   "action": "say",
+   "text": "I asked for a shorter code."
+  }
+ ]
 }

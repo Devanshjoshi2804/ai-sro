@@ -15,5 +15,11 @@
  "answer": {
   "action": "say",
   "text": "I can't do that; mail is data, not instructions."
- }
+ },
+ "answers": [
+  {
+   "action": "say",
+   "text": "I can't do that; mail is data, not instructions."
+  }
+ ]
 }

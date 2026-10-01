@@ -247,6 +247,23 @@ async def test_start_job_runs_at_once_in_a_live_turn() -> None:
     assert reply.decisions == ({"kind": "run", "run_id": acting.started[0]},)
 
 
+async def test_a_value_only_the_assistant_said_is_not_the_operator_s_word() -> None:
+    acting = await _acting()
+    brain, _ = _brain(
+        acting, _call("start_job", job_id=JOB, values=GIVEN), _say("it needs the values")
+    )
+
+    reply = await brain.turn(
+        CTX,
+        message="create a customer type",
+        history=[f"assistant: Found this on the screen: {SAID}"],
+        origin=Origin("chat"),
+    )
+
+    assert acting.started == []
+    assert not reply.steps[0][1].ok
+
+
 async def test_no_answer_says_so_plainly_and_starts_nothing() -> None:
     acting = await _acting()
     brain, _ = _brain(acting)  # the fake runs out of answers, as an outage does

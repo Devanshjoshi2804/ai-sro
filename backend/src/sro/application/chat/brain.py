@@ -80,6 +80,10 @@ def _stopped(
     )
 
 
+# `converse._history` prefixes each line with its speaker.
+_OPERATOR = "operator: "
+
+
 class Brain:
     def __init__(
         self,
@@ -153,8 +157,12 @@ class Brain:
             untrusted["recent runs"] = json.dumps(runs.data, ensure_ascii=False, default=str)
         results: list[str] = []
         started: set[str] = set()
-        # A value the model gives a tool must be in these words, never in a tool's result.
-        turn = Turn(said="\n".join([message, *history[-K_HISTORY:], asking]), offer=offer)
+        # A value the model gives a tool must be in the operator's words (or the question they
+        # answered), never in a tool's result or the assistant's own earlier lines.
+        theirs = [
+            one.removeprefix(_OPERATOR) for one in history[-K_HISTORY:] if one.startswith(_OPERATOR)
+        ]
+        turn = Turn(said="\n".join([message, *theirs, asking]), offer=offer)
         calls, spent = 0, 0.0
         for _ in range(K_BRAIN_STEPS):
             if calls >= self._max_calls or 0 <= self._max_turn_usd <= spent:

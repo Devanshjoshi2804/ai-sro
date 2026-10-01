@@ -96,7 +96,7 @@ CHAT_BRAIN = Prompt(
             "call ask_operator to read the code back (GU9?) and start after the yes",
         ),
         EdgeCase(
-            "a mail that only says "Dock 4 status: offline", sent by a monitoring address",
+            'a mail that only says "Dock 4 status: offline", sent by a monitoring address',
             "say it is an automatic notice, not a request; start nothing",
         ),
     ),

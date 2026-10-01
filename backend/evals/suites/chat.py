@@ -30,7 +30,6 @@ from sro.application.context import RequestContext
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.chat.brain_turn import Origin, ToolCall, ToolResult, Turn
-from sro.domain.execution.mail_job import built_in, built_ins
 from sro.domain.prompts.chat_brain import CHAT_BRAIN
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
@@ -155,7 +154,6 @@ def _transport(code: str, long: str, short: str) -> dict[str, object]:
     return _create(TRANSPORT, Equipment=code, longDescription=long, shortDescription=short)
 
 
-_MAIL_SEND: dict[str, object] = {"job_id": "mail_send"}
 _LOOK = ["find_jobs", "start_job"]
 _UNDO: list[dict[str, object]] = [
     {"tools": ["undo_run"], "args": {"run_id": "run_aite4"}},
@@ -252,22 +250,16 @@ CASES = [
         ["find_jobs", "ask_operator"],
         otherwise=[{"tools": ["ask_operator"]}],
     ),
-    # a mail is written through the built-in mail job
+    # mail goes out only on the operator's Send it press: the honest answer starts nothing
     _case(
         "write a mail to ask devansh.j@greyorange.com about warehouse inventory status for 28 sep",
-        _LOOK,
-        _MAIL_SEND,
+        [],
     ),
     _case(
         "email devansh.j@greyorange.com and ask for the warehouse inventory status for 28 sep",
-        _LOOK,
-        _MAIL_SEND,
+        [],
     ),
-    _case(
-        "send a mail to devansh.j@greyorange.com asking about warehouse inventory status",
-        _LOOK,
-        _MAIL_SEND,
-    ),
+    _case("send a mail to devansh.j@greyorange.com asking about warehouse inventory status", []),
     # runs
     _case("what's running?", ["run_status"], runs=[_RUNNING, _AITE4]),
     _case("what is running right now?", ["run_status"], runs=[_RUNNING, _AITE4]),
@@ -344,8 +336,6 @@ CASES = [
 def _refused(args: Mapping[str, object]) -> bool:
     """Would start_job refuse these arguments over the suite's jobs?"""
     job, given = str(args.get("job_id") or ""), args.get("values") or {}
-    if built_in(job, "eval") is not None:
-        return False
     limits = _LIMITS.get(job)
     if limits is None or not isinstance(given, Mapping):
         return True
@@ -414,11 +404,7 @@ class _Jobs(FindJobs):
     async def run(
         self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
     ) -> ToolResult:
-        mail = [
-            {"id": one.id, "title": one.title, "parameters": [], "runnable": True}
-            for one in built_ins("eval")
-        ]
-        return ToolResult(ok=True, data={"jobs": [*(_job(one) for one in _JOBS), *mail]})
+        return ToolResult(ok=True, data={"jobs": [_job(one) for one in _JOBS]})
 
 
 class _Runs(RunStatus):

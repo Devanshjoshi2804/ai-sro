@@ -30,7 +30,7 @@ from sro.domain.chat.request import refusal
 from sro.domain.chat.thread import Said
 from sro.domain.execution.compiled import why_not
 from sro.domain.execution.field_classes import FieldLimits
-from sro.domain.execution.mail_job import built_in, built_ins
+from sro.domain.execution.mail_job import built_in, is_mail_only, sends_mail
 from sro.domain.execution.workflow_run import SETTLED, OfferTaken, WorkflowRun
 from sro.domain.recording.sensitivity import is_secret_field
 from sro.domain.shared.errors import DomainError
@@ -85,8 +85,9 @@ def _job(one: JobFacts) -> dict[str, object]:
 class FindJobs:
     name = "find_jobs"
     about = (
-        "Find the jobs this team has that could do what was asked (mail jobs included); "
-        "returns each one's parameters and limits."
+        "Find the jobs this team has that could do what was asked; returns each one's "
+        "parameters and limits. Mail goes out only when the operator presses Send it, never "
+        "from a job started here."
     )
     args: ClassVar[dict[str, object]] = {
         "type": "object",
@@ -105,13 +106,7 @@ class FindJobs:
             held = await held_runs(uow, ctx.tenant_id)
         # The reader's own ranking: real jobs only, the same limits it checks.
         ranked = rank_jobs(str(args.get("query") or ""), facts, held=held, k=K_SHOWN_JOBS)
-        jobs = [_job(one) for one in ranked]
-        # A built-in takes its values from the conversation, as the reader treats it: no fields.
-        jobs += [
-            {"id": one.id, "title": one.title, "parameters": [], "runnable": True}
-            for one in built_ins(ctx.tenant_id.value)
-        ]
-        return ToolResult(ok=True, data={"jobs": jobs})
+        return ToolResult(ok=True, data={"jobs": [_job(one) for one in ranked]})
 
 
 def _stopped(run: WorkflowRun) -> str:
@@ -294,9 +289,17 @@ class StartJob:
         logins = await logins_of(self._uow, ctx.tenant_id)
         real = real_jobs(((one.workflow, one.by_id) for one in facts), held=held)
         job = next((one for one in facts if one.workflow.id == job_id and job_id in real), None)
-        if job is None and built_in(job_id, ctx.tenant_id.value) is None:
+        sent = job.workflow if job else built_in(job_id, ctx.tenant_id.value)
+        if sent is None:
             return ToolResult(ok=False, error="that is not a job this team has; use find_jobs")
-        # A built-in takes its values from the conversation: it has no fields to check them by.
+        # By what the job does, not its name: mail goes out only on the operator's Send it press.
+        by_id = job.by_id if job else {}
+        if is_mail_only(sent, by_id) or any(sends_mail(one, by_id) for one in sent.steps):
+            return ToolResult(
+                ok=False,
+                error="that job sends mail, and mail goes out only when the operator presses "
+                "Send it; tell the operator you cannot send mail from chat",
+            )
         fields = (
             {one.name: one for one in job.compiled.fields if one.kind != "never"} if job else {}
         )
@@ -305,9 +308,8 @@ class StartJob:
             for name in values
             if is_secret_field(name)
         ]
-        if job is not None:
-            unknown = sorted(n for n in values if n not in fields and not is_secret_field(n))
-            wrong += [f"this job has no {name}" for name in unknown]
+        unknown = sorted(n for n in values if n not in fields and not is_secret_field(n))
+        wrong += [f"this job has no {name}" for name in unknown]
         wrong += [
             f"the {name} you gave is {why}"
             for name, value in values.items()

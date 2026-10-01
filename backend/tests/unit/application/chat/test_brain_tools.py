@@ -97,12 +97,12 @@ async def test_find_jobs_leaves_out_a_copy_that_writes_nothing() -> None:
     assert "wfl_copy" not in [one["id"] for one in _jobs(result)]
 
 
-async def test_find_jobs_includes_the_mail_built_ins() -> None:
+async def test_find_jobs_never_lists_a_job_that_sends_mail() -> None:
     world = await world_with_job()
 
     result = await FindJobs(world.uow, FakeClock()).run(CTX, {"query": "send a mail"})
 
-    assert {"mail_send", "mail_reply", "mail_forward"} <= {one["id"] for one in _jobs(result)}
+    assert not {"mail_send", "mail_reply", "mail_forward"} & {one["id"] for one in _jobs(result)}
 
 
 async def test_find_jobs_shows_only_this_tenant_s_jobs() -> None:
@@ -459,13 +459,16 @@ async def test_a_refusal_from_the_system_is_data_and_is_tried_once() -> None:
     assert acting.start.tried == 1 and acting.started == []
 
 
-async def test_a_mail_built_in_is_startable_through_the_same_guards() -> None:
+async def test_no_job_that_sends_mail_can_be_started_from_chat() -> None:
     acting = await _acting()
+    said = Turn(said="send a mail to bob@corp.com saying hello")
 
-    secret = await acting.job.run(CTX, {"job_id": "mail_send", "values": {"token": "x"}}, SAID)
-    unknown = await acting.job.run(CTX, {"job_id": "mail_nope", "values": {}}, SAID)
+    for job_id in ("mail_send", "mail_reply", "mail_forward"):
+        sent = await acting.job.run(CTX, {"job_id": job_id, "values": {"To": "bob@corp.com"}}, said)
+        assert not sent.ok and "Send it" in sent.error
+    unknown = await acting.job.run(CTX, {"job_id": "mail_nope", "values": {}}, said)
 
-    assert not secret.ok and not unknown.ok and acting.start.tried == 0
+    assert not unknown.ok and acting.start.tried == 0 and acting.started == []
 
 
 async def test_undo_run_refuses_a_run_that_is_not_the_callers() -> None:

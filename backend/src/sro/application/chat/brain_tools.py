@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Callable, Coroutine, Mapping, Sequence
 from typing import ClassVar, Protocol
 
@@ -250,6 +252,20 @@ async def _launch(
     )
 
 
+def _values(args: Mapping[str, object]) -> dict[str, str] | None:
+    """The values a start gives, as StartJob reads them; None when they are not an object."""
+    given = args.get("values") or {}
+    if not isinstance(given, Mapping):
+        return None
+    return {str(k): str(v).strip() for k, v in given.items() if str(v).strip()}
+
+
+def start_key(args: Mapping[str, object]) -> str:
+    """What one start is: the job and its values as StartJob reads them, so a trailing
+    space, another key order or an extra key is the same start."""
+    return json.dumps([str(args.get("job_id") or ""), _values(args)], sort_keys=True)
+
+
 class StartJob:
     name = "start_job"
     about = (
@@ -267,21 +283,17 @@ class StartJob:
     }
 
     def __init__(
-        self, uow: UnitOfWork, clock: Clock, start: StartWorkflowRun, spawn: Spawn, offer: str = ""
+        self, uow: UnitOfWork, clock: Clock, start: StartWorkflowRun, spawn: Spawn
     ) -> None:
-        # The offer a run is made under is the caller's (a mail's id), never the model's:
-        # it is what makes a second start answer the first run.
         self._uow, self._clock, self._start, self._spawn = uow, clock, start, spawn
-        self._offer = offer
 
     async def run(
         self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
     ) -> ToolResult:
         job_id = str(args.get("job_id") or "")
-        given = args.get("values") or {}
-        if not isinstance(given, Mapping):
+        values = _values(args)
+        if values is None:
             return ToolResult(ok=False, error="values is an object of parameter name to value")
-        values = {str(k): str(v).strip() for k, v in given.items() if str(v).strip()}
         async with self._uow as uow:
             known = await uow.workflows.known(ctx.tenant_id)
             facts = await job_facts(uow, ctx.tenant_id, known, now=self._clock.now())
@@ -335,7 +347,11 @@ class StartJob:
             ctx,
             workflow_id=job_id,
             values=values,
-            offer=self._offer,
+            # The caller's (the operator's message), never the model's: it is what makes a
+            # second start of the same job and values from one message answer the first run.
+            offer=f"{turn.offer}:{hashlib.sha256(start_key(args).encode()).hexdigest()[:16]}"
+            if turn.offer
+            else "",
         )
 
 
@@ -441,11 +457,10 @@ def brain_tools(
     start: StartWorkflowRun,
     plan: PlanTask,
     spawn: Spawn,
-    offer: str = "",
 ) -> tuple[Tool, ...]:
     return (
         FindJobs(uow, clock),
-        StartJob(uow, clock, start, spawn, offer),
+        StartJob(uow, clock, start, spawn),
         RunStatus(runs, threads),
         CheckMail(look_mail),
         UndoRun(run, start, spawn),

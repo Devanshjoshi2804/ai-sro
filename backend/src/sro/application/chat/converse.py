@@ -557,7 +557,8 @@ class Converse:
         system: str | None,
         answering: str | None,
     ) -> Thread:
-        said_before = (await self._also_said(ctx, thread_id=thread_id, text=text)).messages[:-1]
+        said = (await self._also_said(ctx, thread_id=thread_id, text=text)).messages
+        said_before = said[:-1]
         reply = await brain.turn(
             ctx,
             message=text,
@@ -565,6 +566,8 @@ class Converse:
             origin=Origin("chat"),
             asking=_open_question(said_before, answering),
             page=system or "",
+            # One message, one run for the same job and values: the offer's uniqueness.
+            offer=f"chat:{said[-1].id.value}",
         )
         async with self._uow as uow:
             thread = await uow.threads.get(ctx.tenant_id, thread_id)

@@ -385,16 +385,31 @@ async def test_a_missing_required_value_comes_back_as_a_question_for_the_model()
 
 async def test_an_offer_a_run_already_took_answers_that_run() -> None:
     acting = await _acting()
-    job = StartJob(
-        acting.world.uow, acting.world.clock, acting.start, acting.spawned.append, offer="mail:abc"
-    )
     call = {"job_id": JOB, "values": GIVEN}
+    turn = Turn(said=SAID.said, offer="chat:m1")
 
-    first = await job.run(CTX, call, SAID)
-    again = await job.run(CTX, call, SAID)
+    first = await acting.job.run(CTX, call, turn)
+    again = await acting.job.run(CTX, {**call, "why": "once more"}, turn)
+    other = await acting.job.run(CTX, call, Turn(said=SAID.said, offer="chat:m2"))
 
     assert again.ok and again.data["run_id"] == first.data["run_id"]
     assert again.data["state"] == "already running" and again.decision is None
+    assert other.data["run_id"] != first.data["run_id"] and len(acting.started) == 2
+
+
+async def test_two_jobs_in_one_message_are_two_runs_under_one_message_id() -> None:
+    acting = await _acting()
+    turn = Turn(said=SAID.said, offer="chat:m1")
+
+    first = await acting.job.run(CTX, {"job_id": JOB, "values": GIVEN}, turn)
+    second = await acting.job.run(
+        CTX, {"job_id": JOB, "values": {**GIVEN, "Customer Type": "SR11 "}}, turn
+    )
+    third = await acting.job.run(
+        CTX, {"job_id": JOB, "values": {**GIVEN, "Customer Type Description": "new "}}, turn
+    )
+
+    assert second.data["run_id"] == first.data["run_id"] == third.data["run_id"]
     assert len(acting.started) == 1
 
 

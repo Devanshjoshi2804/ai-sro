@@ -798,7 +798,6 @@ class Container:
         return bool(flagged) and self.asker is not None
 
     def brain(self) -> Brain:
-        # Chat's offer is empty: a run the brain starts is not made under a mail's offer.
         return Brain(
             self.unit_of_work(),
             asker_or_refuse(self.asker),
@@ -814,7 +813,6 @@ class Container:
                 start=self.start_workflow_run(),
                 plan=self.plan_task(),
                 spawn=self.pursuits.spawn,
-                offer="",
             ),
             cap_usd=self.settings.daily_usd_cap,
         )

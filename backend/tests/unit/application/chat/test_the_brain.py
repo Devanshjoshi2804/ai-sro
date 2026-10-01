@@ -214,6 +214,40 @@ async def test_a_repeated_identical_start_job_is_not_run_twice() -> None:
     assert "already" in reply.steps[1][1].error
 
 
+async def test_the_same_start_written_another_way_is_not_run_twice() -> None:
+    acting = await _acting()
+    again = {"job_id": JOB, "values": {**GIVEN, "Customer Type": "SR11 "}, "why": "again"}
+    reordered = {"values": dict(reversed(list(GIVEN.items()))), "job_id": JOB}
+    brain, _ = _brain(
+        acting,
+        _call("start_job", job_id=JOB, values=GIVEN),
+        _call("start_job", **again),
+        _call("start_job", **reordered),
+        _say("done"),
+    )
+
+    reply = await brain.turn(CTX, message=SAID, history=[], origin=Origin("chat"))
+
+    assert len(acting.started) == 1 and acting.start.tried == 1
+    assert [one.ok for _, one in reply.steps] == [True, False, False]
+
+
+async def test_the_same_message_replayed_starts_one_run() -> None:
+    acting = await _acting()
+    brain, _ = _brain(
+        acting,
+        _call("start_job", job_id=JOB, values=GIVEN),
+        _say("ok"),
+        _call("start_job", job_id=JOB, values=GIVEN),
+        _say("ok"),
+    )
+
+    once = await brain.turn(CTX, message=SAID, history=[], origin=Origin("chat"), offer="chat:m1")
+    again = await brain.turn(CTX, message=SAID, history=[], origin=Origin("chat"), offer="chat:m1")
+
+    assert len(acting.started) == 1 and once.decisions and not again.decisions
+
+
 async def test_a_secret_named_field_never_reaches_a_log_line(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

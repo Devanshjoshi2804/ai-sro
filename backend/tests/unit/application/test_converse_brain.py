@@ -111,6 +111,8 @@ async def test_a_run_the_brain_started_is_the_decision_the_panel_watches() -> No
 
     (run_id,) = acting.started
     assert thread.messages[-1].decision == {"kind": "run", "run_id": run_id}
+    run = await acting.world.uow.workflow_runs.get(f.TENANT, run_id)
+    assert run is not None and (run.offer or "").startswith(f"chat:{thread.messages[0].id.value}:")
     rows = acting.world.uow.attempts.rows
     assert [(one.came_of, one.about["run"]) for one in rows] == [(DONE, run_id)]
 

@@ -13,7 +13,7 @@ import logging
 import time
 from collections.abc import Mapping, Sequence
 
-from sro.application.chat.brain_tools import Tool, described
+from sro.application.chat.brain_tools import Tool, described, start_key
 from sro.application.context import RequestContext
 from sro.application.intent.spend import over_cap
 from sro.application.ports.model import Asker, AskerUnavailable
@@ -86,6 +86,7 @@ class Brain:
         origin: Origin,
         asking: str = "",
         page: str = "",
+        offer: str = "",
         dry: bool = False,
     ) -> BrainReply:
         trusted: dict[str, object] = {
@@ -109,7 +110,7 @@ class Brain:
         decisions: list[dict[str, object]] = []
         started: set[str] = set()
         # A value the model gives a tool must be in these words, never in a tool's result.
-        turn = Turn(said="\n".join([message, *history[-K_HISTORY:], asking]))
+        turn = Turn(said="\n".join([message, *history[-K_HISTORY:], asking]), offer=offer)
         for _ in range(K_BRAIN_STEPS):
             async with self._uow as uow:
                 why = await over_cap(
@@ -212,7 +213,7 @@ class Brain:
             return ToolResult(True, {"would": call.tool})
         if call.tool == "start_job":
             # One start per distinct job and values a turn: a refusal is answered, not retried.
-            key = json.dumps(call.args, sort_keys=True, default=str)
+            key = start_key(call.args)
             if key in started:
                 return ToolResult(False, error="that start was already tried this turn")
             started.add(key)

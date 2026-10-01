@@ -11,6 +11,7 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import cast
 
 from sro.domain.chat.asking import ASKS
 from sro.domain.chat.brain_turn import ToolCall, ToolResult
@@ -90,6 +91,15 @@ def kept(value: object) -> object:
         return one[:K_SAID] if isinstance(one, str) else one
 
     return cut(cleaned)
+
+
+def first_tool(row: Feedback) -> str:
+    """The first tool the brain called on the turn a row is about, or "start_job" for a run it
+    started on an earlier one."""
+    tools = cast(list[dict[str, object]], row.brain.get("tools") or [])
+    if tools:
+        return str(tools[0].get("tool") or "")
+    return "start_job" if row.brain.get("started") else ""
 
 
 def brain_category(steps: Sequence[tuple[ToolCall, ToolResult]]) -> str:

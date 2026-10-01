@@ -11,26 +11,26 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import cast
 
 from evals.model import Case
 from evals.redact import redacted
+from evals.suggest import suggest
 from sro.application.ports.repositories import UnitOfWork
 from sro.container import build_container
-from sro.domain.chat.feedback import DISMISSED, NEW, PROMOTED, REVIEWED, WITHHELD, Feedback
+from sro.domain.chat.feedback import (
+    DISMISSED,
+    NEW,
+    PROMOTED,
+    REVIEWED,
+    WITHHELD,
+    Feedback,
+    first_tool,
+)
 from sro.domain.shared.identifiers import TenantId
 
 HERE = Path(__file__).parent
 
 K_SHOWN = 50
-
-
-def first_tool(row: Feedback) -> str:
-    """The first tool the brain called on this turn, or what it started."""
-    tools = cast(list[dict[str, object]], row.brain.get("tools") or [])
-    if tools:
-        return str(tools[0].get("tool") or "")
-    return "start_job" if row.brain.get("started") else ""
 
 
 def _line(row: Feedback) -> str:
@@ -148,7 +148,9 @@ async def promoting(
     return f"wrote {path}: read it before moving it to ci/"
 
 
-async def run_feedback(args: argparse.Namespace, *, uow: UnitOfWork | None = None) -> int:
+async def run_feedback(
+    args: argparse.Namespace, *, uow: UnitOfWork | None = None, root: Path = HERE
+) -> int:
     """The `feedback` subcommands; `uow` is the container's own unless a test gives one."""
     store = uow if uow is not None else build_container().unit_of_work()
     tenant = args.tenant
@@ -159,9 +161,11 @@ async def run_feedback(args: argparse.Namespace, *, uow: UnitOfWork | None = Non
             out = await showing(store, tenant, args.id)
         elif args.action == "mark":
             out = await marking(store, tenant, args.id, args.status, args.note)
+        elif args.action == "suggest":
+            out = await suggest(store, tenant, since=args.since, minimum=args.min, root=root)
         else:
             out = await promoting(
-                store, tenant, args.id, expect=args.expect, args_json=args.args_json
+                store, tenant, args.id, expect=args.expect, args_json=args.args_json, root=root
             )
     except SystemExit as stopped:
         print(stopped.code)  # noqa: T201

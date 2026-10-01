@@ -55,6 +55,9 @@ def arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--expect", required=True, help='the right tools, e.g. "find_jobs,start_job"'
     )
     promote.add_argument("--args-json", default="{}", help="the last tool's exact arguments")
+    suggest = act.add_parser("suggest", help="write a proposal per group of repeated problems")
+    suggest.add_argument("--since", default="14d", help="how far back to look: 14d or 36h")
+    suggest.add_argument("--min", type=_at_least_one, default=3, help="rows a group needs")
     args = parser.parse_args(argv)
     if args.command == "run" and args.baseline and args.limit:
         parser.error("a baseline is the whole case set: --limit and --baseline do not mix")

@@ -143,6 +143,23 @@ async def test_shadow_mode_runs_only_read_only_tools_and_records_the_rest() -> N
     assert reply.said == "done" and reply.decisions == ()
 
 
+async def test_a_shadow_turn_never_looks_anything_up() -> None:
+    class _Boom:
+        name, about = "lookup", ""
+        args: ClassVar[dict[str, object]] = {}
+
+        async def run(self, *_: object, **__: object) -> object:
+            raise AssertionError("a shadow turn must not reach the systems")
+
+    acting = await _acting()
+    brain, _ = _brain(acting, _call("lookup", question="which suppliers?"), _say("done"))
+    brain._tools["lookup"] = _Boom()  # type: ignore[assignment]
+
+    reply = await brain.turn(CTX, message="x", history=[], origin=Origin("chat"), dry=True)
+
+    assert reply.steps[0][1].data == {"would": "lookup"}
+
+
 async def test_start_job_runs_at_once_in_a_live_turn() -> None:
     acting = await _acting()
     brain, _ = _brain(acting, _call("start_job", job_id=JOB, values=GIVEN), _say("started"))

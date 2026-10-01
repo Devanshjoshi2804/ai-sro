@@ -42,8 +42,9 @@ K_LOGGED = 300
 
 # Shadow mode runs these and only these; everything else is recorded as "would". Not
 # check_mail: a look in the mailbox starts runs and writes questions, and shadow mode is
-# only ever a reading.
-READ_ONLY = frozenset({"find_jobs", "run_status", "lookup"})
+# only ever a reading. Not lookup: it takes a Steel session beside the chain's own look and
+# its model spend would count against the day's cap.
+READ_ONLY = frozenset({"find_jobs", "run_status"})
 
 
 def _without_secrets(value: object) -> object:

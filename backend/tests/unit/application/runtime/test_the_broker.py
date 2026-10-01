@@ -88,6 +88,13 @@ async def test_a_restored_state_that_holds_signs_nobody_in() -> None:
     assert driver.tabs[held.target_id] == APP
 
 
+def _says_where_to_enter_it(asked: NeedsAPerson) -> None:
+    """The words name the account and send the person to the run's card."""
+    text = asked.question
+    assert LENA.username in text and LENA.origin in text
+    assert "run's card" in text and "store" not in text.lower()
+
+
 async def test_a_sign_in_page_is_signed_through_with_the_vault_password() -> None:
     uow, driver, vault = await _signing_world()
     lane = SigningLane(driver)
@@ -139,6 +146,7 @@ async def test_a_form_that_comes_back_latches_the_password_and_asks() -> None:
         await _broker(uow, driver, vault, pool=pool).acquire(CTX, LENA, APP, holder="run_1")
 
     assert asked.value.kind == "password"
+    _says_where_to_enter_it(asked.value)
     assert await vault.get(LENA.vault_key("password") + "#refused") is not None
     assert await vault.get(LENA.vault_key("state")) is None
     (lease,) = uow.browser_sessions.leases.values()
@@ -351,6 +359,7 @@ async def test_resume_when_the_code_page_now_shows_a_password_asks_for_a_passwor
         await broker.resume(CTX, waiting.lease.id, waiting.target_id, APP, holder="run_1")
 
     assert asked.value.kind == "password"
+    _says_where_to_enter_it(asked.value)
     assert uow.browser_sessions.leases[waiting.lease.id].state is LeaseState.WAITING
 
 
@@ -363,6 +372,7 @@ async def test_no_stored_password_asks_for_one_and_types_nothing() -> None:
         await _broker(uow, driver, vault, lane).acquire(CTX, LENA, APP, holder="run_1")
 
     assert asked.value.kind == "password"
+    _says_where_to_enter_it(asked.value)
     assert lane.stepped == []
 
 

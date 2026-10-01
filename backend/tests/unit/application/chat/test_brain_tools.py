@@ -224,14 +224,14 @@ async def test_run_status_sends_a_password_question_to_the_run_s_card_and_never_
         "asking": {
             "id": "q_1",
             "kind": "password",
-            "text": "no usable password is stored for clerk at login.idp.example",
+            "text": "clerk at login.idp.example has no usable password. Enter it on the run's card.",
             "origin": "login.idp.example",
             "username": "clerk",
             "field": "password",
         }
     }
     assert await world.uow.workflow_runs.record_progress(f.TENANT, run.id, progress)
-    await world.asked(run, "no usable password is stored for clerk at login.idp.example")
+    await world.asked(run, "clerk at login.idp.example has no usable password. Enter it on the run's card.")
 
     result = await RunStatus(world.runs, world.threads).run(CTX, {})
 

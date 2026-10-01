@@ -19,7 +19,7 @@ const { passwordBox, standingPassword } = await import("./password-box.js");
 const question = {
   id: "q_1",
   kind: "password",
-  text: "no usable password is stored for clerk at login.idp.example",
+  text: "clerk at login.idp.example has no usable password. Enter it on the run's card.",
   origin: "login.idp.example",
   username: "clerk",
   field: "password",

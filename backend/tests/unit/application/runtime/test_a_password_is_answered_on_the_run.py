@@ -82,7 +82,7 @@ async def test_nothing_is_stored_when_the_answer_is_not_the_question(who: str) -
 
 async def test_a_question_asked_before_it_named_its_account_is_refused_not_guessed() -> None:
     world, asking, door = await _asking_for_a_password()
-    await world.asks({"id": asking, "kind": "password", "text": "store a new one"})
+    await world.asks({"id": asking, "kind": "password", "text": "enter it on the run's card"})
 
     with pytest.raises(Conflict):
         await door.execute(CTX, run_id=world.run_id, question_id=asking, value=TYPED, keep=True)

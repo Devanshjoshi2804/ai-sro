@@ -838,7 +838,7 @@ test("a run waiting on its password draws the box above its steps", async () => 
         question: {
           id: "q_9",
           kind: "password",
-          text: "no usable password is stored",
+          text: "clerk at login.idp.example has no usable password. Enter it on the run's card.",
           origin: "login.idp.example",
           username: "clerk",
           field: "password",

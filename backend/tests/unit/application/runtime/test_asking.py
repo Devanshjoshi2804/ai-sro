@@ -234,7 +234,7 @@ async def _parked_on_a_password(world: SteelRun) -> str:
         until=world.clock.now() + K_LEASE_TTL,
         waits_for="password",
     )
-    await world.asks({"id": QID, "kind": "password", "text": "store a new one"})
+    await world.asks({"id": QID, "kind": "password", "text": "enter it on the run's card"})
     return parked
 
 
@@ -320,7 +320,7 @@ async def test_a_password_answer_never_ends_a_park_on_a_one_time_code() -> None:
     await world.run_steps.acquire(CTX, world.run_id)
     lease = Progress.of((await world.saved_run()).progress).lease
     parked = world.uow.browser_sessions.leases[lease]
-    await world.asks({"id": QID, "kind": "password", "text": "store a new one"})
+    await world.asks({"id": QID, "kind": "password", "text": "enter it on the run's card"})
 
     await world.answer(QID)
 

@@ -209,7 +209,7 @@ test("two mails asked about: each card is drawn from its own question", () => {
 const asksForAPassword = {
   id: "q_1",
   kind: "password",
-  text: "no usable password is stored for clerk at login.idp.example",
+  text: "clerk at login.idp.example has no usable password. Enter it on the run's card.",
   origin: "login.idp.example",
   username: "clerk",
   field: "password",
@@ -222,7 +222,7 @@ test("a run waiting on its password draws the box, and a press goes to onPasswor
     { onPassword: (one) => (sent.push(one), { ok: true }) },
   );
 
-  assert.match(words(card), /Needs you: no usable password is stored/);
+  assert.match(words(card), /Needs you: clerk at login.idp.example has no usable password/);
   assert.match(words(card), /needs your password for login\.idp\.example \(clerk\)/);
   const box = of(card, "input")[0];
   assert.equal(box.type, "password");

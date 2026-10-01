@@ -55,6 +55,18 @@ K_HEADERS_WAIT_S = 20.0
 K_CODE_WAIT = timedelta(minutes=10)
 
 
+def _needs_its_password(account: Account, why: str) -> NeedsAPerson:
+    """One wording for every password question: which account, and where to answer.
+
+    The answer goes on the run's card, never in chat, so the words never ask for it here.
+    """
+    return NeedsAPerson(
+        f"{account.username} at {account.origin} {why}. Enter it on the run's card.",
+        kind="password",
+        account=account,
+    )
+
+
 class SessionBroker:
     def __init__(
         self,
@@ -237,11 +249,7 @@ class SessionBroker:
                     f"{lease.account.origin} still asks for a one-time code", held=held
                 )
             if a_sign_in_page(signals):
-                raise NeedsAPerson(
-                    f"{lease.account.origin} asks for a password now, not a code",
-                    kind="password",
-                    account=lease.account,
-                )
+                raise _needs_its_password(lease.account, "is asked for a password, not a code")
             now = self._clock.now()
             until = now + K_LEASE_TTL
             if not await self._settle(ctx, lease, LeaseState.READY, until=until, now=now):
@@ -442,11 +450,7 @@ class SessionBroker:
         password = lent or await self._vault.get(key)
         refused = RefusedCredentials(self._vault)
         if not password or (not lent and await refused.standing(key, password) is not None):
-            raise NeedsAPerson(
-                f"no usable password is stored for {account.username} at {account.origin}",
-                kind="password",
-                account=account,
-            )
+            raise _needs_its_password(account, "has no usable password")
         asked = CodeAsked(self._vault)
         since = await asked.since(key)
         if not park and since is not None and self._clock.now() - since < K_CODE_WAIT:
@@ -479,12 +483,7 @@ class SessionBroker:
                 reason="the sign-in form came back after the password was submitted",
                 fingerprint=fingerprint(key, password),
             )
-            raise NeedsAPerson(
-                f"the password for {account.username} at {account.origin} was refused; "
-                "store a new one",
-                kind="password",
-                account=account,
-            )
+            raise _needs_its_password(account, "had its password refused")
         await self._driver.goto(held.session, held.target_id, start_url)
         await asked.clear(key)
 

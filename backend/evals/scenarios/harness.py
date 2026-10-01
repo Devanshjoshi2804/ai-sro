@@ -64,6 +64,7 @@ from sro.application.chat.brain_tools import (
     UndoRun,
     WorkItOut,
     _bounded,
+    the_words,
     values_of,
     what_is_wrong,
 )
@@ -345,7 +346,8 @@ class FakeStartJob(StartJob):
                     "Send it; tell the operator you cannot send mail from chat",
                 )
             return ToolResult(ok=False, error="that is not a job this team has; use find_jobs")
-        wrong = what_is_wrong(values, world.fields[job_id], turn.said, Logins())
+        said = the_words(turn.said, await self._offers(ctx), job_id)
+        wrong = what_is_wrong(values, world.fields[job_id], said, Logins())
         return ToolResult(ok=False, error="; ".join(wrong)) if wrong else None
 
 

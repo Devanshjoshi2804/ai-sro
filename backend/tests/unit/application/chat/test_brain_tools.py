@@ -746,3 +746,40 @@ async def test_find_jobs_lists_a_field_the_page_shows_as_optional_and_read_back(
     (extra,) = [p for p in job["parameters"] if p["name"] == "Department"]
     assert extra["required"] is False and extra["options"] == ["Finance", "Operations"]
     assert "read back after saving" in extra["checked"]
+
+
+def _optional(name: str) -> dict[str, Any]:
+    from sro.domain.execution.field_classes import FieldClass, FieldLimits
+
+    return {name: FieldClass(name, "sometimes", (), FieldLimits(10))}
+
+
+def test_a_start_with_no_value_at_all_is_refused_even_when_every_field_is_optional() -> None:
+    from sro.application.chat.brain_tools import what_is_wrong
+    from sro.domain.skill.signing_in import Logins
+
+    wrong = what_is_wrong({}, _optional("Equipment"), "create transport equipment type", Logins())
+
+    assert wrong and "no value" in wrong[0] and "Equipment" in wrong[0]
+
+
+def test_a_job_with_no_parameters_may_start_with_no_values() -> None:
+    from sro.application.chat.brain_tools import what_is_wrong
+    from sro.domain.skill.signing_in import Logins
+
+    assert what_is_wrong({}, {}, "refresh the board", Logins()) == []
+
+
+def test_the_values_of_the_card_the_operator_is_answering_count_as_their_words() -> None:
+    from sro.application.chat.brain_tools import the_words
+    from sro.application.chat.open_offers import OpenOffer
+
+    card = OpenOffer("offer_1", "wfl_a", "Create a Customer Type", {"Customer Type": "SRT5"})
+    other = OpenOffer(
+        "offer_2", "wfl_b", "Create a Warehouse Equipment Type", {"Description": "x9"}
+    )
+
+    said = the_words("run whatever we have", (card, other), "wfl_a")
+
+    assert "SRT5" in said and "x9" not in said and said.startswith("run whatever we have")
+    assert the_words("hello", (card,), "wfl_z") == "hello"

@@ -199,7 +199,8 @@ async def test_an_equipment_type_is_asked_which_kind_before_its_code_and_never_s
     )
 
     assert which.passed and not code_first.passed
-    assert not started.passed and started.sure
+    # A start with no value at all is refused by its guard, so it is wrong but not "sure".
+    assert not started.passed and not started.sure
 
 
 async def test_a_value_nobody_gave_is_refused_and_shown_as_a_refusal() -> None:

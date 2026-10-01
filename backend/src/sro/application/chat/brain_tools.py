@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Callable, Collection, Coroutine, Mapping, Sequence
+from collections.abc import Callable, Collection, Coroutine, Iterable, Mapping, Sequence
 from typing import ClassVar, Protocol, runtime_checkable
 
 from sro.application.chat.candidates import rank_jobs, real_jobs
@@ -358,7 +358,20 @@ def what_is_wrong(
         )
     ]
     absent = sorted(n for n, one in fields.items() if one.kind == "required" and n not in values)
-    return [*wrong, f"missing: {', '.join(absent)}"] if absent else wrong
+    if absent:
+        return [*wrong, f"missing: {', '.join(absent)}"]
+    if not values and fields:
+        # Nothing required, nothing given: a blank record is worse than one question.
+        names = ", ".join(sorted(fields))
+        return [*wrong, f"no value was given for any of this job's parameters ({names}): ask which"]
+    return wrong
+
+
+def the_words(said: str, offers: Iterable[OpenOffer], job_id: str) -> str:
+    """What a value may come from: the operator's words, and the values of a standing offer for
+    this very job (the card they are answering, whose values the system read for them)."""
+    card = " ".join(v for one in offers if one.workflow_id == job_id for v in one.values.values())
+    return f"{said}\n{card}" if card else said
 
 
 def start_key(args: Mapping[str, object]) -> str:
@@ -430,7 +443,8 @@ class StartJob:
             for name in placeable:
                 if (shown := labelled(normal(name), job.compiled.fields)) is not None:
                     fields[name] = shown
-        wrong = what_is_wrong(values, fields, turn.said, logins, placeable)
+        said = the_words(turn.said, await self._offers(ctx), job_id)
+        wrong = what_is_wrong(values, fields, said, logins, placeable)
         return ToolResult(ok=False, error="; ".join(wrong), guard=True) if wrong else None
 
     async def _offers(self, ctx: RequestContext) -> tuple[OpenOffer, ...]:

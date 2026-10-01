@@ -38,15 +38,19 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import logging
 import re
 import time
+from collections import Counter
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 
+from evals.model import _at
 from evals.suites.chat import _FIELDS, _JOBS, _Day, _job, _Nowhere
 from sro.application.chat.brain import K_BRAIN_STEPS, Brain
 from sro.application.chat.brain_tools import (
@@ -79,6 +83,7 @@ from sro.domain.shared.errors import NotFound
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.signing_in import Logins
+from sro.whose import about
 
 DELETE = "Delete a Customer Type"
 _CODE = "Customer Type"
@@ -726,3 +731,199 @@ def judge(scenario: Mapping[str, Any], played: Sequence[Played]) -> list[Finding
         problems += _expectations(turn, p) + _invariants(scenario, p)
         found += [Finding(n, one, text or "", soft) for one, text in problems]
     return found
+
+
+# ---------------------------------------------------------------------------------------------
+# Running the catalogue, and the report.
+# ---------------------------------------------------------------------------------------------
+
+
+@dataclass
+class Outcome:
+    scenario: Mapping[str, Any]
+    runs: list[list[Played]] = field(default_factory=list)
+    findings: list[list[Finding]] = field(default_factory=list)
+    skipped: str = ""
+
+    def _failed(self) -> list[bool]:
+        return [any(not f.soft for f in found) for found in self.findings]
+
+    @property
+    def passed(self) -> bool:
+        """pass^k: every run passed."""
+        return not any(self._failed())
+
+    @property
+    def flaky(self) -> bool:
+        return any(self._failed()) and not all(self._failed())
+
+
+def select(
+    scenarios: Sequence[Mapping[str, Any]], *, group: str | None = None, ids: Sequence[str] = ()
+) -> list[Mapping[str, Any]]:
+    unknown = set(ids) - {one["id"] for one in scenarios}
+    if unknown:
+        raise SystemExit(f"no such scenario: {', '.join(sorted(unknown))}")
+    return [
+        one
+        for one in scenarios
+        if (not group or one["group"] == group) and (not ids or one["id"] in ids)
+    ]
+
+
+async def run_all(
+    scenarios: Sequence[Mapping[str, Any]], asker: Asker, *, repeat: int = 1, tenant: str = "eval"
+) -> list[Outcome]:
+    """One thread per scenario, K times, one after another: the checker reads one thread's logs."""
+    outcomes = []
+    for one in scenarios:
+        done = Outcome(one)
+        if one.get("e2e"):
+            done.skipped = "e2e: skipped"
+        else:
+            for _ in range(repeat):
+                played = await play(one, asker, tenant=tenant)
+                done.runs.append(played)
+                done.findings.append(judge(one, played))
+        outcomes.append(done)
+        print(  # noqa: T201
+            f"{one['id']} {done.skipped or ('ok' if done.passed else 'FAIL')}", flush=True
+        )
+    return outcomes
+
+
+def as_json(outcomes: Sequence[Outcome]) -> str:
+    return json.dumps(
+        [
+            {
+                "id": one.scenario["id"],
+                "group": one.scenario["group"],
+                "title": one.scenario["title"],
+                "skipped": one.skipped,
+                "passed": one.passed,
+                "flaky": one.flaky,
+                "runs": [
+                    {
+                        "turns": [asdict(p) for p in played],
+                        "findings": [{**asdict(f), "invariant": f.invariant} for f in found],
+                    }
+                    for played, found in zip(one.runs, one.findings, strict=True)
+                ],
+            }
+            for one in outcomes
+        ],
+        indent=1,
+        ensure_ascii=False,
+    )
+
+
+def _short(text: str, n: int = 200) -> str:
+    text = " ".join(text.split())
+    return text if len(text) <= n else text[: n - 1] + "…"
+
+
+def _wanted(turn: Mapping[str, Any]) -> str:
+    keys = ("starts", "job", "values", "tools", "never", "asks", "says_any", "says_none")
+    return ", ".join(f"{k}={turn[k]!r}" for k in keys if k in turn) or "no starts"
+
+
+def _got(p: Played) -> str:
+    started = [f"{one['job']} {one['values']}" for one in p.launches]
+    tools = [one["tool"] for one in p.tools]
+    return f"tools={tools}, starts={started}, asked={p.questions}, reply={_short(p.reply)!r}"
+
+
+def as_markdown(outcomes: Sequence[Outcome]) -> str:
+    ran = [one for one in outcomes if not one.skipped]
+    plays = [
+        (one, p, found)
+        for one in ran
+        for r, found in zip(one.runs, one.findings, strict=True)
+        for p in r
+    ]
+    turns = [p for _, p, _ in plays]
+    latencies = sorted(p.latency for p in turns)
+    soft_turns = [
+        (one, n, found)
+        for one in ran
+        for found in one.findings
+        for n, turn in enumerate(one.scenario["turns"])
+        if one.scenario.get("soft") or turn.get("soft")
+    ]
+    met = sum(not any(f.turn == n and not f.invariant for f in found) for _, n, found in soft_turns)
+    violations = Counter(
+        f.id for one in ran for found in one.findings for f in found if f.invariant
+    )
+    passed = sum(one.passed for one in ran)
+    flaky = [one.scenario["id"] for one in ran if one.flaky]
+    skipped = sum(bool(one.skipped) for one in outcomes)
+    lines = [
+        "# Chat scenarios",
+        "",
+        f"- scenarios run: {len(ran)} ({skipped} e2e: skipped), turns: {len(turns)}",
+        f"- hard pass rate: {passed}/{len(ran)} scenarios = {passed / max(len(ran), 1):.1%}",
+        f"- soft preferences met: {met}/{len(soft_turns)}",
+        "- invariant violations: "
+        + (", ".join(f"{k} x{v}" for k, v in sorted(violations.items())) or "none"),
+        f"- cost: ${sum(p.cost for p in turns):.4f}; per turn p50 {_at(latencies, 0.5):.1f} s, "
+        f"p95 {_at(latencies, 0.95):.1f} s",
+    ]
+    if flaky:
+        lines.append(f"- flaky (passed some runs, failed others): {', '.join(flaky)}")
+    failing = [one for one in ran if not one.passed]
+    for name in sorted({one.scenario["group"] for one in failing}):
+        mine = [one for one in failing if one.scenario["group"] == name]
+        lines += ["", f"## {name}: {len(mine)} failing"]
+        for one in mine:
+            index = next(i for i, failed in enumerate(one._failed()) if failed)
+            seen = set()
+            for f in one.findings[index]:
+                if f.soft or f.turn in seen:
+                    continue
+                seen.add(f.turn)
+                turn, p = one.scenario["turns"][f.turn], one.runs[index][f.turn]
+                why = "; ".join(
+                    f"{x.id}: {x.text}"
+                    for x in one.findings[index]
+                    if x.turn == f.turn and not x.soft
+                )
+                lines += [
+                    f"- **{one.scenario['id']}** turn {f.turn + 1} "
+                    f"({'flaky' if one.flaky else 'failed'}): "
+                    f"said {_short(str(turn['said']), 120)!r}",
+                    f"  - expected: {_wanted(turn)}",
+                    f"  - got: {_got(p)}",
+                    f"  - why: {why}",
+                ]
+    return "\n".join(lines) + "\n"
+
+
+async def run_cli(
+    tenant: str, *, repeat: int, group: str | None, ids: Sequence[str], out: Path | None
+) -> int:
+    """The probe: 0 whenever it ran; only the harness's own errors are not."""
+    from evals.run import SUITES
+    from evals.scenarios.chat_scenarios import SCENARIOS
+    from sro.container import build_container
+
+    chosen = select(SCENARIOS, group=group, ids=ids)
+    if not chosen:
+        raise SystemExit("no scenario matches")
+    asker = SUITES["chat"].asker(build_container())
+    if asker is None:
+        raise SystemExit("scenarios need gemini_api_key and interpretation_enabled")
+    with about(tenant=tenant):
+        outcomes = await run_all(chosen, asker, repeat=repeat, tenant=tenant)
+    report = write_report(outcomes, out)
+    print(report)  # noqa: T201
+    return 0
+
+
+def write_report(outcomes: Sequence[Outcome], out: Path | None) -> str:
+    """The markdown report; with a folder, also `scenarios.json` and `scenarios.md` in it."""
+    report = as_markdown(outcomes)
+    if out is not None:
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "scenarios.json").write_text(as_json(outcomes), encoding="utf-8")
+        (out / "scenarios.md").write_text(report, encoding="utf-8")
+    return report

@@ -3,8 +3,10 @@ from __future__ import annotations
 import argparse
 import asyncio
 from collections.abc import Sequence
+from pathlib import Path
 
 from evals.run import run_ci, run_suite, write_candidates
+from evals.scenarios.harness import run_cli
 
 
 def _at_least_one(text: str) -> int:
@@ -28,6 +30,14 @@ def arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
         default=1,
         help="run every case N times; it counts only if all N pass (pass^k)",
     )
+    probe = sub.add_parser("scenarios", help="the chat scenarios through the live brain (a probe)")
+    probe.add_argument("--tenant", required=True)
+    probe.add_argument("--repeat", type=_at_least_one, default=1)
+    probe.add_argument("--group")
+    probe.add_argument(
+        "--ids", type=lambda text: [one for one in text.split(",") if one], default=[]
+    )
+    probe.add_argument("--out", type=Path)
     ci = sub.add_parser("ci")
     ci.add_argument("--live", action="store_true")
     red = sub.add_parser("redact")
@@ -51,6 +61,10 @@ def main() -> int:
                 rebuild=args.rebuild,
                 repeat=args.repeat,
             )
+        )
+    if args.command == "scenarios":
+        return asyncio.run(
+            run_cli(args.tenant, repeat=args.repeat, group=args.group, ids=args.ids, out=args.out)
         )
     if args.command == "ci":
         return asyncio.run(run_ci(live=args.live))

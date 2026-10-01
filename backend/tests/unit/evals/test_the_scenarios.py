@@ -6,11 +6,23 @@ Nothing here calls a model or reads a database.
 from __future__ import annotations
 
 import json
+import tempfile
+from pathlib import Path
 from typing import Any
 
 import pytest
-from evals.scenarios.chat_scenarios import case, say
-from evals.scenarios.harness import DELETE, Played, World, fake_tools, judge, play
+from evals.scenarios.chat_scenarios import SCENARIOS, case, say
+from evals.scenarios.harness import (
+    DELETE,
+    Played,
+    World,
+    fake_tools,
+    judge,
+    play,
+    run_all,
+    select,
+    write_report,
+)
 
 from sro.application.context import RequestContext
 from sro.domain.chat.brain_turn import ToolResult, Turn
@@ -253,3 +265,59 @@ def test_a_reply_that_contradicts_a_run_is_an_i7_violation() -> None:
     assert "I7" not in _found(_one(world), _turn(reply="SRT9 is still running."))
     assert "I7" not in _found(_one(world), _turn(reply="SRT9 has not finished yet."))
     assert "I7" not in _found(_one(world), _turn(reply="Something else is done."))
+
+
+NINE = "create customer type SRT9 with description nine"
+
+
+def _starts_nine() -> Answer:
+    return _call("start_job", job_id=World().id_of(CREATE), values=SRT9)
+
+
+@pytest.mark.asyncio
+async def test_the_report_lists_failures_skips_e2e_and_shows_flaky_under_repeat() -> None:
+    wrong = case("W01", "values", "expects no start", say(NINE, starts=0))
+    live = case("E01", "state", "needs QA", say("hi"), e2e=True)
+    asker = FakeAsker(_starts_nine(), _say("ok"))
+    # run 1 starts (wrong), run 2 only talks (right): pass^2 fails, and it is flaky
+    done = await run_all([wrong, live], asker, repeat=2)
+    assert [(o.passed, o.flaky, o.skipped) for o in done] == [
+        (False, True, ""),
+        (True, False, "e2e: skipped"),
+    ]
+    out = Path(tempfile.mkdtemp())
+    report = write_report(done, out)
+    assert "hard pass rate: 0/1" in report and "1 e2e: skipped" in report
+    assert "flaky (passed some runs, failed others): W01" in report
+    assert "## values: 1 failing" in report and "**W01** turn 1" in report
+    assert "started 1, wanted 0" in report
+    saved = json.loads((out / "scenarios.json").read_text())
+    assert [(r["id"], r["flaky"]) for r in saved] == [("W01", True), ("E01", False)]
+    assert (out / "scenarios.md").read_text() == report
+
+
+def test_every_scenario_is_well_formed() -> None:
+    expect = {"starts", "job", "values", "tools", "never", "asks", "says_any", "says_none", "soft"}
+    keys = {"runs", "offers", "asking", "mail", "lookup", "jobs", "origin", "sender", "subject"}
+    keys |= {"mail_down", "history", "stale_days"}
+    assert len({one["id"] for one in SCENARIOS}) == len(SCENARIOS)
+    for one in SCENARIOS:
+        assert one["turns"] and set(one["world"]) <= keys, one["id"]
+        for turn in one["turns"]:
+            assert isinstance(turn["said"], str) and set(turn) - {"said"} <= expect, one["id"]
+        for offer in one["world"].get("offers") or ():
+            assert set(offer) == {"job", "values"}, one["id"]
+        for run in one["world"].get("runs") or ():
+            assert (
+                {"id", "job", "state"}
+                <= set(run)
+                <= {"id", "job", "state", "values", "reason", "mail"}
+            )
+            assert run["state"] in {"running", "done", "failed", "waiting"}, one["id"]
+
+
+def test_select_by_group_and_ids_and_unknown_ids_stop() -> None:
+    assert {one["group"] for one in select(SCENARIOS, group="mail")} == {"mail"}
+    assert [one["id"] for one in select(SCENARIOS, ids=["R01", "R02"])] == ["R01", "R02"]
+    with pytest.raises(SystemExit):
+        select(SCENARIOS, ids=["NOPE"])

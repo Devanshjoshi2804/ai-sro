@@ -1307,13 +1307,15 @@ input::placeholder {
 .message[data-kind="nudge"],
 .message[data-kind="waiting"],
 .message[data-kind="near-miss"],
+.message[data-kind="result"],
 .message[data-fresh] {
   flex-wrap: wrap;
 }
 
 .message[data-kind="nudge"] > .what,
 .message[data-kind="waiting"] > .what,
-.message[data-kind="near-miss"] > .what {
+.message[data-kind="near-miss"] > .what,
+.message[data-kind="result"] > .what {
   flex: 1 1 0;
 }
 

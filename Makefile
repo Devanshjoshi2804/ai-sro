@@ -129,7 +129,7 @@ images: ## Build both deployment images, tagged with this commit: make images [a
 		-t ai-sro-backend:$$rev --build-arg REVISION=$$rev backend/ && \
 	docker build -t ai-sro-web:$$rev \
 		--build-arg NEXT_PUBLIC_API_URL=$(or $(api),http://localhost:8000) \
-		--build-arg NEXT_PUBLIC_EXTENSION_ORIGINS=$(or $(origins),chrome-extension://onfmljaebeipeiinflhgdochbcjeoehl) \
+		--build-arg NEXT_PUBLIC_EXTENSION_ORIGINS=$(or $(origins),chrome-extension://onfmljaebeipeiinflhgdochbcjeoehl,chrome-extension://fokdlimdngfkjpnpeogpeeldcoikabpj) \
 		frontend/ && \
 	echo "built ai-sro-backend:$$rev and ai-sro-web:$$rev"
 
@@ -144,8 +144,8 @@ gen-deployment: ## Tell the extension which deployment it is for: make gen-deplo
 	@test -n "$(api)" || { echo "api= is required, e.g. api=http://10.11.9.25:8088/api"; exit 2; }
 	$(BACKEND) uv run python scripts/write_deployment.py --api $(api) --console $(or $(console),)
 
-package-extension: ## The zip the Chrome Web Store is given (run gen-deployment first): dist/ai-sro-<version>.zip
-	$(BACKEND) uv run python scripts/package_extension.py
+package-extension: ## The zip the Chrome Web Store is given (gen-deployment api=https://... first; http is refused, args=--allow-insecure for local QA): dist/ai-sro-<version>.zip
+	$(BACKEND) uv run python scripts/package_extension.py $(args)
 
 gen-recorder: ## Regenerate the extension's copy of the page recorder, secrets baked in
 	$(BACKEND) uv run python -m sro.infrastructure.steel.generate_extension_recorder

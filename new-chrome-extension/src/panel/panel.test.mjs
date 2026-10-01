@@ -515,7 +515,24 @@ const SHORT_RUN = {
   needs: ["Customer Type"],
   title: "Create a Customer Type",
   state: "waiting",
+  // Just finished: the question may not be written yet, so a miss is retried.
+  at: Date.now(),
 };
+
+test("a finished run whose question never appears is looked for a bounded number of times", async () => {
+  // Opus day-end review R: every render (2 s poll plus storage pushes) sent
+  // `question` -- whole threads -- for as long as the run stayed finished.
+  const { render, sent } = panel({ deviceId: "dev-1", nudges: [] }, null, {
+    question: () => null,
+    thread: (message) => ({ id: message.threadId || "thr_long", messages: [] }),
+  });
+  const old = { ...SHORT_RUN, at: Date.now() - 5 * 60_000 };
+  for (let n = 0; n < 8; n++) {
+    render({ deviceId: "dev-1", nudges: [], finished: old });
+    await settled();
+  }
+  assert.equal(sentOf(sent, "question").length, 1);
+});
 
 test("a run that came up short opens its own question, not another mail's", async () => {
   // A question from another mail stands; this run's is not written yet. The
@@ -2204,9 +2221,9 @@ test("a panel with nothing on it says so", () => {
   assert.doesNotMatch(busy.cards.map(words).join(" "), /Nothing needs you/);
 });
 
-test("the run happening now leads, and what is offered follows it", () => {
-  // Several true at once: the card somebody must watch or stop is the run,
-  // not the offer that arrived beside it.
+test("the offer leads, and the run happening now follows it", () => {
+  // Owner ruling 2026-09-30: the one offer is on top so a long day of cards
+  // never pushes it out of sight.
   const { cards } = panel(
     {
       deviceId: "dev-1",
@@ -2221,7 +2238,7 @@ test("the run happening now leads, and what is offered follows it", () => {
   const run = said.findIndex((one) => /is performing here/.test(one));
   const offer = said.findIndex((one) => /Resolve a short ship/.test(one));
   assert.ok(run >= 0 && offer >= 0, "one of the two cards was not drawn");
-  assert.ok(run < offer, "the offer was drawn above the run in progress");
+  assert.ok(offer < run, "the offer was drawn below the run in progress");
 });
 
 test("Home never shows what was learned on this page -- that stays in the console", async () => {
@@ -3900,7 +3917,18 @@ const aNudge = (id, workflowId, title) => ({
   missing: [],
 });
 
-test("more than three loud cards: three, in the order somebody deals with them", () => {
+const aRun = (id, subject, minutesAgo = 0) => ({
+  id,
+  status: "running",
+  workflow_id: `wfl_${id}`,
+  title: `Create ${subject}`,
+  values: {},
+  started_at: new Date(Date.now() - minutesAgo * 60_000).toISOString(),
+  steps: [],
+  mail: aMail(subject),
+});
+
+test("Home hides no card: the offer first, then questions, then runs", () => {
   const status = {
     deviceId: "dev-1",
     capturing: true,
@@ -3908,19 +3936,62 @@ test("more than three loud cards: three, in the order somebody deals with them",
     nudges: [aNudge("n_1", "wfl_c", "Create a Client")],
     question: { title: "Create a Customer Type", text: "What is the description for GV3?" },
     performing: { runId: "run-9", kind: "rig", source: "rig", workflowId: "wfl_run", since: new Date().toISOString(), step: 1 },
-    mailRuns: [
-      { id: "run-1", status: "running", workflow_id: "wfl_a", title: "Create a Transport Equipment Type", values: {}, started_at: new Date().toISOString(), steps: [], mail: aMail("AITE8") },
-      { id: "run-2", status: "running", workflow_id: "wfl_b", title: "Create a Warehouse Equipment Type", values: {}, started_at: new Date().toISOString(), steps: [], mail: aMail("AIWE2") },
-    ],
+    mailRuns: [aRun("run-1", "AITE8", 5), aRun("run-2", "AIWE2", 1), aRun("run-3", "AIXX3", 3)],
   };
-  const { ids } = panel(status, TAB);
+  const loud = panel(status, TAB).ids["cards"].kids.map(words);
 
-  const loud = ids["cards"].kids.map(words);
-  assert.equal(loud.length, 3, loud.join(" | "));
-  assert.match(loud[0], /waiting on you/, "what needs the operator leads");
-  assert.match(loud[1], /performing here/);
-  assert.match(loud[2], /Mail: AITE8/);
-  assert.doesNotMatch(loud.join(" "), /AIWE2|Create a Client/, "a fourth loud card was drawn");
+  assert.equal(loud.length, 6, loud.join(" | "));
+  assert.match(loud[0], /Create a Client/, "the one offer leads");
+  assert.match(loud[1], /waiting on you/, "then what needs the operator");
+  assert.match(loud[2], /performing here/);
+  assert.match(loud[3], /AIWE2/, "mail cards newest first");
+  assert.match(loud[4], /AIXX3/);
+  assert.match(loud[5], /AITE8/);
+});
+
+test("three finished mail cards do not push the offer or a fourth card off Home", () => {
+  const done = (id, subject, ago) => ({
+    ...aRun(id, subject, ago),
+    status: "succeeded",
+    finished_at: new Date(Date.now() - ago * 60_000).toISOString(),
+  });
+  const status = {
+    deviceId: "dev-1",
+    capturing: true,
+    watched: WATCHED,
+    nudges: [aNudge("n_1", "wfl_client", "Create a Client")],
+    mailRuns: [done("a", "AAA1", 4), done("b", "BBB2", 3), done("c", "CCC3", 2), done("d", "DDD4", 1)],
+  };
+  const loud = panel(status, TAB).ids["cards"].kids.map(words);
+
+  assert.equal(loud.length, 5, loud.join(" | "));
+  assert.match(loud[0], /Create a Client/);
+  for (const subject of ["AAA1", "BBB2", "CCC3", "DDD4"]) assert.match(loud.join(" "), new RegExp(subject));
+});
+
+test("a page rule that can no longer fire says it must be made again", () => {
+  const status = {
+    deviceId: "dev-1",
+    capturing: true,
+    watched: WATCHED,
+    staleRules: [{ id: "trg-old", page: "wms.example/portal" }],
+  };
+  assert.match(words(panel(status, TAB).ids["cards"]), /needs making again.*wms\.example\/portal/);
+});
+
+test("three standing questions and a performing card are all drawn", () => {
+  const ask = (n) => ({ id: `q${n}`, title: `Job ${n}`, text: `What is value ${n}?` });
+  const status = {
+    deviceId: "dev-1",
+    capturing: true,
+    watched: WATCHED,
+    questions: [ask(1), ask(2), ask(3)],
+    performing: { runId: "run-9", kind: "rig", source: "rig", workflowId: "wfl_run", since: new Date().toISOString(), step: 1 },
+  };
+  const loud = panel(status, TAB).ids["cards"].kids.map(words);
+
+  assert.equal(loud.length, 4, loud.join(" | "));
+  assert.match(loud.join(" "), /value 1.*value 2.*value 3.*performing here/);
 });
 
 test("a run a reply started takes the operator to Home once, and lets them leave", async () => {
@@ -3972,6 +4043,37 @@ test("a run a reply started takes the operator to Home once, and lets them leave
   drawn.toChat();
   await drawn.refresh();
   assert.equal(drawn.ids["cards"].hidden, true, "the panel would not let them leave Home");
+});
+
+test("a reply to an OLDER standing mail question takes the operator Home too", async () => {
+  // Two mails are asking; `status.question` is only the newest. The reply that
+  // completes the older one started a run, and the panel only looked at the
+  // newest question, so that operator was left in the chat.
+  const ask = (id, offer) => ({ id, offer, threadId: `thr_${id}`, title: "Create a Customer Type", text: "What should it be?" });
+  const asked = {
+    deviceId: "dev-1",
+    capturing: true,
+    watched: WATCHED,
+    question: ask("m-new", "mail:m-2"),
+    questions: [ask("m-new", "mail:m-2"), ask("m-old", "mail:m-1")],
+  };
+  const started = {
+    deviceId: "dev-1",
+    capturing: true,
+    watched: WATCHED,
+    question: ask("m-new", "mail:m-2"),
+    questions: [ask("m-new", "mail:m-2")],
+    mailRuns: [{ ...aRun("run-1", "older mail"), offer: "mail:m-1" }],
+  };
+  let now = asked;
+  const drawn = panel(asked, TAB, { status: () => now });
+  await drawn.refresh();
+  drawn.toChat();
+  assert.equal(drawn.ids["cards"].hidden, true);
+
+  now = started;
+  await drawn.refresh();
+  assert.equal(drawn.ids["cards"].hidden, false, "the older mail's run started and the operator was left in the chat");
 });
 
 test("a run on the server is said in plain words, not the machinery's", () => {

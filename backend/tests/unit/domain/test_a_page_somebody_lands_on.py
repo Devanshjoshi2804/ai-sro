@@ -144,3 +144,9 @@ def test_an_arrival_runs_a_job_like_any_other_trigger() -> None:
     assert made.kind is TriggerKind.ARRIVAL
     assert made.workflow_id == "wfl_1"
     assert made.arrival is not None and made.arrival.matches(f"https://{WMS}/portal/page")
+
+
+def test_an_explicit_default_port_is_the_same_page_as_none() -> None:
+    assert page_of("https://wms.example:443/portal") == page_of("https://wms.example/portal")
+    assert page_of("http://wms.example:80/portal") == page_of("http://wms.example/portal")
+    assert page_of("http://wms.example:8080/portal") == "wms.example:8080/portal"

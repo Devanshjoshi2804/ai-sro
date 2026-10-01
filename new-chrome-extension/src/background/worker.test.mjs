@@ -618,12 +618,10 @@ test("Try it again is one retry of that run, however many panels press it", asyn
   assert.equal(JSON.parse(press.body).offer, "again:run_stopped");
 });
 
-test("Run it here starts that job by id, and leaves a record the panel can read", async () => {
-  // The learned-job card knows which job it is, so the press names it rather
-  // than typing its title into the conversation -- three jobs share a name on
-  // this deployment. The record it leaves is the one `parkedRigRun` reads
-  // back: `at`, not any other name for it, or the run card draws no elapsed
-  // time.
+test("the learned-job card's Run it here is gone: nothing a panel sends starts a job by id", async () => {
+  // Home shows no learned jobs, so `run-workflow` had no sender. Every start
+  // is the backend's or an offer's press (`start-rig-run`); a second door that
+  // starts a job without an offer is one nobody can reach and nobody tests.
   ready();
   held.set("sro.deviceId", "dev-start-a17f");
   held.set("sro.deviceSecret", "secret-start-33c9");
@@ -631,18 +629,8 @@ test("Run it here starts that job by id, and leaves a record the panel can read"
 
   const answer = await send({ kind: "run-workflow", workflowId: "wfl_keycloak" });
 
-  assert.equal(answer.ok, true, answer.error || "the press did not start a run");
-  const press = calls.find((call) => call.path === "/v1/workflow-runs");
-  assert.ok(press, "the press never reached `POST /v1/workflow-runs`");
-  const started = JSON.parse(press.body);
-  assert.equal(started.workflow_id, "wfl_keycloak");
-  assert.equal(started.device_id, "dev-start-a17f");
-  assert.equal(started.live, true);
-  assert.equal(started.watched, true);
-  const active = held.get("sro.activeRun");
-  assert.equal(active.runId, "run-9");
-  assert.equal(active.source, "rig");
-  assert.ok(Number.isFinite(active.at), "the record has no `at` to draw `since` from");
+  assert.match(answer.error, /no such message/);
+  assert.equal(calls.find((call) => call.path === "/v1/workflow-runs"), undefined);
 });
 
 test("an ordinary press takes nothing back", async () => {
@@ -1491,6 +1479,15 @@ test("a card already held for a mail stands down once its question is written", 
   await new Promise((resolve) => setTimeout(resolve, 20));
 
   assert.equal(openOnes().find((one) => one.offer === "mail:m-9"), undefined);
+  // Superseded by a question, not accepted: nobody pressed Yes. Its own state,
+  // and the backend hears of it (as `expired`, the fate that means "ended
+  // without the operator acting").
+  const ended = (held.get("sro.nudges") || []).find((one) => one.offer === "mail:m-9");
+  assert.equal(ended?.state, "answered-elsewhere");
+  assert.ok(
+    offersSent().some((one) => one.workflow_id === "wfl_1" && one.fate === "expired"),
+    "the backend was never told the offer ended",
+  );
   assert.equal(held.get("sro.question")?.id, "m_q", "the question is the one card");
   threadsAsked = [];
 });

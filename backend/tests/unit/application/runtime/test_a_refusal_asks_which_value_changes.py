@@ -57,6 +57,9 @@ async def test_the_question_says_the_system_s_words_once_and_asks_which_value_ch
     assert "takes" not in asked.text and "characters" not in asked.text
     assert "GT2" in asked.text and "Pet shops" in asked.text
     assert "Which value should change?" in asked.text
+    # No worked example: the one offered used the record's key field, the very
+    # value a refusal says clashed, and read as an instruction to change it.
+    assert "Say it like" not in asked.text and "…" not in asked.text
     assert "What should" not in asked.text
 
 

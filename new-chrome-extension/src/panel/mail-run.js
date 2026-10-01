@@ -50,7 +50,10 @@ function mailHowItWent(run, waits) {
   const why = [...(run.steps || [])]
     .reverse()
     .find((step) => step.outcome === "failed" && step.reason)?.reason;
-  return `Not created: ${why || run.status}.`;
+  // "Not created" is true only of a create that failed; a delete, an update or
+  // a stopped run did not finish, which says nothing about a record.
+  const created = run.status === "failed" && /^create\b/i.test(run.title || "");
+  return `${created ? "Not created" : "Did not finish"}: ${why || run.status}.`;
 }
 
 /**
@@ -105,12 +108,9 @@ export function mailRunCard(
     button.addEventListener("click", () => act(button));
     row.append(button);
   };
-  if (waits)
-    press(
-      "Answer it",
-      () => onAnswer?.(question, run),
-      false,
-    );
+  // Only once the question is in a chat to open: without it `onAnswer` can
+  // only open the operator's own conversation, which is the wrong one.
+  if (waits && question) press("Answer it", () => onAnswer?.(question, run), false);
   if (mail.link) press("Open the mail", () => onOpen?.(mail.link), !waits);
   if (running && live?.liveViewUrl)
     press("Watch it run", () => onOpen?.(live.liveViewUrl));

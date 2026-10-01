@@ -1,5 +1,6 @@
 // recognise.test.mjs
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   K_MISSED,
@@ -503,4 +504,30 @@ test("a second attempt at a job is read as itself, not against where the first g
   const offer = { workflowId: "wfl_long", k: got.k, since: got.since };
   assert.equal(diverged(tail, offer, [long]), false, "the first attempt's leftovers withdrew the offer");
   assert.equal(diverged([...tail, click("desc", 9)], offer, [long]), false);
+});
+
+test("editing an existing record is not Create a Transport Equipment Type (real served shapes)", () => {
+  // Opus day-end review P: longDescription click, type, saveButton -- what
+  // editing a record does -- matched the middle of the transport job's first
+  // attempt, k=8. Every triple is screen-keyed, so each is held by one job on
+  // its screen; but `longDescription` and `saveButton` are on other screens
+  // of the tenant too, and only a gesture rare across ALL served jobs says
+  // which job a part-way join is.
+  const served = JSON.parse(
+    readFileSync(new URL("./test-support/served-shapes-greyorange.json", import.meta.url), "utf8"),
+  );
+  const screen = served.find((one) => one.title === "Create a Transport Equipment Type").shape[0][0];
+  const gestures = (list) =>
+    list.map(([identity, kind], at) => ({
+      triple: [screen, identity, kind],
+      value: kind === "type" ? "x" : null,
+      secret: false,
+      at,
+    }));
+
+  const edit = gestures([["longDescription", "click"], ["longDescription", "type"], ["saveButton", "click"]]);
+  assert.equal(match(edit, served), null);
+  // Joined part-way on a field only this job has is still offered.
+  const rare = gestures([["trailerType", "type"], ["longDescription", "click"]]);
+  assert.equal(match(rare, served)?.title, "Create a Transport Equipment Type");
 });

@@ -308,7 +308,19 @@ async function considerNudge(tabId, url, visit) {
 async function rulesHere(url) {
   const here = rulePage(url);
   if (!here) return [];
-  const rules = (await state.arrivals()).filter((rule) => rule.page === here);
+  const held = await state.arrivals();
+  // A rule made before pages carried their screen's route is `host/path` and
+  // never equals a routed screen's page again. Landing on a routed screen of
+  // its path is the evidence that its host is routed: flag it, so the panel
+  // says it must be made again (it stays unmatched -- per-screen matching of
+  // new rules is the point of 96d3a8c5).
+  const route = here.indexOf("#");
+  const old = route < 0 ? [] : held.filter((rule) => !rule.stale && rule.page === here.slice(0, route));
+  if (old.length) {
+    const ids = new Set(old.map((rule) => rule.id));
+    await state.setArrivals(held.map((rule) => (ids.has(rule.id) ? { ...rule, stale: true } : rule)));
+  }
+  const rules = held.filter((rule) => rule.page === here);
   if (!rules.length) return [];
   const shapes = await shapesFor();
   return rules.map((rule) => {
@@ -349,7 +361,8 @@ function rulePage(url) {
   } catch {
     return "";
   }
-  return pageOf(url);
+  // Redacted first: a token-looking path segment is never part of a route.
+  return pageOf(redactUrl(url));
 }
 
 /** Ends the ones that ran out, wherever the operator has got to.
@@ -2118,39 +2131,6 @@ async function handle(message, sender) {
       // A conversation somebody deliberately started. `current` answers with
       // the newest, so nothing else has to be told which one to draw.
       return api.newThread();
-    case "run-workflow": {
-      // "Run it here", off the learned-job card. By id, never by title: the
-      // tenant holds three jobs called "Log in to Keycloak", and a sentence
-      // naming one of them comes back as a question about which was meant.
-      // A job short of a required value parks and asks in the conversation,
-      // which is where that question belongs.
-      if (!message.workflowId)
-        return { ok: false, error: "no job to run" };
-      try {
-        const run = await api.rigStart({
-          workflow_id: message.workflowId,
-          device_id: await state.deviceId(),
-          values: message.values || {},
-          items: [],
-          live: true,
-          allow_focus: true,
-          watched: true,
-        });
-        // The same record `start-rig-run` writes, field for field: `at` is
-        // what `parkedRigRun` reads back as the run's `since`, and a record
-        // written with a different name for it is a run card with no elapsed
-        // time on it.
-        await state.setActiveRun({
-          runId: run.id,
-          at: Date.now(),
-          source: "rig",
-        });
-        void pollRigRun();
-        return { ok: true, run_id: run.id, runId: run.id };
-      } catch (error) {
-        return { ok: false, error: error.problem?.detail || error.message };
-      }
-    }
     case "recent-runs": {
       // The rows, with each job's own title put back on them. The backend
       // answers `workflow_id` and this browser is already holding the shapes
@@ -2836,6 +2816,8 @@ export async function refreshArrivals() {
   if (!deviceId) return state.setArrivals([]);
   try {
     const triggers = await api.arrivals(deviceId);
+    // What was learned about a rule outlives the list being re-read.
+    const stale = new Set((await state.arrivals()).filter((rule) => rule.stale).map((rule) => rule.id));
     await state.setArrivals(
       (triggers || [])
         .filter((trigger) => trigger.arrival?.page)
@@ -2845,6 +2827,7 @@ export async function refreshArrivals() {
           page: trigger.arrival.page,
           workflowId: trigger.workflow_id,
           values: trigger.parameters || {},
+          ...(stale.has(trigger.id) && { stale: true }),
         })),
     );
   } catch (error) {
@@ -3045,7 +3028,13 @@ async function endTheOffersAsked(asked) {
     const kept = held.map((one) => {
       if (one.state !== "open" || !one.offer || !asked.has(one.offer)) return one;
       ended = true;
-      return { ...one, state: "accepted", endedAt: now };
+      // Not "accepted": nobody pressed Yes. Ended the way `lookForMailRuns`
+      // ends one -- the in-page pill comes down and the backend hears -- under
+      // its own state, and as `expired`, the fate for "ended without the
+      // operator acting" (the backend's fates are a closed set).
+      void hideNudge(one.tabId);
+      void report(one, "expired");
+      return { ...one, state: "answered-elsewhere", endedAt: now };
     });
     if (ended) await state.setNudges(kept);
   });
@@ -3356,6 +3345,8 @@ async function status(sender = null) {
   void lookForMailRuns();
   const shown = watchedRun(active);
   return {
+    // Page rules that can no longer fire (made before screens were keyed).
+    staleRules: (await state.arrivals()).filter((rule) => rule.stale),
     // Today's runs a mail started, one card each on Home.
     mailRuns: await state.mailRuns(),
     capturing: allowed.on,

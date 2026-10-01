@@ -193,6 +193,10 @@ _TODAY = datetime(2026, 9, 30, 9, 0, tzinfo=UTC)
 _YESTERDAY = ("2026-09-29", "29 Sep", "Sep 29", "29/09", "09/29", "29-09", "29.09")
 _LATER = "Was the AITE11 request I mailed done?"
 
+# `recent runs` is already in the evidence, read by code at the start of the turn: an answer
+# straight from it is as true as a run_status call and a model call faster.
+_FROM_THE_RUNS = [{"tools": []}]
+
 CASES = [
     # the mailbox
     _case("check mail for any new work", ["check_mail"]),
@@ -294,11 +298,16 @@ CASES = [
     ),
     _case("send a mail to devansh.j@greyorange.com asking about warehouse inventory status", []),
     # runs
-    _case("what's running?", ["run_status"], runs=[_RUNNING, _AITE4]),
-    _case("what is running right now?", ["run_status"], runs=[_RUNNING, _AITE4]),
-    _case("did AITE4 finish?", ["run_status"], runs=[_AITE4]),
-    _case("has AITE4 finished yet?", ["run_status"], runs=[_AITE4]),
-    _case("how did my last run go?", ["run_status"], runs=[_AITE4]),
+    _case("what's running?", ["run_status"], runs=[_RUNNING, _AITE4], otherwise=_FROM_THE_RUNS),
+    _case(
+        "what is running right now?",
+        ["run_status"],
+        runs=[_RUNNING, _AITE4],
+        otherwise=_FROM_THE_RUNS,
+    ),
+    _case("did AITE4 finish?", ["run_status"], runs=[_AITE4], otherwise=_FROM_THE_RUNS),
+    _case("has AITE4 finished yet?", ["run_status"], runs=[_AITE4], otherwise=_FROM_THE_RUNS),
+    _case("how did my last run go?", ["run_status"], runs=[_AITE4], otherwise=_FROM_THE_RUNS),
     _case(
         "undo that",
         ["run_status", "undo_run"],

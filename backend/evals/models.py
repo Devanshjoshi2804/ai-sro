@@ -41,6 +41,23 @@ class Overridden:
         return await self._inner.ask(model=self._model or model, effort=effort, **rest)
 
 
+def strict(schema: dict[str, Any]) -> dict[str, Any]:
+    """OpenAI's strict JSON schema: every property required (an optional one may be null) and no
+    others allowed. The answer keeps its shape; a missing field arrives as null."""
+    out = dict(schema)
+    if out.get("type") == "object" and isinstance(out.get("properties"), dict):
+        required = set(out.get("required") or ())
+        props: dict[str, Any] = {}
+        for name, one in out["properties"].items():
+            one = strict(one) if isinstance(one, dict) else one
+            if name not in required and isinstance(one, dict) and isinstance(one.get("type"), str):
+                one = {**one, "type": [one["type"], "null"]}
+            props[name] = one
+        out["properties"], out["required"] = props, list(props)
+        out["additionalProperties"] = False
+    return out
+
+
 class OpenRouterAsker:
     """The same contract over OpenRouter's chat completions with a JSON-schema answer."""
 
@@ -65,7 +82,10 @@ class OpenRouterAsker:
             ],
             "response_format": {
                 "type": "json_schema",
-                "json_schema": {"name": "answer", "schema": schema},
+                "json_schema": {
+                    "name": "answer",
+                    "schema": strict(schema) if self._model.startswith("openai/") else schema,
+                },
             },
             "provider": {"require_parameters": True},
             "usage": {"include": True},
@@ -102,6 +122,8 @@ class OpenRouterAsker:
         try:
             text = payload["choices"][0]["message"]["content"] or ""
             data = json.loads(text)
+            if isinstance(data, dict):
+                data = {k: v for k, v in data.items() if v is not None}
         except (KeyError, IndexError, ValueError):
             return Answer(error="openrouter: the answer was not JSON", **spent)
         return Answer(data=data if isinstance(data, dict) else None, **spent)

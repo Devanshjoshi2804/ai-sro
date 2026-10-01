@@ -51,3 +51,20 @@ def test_openrouter_needs_a_model_and_a_key(monkeypatch: pytest.MonkeyPatch) -> 
         chosen(None, provider="openrouter", model="qwen/qwen3.8-flash", thinking=None),
         OpenRouterAsker,
     )
+
+
+def test_openai_strict_schema_requires_every_key_and_allows_null_for_the_optional_ones() -> None:
+    from evals.models import strict
+
+    schema = {
+        "type": "object",
+        "properties": {"action": {"type": "string"}, "text": {"type": "string"}},
+        "required": ["action"],
+    }
+
+    out = strict(schema)
+
+    assert out["required"] == ["action", "text"] and out["additionalProperties"] is False
+    assert out["properties"]["action"]["type"] == "string"
+    assert out["properties"]["text"]["type"] == ["string", "null"]
+    assert schema["required"] == ["action"]  # the original is not touched

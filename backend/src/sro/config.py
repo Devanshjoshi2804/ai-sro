@@ -132,6 +132,10 @@ class Settings(BaseSettings):
     # would-have-done is logged). Off for every tenant until switched on.
     chat_brain_tenants: tuple[str, ...] = ()
     chat_brain_shadow_tenants: tuple[str, ...] = ()
+    # One message's share: at most this many model calls (a fallback counts as two) and this
+    # many dollars before the turn stops and says so. A negative spend is no limit.
+    chat_brain_max_calls: int = 6
+    chat_brain_max_turn_usd: float = 0.10
 
     def steel_containers(self, tenant: str) -> tuple[tuple[str, str], ...]:
         return self.steel_urls.get(tenant) or ((self.steel_base_url, self.steel_cdp_url),)

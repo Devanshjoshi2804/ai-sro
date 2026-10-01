@@ -22,6 +22,7 @@ from sro.application.intent.resolve import ResolveIntent
 from sro.application.knowledge.retrieve import Retrieve
 from sro.application.observation.record_attempt import RecordAttempt
 from sro.config import Settings
+from sro.domain.chat.brain_turn import BrainReply, ToolCall, ToolResult
 from sro.domain.observation.attempts import DONE
 from sro.domain.shared.prices import Answer
 from tests import factories as f
@@ -117,29 +118,40 @@ async def test_a_run_the_brain_started_is_the_decision_the_panel_watches() -> No
     assert [(one.came_of, one.about["run"]) for one in rows] == [(DONE, run_id)]
 
 
+class _Scripted:
+    """The brain port, scripted: a turn that started two runs and then asked."""
+
+    def __init__(self, reply: BrainReply) -> None:
+        self._reply = reply
+
+    async def turn(self, *_: object, **__: object) -> BrainReply:
+        return self._reply
+
+
 async def test_every_run_a_turn_started_keeps_its_card_and_the_question_follows() -> None:
     acting = await _acting()
-    asker = FakeAsker(
-        _call("start_job", job_id=JOB, values=GIVEN),
-        _call("start_job", job_id=JOB, values={**GIVEN, "Customer Type": "SR12"}),
-        _call("ask_operator", question="Which department?"),
+    converse = _converse(acting, FakeAsker(), on=(TENANT,))
+    start = ToolCall("start_job", {})
+    one = ToolResult(True, ends_turn=False, decision={"kind": "run", "run_id": "run_a"}, said="A.")
+    two = ToolResult(True, ends_turn=False, decision={"kind": "run", "run_id": "run_b"}, said="B.")
+    ask = ToolResult(True, decision={"kind": "brain_asks", "question": "Which department?"})
+    converse._brain = _Scripted(  # type: ignore[assignment]
+        BrainReply(
+            "Which department?",
+            (one.decision or {}, two.decision or {}, ask.decision or {}),
+            ((start, one), (start, two), (ToolCall("ask_operator", {}), ask)),
+        )
     )
-    converse = _converse(acting, asker, on=(TENANT,))
 
-    thread = await converse.execute(
-        CTX,
-        thread_id=await _thread(acting),
-        text="create customer type SR11 and customer type SR12, each with the description new",
-    )
+    thread = await converse.execute(CTX, thread_id=await _thread(acting), text="make two")
 
-    first, second = acting.started
     assert [(m.speaker.value, (m.decision or {}).get("kind")) for m in thread.messages] == [
         ("operator", None),
         ("assistant", "run"),
         ("assistant", "run"),
         ("assistant", "brain_asks"),
     ]
-    assert [(m.decision or {}).get("run_id") for m in thread.messages[1:3]] == [first, second]
+    assert [(m.decision or {}).get("run_id") for m in thread.messages[1:3]] == ["run_a", "run_b"]
     assert thread.messages[-1].text == "Which department?"
 
 

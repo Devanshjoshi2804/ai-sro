@@ -237,7 +237,12 @@ async def _launch(
             undoes_run=undoes_run,
         )
     except OfferTaken as taken:
-        return ToolResult(ok=True, data={"run_id": taken.run_id, "state": "already running"})
+        return ToolResult(
+            ok=True,
+            data={"run_id": taken.run_id, "state": "already running"},
+            ends_turn=True,
+            said="That one is already running.",
+        )
     except (DomainError, RunRefused, OverCap, AskerUnavailable) as why:
         return ToolResult(ok=False, error=_bounded(str(why)))
     if run.executor == "steel":
@@ -249,7 +254,10 @@ async def _launch(
         ok=True,
         data={"run_id": run.id, "state": run.outcome},
         decision={"kind": Said.RUN.value, "run_id": run.id},
-        said=f"Started {run.pinned.title if run.pinned else 'the job'}.",
+        # The reply is written here, from the run's card, not by another model call.
+        ends_turn=True,
+        said=f"Started {run.pinned.title if run.pinned else 'the job'}"
+        + (f" with {', '.join(f'{k} {v}' for k, v in values.items())}." if values else "."),
     )
 
 

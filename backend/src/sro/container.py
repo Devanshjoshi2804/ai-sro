@@ -815,6 +815,8 @@ class Container:
                 spawn=self.pursuits.spawn,
             ),
             cap_usd=self.settings.daily_usd_cap,
+            max_calls=self.settings.chat_brain_max_calls,
+            max_turn_usd=self.settings.chat_brain_max_turn_usd,
         )
 
     def ask_about_the_offer(self) -> AskAboutTheOffer:

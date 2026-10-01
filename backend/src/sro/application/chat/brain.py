@@ -66,6 +66,19 @@ def _cannot(
     return BrainReply(f"I can't answer right now: {why}.", tuple(decisions), tuple(steps))
 
 
+def _stopped(
+    decisions: list[dict[str, object]],
+    steps: list[tuple[ToolCall, ToolResult]],
+    within: str = "within what one message may use",
+) -> BrainReply:
+    did = ", ".join(call.tool for call, _ in steps)
+    return BrainReply(
+        f"I could not finish that {within}" + (f"; here is what I did: {did}." if did else "."),
+        tuple(decisions),
+        tuple(steps),
+    )
+
+
 class Brain:
     def __init__(
         self,
@@ -75,8 +88,11 @@ class Brain:
         tools: Sequence[Tool],
         *,
         cap_usd: float,
+        max_calls: int = K_BRAIN_STEPS + 1,
+        max_turn_usd: float = -1.0,
     ) -> None:
         self._uow, self._asker, self._clock, self._cap_usd = uow, asker, clock, cap_usd
+        self._max_calls, self._max_turn_usd = max_calls, max_turn_usd
         self._tools = {one.name: one for one in tools}
 
     async def turn(
@@ -115,7 +131,10 @@ class Brain:
         started: set[str] = set()
         # A value the model gives a tool must be in these words, never in a tool's result.
         turn = Turn(said="\n".join([message, *history[-K_HISTORY:], asking]), offer=offer)
+        calls, spent = 0, 0.0
         for _ in range(K_BRAIN_STEPS):
+            if calls >= self._max_calls or 0 <= self._max_turn_usd <= spent:
+                return _stopped(decisions, steps)
             async with self._uow as uow:
                 why = await over_cap(
                     uow, ctx.tenant_id, now=self._clock.now(), cap_usd=self._cap_usd
@@ -131,6 +150,9 @@ class Brain:
                 )
             except (OverCap, AskerUnavailable) as refused:
                 return _cannot(str(refused), decisions, steps)
+            # A fallback is a second call on the same prompt.
+            calls += 2 if answer.fell_back else 1
+            spent += answer.cost_usd
             if answer.data is None:
                 return _cannot(answer.error or "the model did not answer", decisions, steps)
             step = step_of(answer.data)
@@ -161,15 +183,8 @@ class Brain:
                 decisions.append(result.decision)
             results.append(fenced_result(call, result))
             if result.ends_turn:
-                question = str((result.decision or {}).get("question") or "")
-                return BrainReply(question, tuple(decisions), tuple(steps))
-        did = ", ".join(call.tool for call, _ in steps)
-        return BrainReply(
-            f"I could not finish that in {K_BRAIN_STEPS} steps"
-            + (f"; here is what I did: {did}." if did else "."),
-            tuple(decisions),
-            tuple(steps),
-        )
+                return BrainReply(result.said, tuple(decisions), tuple(steps))
+        return _stopped(decisions, steps, f"in {K_BRAIN_STEPS} steps")
 
     async def shadow(
         self,

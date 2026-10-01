@@ -229,24 +229,15 @@ async def test_ask_operator_ends_the_turn_with_its_question() -> None:
     assert reply.decisions == ({"kind": "brain_asks", "question": "Which code?"},)
 
 
-async def test_a_repeated_identical_start_job_is_not_run_twice() -> None:
-    acting = await _acting()
-    once = _call("start_job", job_id=JOB, values=GIVEN)
-    brain, _ = _brain(acting, once, once, _say("done"))
-
-    reply = await brain.turn(CTX, message=SAID, history=[], origin=Origin("chat"))
-
-    assert len(acting.started) == 1 and acting.start.tried == 1
-    assert reply.steps[0][1].ok and not reply.steps[1][1].ok
-    assert "already" in reply.steps[1][1].error
-
-
 async def test_the_same_start_written_another_way_is_not_run_twice() -> None:
-    acting = await _acting()
+    # The system refuses the first; a trailing space, another key order or an extra key is
+    # still that start, tried once.
+    acting = await _acting(cap_usd=0.0)
     again = {"job_id": JOB, "values": {**GIVEN, "Customer Type": "SR11 "}, "why": "again"}
     reordered = {"values": dict(reversed(list(GIVEN.items()))), "job_id": JOB}
     brain, _ = _brain(
         acting,
+        _call("start_job", job_id=JOB, values=GIVEN),
         _call("start_job", job_id=JOB, values=GIVEN),
         _call("start_job", **again),
         _call("start_job", **reordered),
@@ -255,8 +246,9 @@ async def test_the_same_start_written_another_way_is_not_run_twice() -> None:
 
     reply = await brain.turn(CTX, message=SAID, history=[], origin=Origin("chat"))
 
-    assert len(acting.started) == 1 and acting.start.tried == 1
-    assert [one.ok for _, one in reply.steps] == [True, False, False]
+    assert acting.start.tried == 1 and acting.started == []
+    assert [one.ok for _, one in reply.steps] == [False, False, False, False]
+    assert all("already" in one.error for _, one in reply.steps[1:])
 
 
 async def test_the_same_message_replayed_starts_one_run() -> None:
@@ -264,15 +256,60 @@ async def test_the_same_message_replayed_starts_one_run() -> None:
     brain, _ = _brain(
         acting,
         _call("start_job", job_id=JOB, values=GIVEN),
-        _say("ok"),
         _call("start_job", job_id=JOB, values=GIVEN),
-        _say("ok"),
     )
 
     once = await brain.turn(CTX, message=SAID, history=[], origin=Origin("chat"), offer="chat:m1")
     again = await brain.turn(CTX, message=SAID, history=[], origin=Origin("chat"), offer="chat:m1")
 
     assert len(acting.started) == 1 and once.decisions and not again.decisions
+    assert again.said == "That one is already running."
+
+
+async def test_a_started_run_is_told_in_code_not_by_a_third_model_call() -> None:
+    acting = await _acting()
+    brain, asker = _brain(
+        acting, _call("find_jobs"), _call("start_job", job_id=JOB, values=GIVEN), _say("unused")
+    )
+
+    reply = await brain.turn(CTX, message=SAID, history=[], origin=Origin("chat"))
+
+    assert len(asker.asked) == 2 and len(acting.started) == 1
+    assert reply.said.startswith("Started ") and "Customer Type SR11" in reply.said
+    assert reply.decisions == ({"kind": "run", "run_id": acting.started[0]},)
+
+
+async def test_a_turn_stops_at_its_call_budget_and_says_so() -> None:
+    acting = await _acting()
+    brain, asker = _brain(acting, *[_call("run_status")] * 5)
+    brain._max_calls = 2
+
+    reply = await brain.turn(CTX, message="x", history=[], origin=Origin("chat"))
+
+    assert len(asker.asked) == 2 and "could not finish" in reply.said
+    assert "what one message may use" in reply.said
+
+
+async def test_a_fallback_is_two_calls_against_the_budget() -> None:
+    acting = await _acting()
+    fell = Answer(data=_call("run_status").data, fell_back=True)
+    brain, asker = _brain(acting, fell, _call("run_status"), _call("run_status"))
+    brain._max_calls = 2
+
+    reply = await brain.turn(CTX, message="x", history=[], origin=Origin("chat"))
+
+    assert len(asker.asked) == 1 and "what one message may use" in reply.said
+
+
+async def test_a_turn_stops_when_it_has_spent_its_share() -> None:
+    acting = await _acting()
+    dear = Answer(data=_call("run_status").data, cost_usd=0.06)
+    brain, asker = _brain(acting, dear, dear, dear)
+    brain._max_turn_usd = 0.10
+
+    reply = await brain.turn(CTX, message="x", history=[], origin=Origin("chat"))
+
+    assert len(asker.asked) == 2 and "what one message may use" in reply.said
 
 
 async def test_a_secret_named_field_never_reaches_a_log_line(

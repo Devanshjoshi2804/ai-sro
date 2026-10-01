@@ -2728,7 +2728,8 @@ const wentToRun = new Set();
  * (2026-09-30): the reply completed the question and the operator was left in
  * the chat. */
 function toTheRunItStarted(status) {
-  if (status?.question?.offer) askedOffers.add(status.question.offer);
+  for (const asked of status?.questions || [status?.question])
+    if (asked?.offer) askedOffers.add(asked.offer);
   for (const run of status?.mailRuns || []) {
     if (run.status !== "running" || !askedOffers.has(run.offer)) continue;
     if (wentToRun.has(run.id)) continue;

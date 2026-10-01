@@ -4045,6 +4045,37 @@ test("a run a reply started takes the operator to Home once, and lets them leave
   assert.equal(drawn.ids["cards"].hidden, true, "the panel would not let them leave Home");
 });
 
+test("a reply to an OLDER standing mail question takes the operator Home too", async () => {
+  // Two mails are asking; `status.question` is only the newest. The reply that
+  // completes the older one started a run, and the panel only looked at the
+  // newest question, so that operator was left in the chat.
+  const ask = (id, offer) => ({ id, offer, threadId: `thr_${id}`, title: "Create a Customer Type", text: "What should it be?" });
+  const asked = {
+    deviceId: "dev-1",
+    capturing: true,
+    watched: WATCHED,
+    question: ask("m-new", "mail:m-2"),
+    questions: [ask("m-new", "mail:m-2"), ask("m-old", "mail:m-1")],
+  };
+  const started = {
+    deviceId: "dev-1",
+    capturing: true,
+    watched: WATCHED,
+    question: ask("m-new", "mail:m-2"),
+    questions: [ask("m-new", "mail:m-2")],
+    mailRuns: [{ ...aRun("run-1", "older mail"), offer: "mail:m-1" }],
+  };
+  let now = asked;
+  const drawn = panel(asked, TAB, { status: () => now });
+  await drawn.refresh();
+  drawn.toChat();
+  assert.equal(drawn.ids["cards"].hidden, true);
+
+  now = started;
+  await drawn.refresh();
+  assert.equal(drawn.ids["cards"].hidden, false, "the older mail's run started and the operator was left in the chat");
+});
+
 test("a run on the server is said in plain words, not the machinery's", () => {
   // QA 2026-09-30 (V4): the card read "Started elsewhere. Step 0." over
   // "rig · 13:12".

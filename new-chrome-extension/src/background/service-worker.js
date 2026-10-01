@@ -3027,7 +3027,13 @@ async function endTheOffersAsked(asked) {
     const kept = held.map((one) => {
       if (one.state !== "open" || !one.offer || !asked.has(one.offer)) return one;
       ended = true;
-      return { ...one, state: "accepted", endedAt: now };
+      // Not "accepted": nobody pressed Yes. Ended the way `lookForMailRuns`
+      // ends one -- the in-page pill comes down and the backend hears -- under
+      // its own state, and as `expired`, the fate for "ended without the
+      // operator acting" (the backend's fates are a closed set).
+      void hideNudge(one.tabId);
+      void report(one, "expired");
+      return { ...one, state: "answered-elsewhere", endedAt: now };
     });
     if (ended) await state.setNudges(kept);
   });

@@ -1479,6 +1479,15 @@ test("a card already held for a mail stands down once its question is written", 
   await new Promise((resolve) => setTimeout(resolve, 20));
 
   assert.equal(openOnes().find((one) => one.offer === "mail:m-9"), undefined);
+  // Superseded by a question, not accepted: nobody pressed Yes. Its own state,
+  // and the backend hears of it (as `expired`, the fate that means "ended
+  // without the operator acting").
+  const ended = (held.get("sro.nudges") || []).find((one) => one.offer === "mail:m-9");
+  assert.equal(ended?.state, "answered-elsewhere");
+  assert.ok(
+    offersSent().some((one) => one.workflow_id === "wfl_1" && one.fate === "expired"),
+    "the backend was never told the offer ended",
+  );
   assert.equal(held.get("sro.question")?.id, "m_q", "the question is the one card");
   threadsAsked = [];
 });

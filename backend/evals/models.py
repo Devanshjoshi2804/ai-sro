@@ -10,6 +10,7 @@ point this at a tenant's real traffic.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 from typing import Any
@@ -21,6 +22,8 @@ from sro.domain.shared.prices import Answer, Effort
 
 K_URL = "https://openrouter.ai/api/v1/chat/completions"
 K_TIMEOUT_S = 120.0
+K_TRIES = 4
+K_BACKOFF_S = 4.0
 EFFORTS: tuple[str, ...] = ("minimal", "low", "medium", "high")
 
 
@@ -66,19 +69,25 @@ class OpenRouterAsker:
             },
             "provider": {"require_parameters": True},
             "usage": {"include": True},
-            "temperature": 0,
         }
         level = self._thinking if self._thinking not in (None, "default") else None
         if level in EFFORTS:
             body["reasoning"] = {"effort": level}
-        try:
-            async with httpx.AsyncClient(timeout=K_TIMEOUT_S) as client:
-                reply = await client.post(
-                    K_URL, json=body, headers={"Authorization": f"Bearer {self._key}"}
-                )
-            payload = reply.json()
-        except (httpx.HTTPError, ValueError) as problem:
-            return Answer(error=f"openrouter: {type(problem).__name__}: {problem}")
+        payload: dict[str, Any] = {}
+        for attempt in range(K_TRIES):
+            try:
+                async with httpx.AsyncClient(timeout=K_TIMEOUT_S) as client:
+                    reply = await client.post(
+                        K_URL, json=body, headers={"Authorization": f"Bearer {self._key}"}
+                    )
+                payload = reply.json()
+            except (httpx.HTTPError, ValueError) as problem:
+                return Answer(error=f"openrouter: {type(problem).__name__}: {problem}")
+            code = (payload.get("error") or {}).get("code")
+            # A provider that is rate-limited or briefly down is retried; anything else is final.
+            if "error" not in payload or code not in (429, 500, 502, 503, 504):
+                break
+            await asyncio.sleep(K_BACKOFF_S * (attempt + 1))
         if "error" in payload:
             return Answer(error=f"openrouter: {str(payload['error'])[:200]}")
         usage = payload.get("usage") or {}

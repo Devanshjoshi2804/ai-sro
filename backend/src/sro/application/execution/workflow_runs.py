@@ -45,6 +45,7 @@ from sro.domain.chat.asking import (
     also_set,
     asking_state,
     cannot_without,
+    pending_job,
     question,
     refusal_question,
     still_to_ask,
@@ -498,12 +499,31 @@ class StartWorkflowRun:
         # A run started by an answer in an ask chat asks again in that chat: its
         # own id would open another, and the question would leave its history.
         asked_in = named.id if named is not None and named.id.value.startswith(K_ASKING) else None
-        chat = await ReadThreads(self._uow).asking(owner, mail_thread or run.id)
-        if chat is not None and any(
-            (one.decision or {}).get("kind") == NEEDS
-            and (one.decision or {}).get("from_run") == run.id
-            for one in chat.messages
-        ):
+        # Where this run's question lives: the ask chat it was started from, else its own.
+        chat = (
+            named
+            if asked_in is not None
+            else await ReadThreads(self._uow).asking(owner, mail_thread or run.id)
+        )
+        standing_here = next(
+            (
+                one
+                for one in (chat.messages if chat is not None else ())
+                if (one.decision or {}).get("kind") == NEEDS
+                and (one.decision or {}).get("from_run") == run.id
+            ),
+            None,
+        )
+        if standing_here is not None:
+            # Asked already (a retried finish): never twice, but a draft the worker lost
+            # after the question is made now; the drafter makes one draft per question.
+            question_id = str(standing_here.id.value)
+            rebuilt = pending_job(chat.messages, question_id) if chat else None
+            if self._asker_drafts is not None and rebuilt is not None:
+                try:
+                    await self._asker_drafts(ctx, run.id, rebuilt, question_id)
+                except Exception:
+                    logger.exception("%s could not be drafted a mail about", run.id)
             return
         refusal = refused_by(run)
         pending = still_to_ask(

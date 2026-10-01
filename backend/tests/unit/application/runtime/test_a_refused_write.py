@@ -364,3 +364,31 @@ async def test_a_409_that_says_busy_is_in_doubt_not_a_refused_value() -> None:
     assert world.lanes.ui.calls == 0
     run = await world.saved_run()
     assert not run.needs, "no value question for a system that was only busy"
+
+
+async def test_a_retried_finish_drafts_once_when_the_draft_was_lost_after_the_question() -> None:
+    """The question committed and the worker died before its draft: the retry must still draft,
+    and a second retry must not draft twice."""
+    envelope = {"thread": THREAD, "subject": "new customer type", "sender": "tanisha@example.com"}
+    asking = _Asking()
+    world, _ = await _saving((409, REFUSED), (404, ""), asking=asking, mail=envelope)
+    assert asking.start is not None
+    real, dropped = asking.start._asker_drafts, [False]
+
+    async def lose_the_first(*args: object, **kwargs: object) -> bool:
+        if not dropped[0]:
+            dropped[0] = True
+            raise RuntimeError("the worker died after the question")
+        assert real is not None
+        return await real(*args, **kwargs)
+
+    asking.start._asker_drafts = lose_the_first
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+    await world.run_steps.finish(CTX, world.run_id)
+    await world.run_steps.finish(CTX, world.run_id)
+    await world.run_steps.finish(CTX, world.run_id)
+
+    chat = await _chat(world, THREAD)
+    kinds = [(one.decision or {}).get("kind") for one in chat.messages]
+    assert kinds.count(NEEDS) == 1, "the question was asked more than once"
+    assert kinds.count(DRAFTED) == 1, "the lost draft was never drafted, or drafted twice"

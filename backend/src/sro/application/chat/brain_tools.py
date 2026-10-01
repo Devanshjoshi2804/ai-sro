@@ -2,16 +2,18 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Callable, Coroutine, Mapping, Sequence
+from collections.abc import Callable, Collection, Coroutine, Mapping, Sequence
 from typing import ClassVar, Protocol, runtime_checkable
 
 from sro.application.chat.candidates import rank_jobs, real_jobs
 from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.chat.mailbox import SERVER
+from sro.application.chat.open_offers import standing_offers
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.chat.understand import held_runs
 from sro.application.connection.sign_in import logins_of
 from sro.application.context import RequestContext
+from sro.application.execution.declared import declared_keys, screen_of_loaded
 from sro.application.execution.workflow_runs import (
     GetWorkflowRun,
     ListWorkflowRuns,
@@ -31,12 +33,14 @@ from sro.domain.chat.brain_turn import ToolResult, Turn
 from sro.domain.chat.request import refusal
 from sro.domain.chat.thread import Said
 from sro.domain.execution.compiled import why_not
-from sro.domain.execution.field_classes import FieldClass, FieldLimits
+from sro.domain.execution.compose import compose as place_values
+from sro.domain.execution.compose import normal
+from sro.domain.execution.field_classes import FieldClass, FieldLimits, labelled
 from sro.domain.execution.mail_job import built_in, is_mail_only, sends_mail
 from sro.domain.execution.workflow_run import SETTLED, OfferTaken, WorkflowRun
 from sro.domain.recording.sensitivity import is_secret_field
 from sro.domain.shared.errors import DomainError
-from sro.domain.shared.identifiers import PrincipalId
+from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.skill.signing_in import Logins
 
 K_RECENT_RUNS = 20
@@ -44,6 +48,8 @@ K_RECENT_RUNS = 20
 K_TEXT = 2000
 
 K_SHOWN_JOBS = 5
+
+SET_AND_CHECKED = "optional: set, then read back after saving"
 
 Spawn = Callable[[Coroutine[object, object, None]], None]
 
@@ -75,7 +81,27 @@ def _bounded(text: str) -> str:
     return text if len(text) <= K_TEXT else text[: K_TEXT - 1] + "…"
 
 
-def _job(one: JobFacts) -> dict[str, object]:
+async def settable(
+    uow: UnitOfWork, tenant_id: TenantId, one: JobFacts, names: Sequence[str]
+) -> set[str]:
+    """Of these names, the ones this job can set beyond its own parameters, as a run places
+    them: a field its page shows once, or one the field dictionary gives a body key (which the
+    run writes and then reads back)."""
+    if not names:
+        return set()
+    keyed = await declared_keys(uow, tenant_id, names, screen_of_loaded(one.by_id, one.workflow))
+    return {
+        name
+        for name in names
+        if name in keyed or place_values(one.workflow, one.by_id, {name: "x"}, one.aliases)[0]
+    }
+
+
+async def _job(uow: UnitOfWork, tenant_id: TenantId, one: JobFacts) -> dict[str, object]:
+    listed = [field for field in one.compiled.fields if field.kind != "never"]
+    # Fields the page shows that the job never parameterised: optional, and checked after.
+    unlisted = [field for field in one.compiled.fields if field.kind == "never"]
+    extra = await settable(uow, tenant_id, one, [field.name for field in unlisted])
     return {
         "id": one.workflow.id,
         "title": one.workflow.title,
@@ -85,9 +111,9 @@ def _job(one: JobFacts) -> dict[str, object]:
                 "required": field.kind == "required",
                 "max_length": field.limits.max_length,
                 "options": list(field.limits.options) if field.limits.options else None,
+                **({"checked": SET_AND_CHECKED} if field in unlisted else {}),
             }
-            for field in one.compiled.fields
-            if field.kind != "never"
+            for field in [*listed, *(f for f in unlisted if f.name in extra)]
         ],
         "runnable": one.compiled.runnable,
         **({} if one.compiled.runnable else {"cannot_run": why_not(one.compiled.reasons)}),
@@ -118,7 +144,9 @@ class FindJobs:
             held = await held_runs(uow, ctx.tenant_id)
         # The reader's own ranking: real jobs only, the same limits it checks.
         ranked = rank_jobs(str(args.get("query") or ""), facts, held=held, k=K_SHOWN_JOBS)
-        return ToolResult(ok=True, data={"jobs": [_job(one) for one in ranked]})
+        return ToolResult(
+            ok=True, data={"jobs": [await _job(self._uow, ctx.tenant_id, one) for one in ranked]}
+        )
 
 
 def _stopped(run: WorkflowRun) -> str:
@@ -280,7 +308,11 @@ def values_of(args: Mapping[str, object]) -> dict[str, str] | None:
 
 
 def what_is_wrong(
-    values: Mapping[str, str], fields: Mapping[str, FieldClass], said: str, logins: Logins
+    values: Mapping[str, str],
+    fields: Mapping[str, FieldClass],
+    said: str,
+    logins: Logins,
+    settable: Collection[str] = (),
 ) -> list[str]:
     """Why a start's values cannot go: secrets, parameters the job lacks, values that are not
     the operator's words or break a limit, required ones missing. Empty when they can."""
@@ -289,8 +321,10 @@ def what_is_wrong(
         for name in values
         if is_secret_field(name)
     ]
-    unknown = sorted(n for n in values if n not in fields and not is_secret_field(n))
-    wrong += [f"this job has no {name}" for name in unknown]
+    unknown = sorted(
+        n for n in values if n not in fields and n not in settable and not is_secret_field(n)
+    )
+    wrong += [f"this job can't set {name}" for name in unknown]
     wrong += [
         f"the {name} you gave is {why}"
         for name, value in values.items()
@@ -360,7 +394,15 @@ class StartJob:
         fields = (
             {one.name: one for one in job.compiled.fields if one.kind != "never"} if job else {}
         )
-        wrong = what_is_wrong(values, fields, turn.said, logins)
+        # Beyond the job's own parameters, a field a run can place is taken as the panel takes it:
+        # as an optional value, kept to the page's own limits where it shows the field.
+        others = [n for n in values if n not in fields and not is_secret_field(n)]
+        placeable = await settable(self._uow, ctx.tenant_id, job, others) if job else set()
+        if job:
+            for name in placeable:
+                if (shown := labelled(normal(name), job.compiled.fields)) is not None:
+                    fields[name] = shown
+        wrong = what_is_wrong(values, fields, turn.said, logins, placeable)
         return ToolResult(ok=False, error="; ".join(wrong)) if wrong else None
 
     async def run(
@@ -369,15 +411,27 @@ class StartJob:
         if (refused := await self.check(ctx, args, turn)) is not None:
             return refused
         job_id, values = str(args.get("job_id") or ""), values_of(args) or {}
+        # An offer of this job already standing for this operator is the one run this job gets:
+        # started under its id, a second answer (the card, or this chat) finds the first run.
+        covering = next(
+            (
+                one
+                for one in await standing_offers(self._uow, ctx, self._clock.now())
+                if one.workflow_id == job_id
+            ),
+            None,
+        )
         return await _launch(
             self._start,
             self._spawn,
             ctx,
             workflow_id=job_id,
             values=values,
-            # The caller's (the operator's message), never the model's: it is what makes a
+            # Else the caller's (the operator's message), never the model's: it is what makes a
             # second start of the same job and values from one message answer the first run.
-            offer=f"{turn.offer}:{hashlib.sha256(start_key(args).encode()).hexdigest()[:16]}"
+            offer=covering.id
+            if covering is not None
+            else f"{turn.offer}:{hashlib.sha256(start_key(args).encode()).hexdigest()[:16]}"
             if turn.offer
             else "",
         )

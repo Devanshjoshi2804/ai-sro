@@ -577,8 +577,21 @@ class _Day:
         return _TODAY
 
 
+class _NoOffers:
+    """The suite's operator has no card waiting and no run: the loop reads these two, finds none."""
+
+    async def list_for_tenant(self, *_: object, **__: object) -> tuple[()]:
+        return ()
+
+    async def started_by_offers(self, *_: object, **__: object) -> dict[str, str]:
+        return {}
+
+
 class _Nowhere:
-    """The unit of work the loop opens to read the day's spend; the cap is off, so never read."""
+    """The unit of work the loop opens to read the day's spend and offers; the cap is off, so
+    the spend is never read and the suite's operator has no offers."""
+
+    threads = workflow_runs = _NoOffers()
 
     async def __aenter__(self) -> _Nowhere:
         return self

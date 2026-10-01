@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Collection, Mapping
+from collections.abc import Collection, Mapping, Sequence
 from datetime import datetime, timedelta
 from typing import Protocol
 
@@ -492,6 +492,12 @@ class WorkflowRunRepository(Protocol):
     ) -> WorkflowRun | None: ...
 
     async def started_on(self, tenant_id: TenantId, *, server: str, thread: str) -> bool: ...
+
+    async def started_by_offers(
+        self, tenant_id: TenantId, offers: Sequence[str]
+    ) -> Mapping[str, str]:
+        """Of these offers, the ones a run was started under, each with that run's id."""
+        ...
 
     async def started_from_mail(self, tenant_id: TenantId, *, thread: str) -> WorkflowRun | None:
         """The newest run a mail on this thread started, whatever became of it."""

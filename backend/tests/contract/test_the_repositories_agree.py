@@ -1206,6 +1206,20 @@ class TestWorkflowRuns:
             )
             assert not await work.workflow_runs.started_on(TENANT, server="gmail", thread=" ")
 
+    async def test_started_by_offers_names_the_run_each_offer_started(
+        self, store: UnitOfWork
+    ) -> None:
+        async with store as work:
+            await work.workflow_runs.save(_run("run_a", offer="off_a"))
+            await work.workflow_runs.save(_run("run_b", offer="off_b", tenant=OTHER_TENANT))
+            await work.workflow_runs.save(_run("run_c"))
+            await work.commit()
+
+        async with store as work:
+            found = await work.workflow_runs.started_by_offers(TENANT, ["off_a", "off_b", "off_z"])
+            assert dict(found) == {"off_a": "run_a"}
+            assert not await work.workflow_runs.started_by_offers(TENANT, [])
+
     async def test_started_from_mail_finds_the_newest_run_a_thread_started(
         self, store: UnitOfWork
     ) -> None:

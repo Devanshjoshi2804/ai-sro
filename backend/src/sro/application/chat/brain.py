@@ -15,6 +15,7 @@ from collections.abc import Mapping, Sequence
 from datetime import UTC
 
 from sro.application.chat.brain_tools import Checks, Tool, described, start_key
+from sro.application.chat.open_offers import open_ones, standing_offers
 from sro.application.context import RequestContext
 from sro.application.intent.spend import over_cap
 from sro.application.ports.model import Asker, AskerUnavailable
@@ -155,6 +156,15 @@ class Brain:
             # Run values can come from a mail, so the runs are data like the rest.
             runs = await status.run(ctx, {})
             untrusted["recent runs"] = json.dumps(runs.data, ensure_ascii=False, default=str)
+        if offers := open_ones(await standing_offers(self._uow, ctx, self._clock.now())):
+            # Their values can come from a mail, so they are data like the rest.
+            untrusted["open offers"] = json.dumps(
+                [
+                    {"job": one.workflow_id, "title": one.title, "values": one.values}
+                    for one in offers
+                ],
+                ensure_ascii=False,
+            )
         results: list[str] = []
         started: set[str] = set()
         # A value the model gives a tool must be in the operator's words (or the question they

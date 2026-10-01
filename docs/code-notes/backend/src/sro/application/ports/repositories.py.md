@@ -55,7 +55,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/reposit
 > scopes them by workflow ownership, which is where the reason will be
 > written down.
 
-## `WorkflowRepository`, [line 519](../../../../../../../backend/src/sro/application/ports/repositories.py#L519): Docstring
+## `WorkflowRepository`, [line 525](../../../../../../../backend/src/sro/application/ports/repositories.py#L525): Docstring
 
 > What a mining pass found, and what running it has since earned.
 >
@@ -63,20 +63,20 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/reposit
 > a workflow, its steps cite the evidence, a run notices a step going weak,
 > and a verified write is registered against the job it was a step of.
 
-## `AttemptRepository`, [line 636](../../../../../../../backend/src/sro/application/ports/repositories.py#L636): Docstring
+## `AttemptRepository`, [line 642](../../../../../../../backend/src/sro/application/ports/repositories.py#L642): Docstring
 
 > Something a person asked for, and what came of it.
 >
 > One write and one read, and the write never raises: see `record`.
 
-## `OfferRepository`, [line 644](../../../../../../../backend/src/sro/application/ports/repositories.py#L644): Docstring
+## `OfferRepository`, [line 650](../../../../../../../backend/src/sro/application/ports/repositories.py#L650): Docstring
 
 > What the extension offered, and what became of it.
 >
 > Three reads and one write, because the two windows are one query with one
 > predicate between them and the tally is a different question entirely.
 
-## `ChatRepository`, [line 660](../../../../../../../backend/src/sro/application/ports/repositories.py#L660): Docstring
+## `ChatRepository`, [line 666](../../../../../../../backend/src/sro/application/ports/repositories.py#L666): Docstring
 
 > What the chat door read, and what the reading cost.
 >
@@ -84,11 +84,11 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/reposit
 > write one: the row exists for the cap and the spend line, and neither needs
 > an operator's words about their own warehouse.
 
-## `SpendRepository`, [line 666](../../../../../../../backend/src/sro/application/ports/repositories.py#L666): Docstring
+## `SpendRepository`, [line 672](../../../../../../../backend/src/sro/application/ports/repositories.py#L672): Docstring
 
 > What today has cost, across every table that can bill it.
 
-## `UnitOfWork`, [line 672](../../../../../../../backend/src/sro/application/ports/repositories.py#L672): Docstring
+## `UnitOfWork`, [line 678](../../../../../../../backend/src/sro/application/ports/repositories.py#L678): Docstring
 
 > Transaction boundary. Leaving the block without ``commit`` rolls back.
 
@@ -771,7 +771,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/reposit
 > different sentence from "nobody ever asked about this", and a caller
 > told `None` for both cannot say either.
 
-## `WorkflowRunRepository.approve`, [line 500](../../../../../../../backend/src/sro/application/ports/repositories.py#L500): Docstring
+## `WorkflowRunRepository.approve`, [line 506](../../../../../../../backend/src/sro/application/ports/repositories.py#L506): Docstring
 
 > Whether this tap was the one that authorised the step.
 >
@@ -780,11 +780,11 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/reposit
 > Tenant-blind because the run id is the only thing the panel has, and
 > the route has already checked the browser is driving this run.
 
-## `WorkflowRunRepository.approvals`, [line 502](../../../../../../../backend/src/sro/application/ports/repositories.py#L502): Docstring
+## `WorkflowRunRepository.approvals`, [line 508](../../../../../../../backend/src/sro/application/ports/repositories.py#L508): Docstring
 
 > (step ord, when, which browser) for each write a person let out.
 
-## `WorkflowRunRepository.fail_orphans`, [line 504](../../../../../../../backend/src/sro/application/ports/repositories.py#L504): Docstring
+## `WorkflowRunRepository.fail_orphans`, [line 510](../../../../../../../backend/src/sro/application/ports/repositories.py#L510): Docstring
 
 > Every run still ``running`` is marked failed, and how many there were.
 >
@@ -793,18 +793,18 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/reposit
 > process starts is a run nobody is driving. The reason lands on the
 > last step, or on a new step when the run never reached one.
 
-## `WorkflowRepository.save`, [line 520](../../../../../../../backend/src/sro/application/ports/repositories.py#L520): Docstring
+## `WorkflowRepository.save`, [line 526](../../../../../../../backend/src/sro/application/ports/repositories.py#L526): Docstring
 
 > Whole workflow, steps replaced rather than appended.
 >
 > Identity resolution re-saves a workflow it merged evidence into, so a
 > step the merge dropped has to leave the store with it.
 
-## `WorkflowRepository.known`, [line 522](../../../../../../../backend/src/sro/application/ports/repositories.py#L522): Docstring
+## `WorkflowRepository.known`, [line 528](../../../../../../../backend/src/sro/application/ports/repositories.py#L528): Docstring
 
 > Oldest first, which is the order the miner resolves against.
 
-## `WorkflowRepository.rekey`, [line 540](../../../../../../../backend/src/sro/application/ports/repositories.py#L540): Docstring
+## `WorkflowRepository.rekey`, [line 546](../../../../../../../backend/src/sro/application/ports/repositories.py#L546): Docstring
 
 > Replace the shape identity resolution compares proposals against.
 >
@@ -812,7 +812,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/reposit
 > mined before the change no longer match keys mined after, and a job
 > already held could be proposed again as a new one.
 
-## `WorkflowRepository.add_pass`, [line 560](../../../../../../../backend/src/sro/application/ports/repositories.py#L560): Docstring
+## `WorkflowRepository.add_pass`, [line 566](../../../../../../../backend/src/sro/application/ports/repositories.py#L566): Docstring
 
 > One row per reading of a tenant's day, found anything or not.
 >
@@ -823,11 +823,11 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/reposit
 > minted per reading, so a second row under one id is one model call
 > billed twice.
 
-## `WorkflowRepository.passes`, [line 562](../../../../../../../backend/src/sro/application/ports/repositories.py#L562): Docstring
+## `WorkflowRepository.passes`, [line 568](../../../../../../../backend/src/sro/application/ports/repositories.py#L568): Docstring
 
 > Every pass this tenant has been billed for, oldest first.
 
-## `WorkflowRepository.mark_stale`, [line 564](../../../../../../../backend/src/sro/application/ports/repositories.py#L564): Docstring
+## `WorkflowRepository.mark_stale`, [line 570](../../../../../../../backend/src/sro/application/ports/repositories.py#L570): Docstring
 
 > A step only the weakest rung of the locator ladder found.
 >
@@ -836,7 +836,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/reposit
 > what a mining pass writes and this is what a run learned, and one
 > rewriting the other would race a re-mine.
 
-## `WorkflowRepository.remember_locator`, [line 568](../../../../../../../backend/src/sro/application/ports/repositories.py#L568): Docstring
+## `WorkflowRepository.remember_locator`, [line 574](../../../../../../../backend/src/sro/application/ports/repositories.py#L574): Docstring
 
 > What a run found when the job's own identity for a control did not.
 >
@@ -845,11 +845,11 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/reposit
 > ladder and paying for the same model call. One row per step, the last
 > answer winning.
 
-## `WorkflowRepository.learned_for`, [line 572](../../../../../../../backend/src/sro/application/ports/repositories.py#L572): Docstring
+## `WorkflowRepository.learned_for`, [line 578](../../../../../../../backend/src/sro/application/ports/repositories.py#L578): Docstring
 
 > Every step of this job that a run has found a working locator for.
 
-## `WorkflowRepository.taught_itself`, [line 600](../../../../../../../backend/src/sro/application/ports/repositories.py#L600): Docstring
+## `WorkflowRepository.taught_itself`, [line 606](../../../../../../../backend/src/sro/application/ports/repositories.py#L606): Docstring
 
 > What this job has changed its mind about, newest first.
 >
@@ -860,7 +860,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/reposit
 >
 > Bounded, and small: a history nobody can read in one page is a log.
 
-## `WorkflowRepository.remember_limit`, [line 602](../../../../../../../backend/src/sro/application/ports/repositories.py#L602): Docstring
+## `WorkflowRepository.remember_limit`, [line 608](../../../../../../../backend/src/sro/application/ports/repositories.py#L608): Docstring
 
 > How many characters this step's box turned out to take.
 >
@@ -868,17 +868,17 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/reposit
 > is not part of `remember_locator`: writing the two together would have
 > a truncation erase a locator, or a locator erase a limit.
 
-## `WorkflowRepository.clear_stale`, [line 606](../../../../../../../backend/src/sro/application/ports/repositories.py#L606): Docstring
+## `WorkflowRepository.clear_stale`, [line 612](../../../../../../../backend/src/sro/application/ports/repositories.py#L612): Docstring
 
 > The step matched properly again. A warning that never clears is a
 > warning nobody reads. Idempotent: clearing a step that was never weak
 > is not an error.
 
-## `WorkflowRepository.stale_count`, [line 608](../../../../../../../backend/src/sro/application/ports/repositories.py#L608): Docstring
+## `WorkflowRepository.stale_count`, [line 614](../../../../../../../backend/src/sro/application/ports/repositories.py#L614): Docstring
 
 > How many of this job's steps are about to break.
 
-## `WorkflowRepository.grew`, [line 610](../../../../../../../backend/src/sro/application/ports/repositories.py#L610): Docstring
+## `WorkflowRepository.grew`, [line 616](../../../../../../../backend/src/sro/application/ports/repositories.py#L616): Docstring
 
 > Save a job whose steps have grown, taking its learning with them.
 >
@@ -888,7 +888,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/reposit
 > `skill.shape.where_steps_moved`, which computes `moved` and says why a
 > past run's own record is deliberately left where it is.
 
-## `WorkflowRepository.remember_write`, [line 612](../../../../../../../backend/src/sro/application/ports/repositories.py#L612): Docstring
+## `WorkflowRepository.remember_write`, [line 618](../../../../../../../backend/src/sro/application/ports/repositories.py#L618): Docstring
 
 > This deployment watched this write succeed; it may now be replayed.
 >
@@ -896,12 +896,12 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/reposit
 > moment: live, held, wrote, and verified by a state belt. Idempotent --
 > a job that proves the same endpoint every week is one ledger entry.
 
-## `WorkflowRepository.learned_writes`, [line 625](../../../../../../../backend/src/sro/application/ports/repositories.py#L625): Docstring
+## `WorkflowRepository.learned_writes`, [line 631](../../../../../../../backend/src/sro/application/ports/repositories.py#L631): Docstring
 
 > What this tenant has watched succeed, for the gate that decides
 > whether a step is replayed as a call or clicked.
 
-## `WorkflowRepository.record_effect`, [line 627](../../../../../../../backend/src/sro/application/ports/repositories.py#L627): Docstring
+## `WorkflowRepository.record_effect`, [line 633](../../../../../../../backend/src/sro/application/ports/repositories.py#L633): Docstring
 
 > Register a write the verifier saw hold by state.
 >
@@ -909,11 +909,11 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/reposit
 > model reading a screenshot is not evidence anything was written. One
 > write of one run is one row however many times it is verified.
 
-## `WorkflowRepository.forget_effects`, [line 631](../../../../../../../backend/src/sro/application/ports/repositories.py#L631): Docstring
+## `WorkflowRepository.forget_effects`, [line 637](../../../../../../../backend/src/sro/application/ports/repositories.py#L637): Docstring
 
 > How many were forgotten. One failed write empties the register.
 
-## `WorkflowRepository.proofs`, [line 633](../../../../../../../backend/src/sro/application/ports/repositories.py#L633): Docstring
+## `WorkflowRepository.proofs`, [line 639](../../../../../../../backend/src/sro/application/ports/repositories.py#L639): Docstring
 
 > One per live run of this workflow that held, for ``earned_from``.
 >
@@ -922,7 +922,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/reposit
 > evidence a later reader would have to ask it about may have been
 > re-mined by then.
 
-## `AttemptRepository.record`, [line 637](../../../../../../../backend/src/sro/application/ports/repositories.py#L637): Docstring
+## `AttemptRepository.record`, [line 643](../../../../../../../backend/src/sro/application/ports/repositories.py#L643): Docstring
 
 > One attempt, one row -- and nothing this raises reaches the caller.
 >
@@ -932,7 +932,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/reposit
 > this replaces. An implementation that cannot write says so in the log
 > and returns.
 
-## `AttemptRepository.since`, [line 639](../../../../../../../backend/src/sro/application/ports/repositories.py#L639): Docstring
+## `AttemptRepository.since`, [line 645](../../../../../../../backend/src/sro/application/ports/repositories.py#L645): Docstring
 
 > This tenant's attempts, newest first, capped.
 >
@@ -940,23 +940,23 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/reposit
 > just happened, and an audit that starts at breakfast makes somebody
 > scroll to reach it.
 
-## `OfferRepository.record`, [line 645](../../../../../../../backend/src/sro/application/ports/repositories.py#L645): Docstring
+## `OfferRepository.record`, [line 651](../../../../../../../backend/src/sro/application/ports/repositories.py#L651): Docstring
 
 > One offer, one row. The id is minted where the offer is made.
 
-## `OfferRepository.newest`, [line 647](../../../../../../../backend/src/sro/application/ports/repositories.py#L647): Docstring
+## `OfferRepository.newest`, [line 653](../../../../../../../backend/src/sro/application/ports/repositories.py#L653): Docstring
 
 > Newest first, ``at`` then arrival -- the window ``counsel_over``
 > reads. Nudges (``k = 0``) are excluded: an arrival is not evidence
 > either way. Every browser's offers count, because recognition is a
 > property of the job rather than of who was asked.
 
-## `OfferRepository.newest_for_device`, [line 651](../../../../../../../backend/src/sro/application/ports/repositories.py#L651): Docstring
+## `OfferRepository.newest_for_device`, [line 657](../../../../../../../backend/src/sro/application/ports/repositories.py#L657): Docstring
 
 > The same window, one browser's. Resting is per browser: one
 > operator's no is not the next operator's.
 
-## `OfferRepository.fates`, [line 655](../../../../../../../backend/src/sro/application/ports/repositories.py#L655): Docstring
+## `OfferRepository.fates`, [line 661](../../../../../../../backend/src/sro/application/ports/repositories.py#L661): Docstring
 
 > How many of this job's offers ended each way, nudges included.
 >
@@ -964,7 +964,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/reposit
 > ``k > 0`` filter nor the limit applies: an arrival nudge is still an
 > offer that was made.
 
-## `OfferRepository.since`, [line 657](../../../../../../../backend/src/sro/application/ports/repositories.py#L657): Docstring
+## `OfferRepository.since`, [line 663](../../../../../../../backend/src/sro/application/ports/repositories.py#L663): Docstring
 
 > Every offer made at or after this ISO instant, newest first, whole.
 >
@@ -972,13 +972,13 @@ Comments and docstrings moved out of [`backend/src/sro/application/ports/reposit
 > because an arrival nudge is still something this tenant's browsers were
 > shown. Ties on ``at`` break on arrival, as everywhere else here.
 
-## `ChatRepository.since`, [line 663](../../../../../../../backend/src/sro/application/ports/repositories.py#L663): Docstring
+## `ChatRepository.since`, [line 669](../../../../../../../backend/src/sro/application/ports/repositories.py#L669): Docstring
 
 > Every reading at or after this ISO instant, newest first. The day's
 > spend is the sum over it, which is why the index leads with the
 > tenant.
 
-## `SpendRepository.today`, [line 669](../../../../../../../backend/src/sro/application/ports/repositories.py#L669): Docstring
+## `SpendRepository.today`, [line 675](../../../../../../../backend/src/sro/application/ports/repositories.py#L675): Docstring
 
 > Everything this tenant has been billed for since midnight UTC.
 >
@@ -1006,7 +1006,7 @@ Code: `was: Mapping[str, object] | None = None,`
 > `awaiting` names the server and thread. Unlike `waiting_on` it does not
 > ask whether that run still waits on anybody.
 
-## `WorkflowRepository.get`, [line 529](../../../../../../../backend/src/sro/application/ports/repositories.py#L529): Note
+## `WorkflowRepository.get`, [line 535](../../../../../../../backend/src/sro/application/ports/repositories.py#L535): Note
 
 Code: `self, tenant_id: TenantId, workflow_id: str, *, lock: bool = False`
 
@@ -1016,13 +1016,13 @@ Code: `self, tenant_id: TenantId, workflow_id: str, *, lock: bool = False`
 > two grows from one version would otherwise both land, and `grew` would move
 > the job's learning twice.
 
-## `WorkflowRepository.ruled`, [line 552](../../../../../../../backend/src/sro/application/ports/repositories.py#L552): Note on the function
+## `WorkflowRepository.ruled`, [line 558](../../../../../../../backend/src/sro/application/ports/repositories.py#L558): Note on the function
 
 > `placed_on`, `behind_the_rule` and `ruled` are the typed-values sweep's (M3):
 > the doings placed on a job, the jobs not yet under the current rule, and the
 > compare-and-set that stamps one. See `SqlWorkflowRepository`.
 
-## `WorkflowRepository.decide`, [line 544](../../../../../../../backend/src/sro/application/ports/repositories.py#L544): Note on the function
+## `WorkflowRepository.decide`, [line 550](../../../../../../../backend/src/sro/application/ports/repositories.py#L550): Note on the function
 
 > Writes `signs_in` and `signs_out` together, and only if the stored job's
 > steps and verdicts are still those of `workflow`, the job as it was read

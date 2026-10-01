@@ -14,7 +14,7 @@ import time
 from collections.abc import Mapping, Sequence
 from datetime import UTC
 
-from sro.application.chat.brain_tools import Tool, described, start_key
+from sro.application.chat.brain_tools import Checks, Tool, described, start_key
 from sro.application.context import RequestContext
 from sro.application.intent.spend import over_cap
 from sro.application.ports.model import Asker, AskerUnavailable
@@ -257,6 +257,9 @@ class Brain:
         if call.unreadable:
             return ToolResult(False, error="args is not a JSON object")
         if dry and call.tool not in READ_ONLY:
+            # A refusal is shown as it would be; only the doing is not done.
+            if isinstance(tool, Checks) and (refused := await tool.check(ctx, call.args, turn)):
+                return refused
             return ToolResult(True, {"would": call.tool})
         if call.tool == "start_job":
             # One start per distinct job and values a turn: a refusal is answered, not retried.

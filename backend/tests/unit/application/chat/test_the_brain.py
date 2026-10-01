@@ -184,13 +184,40 @@ async def test_shadow_mode_runs_only_read_only_tools_and_records_the_rest() -> N
         _say("done"),
     )
 
-    reply = await brain.turn(CTX, message="x", history=[], origin=Origin("chat"), dry=True)
+    reply = await brain.turn(CTX, message=SAID, history=[], origin=Origin("chat"), dry=True)
 
     assert acting.started == []
     assert "jobs" in reply.steps[0][1].data
     assert reply.steps[1][1].data == {"would": "start_job"}
     assert reply.steps[2][1].data == {"would": "ask_operator"} and not reply.steps[2][1].ends_turn
     assert reply.said == "done" and reply.decisions == ()
+
+
+async def test_a_dry_start_shows_the_refusals_a_real_one_would_and_starts_nothing() -> None:
+    acting = await _acting()
+    brain, _ = _brain(
+        acting,
+        _call("start_job", job_id=JOB, values=GIVEN),
+        _call("start_job", job_id=JOB, values={**GIVEN, "Customer Type": "SROT1"}),
+        _call("start_job", job_id="mail_send", values={}),
+        _say("done"),
+    )
+
+    reply = await brain.turn(CTX, message="go", history=[], origin=Origin("chat"), dry=True)
+
+    first, long, mail = (result for _, result in reply.steps)
+    assert not first.ok and "not in what was said" in first.error
+    assert not long.ok and not mail.ok and "Send it" in mail.error
+    assert acting.started == [] and acting.start.tried == 0
+
+
+async def test_a_dry_start_that_would_go_through_is_only_recorded() -> None:
+    acting = await _acting()
+    brain, _ = _brain(acting, _call("start_job", job_id=JOB, values=GIVEN), _say("done"))
+
+    reply = await brain.turn(CTX, message=SAID, history=[], origin=Origin("chat"), dry=True)
+
+    assert reply.steps[0][1].data == {"would": "start_job"} and acting.started == []
 
 
 async def test_a_shadow_turn_never_looks_anything_up() -> None:

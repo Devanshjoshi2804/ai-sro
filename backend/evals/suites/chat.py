@@ -25,14 +25,18 @@ from sro.application.chat.brain_tools import (
     Tool,
     UndoRun,
     WorkItOut,
+    values_of,
+    what_is_wrong,
 )
 from sro.application.context import RequestContext
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.domain.chat.brain_turn import Origin, ToolCall, ToolResult, Turn
+from sro.domain.execution.field_classes import FieldClass, FieldLimits
 from sro.domain.prompts.chat_brain import CHAT_BRAIN
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.shared.prices import Answer
+from sro.domain.skill.signing_in import Logins
 from sro.infrastructure.system import SystemClock
 
 CUSTOMER = "wfl_3c8f1a5e9d7b4026b1e8a4c7d0f5923e"
@@ -82,6 +86,15 @@ _LIMITS = {
 }
 
 ACTING = frozenset({"start_job", "undo_run", "work_it_out"})
+
+# The same jobs as the fields a real start checks its values by.
+_FIELDS = {
+    job: {
+        name: FieldClass(name, "required" if required else "sometimes", (), FieldLimits(longest))
+        for name, required, longest in params
+    }
+    for job, _, params in _JOBS
+}
 
 
 def _job(one: tuple[str, str, list[tuple[str, bool, int]]]) -> dict[str, object]:
@@ -407,6 +420,22 @@ class _Jobs(FindJobs):
         return ToolResult(ok=True, data={"jobs": [_job(one) for one in _JOBS]})
 
 
+class _Starts(StartJob):
+    """A start's own refusals over the suite's jobs: all a dry turn checks, nothing it does."""
+
+    def __init__(self) -> None:
+        pass
+
+    async def check(
+        self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
+    ) -> ToolResult | None:
+        values, fields = values_of(args), _FIELDS.get(str(args.get("job_id") or ""))
+        if values is None or fields is None:
+            return ToolResult(False, error="that is not a job this team has; use find_jobs")
+        wrong = what_is_wrong(values, fields, turn.said, Logins())
+        return ToolResult(False, error="; ".join(wrong)) if wrong else None
+
+
 class _Runs(RunStatus):
     def __init__(self, runs: Sequence[dict[str, object]]) -> None:
         self._rows = list(runs)
@@ -415,18 +444,6 @@ class _Runs(RunStatus):
         self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
     ) -> ToolResult:
         return ToolResult(ok=True, data={"runs": self._rows})
-
-
-class _Looked(Lookup):
-    def __init__(self) -> None:
-        pass
-
-    async def run(
-        self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
-    ) -> ToolResult:
-        return ToolResult(
-            ok=True, data={"answer": "AITE4 has voice code 12.", "source": ["fixture"]}
-        )
 
 
 class _Nowhere:
@@ -481,8 +498,8 @@ class Chat:
         tools: list[Tool] = [
             _Jobs(),
             _Runs(runs),
-            _Looked(),
-            _bare(StartJob),
+            _bare(Lookup),
+            _Starts(),
             _bare(CheckMail),
             _bare(UndoRun),
             _bare(AskOperator),

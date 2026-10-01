@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Callable, Coroutine, Mapping, Sequence
-from typing import ClassVar, Protocol
+from typing import ClassVar, Protocol, runtime_checkable
 
 from sro.application.chat.candidates import rank_jobs, real_jobs
 from sro.application.chat.from_the_mail import FromTheMail
@@ -31,12 +31,13 @@ from sro.domain.chat.brain_turn import ToolResult, Turn
 from sro.domain.chat.request import refusal
 from sro.domain.chat.thread import Said
 from sro.domain.execution.compiled import why_not
-from sro.domain.execution.field_classes import FieldLimits
+from sro.domain.execution.field_classes import FieldClass, FieldLimits
 from sro.domain.execution.mail_job import built_in, is_mail_only, sends_mail
 from sro.domain.execution.workflow_run import SETTLED, OfferTaken, WorkflowRun
 from sro.domain.recording.sensitivity import is_secret_field
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import PrincipalId
+from sro.domain.skill.signing_in import Logins
 
 K_RECENT_RUNS = 20
 
@@ -55,6 +56,15 @@ class Tool(Protocol):
     async def run(
         self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
     ) -> ToolResult: ...
+
+
+@runtime_checkable
+class Checks(Protocol):
+    """A tool that can say what would refuse it without doing it (a dry turn runs only this)."""
+
+    async def check(
+        self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
+    ) -> ToolResult | None: ...
 
 
 def described(tools: Sequence[Tool]) -> list[dict[str, object]]:
@@ -261,7 +271,7 @@ async def _launch(
     )
 
 
-def _values(args: Mapping[str, object]) -> dict[str, str] | None:
+def values_of(args: Mapping[str, object]) -> dict[str, str] | None:
     """The values a start gives, as StartJob reads them; None when they are not an object."""
     given = args.get("values") or {}
     if not isinstance(given, Mapping):
@@ -269,10 +279,35 @@ def _values(args: Mapping[str, object]) -> dict[str, str] | None:
     return {str(k): str(v).strip() for k, v in given.items() if str(v).strip()}
 
 
+def what_is_wrong(
+    values: Mapping[str, str], fields: Mapping[str, FieldClass], said: str, logins: Logins
+) -> list[str]:
+    """Why a start's values cannot go: secrets, parameters the job lacks, values that are not
+    the operator's words or break a limit, required ones missing. Empty when they can."""
+    wrong = [
+        f"{name} is a secret: never give a password, code or token"
+        for name in values
+        if is_secret_field(name)
+    ]
+    unknown = sorted(n for n in values if n not in fields and not is_secret_field(n))
+    wrong += [f"this job has no {name}" for name in unknown]
+    wrong += [
+        f"the {name} you gave is {why}"
+        for name, value in values.items()
+        if (
+            why := refusal(
+                value, said, fields[name].limits if name in fields else FieldLimits(), logins
+            )
+        )
+    ]
+    absent = sorted(n for n, one in fields.items() if one.kind == "required" and n not in values)
+    return [*wrong, f"missing: {', '.join(absent)}"] if absent else wrong
+
+
 def start_key(args: Mapping[str, object]) -> str:
     """What one start is: the job and its values as StartJob reads them, so a trailing
     space, another key order or an extra key is the same start."""
-    return json.dumps([str(args.get("job_id") or ""), _values(args)], sort_keys=True)
+    return json.dumps([str(args.get("job_id") or ""), values_of(args)], sort_keys=True)
 
 
 class StartJob:
@@ -296,11 +331,12 @@ class StartJob:
     ) -> None:
         self._uow, self._clock, self._start, self._spawn = uow, clock, start, spawn
 
-    async def run(
+    async def check(
         self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
-    ) -> ToolResult:
+    ) -> ToolResult | None:
+        """Everything that can refuse a start, without starting it; None when none does."""
         job_id = str(args.get("job_id") or "")
-        values = _values(args)
+        values = values_of(args)
         if values is None:
             return ToolResult(ok=False, error="values is an object of parameter name to value")
         async with self._uow as uow:
@@ -324,32 +360,15 @@ class StartJob:
         fields = (
             {one.name: one for one in job.compiled.fields if one.kind != "never"} if job else {}
         )
-        wrong = [
-            f"{name} is a secret: never give a password, code or token"
-            for name in values
-            if is_secret_field(name)
-        ]
-        unknown = sorted(n for n in values if n not in fields and not is_secret_field(n))
-        wrong += [f"this job has no {name}" for name in unknown]
-        wrong += [
-            f"the {name} you gave is {why}"
-            for name, value in values.items()
-            if (
-                why := refusal(
-                    value,
-                    turn.said,
-                    fields[name].limits if name in fields else FieldLimits(),
-                    logins,
-                )
-            )
-        ]
-        absent = sorted(
-            n for n, one in fields.items() if one.kind == "required" and n not in values
-        )
-        if absent:
-            wrong.append(f"missing: {', '.join(absent)}")
-        if wrong:
-            return ToolResult(ok=False, error="; ".join(wrong))
+        wrong = what_is_wrong(values, fields, turn.said, logins)
+        return ToolResult(ok=False, error="; ".join(wrong)) if wrong else None
+
+    async def run(
+        self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
+    ) -> ToolResult:
+        if (refused := await self.check(ctx, args, turn)) is not None:
+            return refused
+        job_id, values = str(args.get("job_id") or ""), values_of(args) or {}
         return await _launch(
             self._start,
             self._spawn,

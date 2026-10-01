@@ -177,12 +177,14 @@ class ApiLane:
                 read=made,
                 answered=told,
             )
-        # Absent at a guessed address is a refusal only after the system's own
-        # rejection (409); after a 5xx the record may live at an id we cannot guess.
+        # Only the system's own rejection (409) is a refusal. After a 5xx the
+        # record may exist at an id we cannot guess, or under values that are
+        # ours: another value would write a second record.
         refused = (
             verdict == "unknown"
+            and status == K_CONFLICT
             and found is not None
-            and (found[0] == "other" or (found[0] == "absent" and status == K_CONFLICT))
+            and found[0] in ("other", "absent")
         )
         if refused and found is not None:
             said = told["said"] or f"it answered {status}"

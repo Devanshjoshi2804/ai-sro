@@ -666,3 +666,14 @@ async def test_a_server_error_whose_guessed_record_address_is_absent_is_not_a_re
     result, _ = await _answered((status, ""), (404, ""))
 
     assert result.verdict == "unknown" and not result.refused and not result.never_left
+
+
+@pytest.mark.parametrize("status", [500, 502, 503, 504])
+async def test_a_server_error_whose_record_holds_other_values_stays_in_doubt(status: int) -> None:
+    # A 5xx may have saved a record we cannot tell from another's: asking for a
+    # new value would write a second record.
+    result, _ = await _answered(
+        (status, ""), (200, '{"name": "GT2", "description": "pet shops"}')
+    )
+
+    assert result.verdict == "unknown" and not result.refused and not result.never_left

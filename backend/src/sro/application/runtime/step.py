@@ -7,7 +7,7 @@ from typing import Literal, Protocol
 
 from sro.application.context import RequestContext
 from sro.application.ports.page import SessionRef
-from sro.domain.execution.account import Lease
+from sro.domain.execution.account import Account, Lease
 from sro.domain.execution.compose import Adding
 from sro.domain.execution.lanes import Lane, StepResult, Verdict
 from sro.domain.execution.learned_step import LearnedStep
@@ -36,10 +36,12 @@ class NeedsAPerson(DomainError):
         kind: Literal[
             "password", "value", "step", "code", "field", "recipient", "mail_body"
         ] = "step",
+        account: Account | None = None,
     ) -> None:
         super().__init__(question)
         self.question = question
         self.kind = kind
+        self.account = account
 
 
 class WaitingForAPerson(NeedsAPerson):

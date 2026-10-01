@@ -624,6 +624,12 @@ class RunSteps:
             "text": asked.question,
             "step": str(step.order),
         }
+        if asked.account is not None:
+            progress.asking |= {
+                "origin": asked.account.origin,
+                "username": asked.account.username,
+                "field": "password",
+            }
         if about is not None:
             name, why, choices = about
             progress.asking |= {"name": name, "why": why, "choices": json.dumps(list(choices))}

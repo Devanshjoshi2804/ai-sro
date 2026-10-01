@@ -237,6 +237,7 @@ class SessionBroker:
                 raise NeedsAPerson(
                     f"{lease.account.origin} asks for a password now, not a code",
                     kind="password",
+                    account=lease.account,
                 )
             now = self._clock.now()
             until = now + K_LEASE_TTL
@@ -438,6 +439,7 @@ class SessionBroker:
             raise NeedsAPerson(
                 f"no usable password is stored for {account.username} at {account.origin}",
                 kind="password",
+                account=account,
             )
         asked = CodeAsked(self._vault)
         since = await asked.since(key)
@@ -475,6 +477,7 @@ class SessionBroker:
                 f"the password for {account.username} at {account.origin} was refused; "
                 "store a new one",
                 kind="password",
+                account=account,
             )
         await self._driver.goto(held.session, held.target_id, start_url)
         await asked.clear(key)

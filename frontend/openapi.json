@@ -28278,6 +28278,45 @@
         ],
         "title": "RunModel"
       },
+      "RunQuestionModel": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "default": ""
+          },
+          "origin": {
+            "type": "string",
+            "title": "Origin",
+            "default": ""
+          },
+          "username": {
+            "type": "string",
+            "title": "Username",
+            "default": ""
+          },
+          "field": {
+            "type": "string",
+            "title": "Field",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind"
+        ],
+        "title": "RunQuestionModel",
+        "description": "The question a running run is parked on, in enough words for a UI to\nanswer it. A password question names the account it is for (`origin`,\n`username`, `field`) so the box stores the right key without guessing;\nthose are empty on a run asked before they were recorded. Never a value."
+      },
       "RunSkillRequest": {
         "properties": {
           "skill_id": {
@@ -30446,6 +30485,16 @@
             "type": "string",
             "title": "Asking",
             "default": ""
+          },
+          "question": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunQuestionModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

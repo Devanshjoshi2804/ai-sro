@@ -847,6 +847,7 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
         },
         # A finished run waits on nobody.
         "asking": "",
+        "question": None,
     }
 
 
@@ -2193,3 +2194,30 @@ def _run_that_made(workflow_id: str, made: dict[str, str], outcome: str = "held"
 
 
 # --- the operator says it was wrong -----------------------------------------
+
+
+def test_a_standing_password_question_is_on_the_run_with_the_account_it_is_for() -> None:
+    run = _planted("run_1", outcome="running")
+    run.progress = {
+        "asking": {
+            "id": "q_1",
+            "kind": "password",
+            "text": "no usable password is stored for clerk at https://idp.example",
+            "origin": "https://idp.example",
+            "username": "clerk",
+            "field": "password",
+        }
+    }
+
+    asked = WorkflowRunModel.of(run).question
+
+    assert asked is not None
+    assert (asked.id, asked.kind, asked.origin, asked.username, asked.field) == (
+        "q_1",
+        "password",
+        "https://idp.example",
+        "clerk",
+        "password",
+    )
+    run.progress["asking"]["answered"] = "yes"
+    assert WorkflowRunModel.of(run).question is None

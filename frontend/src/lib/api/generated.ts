@@ -3793,6 +3793,39 @@ export interface components {
             /** Steps */
             steps: components["schemas"]["StepOutcomeModel"][];
         };
+        /**
+         * RunQuestionModel
+         * @description The question a running run is parked on, in enough words for a UI to
+         *     answer it. A password question names the account it is for (`origin`,
+         *     `username`, `field`) so the box stores the right key without guessing;
+         *     those are empty on a run asked before they were recorded. Never a value.
+         */
+        RunQuestionModel: {
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+            /**
+             * Origin
+             * @default
+             */
+            origin: string;
+            /**
+             * Username
+             * @default
+             */
+            username: string;
+            /**
+             * Field
+             * @default
+             */
+            field: string;
+        };
         /** RunSkillRequest */
         RunSkillRequest: {
             /** Skill Id */
@@ -4754,6 +4787,7 @@ export interface components {
              * @default
              */
             asking: string;
+            question?: components["schemas"]["RunQuestionModel"] | null;
         };
         /**
          * WorkflowRunStepModel

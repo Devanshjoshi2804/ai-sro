@@ -36,7 +36,7 @@ from sro.domain.chat.thread import Thread
 from sro.domain.execution.account import K_USERNAME_MAX_LEN
 from sro.domain.execution.belts import K_EARNED_RUNS
 from sro.domain.execution.run import Medium, Run, StepOutcome
-from sro.domain.execution.waiting import standing_question
+from sro.domain.execution.waiting import standing, standing_question
 from sro.domain.execution.workflow_run import RunStep, WorkflowRun
 from sro.domain.lookup.plan import Asked, Lookup
 from sro.domain.observation.attempts import Attempt
@@ -2872,6 +2872,20 @@ class WorkflowRunStepModel(BaseModel):
         return cls(**asdict(step))
 
 
+class RunQuestionModel(BaseModel):
+    """The question a running run is parked on, in enough words for a UI to
+    answer it. A password question names the account it is for (`origin`,
+    `username`, `field`) so the box stores the right key without guessing;
+    those are empty on a run asked before they were recorded. Never a value."""
+
+    id: str
+    kind: str
+    text: str = ""
+    origin: str = ""
+    username: str = ""
+    field: str = ""
+
+
 class RunMailModel(BaseModel):
     """The mail a run came from: who sent it, what it was called, when it
     arrived and where to open it. Never its body -- the subject is as much of
@@ -3058,6 +3072,11 @@ class WorkflowRunModel(BaseModel):
     said "Running..." over PJ26's parked save (QA, 2026-09-30), and this is
     how it says "Needs you" instead."""
 
+    question: RunQuestionModel | None = None
+    """The standing question as a whole -- its id, kind and, for a password,
+    the account it is for -- where `asking` is only its words. Null when none
+    stands."""
+
     @classmethod
     def of(
         cls,
@@ -3100,6 +3119,11 @@ class WorkflowRunModel(BaseModel):
             offer=run.offer,
             mail=RunMailModel.of(run.mail) if run.mail else None,
             asking=standing_question(run),
+            question=RunQuestionModel(
+                **{key: ask.get(key, "") for key in RunQuestionModel.model_fields}
+            )
+            if (ask := standing(run))
+            else None,
         )
 
 

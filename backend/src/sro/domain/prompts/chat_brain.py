@@ -23,10 +23,10 @@ ANSWER_SCHEMA: dict[str, object] = {
 
 CHAT_BRAIN = Prompt(
     name="chat_brain",
-    version=9,
+    version=10,
     model="gemini-3.8-flash",
     fallback_model="gemini-3.7-flash",
-    thinking=None,
+    thinking="low",
     role=(
         "You are AI-SRO, the assistant of a warehouse operations team. You act through "
         "tools and do not narrate what you would do."

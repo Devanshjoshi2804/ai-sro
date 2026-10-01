@@ -36,13 +36,18 @@ How each fake mirrors the real tool (`application/chat/brain_tools.py`), and whe
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
-from collections.abc import Mapping
-from dataclasses import dataclass
+import logging
+import time
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
+from dataclasses import asdict, dataclass, field
 from types import SimpleNamespace
 from typing import Any, cast
 
-from evals.suites.chat import _FIELDS, _JOBS, _job
+from evals.suites.chat import _FIELDS, _JOBS, _Day, _job, _Nowhere
+from sro.application.chat.brain import Brain
 from sro.application.chat.brain_tools import (
     AskOperator,
     CheckMail,
@@ -59,12 +64,17 @@ from sro.application.chat.brain_tools import (
 )
 from sro.application.context import RequestContext
 from sro.application.execution.workflow_runs import GetWorkflowRun, StartWorkflowRun
+from sro.application.ports.model import Asker
+from sro.application.ports.repositories import UnitOfWork
+from sro.domain.chat.asking import Pending, let_go, of_the_offer, said_yes
 from sro.domain.chat.automated_mail import is_automated
-from sro.domain.chat.brain_turn import ToolResult, Turn
+from sro.domain.chat.brain_turn import K_HISTORY, Origin, ToolResult, Turn
 from sro.domain.execution.field_classes import FieldClass, FieldLimits
 from sro.domain.execution.mail_job import built_in
 from sro.domain.execution.workflow_run import OfferTaken
 from sro.domain.shared.errors import NotFound
+from sro.domain.shared.identifiers import PrincipalId, TenantId
+from sro.domain.shared.prices import Answer
 from sro.domain.skill.signing_in import Logins
 
 DELETE = "Delete a Customer Type"
@@ -360,3 +370,177 @@ def fake_tools(world: World) -> list[Tool]:
         AskOperator(),
         FakeWork(world),
     ]
+
+
+# ---------------------------------------------------------------------------------------------
+# The runner: one thread per scenario, its turns in order, through the real brain.
+# ---------------------------------------------------------------------------------------------
+
+K_TURN_S = 180.0
+
+_BRAIN_LOG = "sro.application.chat.brain"
+
+
+@dataclass
+class Played:
+    """Everything one turn did, as it happened."""
+
+    said: str
+    reply: str = ""
+    # The operator's own words this turn: what a start's values must come from.
+    heard: str = ""
+    tools: list[dict[str, Any]] = field(default_factory=list)
+    launches: list[dict[str, Any]] = field(default_factory=list)
+    questions: list[str] = field(default_factory=list)
+    cost: float = 0.0
+    tokens_in: int = 0
+    tokens_out: int = 0
+    latency: float = 0.0
+    error: str | None = None
+    timed_out: bool = False
+    logs: list[str] = field(default_factory=list)
+
+
+class _Meter:
+    """The asker, with what the turn cost and why it failed."""
+
+    def __init__(self, asker: Asker) -> None:
+        self._asker = asker
+        self.cost, self.tokens_in, self.tokens_out = 0.0, 0, 0
+        self.error: str | None = None
+
+    async def ask(self, **asking: Any) -> Answer:
+        answer = await self._asker.ask(**asking)
+        self.cost += answer.cost_usd
+        self.tokens_in += answer.in_tokens
+        self.tokens_out += answer.out_tokens
+        if answer.data is None and self.error is None:
+            self.error = answer.error or "the model did not answer"
+        return answer
+
+
+class _Logs(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__(logging.INFO)
+        self.lines: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.lines.append(record.getMessage())
+
+
+@contextmanager
+def _brain_logs() -> Iterator[_Logs]:
+    log, handler = logging.getLogger(_BRAIN_LOG), _Logs()
+    was = log.level
+    log.setLevel(logging.INFO)
+    log.addHandler(handler)
+    try:
+        yield handler
+    finally:
+        log.removeHandler(handler)
+        log.setLevel(was)
+
+
+def _offer_of(world: World) -> Pending | None:
+    offers = world.spec.get("offers") or ()
+    if not offers:
+        return None
+    one = offers[-1]
+    return Pending(world.id_of(one["job"]), one["job"], dict(one.get("values") or {}), ())
+
+
+async def _answer_offer(
+    world: World, ctx: RequestContext, offer: Pending, said: str, key: str
+) -> str:
+    if let_go(said):
+        return f"Left {offer.title}."
+    try:
+        await FakeStart(world).execute(
+            ctx, workflow_id=offer.workflow_id, values=offer.values, offer=f"offer:{key}"
+        )
+    except OfferTaken:
+        return "That one is already running."
+    return f"Started {offer.title}."
+
+
+async def play(scenario: Mapping[str, Any], asker: Asker, *, tenant: str = "eval") -> list[Played]:
+    """One thread: the scenario's turns in order, history and the open question carried as
+    `converse` carries them. A turn that broke says so in `error`."""
+    spec = scenario.get("world") or {}
+    world, meter = World(spec), _Meter(asker)
+    tools = fake_tools(world)
+    brain = Brain(cast(UnitOfWork, _Nowhere()), cast(Asker, meter), _Day(), tools, cap_usd=-1.0)
+    ctx = RequestContext(tenant_id=TenantId(tenant), principal_id=PrincipalId("eval"))
+    origin = (
+        Origin("mail", str(spec.get("sender") or ""), str(spec.get("subject") or "a request"))
+        if spec.get("origin") == "mail"
+        else Origin("chat")
+    )
+    history: list[str] = list(spec.get("history") or [])
+    asking = str(spec.get("asking") or "")
+    if asking:
+        history.append(f"assistant: {asking}")
+    offer = _offer_of(world)
+    if offer is not None:
+        history.append(f"assistant: {of_the_offer(offer)}")
+    played: list[Played] = []
+    for n, turn in enumerate(scenario["turns"]):
+        said, key = str(turn["said"]), f"{scenario['id']}-{n}"
+        one = Played(said)
+        ours = [
+            h.removeprefix("operator: ") for h in history[-K_HISTORY:] if h.startswith("operator: ")
+        ]
+        one.heard = "\n".join([said, *ours, asking])
+        before = len(world.launches)
+        meter.cost, meter.tokens_in, meter.tokens_out, meter.error = 0.0, 0, 0, None
+        began = time.monotonic()
+        decisions: tuple[dict[str, object], ...] = ()
+        cards: list[str] = []
+        with _brain_logs() as logs:
+            try:
+                if offer is not None and (said_yes(said) or let_go(said)):
+                    one.reply = await _answer_offer(world, ctx, offer, said, key)
+                else:
+                    reply = await asyncio.wait_for(
+                        brain.turn(
+                            ctx,
+                            message=said,
+                            history=history,
+                            asking=asking,
+                            origin=origin,
+                            offer=f"chat:{key}",
+                        ),
+                        K_TURN_S,
+                    )
+                    one.reply, decisions = reply.said, reply.decisions
+                    one.tools = [
+                        {
+                            "tool": c.tool,
+                            "args": c.args,
+                            "ok": r.ok,
+                            "error": r.error,
+                            "data": r.data,
+                        }
+                        for c, r in reply.steps
+                    ]
+                    one.questions = [
+                        r.said for c, r in reply.steps if c.tool == "ask_operator" and r.ok
+                    ]
+                    # Every run the turn started keeps its card, as converse writes them.
+                    cards = [r.said for _, r in reply.steps if r.decision][:-1]
+            except TimeoutError:
+                one.timed_out = True
+        one.latency = time.monotonic() - began
+        one.cost, one.tokens_in, one.tokens_out = meter.cost, meter.tokens_in, meter.tokens_out
+        one.logs = logs.lines
+        one.launches = [asdict(x) for x in world.launches[before:]]
+        down = one.reply.startswith("I can't answer right now")
+        one.error = meter.error or (one.reply if down else None)
+        offer = None
+        history += [f"operator: {said}", *(f"assistant: {x}" for x in (*cards, one.reply) if x)]
+        asked = decisions[-1] if decisions else None
+        asking = (
+            str(asked.get("question") or "") if asked and asked.get("kind") == "brain_asks" else ""
+        )
+        played.append(one)
+    return played

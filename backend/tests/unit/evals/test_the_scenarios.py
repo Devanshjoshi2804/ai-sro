@@ -5,14 +5,18 @@ Nothing here calls a model or reads a database.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import pytest
-from evals.scenarios.harness import DELETE, World, fake_tools
+from evals.scenarios.chat_scenarios import case, say
+from evals.scenarios.harness import DELETE, World, fake_tools, play
 
 from sro.application.context import RequestContext
 from sro.domain.chat.brain_turn import ToolResult, Turn
 from sro.domain.shared.identifiers import PrincipalId, TenantId
+from sro.domain.shared.prices import Answer
+from tests.unit.fakes import FakeAsker
 
 CTX = RequestContext(tenant_id=TenantId("eval"), principal_id=PrincipalId("eval"))
 CREATE = "Create a Customer Type"
@@ -71,7 +75,7 @@ async def test_run_status_shows_the_real_row_shape() -> None:
             ]
         }
     )
-    row = (await _use(world, "run_status")).data["runs"][0]  # type: ignore[index]
+    row = (await _use(world, "run_status")).data["runs"][0]
     assert row["job"] == _customer(world) and row["state"] == "failed"
     assert row["stopped_because"] == "no" and row["from_mail"] is False
 
@@ -114,3 +118,41 @@ async def test_only_a_done_create_run_can_be_undone_once() -> None:
     done = await _use(world, "undo_run", run_id="run_a1")
     assert done.ok and [(one.job, one.via) for one in world.launches] == [(DELETE, "undo")]
     assert not (await _use(world, "undo_run", run_id="run_a1")).ok
+
+
+def _call(tool: str, **args: object) -> Answer:
+    data = {"action": "call", "tool": tool, "args": json.dumps(args)}
+    return Answer(data=data, cost_usd=0.001, in_tokens=10, out_tokens=2)
+
+
+def _say(text: str = "Done.") -> Answer:
+    return Answer(data={"action": "say", "text": text}, cost_usd=0.001)
+
+
+def _case(*turns: dict[str, Any], **world: Any) -> dict[str, Any]:
+    return case("T01", "test", "a test", *turns, world=world)
+
+
+@pytest.mark.asyncio
+async def test_history_and_the_open_question_carry_from_one_turn_to_the_next() -> None:
+    asker = FakeAsker(_call("ask_operator", question="Which code?"), _say("ok"))
+    played = await play(_case(say("create a customer type"), say("SRT9")), asker)
+    assert [one.reply for one in played] == ["Which code?", "ok"]
+    assert played[0].questions == ["Which code?"] and played[0].tokens_in == 10
+    second = str(asker.asked[-1]["evidence"])
+    assert "operator: create a customer type" in second
+    assert "assistant: Which code?" in second
+    # the question the brain asked is the one standing, and what a value may come from
+    assert "create a customer type" in played[1].heard and "Which code?" in played[1].heard
+
+
+@pytest.mark.asyncio
+async def test_a_mail_scenario_is_a_mail_turn_and_a_yes_answers_the_open_offer() -> None:
+    asker = FakeAsker(_say("ok"))
+    await play(_case(say("hello"), origin="mail", sender="a@x.com", subject="Hi"), asker)
+    assert "a@x.com" in str(asker.asked[0]["evidence"])
+    offer = {"job": CREATE, "values": SRT9}
+    yes = await play(_case(say("yes"), offers=[offer]), FakeAsker())
+    assert yes[0].reply.startswith("Started") and yes[0].launches[0]["values"] == SRT9
+    no = await play(_case(say("no"), offers=[offer]), FakeAsker())
+    assert no[0].reply == "Left Create a Customer Type." and not no[0].launches

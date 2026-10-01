@@ -108,6 +108,31 @@ class Brain:
         offer: str = "",
         dry: bool = False,
     ) -> BrainReply:
+        steps: list[tuple[ToolCall, ToolResult]] = []
+        decisions: list[dict[str, object]] = []
+        try:
+            return await self._turn(
+                ctx, message, history, origin, asking, page, offer, dry, steps, decisions
+            )
+        except Exception:
+            # Whatever broke is the log's; the operator is told it plainly, and what the turn
+            # already did (a run it started) stays on the record.
+            logger.exception("brain turn failed")
+            return _cannot("something went wrong", decisions, steps)
+
+    async def _turn(
+        self,
+        ctx: RequestContext,
+        message: str,
+        history: Sequence[str],
+        origin: Origin,
+        asking: str,
+        page: str,
+        offer: str,
+        dry: bool,
+        steps: list[tuple[ToolCall, ToolResult]],
+        decisions: list[dict[str, object]],
+    ) -> BrainReply:
         trusted: dict[str, object] = {
             "origin": origin.kind,
             # No operator timezone is held, so the day is UTC's and says so.
@@ -127,8 +152,6 @@ class Brain:
             runs = await status.run(ctx, {})
             untrusted["recent runs"] = json.dumps(runs.data, ensure_ascii=False, default=str)
         results: list[str] = []
-        steps: list[tuple[ToolCall, ToolResult]] = []
-        decisions: list[dict[str, object]] = []
         started: set[str] = set()
         # A value the model gives a tool must be in these words, never in a tool's result.
         turn = Turn(said="\n".join([message, *history[-K_HISTORY:], asking]), offer=offer)
@@ -155,7 +178,9 @@ class Brain:
             calls += 2 if answer.fell_back else 1
             spent += answer.cost_usd
             if answer.data is None:
-                return _cannot(answer.error or "the model did not answer", decisions, steps)
+                # The model's own error text is the log's, not the operator's.
+                logger.warning("brain: the model did not answer: %s", answer.error)
+                return _cannot("the model did not answer", decisions, steps)
             step = step_of(answer.data)
             if step.say is not None:
                 return BrainReply(step.say, tuple(decisions), tuple(steps))

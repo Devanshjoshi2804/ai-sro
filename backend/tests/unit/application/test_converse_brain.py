@@ -242,6 +242,22 @@ async def test_a_shadow_tenant_gets_the_old_answer_and_the_brain_only_logs(
     assert "SR11" not in line
 
 
+async def test_a_brain_that_fails_live_answers_plainly_after_the_message_is_saved() -> None:
+    class _Down(FakeAsker):
+        async def ask(self, **kwargs: Any) -> Any:
+            raise RuntimeError("connect to 10.11.9.25:5432 refused")
+
+    acting = await _acting()
+    converse = _converse(acting, _Down(), on=(TENANT,))
+
+    thread = await converse.execute(CTX, thread_id=await _thread(acting), text="check mail")
+
+    assert [(m.speaker.value, m.text) for m in thread.messages] == [
+        ("operator", "check mail"),
+        ("assistant", "I can't answer right now: something went wrong."),
+    ]
+
+
 async def test_a_brain_that_fails_in_shadow_never_touches_the_answer(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -259,7 +275,7 @@ async def test_a_brain_that_fails_in_shadow_never_touches_the_answer(
         await later
 
     assert (thread.messages[-1].decision or {}).get("kind") == "job"
-    assert any("brain shadow failed" in r.getMessage() for r in caplog.records)
+    assert any("brain turn failed" in r.getMessage() for r in caplog.records)
 
 
 def test_the_flags_are_read_from_the_environment_like_steel_tenants(

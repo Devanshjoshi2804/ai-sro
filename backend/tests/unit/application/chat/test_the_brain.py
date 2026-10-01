@@ -230,6 +230,49 @@ async def test_no_answer_says_so_plainly_and_starts_nothing() -> None:
     assert acting.started == []
 
 
+async def test_an_unexpected_failure_is_a_plain_message_not_the_raw_error() -> None:
+    class _Down(FakeAsker):
+        async def ask(self, **kwargs: object) -> Answer:
+            raise RuntimeError("connect to 10.11.9.25:5432 refused")
+
+    acting = await _acting()
+    brain, _ = _brain(acting, asker=_Down())
+
+    reply = await brain.turn(CTX, message="hi", history=[], origin=Origin("chat"))
+
+    assert reply.said == "I can't answer right now: something went wrong."
+    assert "10.11.9.25" not in reply.said and acting.started == []
+
+
+async def test_a_run_the_turn_started_stays_on_the_record_when_it_then_fails() -> None:
+    class _Dies(FakeAsker):
+        async def ask(self, **kwargs: object) -> Answer:
+            if self.asked:
+                raise RuntimeError("boom")
+            return await super().ask(**kwargs)
+
+    acting = await _acting()
+    brain, _ = _brain(acting, asker=_Dies(_call("run_status")))
+
+    reply = await brain.turn(CTX, message="hi", history=[], origin=Origin("chat"))
+
+    assert [call.tool for call, _ in reply.steps] == ["run_status"]
+    assert "something went wrong" in reply.said
+
+
+async def test_the_model_s_own_error_text_is_not_shown_to_the_operator() -> None:
+    class _Errors(FakeAsker):
+        async def ask(self, **kwargs: object) -> Answer:
+            return Answer(error="429 quota for project grey-orange-prod")
+
+    acting = await _acting()
+    brain, _ = _brain(acting, asker=_Errors())
+
+    reply = await brain.turn(CTX, message="hi", history=[], origin=Origin("chat"))
+
+    assert reply.said == "I can't answer right now: the model did not answer."
+
+
 async def test_a_cap_refusal_says_so_and_never_asks_the_model() -> None:
     acting = await _acting()
     async with acting.world.uow as uow:

@@ -104,7 +104,7 @@ Code: `logger.exception("the session keeper could not finish its sweep")`
 > A keeper that dies quietly is worse than no keeper: the sessions
 > look fine until the morning somebody needs one.
 
-## `run`, [line 192](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L192): Comment
+## `run`, [line 185](../../../../../../../backend/src/sro/infrastructure/temporal/worker.py#L185): Comment
 
 Code: `try:`
 

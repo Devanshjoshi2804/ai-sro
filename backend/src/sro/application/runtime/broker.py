@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from sro.application.connection.refusals import CodeAsked, RefusedCredentials, fingerprint
 from sro.application.connection.sign_in import tagged_logins
 from sro.application.context import RequestContext
-from sro.application.execution.one_time_secrets import OneTimeSecrets
+from sro.application.execution.one_time_secrets import HeldForTheRun, OneTimeSecrets
 from sro.application.ports.browser import BrowserUnavailable
 from sro.application.ports.http import HttpResponse
 from sro.application.ports.locks import AccountBusy, AccountLocks
@@ -446,7 +446,9 @@ class SessionBroker:
         key = account.vault_key("password")
         # What a person gave "just this once" on the run's card is theirs to
         # type now, refusal or none: they just said it.
-        lent = self._once.take(key, run_id=held.lease.holder)
+        lent = self._once.take(key, run_id=held.lease.holder) or await HeldForTheRun(
+            self._vault
+        ).take(key, run_id=held.lease.holder)
         password = lent or await self._vault.get(key)
         refused = RefusedCredentials(self._vault)
         if not password or (not lent and await refused.standing(key, password) is not None):

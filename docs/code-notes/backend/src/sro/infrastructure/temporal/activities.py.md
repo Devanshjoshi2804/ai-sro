@@ -58,14 +58,14 @@ Code: `from sro.container import Container`
 > Type-only: the composition root builds the activities, so importing it at
 > runtime would make anything that schedules work import every adapter.
 
-## `RunActivities._driven`, [line 175](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L175): Note
+## `RunActivities._driven`, [line 185](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L185): Note
 
 Code: `beating = self._container.run_steps()`
 
 > A second instance: the beat runs while the work does, and one unit of work
 > cannot be entered twice at once.
 
-## `RunActivities._driven`, [line 183](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L183): Note
+## `RunActivities._driven`, [line 193](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L193): Note
 
 Code: `except PageGone:`
 
@@ -74,14 +74,14 @@ Code: `except PageGone:`
 > raised for the retry to recover onto a fresh lease, rather than let it act
 > on until the context dies mid-write.
 
-## `RunActivities._driven`, [line 186](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L186): Note
+## `RunActivities._driven`, [line 196](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L196): Note
 
 Code: `except Exception:`
 
 > Any other beat failure (the database away for a moment) never abandons the
 > step: it is logged and the loop goes on.
 
-## `RunActivities._driven`, [line 191](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L191): Note
+## `RunActivities._driven`, [line 201](../../../../../../../backend/src/sro/infrastructure/temporal/activities.py#L201): Note
 
 Code: `if why is not None and why.cancel_requested:`
 

@@ -174,7 +174,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > saved, the tab's call log forgotten (the code went through it), and the
 > lease beaten again for the resuming run.
 
-## `SessionBroker._wait_for_a_person`, [line 490](../../../../../../../backend/src/sro/application/runtime/broker.py#L490): Note
+## `SessionBroker._wait_for_a_person`, [line 492](../../../../../../../backend/src/sro/application/runtime/broker.py#L492): Note
 
 > The lease moves to WAITING with `expires_at` at `K_CODE_WAIT`, in one
 > compare-and-set `settle`, before the caller hears about it, so no other
@@ -237,7 +237,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > page's structure (S6), never by its text. Each step beats the lease, so a
 > long chain keeps it and a lost lease stops the chain.
 
-## `SessionBroker._save_state`, [line 519](../../../../../../../backend/src/sro/application/runtime/broker.py#L519): Note
+## `SessionBroker._save_state`, [line 521](../../../../../../../backend/src/sro/application/runtime/broker.py#L521): Note
 
 > Cookies and localStorage go to the vault under the account's `state` key,
 > and only if they fit `K_VAULT_VALUE_BYTES`. A state over the limit is not
@@ -246,7 +246,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > state that restores half a session. The log line names the account and
 > the size, never the state.
 
-## `SessionBroker._reclaim`, [line 555](../../../../../../../backend/src/sro/application/runtime/broker.py#L555): Note
+## `SessionBroker._reclaim`, [line 557](../../../../../../../backend/src/sro/application/runtime/broker.py#L557): Note
 
 > After every fresh claim, the contexts Chrome still lists on that
 > container whose lease rows have ended are disposed. A close that hit
@@ -259,7 +259,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > close it, at the cost of a nullable `context_id`. Failure to reclaim is
 > logged, never the acquire's failure.
 
-## `SessionBroker._sign_in`, [line 458](../../../../../../../backend/src/sro/application/runtime/broker.py#L458): Note
+## `SessionBroker._sign_in`, [line 460](../../../../../../../backend/src/sro/application/runtime/broker.py#L460): Note
 
 Code: `await self._driver.forget_headers_before(`
 
@@ -316,7 +316,7 @@ Code: `except (NeedsAPerson, asyncio.CancelledError, TimeoutError):`
 > another code. If the READY settle itself fails or is lost, the context is
 > closed, as a failure of the sign-in itself still breaks and closes it.
 
-## `SessionBroker._sign_in`, [line 456](../../../../../../../backend/src/sro/application/runtime/broker.py#L456): Note
+## `SessionBroker._sign_in`, [line 458](../../../../../../../backend/src/sro/application/runtime/broker.py#L458): Note
 
 Code: `if not park and since is not None and self._clock.now() - since < K_CODE_WAIT:`
 
@@ -357,7 +357,7 @@ Code: `if lease is None or lease.state is not LeaseState.WAITING or lease.waits_
 > the parking run's `release` as it starts to wait, or by the password being
 > stored (`unpark`) when that release never ran.
 
-## `SessionBroker._park`, [line 512](../../../../../../../backend/src/sro/application/runtime/broker.py#L512): Note
+## `SessionBroker._park`, [line 514](../../../../../../../backend/src/sro/application/runtime/broker.py#L514): Note
 
 Code: `holder=lease.holder,`
 

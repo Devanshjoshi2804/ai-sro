@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from sro.application.context import RequestContext
-from sro.application.execution.one_time_secrets import OneTimeSecrets
+from sro.application.execution.one_time_secrets import HeldForTheRun, OneTimeSecrets
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.vault import CredentialVault
 from sro.application.runtime.answer_run import AnswerRun
@@ -62,5 +62,7 @@ class AnswerPassword:
         if keep:
             await self._vault.store(key, value)
         else:
-            self._once.hold(key, value, run_id=run_id)
+            # In the vault under the run's own key: the worker that signs the run in is
+            # another process, and never saw what this one held in memory.
+            await HeldForTheRun(self._vault).hold(key, value, run_id=run_id)
         await self._answer.execute(ctx, run_id=run_id, question_id=question_id, value="")

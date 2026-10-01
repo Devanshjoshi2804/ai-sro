@@ -56,7 +56,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/execution/one
 > and bound to the run that asked -- or an operator will type a password into
 > one process and have the run ask again from another.
 
-## module, [line 6](../../../../../../../backend/src/sro/application/execution/one_time_secrets.py#L6): Note on the line above
+## module, [line 10](../../../../../../../backend/src/sro/application/execution/one_time_secrets.py#L10): Note on the line above
 
 Code: `K_HELD_FOR = 15 * 60.0`
 
@@ -67,7 +67,7 @@ Code: `K_HELD_FOR = 15 * 60.0`
 > memory at the end of a shift. It is not a session: a run that has not asked
 > for it in a quarter of an hour is a run nobody is watching.
 
-## `OneTimeSecrets`, [line 15](../../../../../../../backend/src/sro/application/execution/one_time_secrets.py#L15): Docstring (debt)
+## `OneTimeSecrets`, [line 19](../../../../../../../backend/src/sro/application/execution/one_time_secrets.py#L19): Docstring (debt)
 
 > The store itself, one per process and handed down from `Container` --
 > `container.one_time_secrets`, built once beside `Stops` and `Approvals` and
@@ -78,7 +78,7 @@ Code: `K_HELD_FOR = 15 * 60.0`
 > imported dict is a dict every test and every future second worker shares
 > whether it means to or not.
 
-## `OneTimeSecrets.hold`, [line 19](../../../../../../../backend/src/sro/application/execution/one_time_secrets.py#L19): Docstring
+## `OneTimeSecrets.hold`, [line 23](../../../../../../../backend/src/sro/application/execution/one_time_secrets.py#L23): Docstring
 
 > Keep one value for the run it was given to, and the run it was given to
 > alone.
@@ -97,7 +97,7 @@ Code: `K_HELD_FOR = 15 * 60.0`
 > key nobody ever came back to take must not sit in memory past its quarter
 > of an hour just because nothing happened to read it.
 
-## `OneTimeSecrets.take`, [line 26](../../../../../../../backend/src/sro/application/execution/one_time_secrets.py#L26): Docstring
+## `OneTimeSecrets.take`, [line 30](../../../../../../../backend/src/sro/application/execution/one_time_secrets.py#L30): Docstring
 
 > The value, once, and only to the run it was held for. A read from any
 > other run is a lookup on a `(key, run_id)` pair that was never held --
@@ -111,7 +111,7 @@ Code: `K_HELD_FOR = 15 * 60.0`
 > run's mistaken ask stumbles into must answer `None` for having aged out,
 > not for merely naming the wrong run.
 
-## `OneTimeSecrets.waiting`, [line 32](../../../../../../../backend/src/sro/application/execution/one_time_secrets.py#L32): Docstring
+## `OneTimeSecrets.waiting`, [line 36](../../../../../../../backend/src/sro/application/execution/one_time_secrets.py#L36): Docstring
 
 > Whether a value is held for this key AND this run, without taking it. Runs
 > the same `(key, run_id)` pair `take` does, for the same reason: two runs
@@ -119,12 +119,12 @@ Code: `K_HELD_FOR = 15 * 60.0`
 > the run id would not say which one. For tests and for nothing that runs a
 > step: reading a secret is `take`.
 
-## `OneTimeSecrets.forget_everything`, [line 37](../../../../../../../backend/src/sro/application/execution/one_time_secrets.py#L37): Docstring
+## `OneTimeSecrets.forget_everything`, [line 41](../../../../../../../backend/src/sro/application/execution/one_time_secrets.py#L41): Docstring
 
 > Drop every held value. For tests, and for a deployment that wants to
 > clear them without a restart.
 
-## `OneTimeSecrets._sweep`, [line 40](../../../../../../../backend/src/sro/application/execution/one_time_secrets.py#L40): Docstring
+## `OneTimeSecrets._sweep`, [line 44](../../../../../../../backend/src/sro/application/execution/one_time_secrets.py#L44): Docstring
 
 > Drop every hold that aged out, on every `hold` and every `take` rather than
 > on a timer: nothing here runs a background loop, so the only moments this

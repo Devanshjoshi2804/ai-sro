@@ -53,11 +53,13 @@ async def test_a_password_for_this_once_is_never_in_the_vault_and_still_signs_th
     await door.execute(CTX, run_id=world.run_id, question_id=asking, value=TYPED, keep=False)
 
     key = world.account.vault_key("password")
-    assert TYPED not in world.vault.secrets.values()
-    assert world.once.waiting(key, run_id=world.run_id)
+    # Held under the run's own key (the worker signing in is another process), never as
+    # the credential, and gone once the run's sign-in has taken it.
+    assert world.vault.secrets.get(key) != TYPED
+    assert [k for k in world.vault.secrets if k.startswith(f"{key}#lent:")]
     assert await _signed_in_after(world, asking)
-    assert not world.once.waiting(key, run_id=world.run_id)
-    assert TYPED not in world.vault.secrets.values()
+    assert not [k for k in world.vault.secrets if "#lent:" in k]
+    assert not any(TYPED in str(value) for value in world.vault.secrets.values())
 
 
 @pytest.mark.parametrize("who", ["a stranger", "another question", "no password asked"])

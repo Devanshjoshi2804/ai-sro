@@ -247,7 +247,7 @@ async def main(only: list[str]) -> int:
                 print(f"    run {run_id}: {outcome}", flush=True)
             for ok, what in results[-1].checks:
                 print(f"    {'PASS' if ok else 'FAIL'}  {what}", flush=True)
-    left = [one for one in rig.created]
+    left = list(rig.created)
     print("\n=== not taken back:", left or "nothing", flush=True)
     bad = sum(1 for one in results for ok, _ in one.checks if not ok)
     print(f"=== {sum(len(one.checks) for one in results)} checks, {bad} failed", flush=True)

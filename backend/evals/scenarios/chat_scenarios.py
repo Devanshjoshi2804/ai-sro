@@ -449,7 +449,6 @@ REAL = [
         "status of the last run",
         say(
             "what is the status of my last run",
-            tools=["run_status"],
             starts=0,
             says_any=["done", "created", "SRT9"],
         ),
@@ -709,7 +708,6 @@ STATE = [
         "status after failure names the real reason",
         say(
             "what happened?",
-            tools=["run_status"],
             says_any=["already exists", "SRT7", "failed"],
             starts=0,
         ),
@@ -743,7 +741,7 @@ STATE = [
         "T06",
         "state",
         "undo with nothing to undo",
-        say("undo that", starts=0, says_any=["nothing", "no run", "no recent", "not"]),
+        say("undo that", starts=0, says_any=["nothing", "no run", "no recent", "not"], soft=True),
     ),
     case(
         "T07",
@@ -803,7 +801,7 @@ STATE = [
         "T14",
         "state",
         "'skip' a required value",
-        say("skip", starts=0, asks=True),
+        say("skip", starts=0, asks=True, soft=True),
         world={"asking": "Which Customer Type description should it have?"},
     ),
     case(

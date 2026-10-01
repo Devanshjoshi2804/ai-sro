@@ -43,7 +43,10 @@ def page_of(url: str) -> str:
         return ""
     port = ""
     try:
-        port = f":{parsed.port}" if parsed.port else ""
+        # An explicit default port is the same page as none (the browser's
+        # `URL.host` drops it).
+        default = 443 if parsed.scheme == "https" else 80
+        port = f":{parsed.port}" if parsed.port and parsed.port != default else ""
     except ValueError:
         return ""
     path = parsed.path.rstrip("/")

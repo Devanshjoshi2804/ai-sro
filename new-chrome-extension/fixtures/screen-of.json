@@ -28,5 +28,20 @@
     "name": "case is not a different screen",
     "url": "https://WMS.Example/Portal#WM.Config////",
     "screen": "https://wms.example/portal#wm.config"
+  },
+  {
+    "name": "an explicit default port is the same screen as none",
+    "url": "https://wms.example:443/receiving",
+    "screen": "https://wms.example/receiving"
+  },
+  {
+    "name": "a non-default port is a different screen",
+    "url": "http://wms.example:8080/receiving",
+    "screen": "http://wms.example:8080/receiving"
+  },
+  {
+    "name": "userinfo is not part of a screen, and is never kept",
+    "url": "https://operator:s3cret@wms.example/receiving",
+    "screen": "https://wms.example/receiving"
   }
 ]

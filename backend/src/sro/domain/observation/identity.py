@@ -44,7 +44,18 @@ def screen_of(gesture: Gesture) -> str:
     if not said:
         return ""
     parsed = urlsplit(said)
-    where = f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/").lower()
+    # The browser's `URL.host`: no userinfo, no default port. `netloc` keeps
+    # both, and a screen keyed twice two ways is a shape that never matches.
+    try:
+        port = parsed.port
+    except ValueError:
+        return ""
+    default = {"http": 80, "https": 443}.get(parsed.scheme.lower())
+    host = parsed.hostname or ""
+    if ":" in host:
+        host = f"[{host}]"
+    netloc = f"{host}:{port}" if port and port != default else host
+    where = f"{parsed.scheme}://{netloc}{parsed.path}".rstrip("/").lower()
     route = route_of(parsed.fragment)
     return f"{where}#{route}" if route else where
 

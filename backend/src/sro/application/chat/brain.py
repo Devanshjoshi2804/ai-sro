@@ -33,7 +33,7 @@ from sro.domain.chat.brain_turn import (
     step_of,
 )
 from sro.domain.prompts.chat_brain import CHAT_BRAIN
-from sro.domain.recording.sensitivity import is_secret_field
+from sro.domain.recording.sensitivity import is_secret_field, redact_shapes
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,8 @@ def _without_secrets(value: object) -> object:
         }
     if isinstance(value, list):
         return [_without_secrets(one) for one in value]
-    return value
+    # A secret can sit inside a value whose name is harmless (a mail body, a description).
+    return redact_shapes(value) if isinstance(value, str) else value
 
 
 def _cannot(

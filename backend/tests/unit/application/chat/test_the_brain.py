@@ -370,6 +370,24 @@ async def test_a_secret_named_field_never_reaches_a_log_line(
     assert next(iter(GIVEN.values())) in logged
 
 
+async def test_a_secret_inside_a_harmless_field_never_reaches_a_log_line(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    acting = await _acting()
+    token = "Bearer " + "abcdefghijklmnopqrstuvwxyz0123456789"
+    brain, _ = _brain(
+        acting,
+        _call("start_job", job_id=JOB, values={**GIVEN, "Customer Type Description": token}),
+        _say("no"),
+    )
+
+    with caplog.at_level(logging.INFO, logger="sro.application.chat.brain"):
+        await brain.turn(CTX, message=SAID, history=[], origin=Origin("chat"))
+
+    logged = "\n".join(caplog.messages)
+    assert "start_job" in logged and "abcdefghijklmnopqrstuvwxyz" not in logged
+
+
 async def test_every_step_is_logged_with_its_tool_and_outcome(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

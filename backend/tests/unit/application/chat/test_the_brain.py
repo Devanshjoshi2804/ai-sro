@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import ClassVar
 
 import pytest
@@ -17,6 +18,7 @@ from sro.application.chat.brain import K_BRAIN_STEPS, Brain, Origin
 from sro.application.chat.brain_tools import brain_tools
 from sro.application.execution.workflow_runs import GetWorkflowRun
 from sro.application.shared.refusals import OverCap
+from sro.domain.prompts.chat_brain import CHAT_BRAIN
 from sro.domain.shared.prices import Answer
 from tests.unit.application.chat.brain_support import CTX
 from tests.unit.application.chat.test_brain_tools import GIVEN, _Acting, _acting, _spent
@@ -137,6 +139,30 @@ async def test_the_brain_is_told_today_s_date_and_its_timezone() -> None:
 
     today = acting.world.clock.now().date().isoformat()
     assert f'"today": "{today} (UTC)"' in str(asker.asked[0]["evidence"])
+
+
+async def test_every_input_the_brain_sends_is_named_in_the_prompt_s_contract() -> None:
+    acting = await _acting()
+    brain, asker = _brain(acting, _call("run_status"), _say("ok"))
+
+    await brain.turn(
+        CTX,
+        message="m",
+        history=["h"],
+        origin=Origin("mail", "x@y.example", "s"),
+        asking="q",
+        page="p",
+    )
+
+    sent = str(asker.asked[1]["evidence"])
+    labels = set(re.findall(r'<untrusted name="([^"]+)">', sent))
+    labels |= set(json.loads(sent.split("\n\n<untrusted", 1)[0]))
+    assert {"message", "history", "asking", "page", "mail from", "recent runs", "results"} <= labels
+    assert {"today", "origin", "tools"} <= labels
+    # A tool's result is a block of its own inside `results`.
+    labels = {one for one in labels if not one.startswith("result of ")}
+    unnamed = {one for one in labels if f"`{one}`" not in CHAT_BRAIN.input_contract}
+    assert not unnamed, f"the contract does not name {unnamed}"
 
 
 async def test_a_tool_result_goes_back_fenced_as_data() -> None:

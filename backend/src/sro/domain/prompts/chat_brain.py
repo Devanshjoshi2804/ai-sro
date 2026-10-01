@@ -23,7 +23,7 @@ ANSWER_SCHEMA: dict[str, object] = {
 
 CHAT_BRAIN = Prompt(
     name="chat_brain",
-    version=3,
+    version=4,
     model="gemini-3.8-flash",
     fallback_model="gemini-3.7-flash",
     thinking=None,
@@ -39,9 +39,9 @@ CHAT_BRAIN = Prompt(
     ),
     input_contract=(
         "`message`: what the person said. `today`: the date now, with its timezone. "
-        "`origin`: chat or mail (with `sender`). "
+        "`origin`: chat or mail; for a mail, `mail from` (its sender) and `mail subject`. "
         "`history`: the conversation's last messages. `asking`: an open question, if any. "
-        "`page`: the system and screen the operator is on. `recent_runs`: their last runs. "
+        "`page`: the system and screen the operator is on. `recent runs`: their last runs. "
         "`tools`: each tool's name, what it does and its arguments. `results`: what the "
         "tools you already called this turn returned."
     ),

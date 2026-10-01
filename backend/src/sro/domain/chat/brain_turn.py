@@ -18,6 +18,15 @@ class Origin:
 
 
 @dataclass(frozen=True, slots=True)
+class Turn:
+    """What a tool may know of the turn it runs in, never from the model: the words the
+    person said (a value must come from them) and the offer the caller makes a run under."""
+
+    said: str = ""
+    offer: str = ""
+
+
+@dataclass(frozen=True, slots=True)
 class ToolCall:
     tool: str
     args: dict[str, object]

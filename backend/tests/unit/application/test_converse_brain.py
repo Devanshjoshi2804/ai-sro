@@ -105,7 +105,9 @@ async def test_a_run_the_brain_started_is_the_decision_the_panel_watches() -> No
     converse = _converse(acting, asker, on=(TENANT,))
     thread_id = await _thread(acting)
 
-    thread = await converse.execute(CTX, thread_id=thread_id, text="create customer type SR11")
+    thread = await converse.execute(
+        CTX, thread_id=thread_id, text="create customer type SR11 with the description new"
+    )
 
     (run_id,) = acting.started
     assert thread.messages[-1].decision == {"kind": "run", "run_id": run_id}

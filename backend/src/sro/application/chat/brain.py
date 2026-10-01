@@ -27,6 +27,7 @@ from sro.domain.chat.brain_turn import (
     Origin,
     ToolCall,
     ToolResult,
+    Turn,
     fenced_result,
     step_of,
 )
@@ -107,6 +108,8 @@ class Brain:
         steps: list[tuple[ToolCall, ToolResult]] = []
         decisions: list[dict[str, object]] = []
         started: set[str] = set()
+        # A value the model gives a tool must be in these words, never in a tool's result.
+        turn = Turn(said="\n".join([message, *history[-K_HISTORY:], asking]))
         for _ in range(K_BRAIN_STEPS):
             async with self._uow as uow:
                 why = await over_cap(
@@ -138,7 +141,7 @@ class Brain:
                 continue
             call = step.call
             begun = time.monotonic()
-            result = await self._run(ctx, call, dry=dry, started=started)
+            result = await self._run(ctx, call, turn, dry=dry, started=started)
             logger.info(
                 "brain step: tool=%s args=%s ok=%s error=%s latency=%.3fs cost=%s",
                 call.tool,
@@ -200,7 +203,7 @@ class Brain:
             logger.exception("brain shadow failed")
 
     async def _run(
-        self, ctx: RequestContext, call: ToolCall, *, dry: bool, started: set[str]
+        self, ctx: RequestContext, call: ToolCall, turn: Turn, *, dry: bool, started: set[str]
     ) -> ToolResult:
         tool = self._tools.get(call.tool)
         if tool is None:
@@ -214,7 +217,7 @@ class Brain:
                 return ToolResult(False, error="that start was already tried this turn")
             started.add(key)
         try:
-            return await tool.run(ctx, call.args)
+            return await tool.run(ctx, call.args, turn)
         except Exception:
             # A bug or an outage in one tool is that step's failure, not the whole message's.
             logger.exception("brain tool %s failed", call.tool)

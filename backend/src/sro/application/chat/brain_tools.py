@@ -25,7 +25,7 @@ from sro.application.ports.system import Clock
 from sro.application.shared.refusals import OverCap, RunRefused
 from sro.application.skill.job_facts import JobFacts, job_facts
 from sro.domain.chat.asking import standing
-from sro.domain.chat.brain_turn import ToolResult
+from sro.domain.chat.brain_turn import ToolResult, Turn
 from sro.domain.chat.request import refusal
 from sro.domain.chat.thread import Said
 from sro.domain.execution.compiled import why_not
@@ -50,7 +50,9 @@ class Tool(Protocol):
     about: str
     args: ClassVar[dict[str, object]]
 
-    async def run(self, ctx: RequestContext, args: Mapping[str, object]) -> ToolResult: ...
+    async def run(
+        self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
+    ) -> ToolResult: ...
 
 
 def described(tools: Sequence[Tool]) -> list[dict[str, object]]:
@@ -94,7 +96,9 @@ class FindJobs:
     def __init__(self, uow: UnitOfWork, clock: Clock) -> None:
         self._uow, self._clock = uow, clock
 
-    async def run(self, ctx: RequestContext, args: Mapping[str, object]) -> ToolResult:
+    async def run(
+        self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
+    ) -> ToolResult:
         async with self._uow as uow:
             known = await uow.workflows.known(ctx.tenant_id)
             facts = await job_facts(uow, ctx.tenant_id, known, now=self._clock.now())
@@ -129,7 +133,9 @@ class RunStatus:
     def __init__(self, runs: ListWorkflowRuns, threads: ReadThreads) -> None:
         self._runs, self._threads = runs, threads
 
-    async def run(self, ctx: RequestContext, args: Mapping[str, object]) -> ToolResult:
+    async def run(
+        self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
+    ) -> ToolResult:
         found = await self._runs.execute(
             ctx, workflow_id=None, limit=K_RECENT_RUNS, awaiting=False, mine=True
         )
@@ -166,7 +172,9 @@ class CheckMail:
     def __init__(self, look: FromTheMail) -> None:
         self._look = look
 
-    async def run(self, ctx: RequestContext, args: Mapping[str, object]) -> ToolResult:
+    async def run(
+        self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
+    ) -> ToolResult:
         try:
             looked = await self._look.execute(ctx)
         except (OverCap, AskerUnavailable, DomainError) as stopped:
@@ -186,7 +194,9 @@ class Lookup:
     def __init__(self, look: LookItUp) -> None:
         self._look = look
 
-    async def run(self, ctx: RequestContext, args: Mapping[str, object]) -> ToolResult:
+    async def run(
+        self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
+    ) -> ToolResult:
         try:
             found = await self._look.execute(
                 ctx, str(args.get("question") or ""), within=K_WHILE_TALKING
@@ -269,7 +279,9 @@ class StartJob:
         self._uow, self._clock, self._start, self._spawn = uow, clock, start, spawn
         self._offer = offer
 
-    async def run(self, ctx: RequestContext, args: Mapping[str, object]) -> ToolResult:
+    async def run(
+        self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
+    ) -> ToolResult:
         job_id = str(args.get("job_id") or "")
         given = args.get("values") or {}
         if not isinstance(given, Mapping):
@@ -301,7 +313,10 @@ class StartJob:
             for name, value in values.items()
             if (
                 why := refusal(
-                    value, value, fields[name].limits if name in fields else FieldLimits(), logins
+                    value,
+                    turn.said,
+                    fields[name].limits if name in fields else FieldLimits(),
+                    logins,
                 )
             )
         ]
@@ -336,7 +351,9 @@ class UndoRun:
     def __init__(self, runs: GetWorkflowRun, start: StartWorkflowRun, spawn: Spawn) -> None:
         self._runs, self._start, self._spawn = runs, start, spawn
 
-    async def run(self, ctx: RequestContext, args: Mapping[str, object]) -> ToolResult:
+    async def run(
+        self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
+    ) -> ToolResult:
         try:
             run = await self._runs.execute(ctx, run_id=str(args.get("run_id") or ""))
         except DomainError as why:
@@ -366,7 +383,9 @@ class AskOperator:
         "required": ["question"],
     }
 
-    async def run(self, ctx: RequestContext, args: Mapping[str, object]) -> ToolResult:
+    async def run(
+        self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
+    ) -> ToolResult:
         question = str(args.get("question") or "").strip()
         if not question:
             return ToolResult(ok=False, error="say what to ask")
@@ -390,7 +409,9 @@ class WorkItOut:
     def __init__(self, plan: PlanTask) -> None:
         self._plan = plan
 
-    async def run(self, ctx: RequestContext, args: Mapping[str, object]) -> ToolResult:
+    async def run(
+        self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
+    ) -> ToolResult:
         task = str(args.get("task") or "").strip()
         if not task:
             return ToolResult(ok=False, error="say what the task is")

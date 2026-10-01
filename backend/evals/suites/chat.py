@@ -29,7 +29,7 @@ from sro.application.chat.brain_tools import (
 from sro.application.context import RequestContext
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
-from sro.domain.chat.brain_turn import Origin, ToolCall, ToolResult
+from sro.domain.chat.brain_turn import Origin, ToolCall, ToolResult, Turn
 from sro.domain.execution.mail_job import built_in, built_ins
 from sro.domain.prompts.chat_brain import CHAT_BRAIN
 from sro.domain.shared.identifiers import PrincipalId, TenantId
@@ -411,7 +411,9 @@ class _Jobs(FindJobs):
     def __init__(self) -> None:
         pass
 
-    async def run(self, ctx: RequestContext, args: Mapping[str, object]) -> ToolResult:
+    async def run(
+        self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
+    ) -> ToolResult:
         mail = [
             {"id": one.id, "title": one.title, "parameters": [], "runnable": True}
             for one in built_ins("eval")
@@ -423,7 +425,9 @@ class _Runs(RunStatus):
     def __init__(self, runs: Sequence[dict[str, object]]) -> None:
         self._rows = list(runs)
 
-    async def run(self, ctx: RequestContext, args: Mapping[str, object]) -> ToolResult:
+    async def run(
+        self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
+    ) -> ToolResult:
         return ToolResult(ok=True, data={"runs": self._rows})
 
 
@@ -431,7 +435,9 @@ class _Looked(Lookup):
     def __init__(self) -> None:
         pass
 
-    async def run(self, ctx: RequestContext, args: Mapping[str, object]) -> ToolResult:
+    async def run(
+        self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
+    ) -> ToolResult:
         return ToolResult(
             ok=True, data={"answer": "AITE4 has voice code 12.", "source": ["fixture"]}
         )

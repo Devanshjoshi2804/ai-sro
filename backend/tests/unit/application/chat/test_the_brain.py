@@ -23,6 +23,8 @@ from tests.unit.application.chat.test_brain_tools import GIVEN, _Acting, _acting
 from tests.unit.application.rig.test_from_the_mail import JOB
 from tests.unit.fakes import FakeAsker
 
+SAID = "create customer type SR11 with the description new"
+
 
 def _call(tool: str, **args: object) -> Answer:
     return Answer(data={"action": "call", "tool": tool, "args": json.dumps(args)})
@@ -145,7 +147,7 @@ async def test_start_job_runs_at_once_in_a_live_turn() -> None:
     acting = await _acting()
     brain, _ = _brain(acting, _call("start_job", job_id=JOB, values=GIVEN), _say("started"))
 
-    reply = await brain.turn(CTX, message="create SR11", history=[], origin=Origin("chat"))
+    reply = await brain.turn(CTX, message=SAID, history=[], origin=Origin("chat"))
 
     assert len(acting.started) == 1
     assert reply.decisions == ({"kind": "run", "run_id": acting.started[0]},)
@@ -168,7 +170,7 @@ async def test_a_cap_refusal_says_so_and_never_asks_the_model() -> None:
         await uow.commit()
     brain, asker = _brain(acting, _call("start_job", job_id=JOB, values=GIVEN), cap_usd=0.0)
 
-    reply = await brain.turn(CTX, message="create SR11", history=[], origin=Origin("chat"))
+    reply = await brain.turn(CTX, message=SAID, history=[], origin=Origin("chat"))
 
     assert "I can't answer right now: daily cap reached" in reply.said
     assert asker.asked == [] and acting.started == []
@@ -205,7 +207,7 @@ async def test_a_repeated_identical_start_job_is_not_run_twice() -> None:
     once = _call("start_job", job_id=JOB, values=GIVEN)
     brain, _ = _brain(acting, once, once, _say("done"))
 
-    reply = await brain.turn(CTX, message="go", history=[], origin=Origin("chat"))
+    reply = await brain.turn(CTX, message=SAID, history=[], origin=Origin("chat"))
 
     assert len(acting.started) == 1 and acting.start.tried == 1
     assert reply.steps[0][1].ok and not reply.steps[1][1].ok
@@ -223,7 +225,7 @@ async def test_a_secret_named_field_never_reaches_a_log_line(
     )
 
     with caplog.at_level(logging.INFO, logger="sro.application.chat.brain"):
-        await brain.turn(CTX, message="go", history=[], origin=Origin("chat"))
+        await brain.turn(CTX, message=SAID, history=[], origin=Origin("chat"))
 
     logged = "\n".join(caplog.messages)
     assert "start_job" in logged and "hunter2-xyz" not in logged
@@ -237,7 +239,7 @@ async def test_every_step_is_logged_with_its_tool_and_outcome(
     brain, _ = _brain(acting, _call("nope"), _say("x"))
 
     with caplog.at_level(logging.INFO, logger="sro.application.chat.brain"):
-        await brain.turn(CTX, message="go", history=[], origin=Origin("chat"))
+        await brain.turn(CTX, message=SAID, history=[], origin=Origin("chat"))
 
     assert any("nope" in m and "ok=False" in m and "no such tool" in m for m in caplog.messages)
 

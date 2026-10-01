@@ -29,7 +29,7 @@ from sro.application.intent.plan_task import PlanTask
 from sro.application.knowledge.retrieve import Retrieve
 from sro.application.lookup.look_it_up import LookItUp
 from sro.application.lookup.plan_lookups import PlanLookups
-from sro.domain.chat.brain_turn import ToolResult
+from sro.domain.chat.brain_turn import ToolResult, Turn
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.skill.workflow import Workflow
 from tests import factories as f
@@ -278,6 +278,8 @@ def test_every_tool_is_described_with_its_arguments() -> None:
 
 GIVEN = {"Customer Type": "SR11", "Customer Type Description": "new"}
 
+SAID = Turn(said="create customer type SR11 with the description new")
+
 
 class _Counting(StartWorkflowRun):
     tried = 0
@@ -319,7 +321,7 @@ async def _acting(*, cap_usd: float = 5.0) -> _Acting:
 async def test_start_job_starts_at_once_with_the_given_values() -> None:
     acting = await _acting()
 
-    result = await acting.job.run(CTX, {"job_id": JOB, "values": GIVEN})
+    result = await acting.job.run(CTX, {"job_id": JOB, "values": GIVEN}, SAID)
 
     assert result.ok and result.data["state"] == "running"
     assert acting.started == [result.data["run_id"]]
@@ -332,7 +334,9 @@ async def test_a_value_the_field_cannot_hold_is_refused_by_name_and_nothing_star
     acting = await _acting()
 
     result = await acting.job.run(
-        CTX, {"job_id": JOB, "values": {**GIVEN, "Customer Type": "SROT1"}}
+        CTX,
+        {"job_id": JOB, "values": {**GIVEN, "Customer Type": "SROT1"}},
+        Turn(said="create customer type SROT1 with the description new"),
     )
 
     assert not result.ok and "Customer Type you gave is longer than 4" in result.error
@@ -340,10 +344,40 @@ async def test_a_value_the_field_cannot_hold_is_refused_by_name_and_nothing_star
     assert acting.started == [] and acting.start.tried == 0
 
 
+async def test_a_value_the_operator_never_said_is_refused_and_a_near_miss_cannot_pass() -> None:
+    acting = await _acting()
+    typed = Turn(said="create customer type SROT1 with the description new")
+
+    invented = await acting.job.run(
+        CTX,
+        {"job_id": JOB, "values": {**GIVEN, "Customer Type Description": "bonded goods"}},
+        typed,
+    )
+    retried = await acting.job.run(
+        CTX, {"job_id": JOB, "values": {**GIVEN, "Customer Type": "SROT"}}, typed
+    )
+
+    assert not invented.ok and "Customer Type Description" in invented.error
+    assert "not in what was said" in invented.error and "bonded goods" not in invented.error
+    assert not retried.ok and "Customer Type you gave is not in what was said" in retried.error
+    assert acting.started == [] and acting.start.tried == 0
+
+
+async def test_a_value_from_a_tool_result_but_never_said_does_not_start() -> None:
+    acting = await _acting()
+
+    result = await acting.job.run(
+        CTX, {"job_id": JOB, "values": GIVEN}, Turn(said="create a customer type")
+    )
+
+    assert not result.ok and "not in what was said" in result.error
+    assert acting.started == [] and acting.start.tried == 0
+
+
 async def test_a_missing_required_value_comes_back_as_a_question_for_the_model() -> None:
     acting = await _acting()
 
-    result = await acting.job.run(CTX, {"job_id": JOB, "values": {"Customer Type": "SR11"}})
+    result = await acting.job.run(CTX, {"job_id": JOB, "values": {"Customer Type": "SR11"}}, SAID)
 
     assert not result.ok and "missing: Customer Type Description" in result.error
     assert acting.started == [] and acting.start.tried == 0
@@ -356,8 +390,8 @@ async def test_an_offer_a_run_already_took_answers_that_run() -> None:
     )
     call = {"job_id": JOB, "values": GIVEN}
 
-    first = await job.run(CTX, call)
-    again = await job.run(CTX, call)
+    first = await job.run(CTX, call, SAID)
+    again = await job.run(CTX, call, SAID)
 
     assert again.ok and again.data["run_id"] == first.data["run_id"]
     assert again.data["state"] == "already running" and again.decision is None
@@ -366,10 +400,10 @@ async def test_an_offer_a_run_already_took_answers_that_run() -> None:
 
 async def test_the_model_cannot_choose_the_offer_a_run_is_made_under() -> None:
     acting = await _acting()
-    first = await acting.job.run(CTX, {"job_id": JOB, "values": GIVEN})
+    first = await acting.job.run(CTX, {"job_id": JOB, "values": GIVEN}, SAID)
 
     hijack = await acting.job.run(
-        CTX, {"job_id": JOB, "values": GIVEN, "offer": f"mail:{first.data['run_id']}"}
+        CTX, {"job_id": JOB, "values": GIVEN, "offer": f"mail:{first.data['run_id']}"}, SAID
     )
 
     assert "offer" not in StartJob.args["properties"]
@@ -383,7 +417,7 @@ async def test_a_job_that_is_not_real_is_never_started() -> None:
     await acting.world.uow.workflows.save(replace(other, id="wfl_copy"))
 
     for job_id in ("wfl_copy", "wfl_nowhere"):
-        result = await acting.job.run(CTX, {"job_id": job_id, "values": GIVEN})
+        result = await acting.job.run(CTX, {"job_id": job_id, "values": GIVEN}, SAID)
         assert not result.ok
     assert acting.started == [] and acting.start.tried == 0
 
@@ -392,7 +426,7 @@ async def test_another_tenant_s_job_is_not_startable_here() -> None:
     acting = await _acting()
     theirs = RequestContext(TenantId("another-tenant"), PrincipalId("devansh"))
 
-    result = await acting.job.run(theirs, {"job_id": JOB, "values": GIVEN})
+    result = await acting.job.run(theirs, {"job_id": JOB, "values": GIVEN}, SAID)
 
     assert not result.ok and acting.started == [] and acting.start.tried == 0
 
@@ -400,7 +434,9 @@ async def test_another_tenant_s_job_is_not_startable_here() -> None:
 async def test_a_secret_is_never_taken_and_never_repeated() -> None:
     acting = await _acting()
 
-    result = await acting.job.run(CTX, {"job_id": JOB, "values": {**GIVEN, "Password": "hunter2"}})
+    result = await acting.job.run(
+        CTX, {"job_id": JOB, "values": {**GIVEN, "Password": "hunter2"}}, SAID
+    )
 
     assert not result.ok and "Password" in result.error and "hunter2" not in result.error
     assert acting.started == [] and acting.start.tried == 0
@@ -409,7 +445,7 @@ async def test_a_secret_is_never_taken_and_never_repeated() -> None:
 async def test_a_parameter_the_job_does_not_have_is_refused() -> None:
     acting = await _acting()
 
-    result = await acting.job.run(CTX, {"job_id": JOB, "values": {**GIVEN, "Colour": "red"}})
+    result = await acting.job.run(CTX, {"job_id": JOB, "values": {**GIVEN, "Colour": "red"}}, SAID)
 
     assert not result.ok and "no Colour" in result.error and acting.start.tried == 0
 
@@ -417,7 +453,7 @@ async def test_a_parameter_the_job_does_not_have_is_refused() -> None:
 async def test_a_refusal_from_the_system_is_data_and_is_tried_once() -> None:
     acting = await _acting(cap_usd=0.0)
 
-    result = await acting.job.run(CTX, {"job_id": JOB, "values": GIVEN})
+    result = await acting.job.run(CTX, {"job_id": JOB, "values": GIVEN}, SAID)
 
     assert not result.ok and result.error and not result.ends_turn
     assert acting.start.tried == 1 and acting.started == []
@@ -426,8 +462,8 @@ async def test_a_refusal_from_the_system_is_data_and_is_tried_once() -> None:
 async def test_a_mail_built_in_is_startable_through_the_same_guards() -> None:
     acting = await _acting()
 
-    secret = await acting.job.run(CTX, {"job_id": "mail_send", "values": {"token": "x"}})
-    unknown = await acting.job.run(CTX, {"job_id": "mail_nope", "values": {}})
+    secret = await acting.job.run(CTX, {"job_id": "mail_send", "values": {"token": "x"}}, SAID)
+    unknown = await acting.job.run(CTX, {"job_id": "mail_nope", "values": {}}, SAID)
 
     assert not secret.ok and not unknown.ok and acting.start.tried == 0
 
@@ -531,7 +567,7 @@ async def test_a_run_in_the_operator_s_browser_is_handed_to_the_spawner_not_awai
     spawned: list[Any] = []
     tool = StartJob(world.uow, world.clock, _starter(world.uow), spawned.append)
 
-    result = await tool.run(CTX, {"job_id": JOB, "values": GIVEN})
+    result = await tool.run(CTX, {"job_id": JOB, "values": GIVEN}, SAID)
 
     assert result.ok and len(spawned) == 1
     spawned[0].close()

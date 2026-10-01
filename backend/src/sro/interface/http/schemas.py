@@ -2617,6 +2617,19 @@ class AskResponse(BaseModel):
     lookup: LookupResponse | None = None
 
 
+class AnswerPasswordRequest(BaseModel):
+    """The password a run asked for, and whether to keep it.
+
+    `question_id` is the standing password question's id (`question.id` on the
+    run). `value` is the password: it goes to the vault door and nowhere else,
+    and no response, log or run row ever holds it. `keep` stores it for every
+    later run of that account; false hands it to this run alone, once."""
+
+    question_id: str
+    value: Annotated[str, StringConstraints(min_length=1, max_length=512)]
+    keep: bool = True
+
+
 class AnswerRunRequest(BaseModel):
     """The operator's answer to the question a Steel run is waiting on.
 

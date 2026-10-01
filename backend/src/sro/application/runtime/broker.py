@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from sro.application.connection.refusals import CodeAsked, RefusedCredentials, fingerprint
 from sro.application.connection.sign_in import tagged_logins
 from sro.application.context import RequestContext
+from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.ports.browser import BrowserUnavailable
 from sro.application.ports.http import HttpResponse
 from sro.application.ports.locks import AccountBusy, AccountLocks
@@ -66,10 +67,12 @@ class SessionBroker:
         *,
         ui: StepLane,
         close_s: float = K_CLOSE_S,
+        once: OneTimeSecrets | None = None,
     ) -> None:
         self._uow, self._pool, self._driver = uow, pool, driver
         self._locks, self._vault, self._clock, self._ui = locks, vault, clock, ui
         self._close_s = close_s
+        self._once = once or OneTimeSecrets()
 
     async def account_for(self, ctx: RequestContext, start_url: str) -> Account:
         account, _, _ = await self._recorded(ctx, start_url)
@@ -433,9 +436,12 @@ class SessionBroker:
                 f"record {account.username} signing in",
             )
         key = account.vault_key("password")
-        password = await self._vault.get(key)
+        # What a person gave "just this once" on the run's card is theirs to
+        # type now, refusal or none: they just said it.
+        lent = self._once.take(key, run_id=held.lease.holder)
+        password = lent or await self._vault.get(key)
         refused = RefusedCredentials(self._vault)
-        if not password or await refused.standing(key, password) is not None:
+        if not password or (not lent and await refused.standing(key, password) is not None):
             raise NeedsAPerson(
                 f"no usable password is stored for {account.username} at {account.origin}",
                 kind="password",

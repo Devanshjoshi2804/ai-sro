@@ -407,6 +407,9 @@ async def test_a_sign_in_that_needs_a_password_is_asked_at_acquire() -> None:
         "kind": "password",
         "text": run.steps[0].reason,
         "step": "0",
+        "origin": "login.idp.example",
+        "username": "clerk",
+        "field": "password",
     }
     assert [one.verdict for one in run.steps] == ["failed"]
 

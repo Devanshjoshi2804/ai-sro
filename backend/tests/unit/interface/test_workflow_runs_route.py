@@ -2221,3 +2221,37 @@ def test_a_standing_password_question_is_on_the_run_with_the_account_it_is_for()
     )
     run.progress["asking"]["answered"] = "yes"
     assert WorkflowRunModel.of(run).question is None
+
+
+async def test_a_password_is_given_on_the_run_and_nothing_gives_it_back(
+    client: httpx.AsyncClient, uow: FakeUnitOfWork, container: _FakeContainer
+) -> None:
+    planted = _planted("run_pw", outcome="running")
+    planted.executor = "steel"
+    planted.progress = {
+        "asking": {
+            "id": "q_1",
+            "kind": "password",
+            "text": "no usable password is stored",
+            "origin": "login.idp.example",
+            "username": "clerk",
+            "field": "password",
+        }
+    }
+    await _plant(uow, planted)
+    typed = "Hunter2-not-a-real-one"
+
+    kept = await client.post(
+        "/v1/workflow-runs/run_pw/password",
+        json={"question_id": "q_1", "value": typed, "keep": True},
+    )
+    again = await client.post(
+        "/v1/workflow-runs/run_pw/password",
+        json={"question_id": "q_1", "value": typed, "keep": True},
+    )
+    read = await client.get("/v1/workflow-runs/run_pw")
+
+    assert kept.status_code == 202 and kept.content == b"null"
+    assert again.status_code == 409
+    assert list(container.vault.secrets.values()) == [typed]
+    assert typed not in read.text and read.json()["question"] is None

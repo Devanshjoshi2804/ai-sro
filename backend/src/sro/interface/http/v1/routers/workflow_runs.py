@@ -45,6 +45,7 @@ from sro.domain.shared.identifiers import DeviceId
 from sro.interface.http.asking import AskingDeviceDep
 from sro.interface.http.deps import ContainerDep, ContextDep, DeviceSecretDep
 from sro.interface.http.schemas import (
+    AnswerPasswordRequest,
     AnswerRunRequest,
     StartWorkflowRunRequest,
     WorkflowRunModel,
@@ -305,6 +306,28 @@ async def answer_workflow_run(
     """
     await container.answer_run().execute(
         ctx, run_id=run_id, question_id=body.question_id, value=body.value, verdict=body.verdict
+    )
+
+
+@router.post("/workflow-runs/{run_id}/password", status_code=status.HTTP_202_ACCEPTED)
+async def answer_workflow_run_password(
+    run_id: str, body: AnswerPasswordRequest, container: ContainerDep, ctx: ContextDep
+) -> None:
+    """Give the password a Steel run asked for, and let the run carry on.
+
+    The one door for a password question: it stores the password under the key
+    of the account the QUESTION names (`question.origin` and `question.username`
+    on the run) -- in the vault for every later run when `keep` is true, for
+    this run alone and never in the vault when it is false -- and only then
+    answers the question, exactly as `/answer` does. Nothing is stored for a
+    run that is not the caller's, a question that is not a standing password
+    question with this id, or one that does not name its account (a 409), and
+    nothing comes back: no response ever carries a password. A vault that
+    cannot be reached is a 503 with the question still standing, so the same
+    press works again.
+    """
+    await container.answer_password().execute(
+        ctx, run_id=run_id, question_id=body.question_id, value=body.value, keep=body.keep
     )
 
 

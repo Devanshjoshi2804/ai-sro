@@ -2005,6 +2005,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workflow-runs/{run_id}/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer Workflow Run Password
+         * @description Give the password a Steel run asked for, and let the run carry on.
+         *
+         *     The one door for a password question: it stores the password under the key
+         *     of the account the QUESTION names (`question.origin` and `question.username`
+         *     on the run) -- in the vault for every later run when `keep` is true, for
+         *     this run alone and never in the vault when it is false -- and only then
+         *     answers the question, exactly as `/answer` does. Nothing is stored for a
+         *     run that is not the caller's, a question that is not a standing password
+         *     question with this id, or one that does not name its account (a 409), and
+         *     nothing comes back: no response ever carries a password. A vault that
+         *     cannot be reached is a 503 with the question still standing, so the same
+         *     press works again.
+         */
+        post: operations["answer_workflow_run_password_v1_workflow_runs__run_id__password_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workflow-runs/{run_id}/approve": {
         parameters: {
             query?: never;
@@ -2071,6 +2102,26 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AnswerPasswordRequest
+         * @description The password a run asked for, and whether to keep it.
+         *
+         *     `question_id` is the standing password question's id (`question.id` on the
+         *     run). `value` is the password: it goes to the vault door and nowhere else,
+         *     and no response, log or run row ever holds it. `keep` stores it for every
+         *     later run of that account; false hands it to this run alone, once.
+         */
+        AnswerPasswordRequest: {
+            /** Question Id */
+            question_id: string;
+            /** Value */
+            value: string;
+            /**
+             * Keep
+             * @default true
+             */
+            keep: boolean;
+        };
         /** AnswerQuestionRequest */
         AnswerQuestionRequest: {
             /** System */
@@ -15209,6 +15260,134 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["AnswerRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description No credential, or one this deployment rejects. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description No such thing, or not yours. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The system's state says no, not the request. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description The request cannot be processed as asked. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+            /** @description Something this depends on is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": {
+                        /** Type */
+                        type: string;
+                        /** Title */
+                        title: string;
+                        /** Status */
+                        status: number;
+                        /** Detail */
+                        detail: string;
+                        /** Instance */
+                        instance?: string | null;
+                    };
+                };
+            };
+        };
+    };
+    answer_workflow_run_password_v1_workflow_runs__run_id__password_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswerPasswordRequest"];
             };
         };
         responses: {

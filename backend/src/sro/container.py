@@ -134,6 +134,7 @@ from sro.application.recording.attach_artifact import AttachArtifact
 from sro.application.recording.finish_recording import FinishRecording
 from sro.application.recording.ingest_capture_events import IngestCaptureEvents
 from sro.application.recording.start_recording import StartRecording
+from sro.application.runtime.answer_password import AnswerPassword
 from sro.application.runtime.answer_run import AnswerRun
 from sro.application.runtime.api_lane import ApiLane
 from sro.application.runtime.broker import SessionBroker
@@ -286,6 +287,7 @@ class Container:
             self.vault,
             self.clock,
             ui=self.ui_lane(),
+            once=self.one_time_secrets,
         )
 
     def step_executor(self) -> StepExecutor:
@@ -319,6 +321,11 @@ class Container:
     def answer_run(self) -> AnswerRun:
         return AnswerRun(
             self.unit_of_work(), self.durable, resume=self.start_workflow_run().answered
+        )
+
+    def answer_password(self) -> AnswerPassword:
+        return AnswerPassword(
+            self.unit_of_work(), self.vault, self.one_time_secrets, self.answer_run()
         )
 
     def unit_of_work(self) -> UnitOfWork:

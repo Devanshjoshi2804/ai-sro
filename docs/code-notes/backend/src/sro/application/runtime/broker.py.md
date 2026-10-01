@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/application/runtime/broker.py`](../../../../../../../backend/src/sro/application/runtime/broker.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `K_CLOSE_S`, [line 52](../../../../../../../backend/src/sro/application/runtime/broker.py#L52): Note
+## `K_CLOSE_S`, [line 53](../../../../../../../backend/src/sro/application/runtime/broker.py#L53): Note
 
 > How long closing an old account context may take before the broker
 > gives up on it and carries on. The S5 review watched one account's hung
@@ -14,7 +14,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > that outlives it is logged and left to its container; its lease is
 > already expired or broken, so nothing opens a tab on it again.
 
-## `K_HEADERS_WAIT_S`, [line 53](../../../../../../../backend/src/sro/application/runtime/broker.py#L53): Note
+## `K_HEADERS_WAIT_S`, [line 54](../../../../../../../backend/src/sro/application/runtime/broker.py#L54): Note
 
 > The bound `headers` gives `PageDriver.headers_for` (spec §5.7): the API
 > lane's own budget for a header a page never sends, not a sleep the
@@ -25,7 +25,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > `needs` passes the token names the caller's write carried through to
 > `headers_for`, which waits within this bound until each has been seen.
 
-## `SessionBroker`, [line 57](../../../../../../../backend/src/sro/application/runtime/broker.py#L57): Note
+## `SessionBroker`, [line 58](../../../../../../../backend/src/sro/application/runtime/broker.py#L58): Note
 
 > One account, one lease, one browser context in its tenant's Steel
 > container; every run on that account is a tab in that context (§5.3).
@@ -84,7 +84,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > The stray sweeper keeps every session a live lease names, and the broker
 > never releases one (S7 review, I3).
 
-## `K_CODE_WAIT`, [line 54](../../../../../../../backend/src/sro/application/runtime/broker.py#L54): Constant
+## `K_CODE_WAIT`, [line 55](../../../../../../../backend/src/sro/application/runtime/broker.py#L55): Constant
 
 > How long a sign-in that asked for a one-time code keeps its page and its
 > account for the person answering it. Codes sent by mail or text are
@@ -94,7 +94,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > never shortens it (`SqlBrowserSessionRepository.beat`), and past it the
 > account is taken over like any expired lease.
 
-## `SessionBroker.reauth`, [line 179](../../../../../../../backend/src/sro/application/runtime/broker.py#L179): Note
+## `SessionBroker.reauth`, [line 182](../../../../../../../backend/src/sro/application/runtime/broker.py#L182): Note
 
 > A step found the session signed out (the API lane's 401/403/419, or
 > `expired(signals, recorded_page)` on the UI lane): the run's tab is
@@ -127,7 +127,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > log would let a step from before the re-sign-in confirm a write against
 > a call the account never actually made under its new session.
 
-## `SessionBroker.recover`, [line 211](../../../../../../../backend/src/sro/application/runtime/broker.py#L211): Note
+## `SessionBroker.recover`, [line 214](../../../../../../../backend/src/sro/application/runtime/broker.py#L214): Note
 
 > The run's tab is gone (`PageGone` from `reattach`): the account goes
 > back through `acquire`. That is already the S7 rule, in one place: a
@@ -138,7 +138,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > never reused: its context is gone with the Chrome that held it, and a
 > READY row cannot tell that, only the pool's list can.
 
-## `SessionBroker.resume`, [line 220](../../../../../../../backend/src/sro/application/runtime/broker.py#L220): Note
+## `SessionBroker.resume`, [line 223](../../../../../../../backend/src/sro/application/runtime/broker.py#L223): Note
 
 > The hook D5's answer calls once a person has dealt with the one-time
 > code on the page `WaitingForAPerson` named (its `held` carries the lease
@@ -174,7 +174,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > saved, the tab's call log forgotten (the code went through it), and the
 > lease beaten again for the resuming run.
 
-## `SessionBroker._wait_for_a_person`, [line 482](../../../../../../../backend/src/sro/application/runtime/broker.py#L482): Note
+## `SessionBroker._wait_for_a_person`, [line 491](../../../../../../../backend/src/sro/application/runtime/broker.py#L491): Note
 
 > The lease moves to WAITING with `expires_at` at `K_CODE_WAIT`, in one
 > compare-and-set `settle`, before the caller hears about it, so no other
@@ -183,7 +183,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > password-refusal path, which parks the same way but never raises
 > `WaitingForAPerson` itself -- it re-raises whatever `_sign_in` raised.
 
-## `SessionBroker._recover`, [line 299](../../../../../../../backend/src/sro/application/runtime/broker.py#L299): Note
+## `SessionBroker._recover`, [line 303](../../../../../../../backend/src/sro/application/runtime/broker.py#L303): Note
 
 > `PageGone` from `open_tab` does not only mean the context is dead:
 > `driver.py`'s `open_tab` also raises it when a tab fails to attach
@@ -212,7 +212,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > BROKEN past a threshold, the same structural signal `_ready` already
 > uses for a container the pool no longer lists.
 
-## `SessionBroker._recorded`, [line 403](../../../../../../../backend/src/sro/application/runtime/broker.py#L403): Note
+## `SessionBroker._recorded`, [line 407](../../../../../../../backend/src/sro/application/runtime/broker.py#L407): Note
 
 > The account is where the password is typed -- the identity provider's
 > origin that `recorded_login` reads off the credential gesture -- with the
@@ -224,7 +224,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > the given account's is refused for the same reason: the chain types the
 > recorded username.
 
-## `SessionBroker._sign_in`, [line 424](../../../../../../../backend/src/sro/application/runtime/broker.py#L424): Note
+## `SessionBroker._sign_in`, [line 428](../../../../../../../backend/src/sro/application/runtime/broker.py#L428): Note
 
 > The recorded sign-in job's chain (`sign_in_chain`, audit wave 1 Task 10)
 > replayed through the UI lane with the vault password as the step's
@@ -237,7 +237,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > page's structure (S6), never by its text. Each step beats the lease, so a
 > long chain keeps it and a lost lease stops the chain.
 
-## `SessionBroker._save_state`, [line 511](../../../../../../../backend/src/sro/application/runtime/broker.py#L511): Note
+## `SessionBroker._save_state`, [line 520](../../../../../../../backend/src/sro/application/runtime/broker.py#L520): Note
 
 > Cookies and localStorage go to the vault under the account's `state` key,
 > and only if they fit `K_VAULT_VALUE_BYTES`. A state over the limit is not
@@ -246,7 +246,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > state that restores half a session. The log line names the account and
 > the size, never the state.
 
-## `SessionBroker._reclaim`, [line 547](../../../../../../../backend/src/sro/application/runtime/broker.py#L547): Note
+## `SessionBroker._reclaim`, [line 556](../../../../../../../backend/src/sro/application/runtime/broker.py#L556): Note
 
 > After every fresh claim, the contexts Chrome still lists on that
 > container whose lease rows have ended are disposed. A close that hit
@@ -259,7 +259,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/runtime/broke
 > close it, at the cost of a nullable `context_id`. Failure to reclaim is
 > logged, never the acquire's failure.
 
-## `SessionBroker._sign_in`, [line 446](../../../../../../../backend/src/sro/application/runtime/broker.py#L446): Note
+## `SessionBroker._sign_in`, [line 454](../../../../../../../backend/src/sro/application/runtime/broker.py#L454): Note
 
 Code: `await self._driver.forget_headers_before(`
 
@@ -277,7 +277,7 @@ Code: `await self._driver.forget_headers_before(`
 > in, and its fresh retry succeeds; keep the floor with the lease row if
 > that one wasted call ever matters.
 
-## `SessionBroker.reauth`, [line 208](../../../../../../../backend/src/sro/application/runtime/broker.py#L208): Note
+## `SessionBroker.reauth`, [line 211](../../../../../../../backend/src/sro/application/runtime/broker.py#L211): Note
 
 Code: `if back_to is not None:`
 
@@ -285,7 +285,7 @@ Code: `if back_to is not None:`
 > page, not the start page the sign-in ended on; the executor names that
 > page as `back_to` and the tab goes there last, still under the lock.
 
-## `SessionBroker.acquire`, [line 78](../../../../../../../backend/src/sro/application/runtime/broker.py#L78): Note
+## `SessionBroker.acquire`, [line 81](../../../../../../../backend/src/sro/application/runtime/broker.py#L81): Note
 
 > `park=False` is a caller nothing will resume -- a lookup, which lives
 > inside the request that asked. For it a sign-in that needs a person (a
@@ -295,14 +295,14 @@ Code: `if back_to is not None:`
 > asked. It also attaches to a live lease without taking it: the beat keeps
 > the run's holder (`holder=None`), where a run attaching renames it.
 
-## `SessionBroker._beaten`, [line 288](../../../../../../../backend/src/sro/application/runtime/broker.py#L288): Note
+## `SessionBroker._beaten`, [line 292](../../../../../../../backend/src/sro/application/runtime/broker.py#L292): Note
 
 > A tab is owned from the moment it opens: if the beat does not keep the
 > lease -- or is cancelled, a caller's budget running out between the open
 > and the beat -- the `finally` closes the tab. `_signed_in` does the same for
 > a sign-in, and `_ready` for the settle after it.
 
-## `SessionBroker._ready`, [line 358](../../../../../../../backend/src/sro/application/runtime/broker.py#L358): Note
+## `SessionBroker._ready`, [line 362](../../../../../../../backend/src/sro/application/runtime/broker.py#L362): Note
 
 Code: `except (NeedsAPerson, asyncio.CancelledError, TimeoutError):`
 
@@ -316,7 +316,7 @@ Code: `except (NeedsAPerson, asyncio.CancelledError, TimeoutError):`
 > another code. If the READY settle itself fails or is lost, the context is
 > closed, as a failure of the sign-in itself still breaks and closes it.
 
-## `SessionBroker._sign_in`, [line 444](../../../../../../../backend/src/sro/application/runtime/broker.py#L444): Note
+## `SessionBroker._sign_in`, [line 452](../../../../../../../backend/src/sro/application/runtime/broker.py#L452): Note
 
 Code: `if not park and since is not None and self._clock.now() - since < K_CODE_WAIT:`
 
@@ -330,14 +330,14 @@ Code: `if not park and since is not None and self._clock.now() - since < K_CODE_
 > lands -- `_sign_in` to its end, or `resume` after a person typed the code --
 > clears the latch.
 
-## `SessionBroker.signed_out`, [line 112](../../../../../../../backend/src/sro/application/runtime/broker.py#L112): Note
+## `SessionBroker.signed_out`, [line 115](../../../../../../../backend/src/sro/application/runtime/broker.py#L115): Note
 
 > Whether the tab shows a sign-in page (a password form, a code prompt, or
 > the identity provider's trip). A lookup asks before it photographs: an
 > attached lease may be READY on a context whose session has lapsed or is
 > waiting on a code, and a picture of a login form is not an answer.
 
-## `SessionBroker.unpark`, [line 267](../../../../../../../backend/src/sro/application/runtime/broker.py#L267): Note
+## `SessionBroker.unpark`, [line 271](../../../../../../../backend/src/sro/application/runtime/broker.py#L271): Note
 
 Code: `and lease.waits_for == waits_for`
 
@@ -349,7 +349,7 @@ Code: `and lease.waits_for == waits_for`
 > meanwhile; a password answer never ends that park. The next acquire signs
 > in afresh on a new lease.
 
-## `SessionBroker.resume`, [line 225](../../../../../../../backend/src/sro/application/runtime/broker.py#L225): Note
+## `SessionBroker.resume`, [line 228](../../../../../../../backend/src/sro/application/runtime/broker.py#L228): Note
 
 Code: `if lease is None or lease.state is not LeaseState.WAITING or lease.waits_for != "code":`
 
@@ -357,7 +357,7 @@ Code: `if lease is None or lease.state is not LeaseState.WAITING or lease.waits_
 > the parking run's `release` as it starts to wait, or by the password being
 > stored (`unpark`) when that release never ran.
 
-## `SessionBroker._park`, [line 504](../../../../../../../backend/src/sro/application/runtime/broker.py#L504): Note
+## `SessionBroker._park`, [line 513](../../../../../../../backend/src/sro/application/runtime/broker.py#L513): Note
 
 Code: `holder=lease.holder,`
 

@@ -42,13 +42,14 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Awaitable, Callable, Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from types import MappingProxyType
 
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.execution.mail_job import Written
+from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.lookup.run_lookups import RunLookups
 from sro.application.ports.http import HttpCaller
 from sro.application.ports.page import PageAnswer, SessionRef
@@ -847,6 +848,8 @@ class SteelRun:
     durable: FakeDurableExecution
     fill: ScriptedFill
     http: FakeHttpCaller | None = None
+    once: OneTimeSecrets = field(default_factory=OneTimeSecrets)
+    """What a person gave "just this once"; the same holder the broker reads."""
 
     def progress(self) -> Progress:
         return Progress.of(self.uow.workflow_runs.rows[self.run_id].progress)
@@ -885,7 +888,14 @@ class SteelRun:
         and executor over the same database and the same browser, holding
         nothing the old process knew."""
         return _worker(
-            self.uow, self.driver, self.vault, self.clock, self.lanes, self.fill, self.http
+            self.uow,
+            self.driver,
+            self.vault,
+            self.clock,
+            self.lanes,
+            self.fill,
+            self.http,
+            once=self.once,
         )[1]
 
     async def saved_run(self, run_id: str = "") -> WorkflowRun:
@@ -959,7 +969,8 @@ async def steel_run(
         *(RecordingLane(lane, settles=None) for lane in (Lane.TOOL, Lane.API, Lane.UI, Lane.SIGHT))
     )
     fill = ScriptedFill()
-    broker, run_steps = _worker(uow, driver, vault, clock, lanes, fill, http, asks=asks)
+    once = OneTimeSecrets()
+    broker, run_steps = _worker(uow, driver, vault, clock, lanes, fill, http, asks=asks, once=once)
     return SteelRun(
         uow,
         run_id,
@@ -973,6 +984,7 @@ async def steel_run(
         FakeDurableExecution(),
         fill,
         http,
+        once,
     )
 
 
@@ -987,6 +999,7 @@ def _worker(
     tool: StepLane | None = None,
     *,
     asks: AsksForValues | None = None,
+    once: OneTimeSecrets | None = None,
 ) -> tuple[SessionBroker, RunSteps]:
     broker = SessionBroker(
         uow,
@@ -996,6 +1009,7 @@ def _worker(
         vault,
         clock,
         ui=SigningLane(driver),
+        once=once or OneTimeSecrets(),
     )
     driver.http = http
     api: ReadsBack = lanes.api if http is None else ApiLane(broker)

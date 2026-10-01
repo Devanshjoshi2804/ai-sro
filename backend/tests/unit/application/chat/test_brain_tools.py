@@ -190,11 +190,9 @@ async def test_run_status_names_the_run_its_values_and_its_state() -> None:
     result = await RunStatus(world.runs, world.threads).run(CTX, {})
 
     (one,) = _runs(result)
-    assert (one["id"], one["state"], one["values"]) == (
-        run.id,
-        "held",
-        {"Customer Type": "SR11"},
-    )
+    assert (one["id"], one["values"]) == (run.id, {"Customer Type": "SR11"})
+    # Plain words, never the stored outcome "held": a model reads that as "on hold".
+    assert one["state"] == "finished: its changes were read back and confirmed"
     assert one["from_mail"] is False and one["question"] == ""
 
 

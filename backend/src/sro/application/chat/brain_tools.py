@@ -149,6 +149,17 @@ class FindJobs:
         )
 
 
+# What a run's stored outcome means, in words a model will not misread: "held" is a run that
+# finished and whose writes were read back, not one that is on hold.
+_STATE = {
+    "held": "finished: its changes were read back and confirmed",
+    "stopped": "stopped",
+    "refused": "refused by the system",
+    "aborted": "aborted",
+    "failed": "did not finish",
+}
+
+
 def _stopped(run: WorkflowRun) -> str:
     last = max(run.steps, key=lambda one: one.order, default=None)
     return _bounded(last.reason) if last is not None and last.verdict not in SETTLED else ""
@@ -181,9 +192,9 @@ class RunStatus:
     async def _row(self, ctx: RequestContext, run: WorkflowRun) -> dict[str, object]:
         return {
             "id": run.id,
-            "job": run.workflow_id,
+            "job": run.pinned.title if run.pinned else run.workflow_id,
             "values": {k: v for k, v in run.values.items() if not is_secret_field(k)},
-            "state": run.outcome,
+            "state": _STATE.get(run.outcome, run.outcome),
             "stopped_because": _stopped(run),
             "from_mail": bool(run.mail),
             "question": await self._question(ctx, run),

@@ -80,7 +80,8 @@ class Rig:
             turn.reply = message.text
             decision = message.decision or {}
             turn.kinds.append(str(decision.get("kind", "")))
-            if decision.get("run_id"):
+            # Only a card that STARTED a run: run_done and the like name a run too.
+            if decision.get("kind") == "run" and decision.get("run_id"):
                 turn.runs.append(str(decision["run_id"]))
         chat["t"] = done
         into.turns.append(turn)

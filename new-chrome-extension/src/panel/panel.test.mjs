@@ -515,7 +515,24 @@ const SHORT_RUN = {
   needs: ["Customer Type"],
   title: "Create a Customer Type",
   state: "waiting",
+  // Just finished: the question may not be written yet, so a miss is retried.
+  at: Date.now(),
 };
+
+test("a finished run whose question never appears is looked for a bounded number of times", async () => {
+  // Opus day-end review R: every render (2 s poll plus storage pushes) sent
+  // `question` -- whole threads -- for as long as the run stayed finished.
+  const { render, sent } = panel({ deviceId: "dev-1", nudges: [] }, null, {
+    question: () => null,
+    thread: (message) => ({ id: message.threadId || "thr_long", messages: [] }),
+  });
+  const old = { ...SHORT_RUN, at: Date.now() - 5 * 60_000 };
+  for (let n = 0; n < 8; n++) {
+    render({ deviceId: "dev-1", nudges: [], finished: old });
+    await settled();
+  }
+  assert.equal(sentOf(sent, "question").length, 1);
+});
 
 test("a run that came up short opens its own question, not another mail's", async () => {
   // A question from another mail stands; this run's is not written yet. The

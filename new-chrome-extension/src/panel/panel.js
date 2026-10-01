@@ -567,14 +567,25 @@ function toTheQuestion(run) {
   // and look again on the next status rather than opening another mail's.
   ask({ kind: "question", runId: run.id })
     .then((waiting) => {
-      if (!waiting?.threadId) return;
+      if (!waiting?.threadId) return giveUpWhenStale(run);
       askedAbout = run.id;
       goToTheConversation(waiting.threadId);
     })
-    .catch(() => paintPanes())
+    .catch(() => {
+      giveUpWhenStale(run);
+      paintPanes();
+    })
     .finally(() => {
       lookingFor = null;
     });
+}
+
+/** The backend writes the question as the run closes, so a miss is worth
+ * another look only for a minute. After that the run has none (answered, or
+ * never asked) and every render asking again is a network call for whole
+ * threads, all day. */
+function giveUpWhenStale(run) {
+  if (!(Date.now() - (run.at ?? 0) < 60_000)) askedAbout = run.id;
 }
 
 /** Watch this system wherever it opens, from now on.

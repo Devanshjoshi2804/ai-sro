@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from dataclasses import replace
 from typing import ClassVar
 
 import pytest
@@ -21,7 +22,14 @@ from sro.application.shared.refusals import OverCap
 from sro.domain.prompts.chat_brain import CHAT_BRAIN
 from sro.domain.shared.prices import Answer
 from tests.unit.application.chat.brain_support import CTX
-from tests.unit.application.chat.test_brain_tools import GIVEN, _Acting, _acting, _spent
+from tests.unit.application.chat.test_brain_tools import (
+    GIVEN,
+    _a_card_offers,
+    _Acting,
+    _acting,
+    _answer_the_card,
+    _spent,
+)
 from tests.unit.application.rig.test_from_the_mail import JOB
 from tests.unit.fakes import FakeAsker
 
@@ -549,3 +557,30 @@ async def test_shadow_mode_never_looks_in_the_mail() -> None:
 
     assert reply.steps[0][1].data == {"would": "check_mail"}
     assert acting.started == []
+
+
+async def test_an_open_offer_is_shown_to_the_model_as_data_and_named_in_the_contract() -> None:
+    acting = await _acting()
+    await _a_card_offers(acting)
+    brain, asker = _brain(acting, _say("ok"))
+
+    await brain.turn(CTX, message="hello", history=[], origin=Origin("chat"))
+
+    sent = str(asker.asked[0]["evidence"])
+    assert '<untrusted name="open offers">' in sent and "Create a Customer Type" in sent
+    assert "`open offers`" in CHAT_BRAIN.input_contract
+
+
+async def test_a_spent_offer_is_not_shown_and_does_not_cover_a_new_request() -> None:
+    acting = await _acting()
+    await _a_card_offers(acting)
+    first = await _answer_the_card(acting)
+    run = await acting.world.uow.workflow_runs.get(CTX.tenant_id, first.id)
+    assert run is not None
+    await acting.world.uow.workflow_runs.save(replace(run, outcome="done"))
+    brain, asker = _brain(acting, _call("start_job", job_id=JOB, values=GIVEN), _say("Started."))
+
+    reply = await brain.turn(CTX, message=SAID, history=[], origin=Origin("chat"), offer="chat:m2")
+
+    assert "open offers" not in str(asker.asked[0]["evidence"])
+    assert reply.steps[0][1].data["run_id"] != first.id

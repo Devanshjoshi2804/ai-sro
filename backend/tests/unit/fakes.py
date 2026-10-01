@@ -2626,6 +2626,15 @@ class FakeWorkflowRunRepository:
             for run in self.rows.values()
         )
 
+    async def started_by_offers(
+        self, tenant_id: TenantId, offers: Sequence[str]
+    ) -> Mapping[str, str]:
+        return {
+            run.offer: run.id
+            for run in self.rows.values()
+            if run.offer is not None and run.tenant == tenant_id.value and run.offer in offers
+        }
+
     async def started_from_mail(self, tenant_id: TenantId, *, thread: str) -> WorkflowRun | None:
         started = [
             run

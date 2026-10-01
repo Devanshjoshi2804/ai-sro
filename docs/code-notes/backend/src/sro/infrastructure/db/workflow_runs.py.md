@@ -77,7 +77,7 @@ Code: `_ONE_RUNNING = "uq_workflow_runs_one_running_per_device"`
 > to something else entirely, which is a warehouse record written from
 > somebody's unrelated sentence.
 
-## `SqlWorkflowRunRepository._with_steps`, [line 569](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L569): Docstring
+## `SqlWorkflowRunRepository._with_steps`, [line 581](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L581): Docstring
 
 > One query for every run's steps rather than one per run.
 
@@ -291,7 +291,7 @@ Code: `.order_by(WorkflowRunRow.started_at.desc(), WorkflowRunRow.id.desc())`
 
 > The last question asked about this conversation is the live one.
 
-## `SqlWorkflowRunRepository.awaiting`, [line 451](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L451): Comment
+## `SqlWorkflowRunRepository.awaiting`, [line 463](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L463): Comment
 
 Code: `WorkflowRunRow.outcome == "running",`
 
@@ -302,7 +302,7 @@ Code: `WorkflowRunRow.outcome == "running",`
 > sits in the supervisor's queue forever, asking for a tap that
 > can no longer let anything out.
 
-## `SqlWorkflowRunRepository.awaiting`, [line 454](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L454): Comment
+## `SqlWorkflowRunRepository.awaiting`, [line 466](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L466): Comment
 
 Code: `.order_by(WorkflowRunRow.started_at, WorkflowRunRow.id, WorkflowRunStepRow.ord)`
 
@@ -312,7 +312,7 @@ Code: `.order_by(WorkflowRunRow.started_at, WorkflowRunRow.id, WorkflowRunStepRo
 > be started in the same instant and their parked steps would
 > otherwise interleave differently on every read.
 
-## `SqlWorkflowRunRepository.approve`, [line 460](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L460): Comment
+## `SqlWorkflowRunRepository.approve`, [line 472](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L472): Comment
 
 Code: `tapped = await self._session.execute(`
 
@@ -322,7 +322,7 @@ Code: `tapped = await self._session.execute(`
 > RETURNING rather than a rowcount, because whether this tap was the
 > one that authorised the step is the answer the caller wants.
 
-## `SqlWorkflowRunRepository.fail_orphans`, [line 480](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L480): Comment
+## `SqlWorkflowRunRepository.fail_orphans`, [line 492](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L492): Comment
 
 Code: `WorkflowRunRow.outcome == "running", WorkflowRunRow.executor == "extension"`
 
@@ -334,7 +334,7 @@ Code: `WorkflowRunRow.outcome == "running", WorkflowRunRow.executor == "extensio
 > that is still actually running. Narrowed to `executor == "extension"` so
 > only the runs this sweep was ever about are touched.
 
-## `SqlWorkflowRunRepository._rows`, [line 567](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L567): Comment
+## `SqlWorkflowRunRepository._rows`, [line 579](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L579): Comment
 
 Code: `return select(WorkflowRunRow).execution_options(populate_existing=True)`
 
@@ -372,12 +372,12 @@ Code: `if column.name not in ("id", "progress", "pinned", "mail")`
 > may move it. `mail` likewise: the mail a run came from is known when it
 > starts and never changes, so a stale copy saved later cannot drop it.
 
-## `SqlWorkflowRunRepository.running`, [line 495](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L495): Note
+## `SqlWorkflowRunRepository.running`, [line 507](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L507): Note
 
 > Every tenant's `running` rows, both executors, oldest first. Only the
 > stuck-run sweep reads it, and nobody is making that request.
 
-## `SqlWorkflowRunRepository.close_stuck`, [line 504](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L504): Note
+## `SqlWorkflowRunRepository.close_stuck`, [line 516](../../../../../../../backend/src/sro/infrastructure/db/workflow_runs.py#L516): Note
 
 > Closes a stuck run as `failed` in one compare-and-set: on
 > `outcome = 'running'`, so a real `finish` that committed first wins and is

@@ -23,7 +23,7 @@ ANSWER_SCHEMA: dict[str, object] = {
 
 CHAT_BRAIN = Prompt(
     name="chat_brain",
-    version=7,
+    version=8,
     model="gemini-3.8-flash",
     fallback_model="gemini-3.7-flash",
     thinking=None,
@@ -42,6 +42,8 @@ CHAT_BRAIN = Prompt(
         "`origin`: chat or mail; for a mail, `mail from` (its sender) and `mail subject`. "
         "`history`: the conversation's last messages. `asking`: an open question, if any. "
         "`page`: the system and screen the operator is on. `recent runs`: their last runs. "
+        "`open offers`: jobs already waiting on the operator's yes, with the values read for "
+        "them. "
         "`tools`: each tool's name, what it does and its arguments. `results`: what the "
         "tools you already called this turn returned."
     ),
@@ -55,6 +57,8 @@ CHAT_BRAIN = Prompt(
         "which one, naming them; ask for values only after the job is clear.",
         "Questions about mail, new work in the inbox, or requests that came by mail go to "
         "check_mail; questions about runs go to run_status.",
+        "A job in `open offers` that the operator asks for is started with start_job as any "
+        "job is; it runs under that offer and never twice.",
         "A mail request that is already running or done is reported with its state, never "
         "offered or started again.",
         "Use work_it_out only for a real task in the operator's warehouse system that no "

@@ -11,6 +11,9 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any
 
+import pytest
+
+from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.brain_tools import (
     AskOperator,
     CheckMail,
@@ -23,13 +26,16 @@ from sro.application.chat.brain_tools import (
     brain_tools,
     described,
 )
+from sro.application.chat.mailbox import SERVER
 from sro.application.context import RequestContext
 from sro.application.execution.workflow_runs import GetWorkflowRun, StartWorkflowRun
 from sro.application.intent.plan_task import PlanTask
 from sro.application.knowledge.retrieve import Retrieve
 from sro.application.lookup.look_it_up import LookItUp
 from sro.application.lookup.plan_lookups import PlanLookups
+from sro.domain.chat.asking import Pending
 from sro.domain.chat.brain_turn import ToolResult, Turn
+from sro.domain.execution.workflow_run import OfferTaken
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.skill.workflow import Workflow
 from tests import factories as f
@@ -47,6 +53,7 @@ from tests.unit.fakes import (
     FakeClock,
     FakeDurableExecution,
     FakeEmbedder,
+    FakeIdFactory,
     FakeUnitOfWork,
 )
 from tests.unit.runtime_support import read_step, save_job
@@ -589,3 +596,82 @@ async def test_a_run_in_the_operator_s_browser_is_handed_to_the_spawner_not_awai
 
     assert result.ok and len(spawned) == 1
     spawned[0].close()
+
+
+async def _a_card_offers(acting: _Acting, *, job: str = JOB, offer: str = "msg-card") -> None:
+    """What the mail door leaves in the operator's chat: a card waiting on a yes."""
+    await AskAboutTheOffer(acting.world.uow, acting.world.clock, FakeIdFactory()).execute(
+        CTX,
+        Pending(workflow_id=job, title="Create a Customer Type", values=GIVEN, missing=()),
+        about="a mail",
+        mail_thread="thr-mail",
+        ask_to_run=True,
+        offer=offer,
+        sure=True,
+    )
+
+
+async def _answer_the_card(acting: _Acting, offer: str = "msg-card") -> Any:
+    return await acting.start.execute(
+        CTX,
+        workflow_id=JOB,
+        device_id=None,
+        values=GIVEN,
+        live=True,
+        allow_focus=True,
+        conversation=(SERVER, ""),
+        offer=offer,
+    )
+
+
+CHAT = replace(SAID, offer="chat:m1")
+
+
+async def test_a_job_typed_in_chat_while_its_card_is_open_runs_under_the_card() -> None:
+    acting = await _acting()
+    await _a_card_offers(acting)
+
+    chat = await acting.job.run(CTX, {"job_id": JOB, "values": GIVEN}, CHAT)
+    with pytest.raises(OfferTaken) as card:
+        await _answer_the_card(acting)
+
+    assert chat.ok and len(acting.started) == 1
+    assert card.value.run_id == chat.data["run_id"]
+
+
+async def test_a_card_answered_first_makes_the_chat_start_say_it_is_already_running() -> None:
+    acting = await _acting()
+    await _a_card_offers(acting)
+    first = await _answer_the_card(acting)
+
+    chat = await acting.job.run(CTX, {"job_id": JOB, "values": GIVEN}, CHAT)
+
+    assert chat.ok and chat.data == {"run_id": first.id, "state": "already running"}
+    assert chat.said == "That one is already running." and acting.started == []
+
+
+async def test_a_card_for_another_job_changes_nothing() -> None:
+    acting = await _acting()
+    await _a_card_offers(acting, job="wfl_elsewhere")
+
+    chat = await acting.job.run(CTX, {"job_id": JOB, "values": GIVEN}, CHAT)
+
+    run = await acting.world.uow.workflow_runs.get(f.TENANT, str(chat.data["run_id"]))
+    assert run is not None and (run.offer or "").startswith("chat:m1:")
+
+
+async def test_somebody_else_s_card_is_not_this_operator_s_offer() -> None:
+    acting = await _acting()
+    await AskAboutTheOffer(acting.world.uow, acting.world.clock, FakeIdFactory()).execute(
+        THEIRS,
+        Pending(workflow_id=JOB, title="Create a Customer Type", values=GIVEN, missing=()),
+        mail_thread="thr-theirs",
+        ask_to_run=True,
+        offer="msg-theirs",
+        sure=True,
+    )
+
+    chat = await acting.job.run(CTX, {"job_id": JOB, "values": GIVEN}, CHAT)
+
+    run = await acting.world.uow.workflow_runs.get(f.TENANT, str(chat.data["run_id"]))
+    assert run is not None and (run.offer or "").startswith("chat:m1:")

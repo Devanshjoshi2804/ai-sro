@@ -426,6 +426,18 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
         )
         return found is not None
 
+    async def started_by_offers(
+        self, tenant_id: TenantId, offers: Sequence[str]
+    ) -> Mapping[str, str]:
+        if not offers:
+            return {}
+        rows = await self._session.execute(
+            select(WorkflowRunRow.offer, WorkflowRunRow.id).where(
+                WorkflowRunRow.tenant_id == tenant_id.value, WorkflowRunRow.offer.in_(offers)
+            )
+        )
+        return {str(offer): run_id for offer, run_id in rows}
+
     async def started_from_mail(self, tenant_id: TenantId, *, thread: str) -> WorkflowRun | None:
         if not thread.strip():
             return None

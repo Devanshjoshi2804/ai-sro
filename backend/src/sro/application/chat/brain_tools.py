@@ -8,6 +8,7 @@ from typing import ClassVar, Protocol, runtime_checkable
 from sro.application.chat.candidates import rank_jobs, real_jobs
 from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.chat.mailbox import SERVER
+from sro.application.chat.open_offers import standing_offers
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.chat.understand import held_runs
 from sro.application.connection.sign_in import logins_of
@@ -369,15 +370,27 @@ class StartJob:
         if (refused := await self.check(ctx, args, turn)) is not None:
             return refused
         job_id, values = str(args.get("job_id") or ""), values_of(args) or {}
+        # An offer of this job already standing for this operator is the one run this job gets:
+        # started under its id, a second answer (the card, or this chat) finds the first run.
+        covering = next(
+            (
+                one
+                for one in await standing_offers(self._uow, ctx, self._clock.now())
+                if one.workflow_id == job_id
+            ),
+            None,
+        )
         return await _launch(
             self._start,
             self._spawn,
             ctx,
             workflow_id=job_id,
             values=values,
-            # The caller's (the operator's message), never the model's: it is what makes a
+            # Else the caller's (the operator's message), never the model's: it is what makes a
             # second start of the same job and values from one message answer the first run.
-            offer=f"{turn.offer}:{hashlib.sha256(start_key(args).encode()).hexdigest()[:16]}"
+            offer=covering.id
+            if covering is not None
+            else f"{turn.offer}:{hashlib.sha256(start_key(args).encode()).hexdigest()[:16]}"
             if turn.offer
             else "",
         )

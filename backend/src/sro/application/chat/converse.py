@@ -571,7 +571,11 @@ class Converse:
         )
         async with self._uow as uow:
             thread = await uow.threads.get(ctx.tenant_id, thread_id)
-            self._told(thread, "", reply.said, reply.decisions[-1] if reply.decisions else None)
+            # Every run the turn started keeps its card; the turn's own words close it.
+            cards = [(r.said, r.decision) for _, r in reply.steps if r.decision]
+            for words, decision in cards[:-1]:
+                self._told(thread, "", words, decision)
+            self._told(thread, "", reply.said, cards[-1][1] if cards else None)
             await uow.threads.save(thread)
             await uow.commit()
         if self._attempts is not None:

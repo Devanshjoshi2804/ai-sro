@@ -46,6 +46,8 @@ class ToolResult:
     error: str = ""
     ends_turn: bool = False
     decision: dict[str, object] | None = None
+    # What the operator is told of this result, when it has a card of its own.
+    said: str = ""
 
 
 @dataclass(frozen=True, slots=True)

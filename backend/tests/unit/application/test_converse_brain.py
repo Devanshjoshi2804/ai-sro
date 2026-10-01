@@ -117,6 +117,32 @@ async def test_a_run_the_brain_started_is_the_decision_the_panel_watches() -> No
     assert [(one.came_of, one.about["run"]) for one in rows] == [(DONE, run_id)]
 
 
+async def test_every_run_a_turn_started_keeps_its_card_and_the_question_follows() -> None:
+    acting = await _acting()
+    asker = FakeAsker(
+        _call("start_job", job_id=JOB, values=GIVEN),
+        _call("start_job", job_id=JOB, values={**GIVEN, "Customer Type": "SR12"}),
+        _call("ask_operator", question="Which department?"),
+    )
+    converse = _converse(acting, asker, on=(TENANT,))
+
+    thread = await converse.execute(
+        CTX,
+        thread_id=await _thread(acting),
+        text="create customer type SR11 and customer type SR12, each with the description new",
+    )
+
+    first, second = acting.started
+    assert [(m.speaker.value, (m.decision or {}).get("kind")) for m in thread.messages] == [
+        ("operator", None),
+        ("assistant", "run"),
+        ("assistant", "run"),
+        ("assistant", "brain_asks"),
+    ]
+    assert [(m.decision or {}).get("run_id") for m in thread.messages[1:3]] == [first, second]
+    assert thread.messages[-1].text == "Which department?"
+
+
 async def test_a_question_of_the_brain_is_an_ordinary_question_message() -> None:
     acting = await _acting()
     asker = FakeAsker(_call("ask_operator", question="Which customer type?"))

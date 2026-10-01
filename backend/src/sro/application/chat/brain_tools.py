@@ -249,6 +249,7 @@ async def _launch(
         ok=True,
         data={"run_id": run.id, "state": run.outcome},
         decision={"kind": Said.RUN.value, "run_id": run.id},
+        said=f"Started {run.pinned.title if run.pinned else 'the job'}.",
     )
 
 
@@ -408,7 +409,10 @@ class AskOperator:
         if not question:
             return ToolResult(ok=False, error="say what to ask")
         return ToolResult(
-            ok=True, ends_turn=True, decision={"kind": "brain_asks", "question": _bounded(question)}
+            ok=True,
+            ends_turn=True,
+            decision={"kind": "brain_asks", "question": _bounded(question)},
+            said=_bounded(question),
         )
 
 

@@ -41,6 +41,15 @@ _GONE = frozenset({404, 410})
 Found = Literal["ours", "other", "absent"]
 
 
+_BUSY = ("in progress", "in-progress", "busy", "locked", "retry", "try again", "concurrent")
+
+
+def _busy(said: str) -> bool:
+    """A conflict that means "not now" says nothing about the person's values."""
+    low = said.lower()
+    return any(word in low for word in _BUSY)
+
+
 class ApiLane:
     lane = Lane.API
 
@@ -183,6 +192,7 @@ class ApiLane:
         refused = (
             verdict == "unknown"
             and status == K_CONFLICT
+            and not _busy(told["said"])
             and found is not None
             and found[0] in ("other", "absent")
         )

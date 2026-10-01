@@ -350,3 +350,17 @@ async def test_a_value_the_reason_quotes_names_its_field_only_as_a_whole_word() 
     )
 
     assert quoted == ["Customer Type"] and inside == ["Customer Type"]
+
+
+async def test_a_409_that_says_busy_is_in_doubt_not_a_refused_value() -> None:
+    """A conflict that means "in progress, retry" says nothing about the person's values."""
+    busy = json.dumps({"message": "Another request is in progress, please retry"})
+    world, _ = await _saving((409, busy), (404, ""))
+
+    await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
+
+    last = (await world.saved_run()).steps[-1]
+    assert last.verdict == "unclear", "a busy system is not a refused value"
+    assert world.lanes.ui.calls == 0
+    run = await world.saved_run()
+    assert not run.needs, "no value question for a system that was only busy"

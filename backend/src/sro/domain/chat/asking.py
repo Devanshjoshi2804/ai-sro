@@ -145,7 +145,6 @@ def question(pending: Pending) -> str:
                 *held,
                 f"It has {_the_values(pending)}.",
                 "Which value should change?",
-                f"Say it like {wanted[0]}: … for whichever it is.",
             ]
         )
     if len(wanted) <= 1:

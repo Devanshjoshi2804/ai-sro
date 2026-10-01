@@ -4299,6 +4299,56 @@ test("a draft written after the last draw appears on the next poll", async () =>
   assert.ok(sendIt(made.ids), "the draft waited for somebody to type");
 });
 
+
+test("a run in progress that stands on its password asks for it on its own card", async () => {
+  // QA 2026-10-01: "A run is performing here / Running on the server" showed
+  // no box while the run's question was a password for its account.
+  const asked = {
+    id: "q_1",
+    kind: "password",
+    text: "RKUCHIYAGM at keycloak needs its password",
+    origin: "https://keycloak.example",
+    username: "RKUCHIYAGM",
+    field: "password",
+  };
+  const boxes = (card) => inputs(card).filter((one) => one.type === "password");
+  const run = { id: "run_live", status: "running", steps: [], question: asked };
+  for (const performing of [
+    { runId: "run_live", source: "rig", kind: "rig", step: 1, question: asked },
+    { runId: "run_live", source: "rig", kind: "rig", step: 1, run },
+  ]) {
+    const { cards } = panel({ deviceId: "dev-1", performing });
+    const card = cards.find((one) => words(one).includes("is performing here"));
+    assert.equal(boxes(card).length, 1, "one box, not none and not two");
+  }
+  const { cards } = panel({
+    deviceId: "dev-1",
+    performing: { runId: "run_live", source: "rig", kind: "rig", step: 1 },
+  });
+  const plain = cards.find((one) => words(one).includes("is performing here"));
+  assert.equal(boxes(plain).length, 0);
+});
+
+test("refresh hands the fetched run's password question to the performing card", async () => {
+  const asked = {
+    id: "q_1",
+    kind: "password",
+    text: "x",
+    origin: "https://keycloak.example",
+    username: "RKUCHIYAGM",
+    field: "password",
+  };
+  const it = panel({ deviceId: "dev-1" }, null, {
+    status: {
+      deviceId: "dev-1",
+      performing: { runId: "run_live", source: "rig", kind: "rig", step: 1 },
+    },
+    run: { id: "run_live", outcome: "running", steps: [{}], question: asked },
+  });
+  const cards = await it.refresh();
+  const card = cards.find((one) => words(one).includes("is performing here"));
+  assert.equal(inputs(card).filter((one) => one.type === "password").length, 1);
+});
 for (const [name, fn] of tests) {
   try {
     await fn();

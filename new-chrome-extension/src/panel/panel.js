@@ -11,6 +11,7 @@
 import { hostMatches } from "../background/scripts.js";
 import { composer, ledger, nudging } from "./ledger.js";
 import { runCard } from "./run-card.js";
+import { passwordBox, standingPassword } from "./password-box.js";
 import { history } from "./history.js";
 import { mailRunCard } from "./mail-run.js";
 import { panes } from "./panes.js";
@@ -1078,11 +1079,17 @@ function performing(status) {
             await refresh();
           },
           onSecret: keepSecret,
-          onPassword: sendPassword,
         },
       ),
     );
   }
+  // A Steel run parked on its password asks for it here, on the card the
+  // person is looking at. Once, whichever of the two records carries it.
+  const asked = standingPassword(run) || standingPassword(run.run);
+  if (asked)
+    holder.append(
+      passwordBox(asked, { runId: run.runId, onPassword: sendPassword }),
+    );
   return holder;
 }
 
@@ -1906,6 +1913,8 @@ async function refresh() {
               // Where the backend says this run can be watched: Steel's own
               // view of the run's tab. Empty when it has none.
               liveViewUrl: run.live_view_url || "",
+              // What it is parked on, whole, so the card can draw the box.
+              question: run.question || null,
               // The rig plans one step at a time, so there is no total to
               // count towards and the card says "step 3" rather than
               // "step 3 of 7". `rigRun` maps the row; `steps` is what it has

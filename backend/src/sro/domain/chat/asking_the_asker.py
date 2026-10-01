@@ -27,7 +27,8 @@ def draft_for(pending: Pending, *, about: str = "", signed: str = "") -> tuple[s
     had = pending.values.get(wanted, "")
     if why := pending.refused.get(wanted):
         lines.append(
-            f"{wanted}{f' {shortened(had)}' if had.strip() else ''} could not be used: {why}."
+            f"{wanted}{f' {shortened(had)}' if had.strip() else ''} could not be used:"
+            f" {shortened(why).rstrip('.')}."
             f" What should {wanted} be instead?"
         )
     elif holds is not None and had.strip():

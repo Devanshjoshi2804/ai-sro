@@ -111,3 +111,12 @@ def test_a_run_short_of_nothing_is_not_worth_a_mail() -> None:
     assert worth_asking(_short()) is True
     assert worth_asking(_short(missing=())) is False
     assert worth_asking(_short(workflow_id="")) is False
+
+
+def test_the_systems_words_to_an_outside_requester_are_short_and_end_once() -> None:
+    long = "constraint uq_customer_types_code_idx violated on table customertypes " * 4
+
+    _, body = draft_for(_short(refused={"Customer Type": long + "."}, missing=("Customer Type",)))
+
+    assert long not in body and "…" in body
+    assert ".." not in body

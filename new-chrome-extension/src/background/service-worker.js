@@ -361,7 +361,8 @@ function rulePage(url) {
   } catch {
     return "";
   }
-  return pageOf(url);
+  // Redacted first: a token-looking path segment is never part of a route.
+  return pageOf(redactUrl(url));
 }
 
 /** Ends the ones that ran out, wherever the operator has got to.

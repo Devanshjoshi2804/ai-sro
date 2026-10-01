@@ -182,6 +182,20 @@ test("a rule made from an offer keeps the offer's screen", async () => {
   assert.equal(JSON.parse(made.body).arrival.page, THE_PAGE, "the rule dropped the screen's route");
 });
 
+test("a token-looking path segment never becomes part of a rule's page", async () => {
+  ready({ rules: [] });
+  const jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV";
+  held.set("sro.nudges", [
+    { id: "n_1", state: "open", source: "rig", workflowId: "wfl_ct", startsOn: `${WMS}/portal/${jwt}#wm.config.x`, values: {} },
+  ]);
+
+  await new Promise((resolve) => globalThis.__handle({ kind: "do-this-here", nudgeId: "n_1" }, {}, resolve));
+
+  const made = calls.find((call) => call.path === "/v1/triggers");
+  assert.ok(made, "no rule was made");
+  assert.doesNotMatch(JSON.parse(made.body).arrival.page, /eyj/i);
+});
+
 test("the browser's own pages are not a system to offer work on", async () => {
   ready({ rules: [{ ...RULE, page: "settings" }] });
 

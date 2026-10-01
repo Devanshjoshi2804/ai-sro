@@ -2,7 +2,7 @@
 
 Notes on [`backend/src/sro/domain/prompts/read_sentence.py`](../../../../../../../backend/src/sro/domain/prompts/read_sentence.py). Each note names the code it explains (function or class, then the line in the current file).
 
-## module, [line 25](../../../../../../../backend/src/sro/domain/prompts/read_sentence.py#L25): Note on the line above
+## module, [line 23](../../../../../../../backend/src/sro/domain/prompts/read_sentence.py#L23): Note on the line above
 
 Code: `READ_SENTENCE = Prompt(`
 
@@ -14,7 +14,7 @@ Code: `READ_SENTENCE = Prompt(`
 > this is the fast one -- measured at ~2.3s against ~4.8s for the pro model,
 > for a job where the answer is checked against the skills that exist anyway.
 
-## module, [line 78](../../../../../../../backend/src/sro/domain/prompts/read_sentence.py#L78): Note on the line above
+## module, [line 75](../../../../../../../backend/src/sro/domain/prompts/read_sentence.py#L75): Note on the line above
 
 Code: `EXTRACT_VALUES = Prompt(`
 

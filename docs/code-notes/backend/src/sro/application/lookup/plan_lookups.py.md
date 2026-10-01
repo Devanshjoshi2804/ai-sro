@@ -22,7 +22,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/lookup/plan_l
 > screens, fields and quirks -- filtered by kind -- and the model orders what
 > survived rather than choosing from everything.
 
-## module, [line 30](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L30): Note on the line above
+## module, [line 31](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L31): Note on the line above
 
 Code: `WHAT_TO_SHOW = (`
 
@@ -34,7 +34,7 @@ Code: `WHAT_TO_SHOW = (`
 > code means and how a form is shaped matter when reading an answer, not when
 > deciding where to ask.
 
-## module, [line 38](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L38): Note on the line above
+## module, [line 39](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L39): Note on the line above
 
 Code: `K_SHOWN = 40`
 
@@ -45,7 +45,7 @@ Code: `K_SHOWN = 40`
 > store holds 7,985 entries and a prompt carrying them would be a prompt nobody
 > has read.
 
-## `Planned`, [line 44](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L44): Note on the line above
+## `Planned`, [line 45](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L45): Note on the line above
 
 Code: `answer: Answer | None = None`
 
@@ -53,11 +53,11 @@ Code: `answer: Answer | None = None`
 > a domain object and a bill is not, and `MineResult` learned that the hard
 > way when three workflows from one call summed to three times its cost.
 
-## `PlanLookups`, [line 49](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L49): Docstring
+## `PlanLookups`, [line 50](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L50): Docstring
 
 > Where to look, for one question, over one tenant's knowledge.
 
-## `_read`, [line 128](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L128): Docstring
+## `_read`, [line 146](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L146): Docstring
 
 > The model's answer as lookups, dropping anything malformed.
 >
@@ -66,7 +66,7 @@ Code: `answer: Answer | None = None`
 > Losing one malformed lookup out of four still leaves a plan somebody can
 > read; the count is what `unknown_targets` and `uncited` then judge.
 
-## `_shown`, [line 157](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L157): Docstring
+## `_shown`, [line 172](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L172): Docstring
 
 > What the planner is given, grouped by kind.
 >
@@ -75,7 +75,7 @@ Code: `answer: Answer | None = None`
 > makes the model sort them before it can use them. The key is first on every
 > line, because the key is what a citation has to name.
 
-## `PlanLookups.__init__`, [line 61](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L61): Comment
+## `PlanLookups.__init__`, [line 62](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L62): Comment
 
 Code: `self._asker = asker`
 
@@ -84,7 +84,7 @@ Code: `self._asker = asker`
 > deployment with no key unbuildable rather than refusing the one call
 > that needs a model.
 
-## `PlanLookups.execute`, [line 77](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L77): Comment
+## `PlanLookups.execute`, [line 78](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L78): Comment
 
 Code: `raise OverCap(why)`
 
@@ -92,7 +92,7 @@ Code: `raise OverCap(why)`
 > `mining_pass` checks it: a cap read after the work is a cap that
 > has already paid for what it stops.
 
-## `PlanLookups.execute`, [line 93](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L93): Comment
+## `PlanLookups.execute`, [line 94](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L94): Comment
 
 Code: `return Planned(Plan(question=asked, asks=stopped, why=stopped.question))`
 
@@ -100,7 +100,7 @@ Code: `return Planned(Plan(question=asked, asks=stopped, why=stopped.question))`
 > the answer supersedes the question, so the next reading of the
 > same word reads the answer instead of asking again.
 
-## `PlanLookups.execute`, [line 106](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L106): Comment
+## `PlanLookups.execute`, [line 111](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L111): Comment
 
 Code: `return Planned(`
 

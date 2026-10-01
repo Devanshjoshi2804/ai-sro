@@ -36,7 +36,7 @@ Code: `if answer is None:`
 
 > What the sentence means. Never what to run.
 
-## `GeminiIntentParser.extract`, [line 51](../../../../../../../backend/src/sro/infrastructure/gemini/intent.py#L51): Comment
+## `GeminiIntentParser.extract`, [line 49](../../../../../../../backend/src/sro/infrastructure/gemini/intent.py#L49): Comment
 
 Code: `schema: dict[str, Any] = copy.deepcopy(dict(EXTRACT_VALUES.output_schema))`
 
@@ -46,7 +46,7 @@ Code: `schema: dict[str, Any] = copy.deepcopy(dict(EXTRACT_VALUES.output_schema)
 > The copy goes on a `replace` of the record, so `ask` sends and checks this
 > job's schema under the record's name, version, model and fallback.
 
-## `GeminiIntentParser.extract`, [line 61](../../../../../../../backend/src/sro/infrastructure/gemini/intent.py#L61): Comment
+## `GeminiIntentParser.extract`, [line 59](../../../../../../../backend/src/sro/infrastructure/gemini/intent.py#L59): Comment
 
 Code: `"parameters": json.dumps(list(parameters), ensure_ascii=False),`
 

@@ -77,17 +77,11 @@ Code: `continues: bool = False`
 > than naming one. "I want them in detail" continues; "show the list of all
 > transport modes" does not, however conversational it sounds.
 
-## `Reading`, [line 26](../../../../../../../backend/src/sro/application/ports/intent.py#L26): Note on the line above
-
-Code: `values: dict[str, str] = field(default_factory=dict)`
-
-> Anything that looks like a value they supplied.
-
-## `IntentParser.extract`, [line 35](../../../../../../../backend/src/sro/application/ports/intent.py#L35): Docstring
+## `IntentParser.extract`, [line 33](../../../../../../../backend/src/sro/application/ports/intent.py#L33): Docstring
 
 > Values for ``parameters``, as many sets as the sentence describes.
 
-## `IntentParser.read`, [line 39](../../../../../../../backend/src/sro/application/ports/intent.py#L39): Docstring
+## `IntentParser.read`, [line 37](../../../../../../../backend/src/sro/application/ports/intent.py#L37): Docstring
 
 > What the sentence means, given the one before it.
 >

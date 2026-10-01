@@ -35,7 +35,7 @@ The three commands behind `make eval`, `make eval-ci` and `make eval-redact`.
 > service needs `SRO_INTERPRETATION_ENABLED=true` and the Gemini key (the
 > `api` service has both).
 
-## `run_ci`, [line 114](../../../../backend/evals/run.py#L114): Design
+## `run_ci`, [line 122](../../../../backend/evals/run.py#L122): Design
 
 > Offline: each committed case's recorded answer must conform to its prompt's
 > schema, and the production entry point, fed that answer through
@@ -43,7 +43,7 @@ The three commands behind `make eval`, `make eval-ci` and `make eval-redact`.
 > through each suite's production asker, billed to the tenant `eval`. An
 > empty set fails: a guard with nothing in it guards nothing.
 
-## `write_candidates`, [line 136](../../../../backend/evals/run.py#L136): Design
+## `write_candidates`, [line 151](../../../../backend/evals/run.py#L151): Design
 
 > Redacts the answered cases of one tenant into `candidates/<tenant>/<suite>/`
 > (gitignored), only those whose id is in the current frozen case set: an

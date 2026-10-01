@@ -33,7 +33,7 @@ How a real case becomes one that may be committed: every string is redacted by i
 > `GT-0042` is `AA-9999`. A shape keeps what a prompt reasons with (a code, a
 > date, a quantity) and drops what the value was.
 
-## `redacted`, [line 120](../../../../backend/evals/redact.py#L120): Design
+## `redacted`, [line 121](../../../../backend/evals/redact.py#L121): Design
 
 > One shape map per case, shared by the input, the expected and the recorded
 > answer: the same value becomes the same shape everywhere, so an expected

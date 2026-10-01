@@ -11,6 +11,7 @@ import { ApiError } from "@/lib/api/client";
 import { ink, mono } from "@/features/console/theme";
 import { BatchCard } from "@/features/console/batch-card";
 import { SkillCard } from "@/features/console/skill-card";
+import { RunPassword } from "@/features/workflow/components/password-prompt";
 import { OpenQuestions } from "@/features/knowledge/components/open-questions";
 import { TopBar, BarLink } from "@/features/console/top-bar";
 import { connectionKeys, listConnections } from "@/features/console/connect-panel";
@@ -665,6 +666,9 @@ export function ChatTurn({
     matched_skill_name?: string | null;
     workflow_id?: string | null;
     run_id?: string | null;
+    kind?: string;
+    asks?: string;
+    question_id?: string;
     matched_version?: number | null;
     confident?: boolean;
     runnable?: boolean;
@@ -725,6 +729,15 @@ export function ChatTurn({
             Watch the run
           </Link>
         )}
+
+        {/* A run parked on its password: answered in its own box, never typed
+            into the chat. */}
+        {decision.kind === "run_asks" &&
+          decision.asks === "password" &&
+          decision.run_id &&
+          decision.question_id && (
+            <RunPassword runId={decision.run_id} questionId={decision.question_id} />
+          )}
 
         {/* A question with the answers next to it. Printing "which did you
             mean: A or B?" and then leaving the operator to retype one of them

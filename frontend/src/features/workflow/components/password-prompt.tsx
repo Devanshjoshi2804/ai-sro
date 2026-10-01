@@ -1,13 +1,18 @@
 "use client";
 
-import { useRef } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useId, useRef } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { answerRunPassword, type WorkflowRunModel } from "@/features/workflow/api";
+import {
+  answerRunPassword,
+  getWorkflowRun,
+  workflowRunKeys,
+  type WorkflowRunModel,
+} from "@/features/workflow/api";
 
 /**
  * A Steel run that cannot sign in parks on a question naming the account. This
@@ -18,6 +23,8 @@ import { answerRunPassword, type WorkflowRunModel } from "@/features/workflow/ap
  */
 export function PasswordPrompt({ run, onSent }: { run: WorkflowRunModel; onSent: () => void }) {
   const box = useRef<HTMLInputElement>(null);
+  // Several of these can stand in one thread, so the label cannot be one id.
+  const field = useId();
   const asked = run.question;
   const send = useMutation({
     mutationFn: (body: { value: string; keep: boolean }) =>
@@ -46,8 +53,8 @@ export function PasswordPrompt({ run, onSent }: { run: WorkflowRunModel; onSent:
       </CardHeader>
       <CardContent className="flex flex-wrap items-end gap-3">
         <div className="space-y-1">
-          <Label htmlFor="run-password">Password</Label>
-          <Input id="run-password" ref={box} type="password" autoComplete="off" />
+          <Label htmlFor={field}>Password</Label>
+          <Input id={field} ref={box} type="password" autoComplete="off" />
         </div>
         <Button disabled={send.isPending} onClick={() => press(true)}>
           Save for next time
@@ -57,5 +64,26 @@ export function PasswordPrompt({ run, onSent }: { run: WorkflowRunModel; onSent:
         </Button>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * The same box under the chat message a run posted for its password question.
+ * It reads the run (the one record that knows whether that question still
+ * stands) and draws only while this message's question is the standing one.
+ */
+export function RunPassword({ runId, questionId }: { runId: string; questionId: string }) {
+  const queryClient = useQueryClient();
+  const run = useQuery({
+    queryKey: workflowRunKeys.detail(runId),
+    queryFn: () => getWorkflowRun(runId),
+    refetchInterval: (query) => (query.state.data?.outcome === "running" ? 2000 : false),
+  });
+  if (run.data?.question?.id !== questionId) return null;
+  return (
+    <PasswordPrompt
+      run={run.data}
+      onSent={() => queryClient.invalidateQueries({ queryKey: workflowRunKeys.detail(runId) })}
+    />
   );
 }

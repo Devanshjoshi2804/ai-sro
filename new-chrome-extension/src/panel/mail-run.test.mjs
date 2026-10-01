@@ -88,10 +88,12 @@ test("did not finish: says why", () => {
 
 test("parked on a person: Needs you and the question, never Running", () => {
   const answered = [];
-  const card = mailRunCard(
-    run({ asking: "'Click the save button.' was sent and nothing confirms it" }),
-    { onAnswer: (question, one) => answered.push([question, one.id]) },
-  );
+  const asking = "'Click the save button.' was sent and nothing confirms it";
+  const question = { id: "m-5", run: "run_1", threadId: "thr_5", text: asking };
+  const card = mailRunCard(run({ asking }), {
+    questions: [question],
+    onAnswer: (one) => answered.push(one.threadId),
+  });
   const said = words(card);
 
   assert.match(said, /Needs you: 'Click the save button.' was sent/);
@@ -101,7 +103,21 @@ test("parked on a person: Needs you and the question, never Running", () => {
   assert.equal(labels[0], "Answer it", "the way out is the first thing on the card");
   assert.ok(labels.includes("Stop"), "a parked run can still be stopped");
   buttons(card)[0].listeners.click[0]();
-  assert.deepEqual(answered, [[null, "run_1"]]);
+  assert.deepEqual(answered, ["thr_5"]);
+});
+
+test("parked, but its question is not in any chat yet: no Answer it into the wrong chat", () => {
+  // `onAnswer(null)` opened the operator's own conversation, which is not the
+  // chat the question is in. Until the question lands the card says what it
+  // waits on, and the next poll draws the button.
+  const card = mailRunCard(run({ asking: "was it saved?" }), {
+    onAnswer: () => assert.fail("opened a chat"),
+  });
+
+  assert.match(words(card), /Needs you: was it saved\?/);
+  const labels = buttons(card).map((one) => one.textContent);
+  assert.ok(!labels.includes("Answer it"));
+  assert.ok(labels.includes("Stop"));
 });
 
 test("refused, with its question standing: Needs you, not Not created", () => {

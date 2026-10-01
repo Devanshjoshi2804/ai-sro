@@ -105,12 +105,9 @@ export function mailRunCard(
     button.addEventListener("click", () => act(button));
     row.append(button);
   };
-  if (waits)
-    press(
-      "Answer it",
-      () => onAnswer?.(question, run),
-      false,
-    );
+  // Only once the question is in a chat to open: without it `onAnswer` can
+  // only open the operator's own conversation, which is the wrong one.
+  if (waits && question) press("Answer it", () => onAnswer?.(question, run), false);
   if (mail.link) press("Open the mail", () => onOpen?.(mail.link), !waits);
   if (running && live?.liveViewUrl)
     press("Watch it run", () => onOpen?.(live.liveViewUrl));

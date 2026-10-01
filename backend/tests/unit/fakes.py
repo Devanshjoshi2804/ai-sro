@@ -2626,6 +2626,17 @@ class FakeWorkflowRunRepository:
             for run in self.rows.values()
         )
 
+    async def started_from_mail(self, tenant_id: TenantId, *, thread: str) -> WorkflowRun | None:
+        started = [
+            run
+            for run in self.rows.values()
+            if thread.strip()
+            and run.tenant == tenant_id.value
+            and (run.mail or {}).get("thread") == thread.strip()
+        ]
+        started.sort(key=lambda run: (when(run.started_at), run.id), reverse=True)
+        return started[0] if started else None
+
     async def awaiting(self, tenant_id: TenantId) -> tuple[tuple[str, int, str], ...]:
         parked = [
             (when(run.started_at), run.id, step.order, step.says)

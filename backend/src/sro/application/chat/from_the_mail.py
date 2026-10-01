@@ -66,6 +66,7 @@ from sro.domain.observation.attempts import DONE
 from sro.domain.prompts.record import quoted_in
 from sro.domain.recording.sensitivity import is_secret_field
 from sro.domain.shared.errors import Conflict
+from sro.domain.shared.identifiers import PrincipalId
 from sro.domain.shared.prices import Answer
 from sro.domain.skill.learned import offerable
 from sro.domain.skill.signing_in import Logins
@@ -138,6 +139,8 @@ class Offered:
     offer: str = ""
 
     answered: Sequence[str] = ()
+
+    operator: str = ""
 
     @property
     def named(self) -> str:
@@ -232,7 +235,13 @@ class FromTheMail:
             try:
                 one = await self._read(ctx, message, look, known)
                 if one is not None:
-                    one = await self._settle(ctx, one, workflows)
+                    one = await self._settle(
+                        replace(ctx, principal_id=PrincipalId(one.operator))
+                        if one.operator
+                        else ctx,
+                        one,
+                        workflows,
+                    )
             except _Theirs:
                 await self._release(ctx, message)
                 continue
@@ -309,10 +318,10 @@ class FromTheMail:
             return await self._carrying_on(
                 ctx, message, back, mail.typed, thread, subject, titles, held
             )
-        asked, asked_of = await self._was_asked(ctx, thread)
+        asked, asked_of, owner = await self._was_asked(ctx, thread)
         if asked is not None and (not asked_of or asked_of == sender_address(mail.sender)):
             return await self._answered_by_mail(
-                ctx, message, asked, mail.typed, thread, subject, held
+                owner, message, asked, mail.typed, thread, subject, held
             )
         whole, earlier = await self._conversation(ctx, thread, message) if thread else ("", "")
         text = whole or said
@@ -631,14 +640,26 @@ class FromTheMail:
         reply = bool(said.get("in_reply_to") or said.get("references"))
         return one_address_in(str(said.get("body") or ""), reply=reply)
 
-    async def _was_asked(self, ctx: RequestContext, thread: str) -> tuple[Pending | None, str]:
-        """The question standing on a mail thread, and the address it was mailed
-        to (empty while no mail went out): only that address answers it."""
-        found = await ReadThreads(self._uow).asking(ctx, thread)
-        if found is None:
-            return None, ""
-        (asked_of, *_) = (*addresses_in(asked_by_mail(found.messages, thread)), "")
-        return waiting_on_mail(found.messages, thread), asked_of
+    async def _was_asked(
+        self, ctx: RequestContext, thread: str
+    ) -> tuple[Pending | None, str, RequestContext]:
+        """The question standing on a mail thread, the address it was mailed to
+        (empty while no mail went out: only that address answers it), and whose
+        chat holds it. The question is its starter's, whichever login reads the
+        reply: the chat id is hashed with its operator."""
+        async with self._uow as uow:
+            started = await uow.workflow_runs.started_from_mail(ctx.tenant_id, thread=thread)
+        asker = (
+            replace(ctx, principal_id=PrincipalId(started.started_by))
+            if started is not None and started.started_by
+            else ctx
+        )
+        for owner in dict.fromkeys((asker, ctx)):
+            found = await ReadThreads(self._uow).asking(owner, thread)
+            if found is not None:
+                (asked_of, *_) = (*addresses_in(asked_by_mail(found.messages, thread)), "")
+                return waiting_on_mail(found.messages, thread), asked_of, owner
+        return None, "", ctx
 
     async def _carrying_on(
         self,
@@ -740,6 +761,7 @@ class FromTheMail:
             subject=subject,
             offer=asked.offer,
             answered=[name for name in asked.missing if name not in missing],
+            operator=ctx.principal_id.value,
         )
 
     async def _reply_says(

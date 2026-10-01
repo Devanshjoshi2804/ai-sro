@@ -1206,6 +1206,32 @@ class TestWorkflowRuns:
             )
             assert not await work.workflow_runs.started_on(TENANT, server="gmail", thread=" ")
 
+    async def test_started_from_mail_finds_the_newest_run_a_thread_started(
+        self, store: UnitOfWork
+    ) -> None:
+        async with store as work:
+            assert await work.workflow_runs.started_from_mail(TENANT, thread="t-9") is None
+            for run_id, hour, thread, by in (
+                ("run_old", 9, "t-9", "ann"),
+                ("run_new", 11, "t-9", "bob"),
+                ("run_other", 12, "t-8", "cy"),
+            ):
+                await work.workflow_runs.save(
+                    _run(
+                        run_id,
+                        started_at=_at(hour),
+                        started_by=by,
+                        mail={"thread": thread, "subject": "x"},
+                    )
+                )
+            await work.commit()
+
+        async with store as work:
+            found = await work.workflow_runs.started_from_mail(TENANT, thread="t-9")
+            assert found is not None and (found.id, found.started_by) == ("run_new", "bob")
+            assert await work.workflow_runs.started_from_mail(OTHER_TENANT, thread="t-9") is None
+            assert await work.workflow_runs.started_from_mail(TENANT, thread=" ") is None
+
     async def test_in_flight_names_the_run_this_browser_is_already_driving(
         self, store: UnitOfWork
     ) -> None:

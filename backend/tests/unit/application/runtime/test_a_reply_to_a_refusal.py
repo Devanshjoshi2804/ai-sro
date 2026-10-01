@@ -7,8 +7,11 @@ import json
 
 from sro.application.chat.ask_the_asker import DRAFTED, SendTheDraft
 from sro.application.chat.from_the_mail import FromTheMail
+from sro.application.chat.read_threads import ReadThreads
+from sro.application.context import RequestContext
 from sro.application.runtime.answer_run import AnswerRun
 from sro.domain.chat.asking import NEEDS, standing
+from sro.domain.shared.identifiers import PrincipalId
 from tests.unit.application.rig.test_from_the_mail import _found, _Mailbox, _Reads
 from tests.unit.application.runtime.test_a_refused_write import (
     CTX,
@@ -36,6 +39,7 @@ async def _replied(
     *reading: dict[str, object],
     sender: str = "",
     reads: _Reads | None = None,
+    reader: RequestContext = CTX,
 ) -> None:
     await FromTheMail(
         world.uow,
@@ -45,7 +49,7 @@ async def _replied(
         clock=FakeClock(),
         ids=FakeIdFactory(),
         start=asking.start,
-    ).execute(CTX)
+    ).execute(reader)
 
 
 def _new_runs(world: SteelRun) -> list[dict[str, str]]:
@@ -231,3 +235,16 @@ async def test_typing_the_refused_value_in_the_panel_is_not_an_answer_either() -
     await asking.converse(world).execute(CTX, thread_id=chat.id, text="Pet shops")
 
     assert _new_runs(world) == []
+
+
+async def test_a_reply_read_under_another_login_answers_the_question_of_the_run_s_starter() -> None:
+    world, asking = await _refused_run(mail=ENVELOPE)
+    sweeper = RequestContext(CTX.tenant_id, PrincipalId("the-sweep"))
+
+    await _replied(world, asking, "Description :- Vets", _VETS, reader=sweeper)
+
+    (new,) = [one for one in world.uow.workflow_runs.rows.values() if one.id != world.run_id]
+    assert new.started_by == CTX.principal_id.value and new.values["Description"] == "Vets"
+    assert await ReadThreads(world.uow).asking(sweeper, THREAD) is None, (
+        "a stray chat for the sweep"
+    )

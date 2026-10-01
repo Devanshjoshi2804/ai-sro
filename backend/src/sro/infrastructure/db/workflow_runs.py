@@ -426,6 +426,22 @@ class SqlWorkflowRunRepository(WorkflowRunRepository):
         )
         return found is not None
 
+    async def started_from_mail(self, tenant_id: TenantId, *, thread: str) -> WorkflowRun | None:
+        if not thread.strip():
+            return None
+        query = (
+            self._rows()
+            .where(
+                WorkflowRunRow.tenant_id == tenant_id.value,
+                WorkflowRunRow.mail["thread"].astext == thread.strip(),
+            )
+            .order_by(WorkflowRunRow.started_at.desc(), WorkflowRunRow.id.desc())
+            .limit(1)
+        )
+        rows = (await self._session.execute(query)).scalars().all()
+        found = await self._with_steps(rows)
+        return found[0] if found else None
+
     async def awaiting(self, tenant_id: TenantId) -> tuple[tuple[str, int, str], ...]:
         query = (
             select(WorkflowRunStepRow.run_id, WorkflowRunStepRow.ord, WorkflowRunStepRow.says)

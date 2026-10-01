@@ -7,6 +7,7 @@ from datetime import datetime
 from urllib.parse import urlencode
 
 from sro.application.chat.announce import SayWhatHappened
+from sro.application.chat.feedback import RecordFeedback
 from sro.application.chat.mailbox import SERVER
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
@@ -139,8 +140,10 @@ class StartWorkflowRun:
         asker_drafts: DraftsForTheAsker | None = None,
         durable: DurableExecution | None = None,
         steel_tenants: frozenset[str] = frozenset(),
+        feedback: RecordFeedback | None = None,
     ) -> None:
         self._uow = uow
+        self._feedback = feedback
         self._durable = durable
         self._steel_tenants = steel_tenants
         self._asker_drafts: DraftsForTheAsker | None = asker_drafts
@@ -185,6 +188,7 @@ class StartWorkflowRun:
         asker_or_refuse(self._asker)
         now: datetime = self._clock.now()
         steel = self.runs_on_steel(ctx) and built_in(workflow_id, ctx.tenant_id.value) is None
+        undone: WorkflowRun | None = None
         async with self._uow as uow:
             why = await over_cap(uow, ctx.tenant_id, now=now, cap_usd=self._cap_usd)
             if why is not None:
@@ -271,6 +275,7 @@ class StartWorkflowRun:
                 already = await uow.workflow_runs.taken_back_by(ctx.tenant_id, undoes_run.strip())
                 if already is not None:
                     raise RunRefused(f"{undoes_run.strip()} was already taken back by {already}")
+                undone = await uow.workflow_runs.get(ctx.tenant_id, undoes_run.strip())
             (facts,) = await job_facts(
                 uow, ctx.tenant_id, [workflow], now=now, values=given, from_step=check_from
             )
@@ -303,7 +308,10 @@ class StartWorkflowRun:
             if then is not None:
                 await then(uow, run)
             await uow.commit()
-            return run
+        if undone is not None and self._feedback is not None:
+            # Every way to take a run back comes through here (the brain's, the panel's).
+            await self._feedback.undone(ctx, undone, run)
+        return run
 
     async def _free(self, uow: UnitOfWork, ctx: RequestContext, device_id: DeviceId) -> None:
         if device_id not in self._channel.online(ctx.tenant_id):

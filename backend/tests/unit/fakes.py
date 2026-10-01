@@ -47,6 +47,7 @@ from sro.application.ports.repositories import (
     ConfirmationRepository,
     ConnectionRepository,
     DeviceRepository,
+    FeedbackRepository,
     GestureRepository,
     KnowledgeRepository,
     ModelCallRepository,
@@ -84,6 +85,7 @@ from sro.application.ports.vision import (
     VisionUnavailable,
 )
 from sro.domain.chat.asking import standing
+from sro.domain.chat.feedback import Feedback
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import K_ASKING, MessageId, Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId, ConnectionStatus
@@ -3199,6 +3201,59 @@ class FakeAttemptRepository:
         return tuple(mine[:limit])
 
 
+class FakeFeedbackRepository:
+    """Chat feedback, in a list: one row per (tenant, message, kind), the first standing, as the
+    store's unique index keeps it. A test that wants to see a turn survive a store that is down
+    sets `failing`."""
+
+    def __init__(self) -> None:
+        self.rows: list[Feedback] = []
+        self.failing = False
+
+    async def add(self, one: Feedback) -> bool:
+        if self.failing:
+            raise RuntimeError("the feedback store is down")
+        if any(
+            (r.tenant, r.message_id, r.kind) == (one.tenant, one.message_id, one.kind)
+            for r in self.rows
+        ):
+            return False
+        self.rows.append(one)
+        return True
+
+    async def get(self, tenant_id: TenantId, feedback_id: str) -> Feedback | None:
+        return next(
+            (r for r in self.rows if r.tenant == tenant_id.value and r.id == feedback_id), None
+        )
+
+    async def newest(
+        self,
+        tenant_id: TenantId,
+        *,
+        statuses: Sequence[str] = (),
+        kind: str = "",
+        since: datetime | None = None,
+        limit: int,
+    ) -> tuple[Feedback, ...]:
+        mine = [
+            (n, r)
+            for n, r in enumerate(self.rows)
+            if r.tenant == tenant_id.value
+            and (not statuses or r.status in statuses)
+            and (not kind or r.kind == kind)
+            and (since is None or r.created_at >= since)
+        ]
+        mine.sort(key=lambda pair: (pair[1].created_at, pair[0]), reverse=True)
+        return tuple(r for _, r in mine[:limit])
+
+    async def mark(self, tenant_id: TenantId, feedback_id: str, *, status: str, note: str) -> bool:
+        for n, r in enumerate(self.rows):
+            if r.tenant == tenant_id.value and r.id == feedback_id:
+                self.rows[n] = replace(r, status=status, note=note)
+                return True
+        return False
+
+
 class FakeOfferRepository:
     """What was offered, in a list, in the order it arrived.
 
@@ -3327,6 +3382,7 @@ _REPOSITORIES = frozenset(
         "workflow_runs",
         "workflows",
         "attempts",
+        "chat_feedback",
         "offers",
         "chats",
         "spend",
@@ -3362,6 +3418,7 @@ class FakeUnitOfWork:
     workflow_runs: WorkflowRunRepository
     workflows: WorkflowRepository
     attempts: AttemptRepository
+    chat_feedback: FeedbackRepository
     offers: OfferRepository
     chats: ChatRepository
     spend: SpendRepository
@@ -3392,6 +3449,7 @@ class FakeUnitOfWork:
         self._workflows = FakeWorkflowRepository(self.workflow_runs)
         self.workflows = self._workflows
         self.attempts = FakeAttemptRepository()
+        self.chat_feedback = FakeFeedbackRepository()
         self.offers = FakeOfferRepository()
         self.chats = FakeChatRepository()
         self.spend = FakeSpendRepository()

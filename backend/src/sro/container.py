@@ -18,6 +18,7 @@ from sro.application.chat.ask_the_asker import DraftForTheAsker, SendTheDraft
 from sro.application.chat.brain import Brain
 from sro.application.chat.brain_tools import brain_tools
 from sro.application.chat.converse import Converse, StartThread
+from sro.application.chat.feedback import RecordFeedback
 from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.chat.look_lately import LookInTheMailLately
 from sro.application.chat.read_chat import ReadChat
@@ -469,6 +470,9 @@ class Container:
     def delete_trigger(self) -> DeleteTrigger:
         return DeleteTrigger(self.unit_of_work(), self.scheduler)
 
+    def record_feedback(self) -> RecordFeedback:
+        return RecordFeedback(self.unit_of_work(), self.ids, self.clock)
+
     def record_attempt(self) -> RecordAttempt:
         return RecordAttempt(self.unit_of_work(), self.ids, self.clock)
 
@@ -790,6 +794,7 @@ class Container:
             brain=self.brain() if self._brain_wanted() else None,
             brain_tenants=frozenset(self.settings.chat_brain_tenants),
             brain_shadow_tenants=frozenset(self.settings.chat_brain_shadow_tenants),
+            feedback=self.record_feedback(),
         )
 
     def _brain_wanted(self) -> bool:
@@ -813,6 +818,7 @@ class Container:
                 start=self.start_workflow_run(),
                 plan=self.plan_task(),
                 spawn=self.pursuits.spawn,
+                feedback=self.record_feedback(),
             ),
             cap_usd=self.settings.daily_usd_cap,
             max_calls=self.settings.chat_brain_max_calls,
@@ -906,6 +912,7 @@ class Container:
             asker_drafts=self._drafting,
             durable=self.durable,
             steel_tenants=frozenset(self.settings.steel_tenants),
+            feedback=self.record_feedback(),
         )
 
     def tool_lane(self) -> ToolLane:

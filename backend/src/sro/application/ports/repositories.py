@@ -4,6 +4,7 @@ from collections.abc import Collection, Mapping, Sequence
 from datetime import datetime, timedelta
 from typing import Protocol
 
+from sro.domain.chat.feedback import Feedback
 from sro.domain.chat.reading import ChatReading
 from sro.domain.chat.thread import Thread, ThreadId
 from sro.domain.connection.connection import Connection, ConnectionId
@@ -647,6 +648,28 @@ class AttemptRepository(Protocol):
     ) -> tuple[Attempt, ...]: ...
 
 
+class FeedbackRepository(Protocol):
+    async def add(self, one: Feedback) -> bool:
+        """Keeps it; False when the message already has a row of this kind (the first stands)."""
+        ...
+
+    async def get(self, tenant_id: TenantId, feedback_id: str) -> Feedback | None: ...
+
+    async def newest(
+        self,
+        tenant_id: TenantId,
+        *,
+        statuses: Sequence[str] = (),
+        kind: str = "",
+        since: datetime | None = None,
+        limit: int,
+    ) -> tuple[Feedback, ...]: ...
+
+    async def mark(
+        self, tenant_id: TenantId, feedback_id: str, *, status: str, note: str
+    ) -> bool: ...
+
+
 class OfferRepository(Protocol):
     async def record(self, offer: Offer) -> None: ...
 
@@ -690,6 +713,7 @@ class UnitOfWork(Protocol):
     workflow_runs: WorkflowRunRepository
     workflows: WorkflowRepository
     attempts: AttemptRepository
+    chat_feedback: FeedbackRepository
     offers: OfferRepository
     chats: ChatRepository
     spend: SpendRepository

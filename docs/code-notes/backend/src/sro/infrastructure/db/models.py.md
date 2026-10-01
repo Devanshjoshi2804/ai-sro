@@ -851,8 +851,8 @@ Code: `error: Mapped[str | None] = mapped_column(Text)`
 > something. See `sro.domain.observation.attempts` for what belongs here and
 > what does not.
 
-## `OfferRow`, [line 934](../../../../../../../backend/src/sro/infrastructure/db/models.py#L934): Docstring
-## `OfferRow`, [line 934](../../../../../../../backend/src/sro/infrastructure/db/models.py#L934): Docstring
+## `OfferRow`, [line 956](../../../../../../../backend/src/sro/infrastructure/db/models.py#L956): Docstring
+## `OfferRow`, [line 956](../../../../../../../backend/src/sro/infrastructure/db/models.py#L956): Docstring
 
 > One offer the extension made from a recognised prefix, and its fate.
 >
@@ -866,8 +866,8 @@ Code: `error: Mapped[str | None] = mapped_column(Text)`
 > mean arrival order once ``at`` ties, and Postgres promises no order at all
 > without a column to say so.
 
-## `OfferRow`, [line 934](../../../../../../../backend/src/sro/infrastructure/db/models.py#L934): Note on the line above
-## `OfferRow`, [line 943](../../../../../../../backend/src/sro/infrastructure/db/models.py#L943): Note on the line above
+## `OfferRow`, [line 956](../../../../../../../backend/src/sro/infrastructure/db/models.py#L956): Note on the line above
+## `OfferRow`, [line 965](../../../../../../../backend/src/sro/infrastructure/db/models.py#L965): Note on the line above
 
 Code: `k: Mapped[int] = mapped_column(Integer, nullable=False)`
 
@@ -875,8 +875,8 @@ Code: `k: Mapped[int] = mapped_column(Integer, nullable=False)`
 > arrival nudge -- "you have been here before", nothing typed -- which is
 > neither kind of evidence and is filtered out of the counsel window.
 
-## `ChatRow`, [line 970](../../../../../../../backend/src/sro/infrastructure/db/models.py#L970): Docstring
-## `ChatRow`, [line 970](../../../../../../../backend/src/sro/infrastructure/db/models.py#L970): Docstring
+## `ChatRow`, [line 992](../../../../../../../backend/src/sro/infrastructure/db/models.py#L992): Docstring
+## `ChatRow`, [line 992](../../../../../../../backend/src/sro/infrastructure/db/models.py#L992): Docstring
 
 > One sentence the chat door read, and what the reading cost.
 >
@@ -884,22 +884,22 @@ Code: `k: Mapped[int] = mapped_column(Integer, nullable=False)`
 > words about their warehouse, and the row exists for the cap and the spend
 > line, neither of which needs them.
 
-## `ChatRow`, [line 970](../../../../../../../backend/src/sro/infrastructure/db/models.py#L970): Note on the line above
-## `ChatRow`, [line 975](../../../../../../../backend/src/sro/infrastructure/db/models.py#L975): Note on the line above
+## `ChatRow`, [line 992](../../../../../../../backend/src/sro/infrastructure/db/models.py#L992): Note on the line above
+## `ChatRow`, [line 997](../../../../../../../backend/src/sro/infrastructure/db/models.py#L997): Note on the line above
 
 Code: `workflow_id: Mapped[str | None] = mapped_column(String(64))`
 
 > The job the sentence turned out to be about, when it was about one.
 
-## `ChatRow`, [line 970](../../../../../../../backend/src/sro/infrastructure/db/models.py#L970): Note on the line above
-## `ChatRow`, [line 979](../../../../../../../backend/src/sro/infrastructure/db/models.py#L979): Note on the line above
+## `ChatRow`, [line 992](../../../../../../../backend/src/sro/infrastructure/db/models.py#L992): Note on the line above
+## `ChatRow`, [line 1001](../../../../../../../backend/src/sro/infrastructure/db/models.py#L1001): Note on the line above
 
 Code: `thought_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)`
 
 > Inside out_tokens, not beside them.
 
-## `ChatRow`, [line 970](../../../../../../../backend/src/sro/infrastructure/db/models.py#L970): Note on the line above
-## `ChatRow`, [line 982](../../../../../../../backend/src/sro/infrastructure/db/models.py#L982): Note on the line above
+## `ChatRow`, [line 992](../../../../../../../backend/src/sro/infrastructure/db/models.py#L992): Note on the line above
+## `ChatRow`, [line 1004](../../../../../../../backend/src/sro/infrastructure/db/models.py#L1004): Note on the line above
 
 Code: `unpriced: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)`
 

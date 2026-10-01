@@ -931,6 +931,28 @@ class AttemptRow(Base):
     about: Mapped[Any] = mapped_column(JSONB, nullable=False, default=dict)
 
 
+class ChatFeedbackRow(Base):
+    __tablename__ = "chat_feedback"
+    __table_args__ = (
+        Index("uq_chat_feedback_signal", "tenant_id", "message_id", "kind", unique=True),
+        Index("ix_chat_feedback_tenant_created", "tenant_id", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    seq: Mapped[int] = mapped_column(BigInteger, Identity(), nullable=False)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    operator: Mapped[str] = mapped_column(String(64), nullable=False)
+    thread_id: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    message_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    said: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    brain: Mapped[Any] = mapped_column(JSONB, nullable=False, default=dict)
+    other: Mapped[Any] = mapped_column(JSONB, nullable=False, default=dict)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="new")
+    note: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class OfferRow(Base):
     __tablename__ = "offers"
 

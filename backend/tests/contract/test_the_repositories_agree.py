@@ -71,6 +71,7 @@ from typing import Any
 import pytest
 
 from sro.application.ports.repositories import UnitOfWork
+from sro.domain.chat.feedback import Feedback
 from sro.domain.chat.reading import ChatReading
 from sro.domain.execution.account import K_LEASE_TTL, Account, Lease, LeaseState
 from sro.domain.execution.lanes import K_BROKEN_COOL_DOWN, Broken, Lane
@@ -2346,3 +2347,85 @@ class TestLeases:
             assert revived is not None
             assert revived.state is LeaseState.READY
             assert revived.expires_at == fresh
+
+
+def _feedback(feedback_id: str, *, tenant: TenantId = TENANT, **over: Any) -> Feedback:
+    fields: dict[str, Any] = {
+        "id": feedback_id,
+        "tenant": tenant.value,
+        "operator": "prn_a",
+        "thread_id": "thr_1",
+        "message_id": "msg_1",
+        "kind": "undo",
+        "created_at": _when(9),
+        "said": "make AITE4",
+        "brain": {"tools": [{"tool": "start_job", "ok": True}]},
+        "other": {"run": "run_1"},
+    }
+    fields.update(over)
+    return Feedback(**fields)
+
+
+class TestChatFeedback:
+    async def test_a_message_has_one_row_of_a_kind_and_the_first_stands(
+        self, store: UnitOfWork
+    ) -> None:
+        async with store as work:
+            first = await work.chat_feedback.add(_feedback("fbk_a"))
+            again = await work.chat_feedback.add(_feedback("fbk_b", said="a second"))
+            other_kind = await work.chat_feedback.add(_feedback("fbk_c", kind="budget"))
+            other_tenant = await work.chat_feedback.add(_feedback("fbk_d", tenant=OTHER_TENANT))
+            await work.commit()
+
+        assert (first, again, other_kind, other_tenant) == (True, False, True, True)
+        async with store as work:
+            kept = await work.chat_feedback.get(TENANT, "fbk_a")
+            lost = await work.chat_feedback.get(TENANT, "fbk_b")
+            elsewhere = await work.chat_feedback.get(TENANT, "fbk_d")
+        assert kept is not None and kept.said == "make AITE4" and kept.brain == _feedback("x").brain
+        assert lost is None and elsewhere is None
+
+    async def test_newest_is_newest_first_filtered_and_one_tenants(self, store: UnitOfWork) -> None:
+        async with store as work:
+            # Tied on created_at, planted in the order the answer is not: arrival breaks the tie.
+            await work.chat_feedback.add(_feedback("fbk_a", message_id="m1"))
+            await work.chat_feedback.add(_feedback("fbk_b", message_id="m2", kind="budget"))
+            await work.chat_feedback.add(_feedback("fbk_old", message_id="m3", created_at=_when(7)))
+            await work.chat_feedback.add(_feedback("fbk_x", tenant=OTHER_TENANT, message_id="m4"))
+            await work.chat_feedback.mark(TENANT, "fbk_old", status="dismissed", note="")
+            await work.commit()
+
+        async with store as work:
+            every = await work.chat_feedback.newest(TENANT, limit=10)
+            fresh = await work.chat_feedback.newest(TENANT, statuses=("new",), limit=10)
+            budget = await work.chat_feedback.newest(TENANT, kind="budget", limit=10)
+            late = await work.chat_feedback.newest(TENANT, since=_when(8), limit=10)
+            one = await work.chat_feedback.newest(TENANT, limit=1)
+
+        assert [r.id for r in every] == ["fbk_b", "fbk_a", "fbk_old"]
+        assert [r.id for r in fresh] == ["fbk_b", "fbk_a"]
+        assert [r.id for r in budget] == ["fbk_b"]
+        assert [r.id for r in late] == ["fbk_b", "fbk_a"]
+        assert [r.id for r in one] == ["fbk_b"]
+
+    async def test_mark_sets_status_and_note_for_its_own_tenant_only(
+        self, store: UnitOfWork
+    ) -> None:
+        async with store as work:
+            await work.chat_feedback.add(_feedback("fbk_a"))
+            await work.commit()
+
+        async with store as work:
+            stranger = await work.chat_feedback.mark(
+                OTHER_TENANT, "fbk_a", status="reviewed", note="no"
+            )
+            missing = await work.chat_feedback.mark(TENANT, "fbk_zz", status="reviewed", note="")
+            done = await work.chat_feedback.mark(
+                TENANT, "fbk_a", status="reviewed", note="a real one"
+            )
+            await work.commit()
+
+        assert (stranger, missing, done) == (False, False, True)
+        async with store as work:
+            row = await work.chat_feedback.get(TENANT, "fbk_a")
+        assert row is not None and (row.status, row.note) == ("reviewed", "a real one")

@@ -366,11 +366,11 @@ async def test_a_dry_turn_is_shown_the_suites_own_jobs_and_runs() -> None:
 
 async def test_a_committed_case_replays_its_whole_transcript() -> None:
     case = Case.load(Path(__file__).parents[3] / "evals" / "ci" / "chat" / "chat_15.json")
-    assert case.answers is not None and len(case.answers) == 3
+    assert case.answers is not None and len(case.answers) > 1
 
     one = await Chat().run(case, Replayed(case.answers))
 
-    assert one.passed and one.error is None and len(one.answers) == 3
+    assert one.passed and one.error is None and len(one.answers) == len(case.answers)
 
 
 def test_the_chat_suite_is_registered_and_asks_through_the_production_asker() -> None:

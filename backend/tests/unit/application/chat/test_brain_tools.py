@@ -9,6 +9,7 @@ data, and a bounded, secret-free answer.
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -36,6 +37,8 @@ from sro.application.lookup.plan_lookups import PlanLookups
 from sro.domain.chat.asking import Pending
 from sro.domain.chat.brain_turn import ToolResult, Turn
 from sro.domain.execution.workflow_run import OfferTaken
+from sro.domain.knowledge.entry import EntryKind, EvidenceLevel, KnowledgeEntry, KnowledgeId
+from sro.domain.observation.gesture import Outline, OutlineField
 from sro.domain.shared.identifiers import DeviceId, PrincipalId, TenantId
 from sro.domain.skill.workflow import Workflow
 from tests import factories as f
@@ -56,7 +59,9 @@ from tests.unit.fakes import (
     FakeIdFactory,
     FakeUnitOfWork,
 )
-from tests.unit.runtime_support import read_step, save_job
+from tests.unit.runtime_support import read_step, save_job, save_step
+
+DEPARTMENT = OutlineField("combobox", "Department", None, ("Finance", "Operations"))
 
 
 def _jobs(result: ToolResult) -> list[dict[str, Any]]:
@@ -469,7 +474,7 @@ async def test_a_parameter_the_job_does_not_have_is_refused() -> None:
 
     result = await acting.job.run(CTX, {"job_id": JOB, "values": {**GIVEN, "Colour": "red"}}, SAID)
 
-    assert not result.ok and "no Colour" in result.error and acting.start.tried == 0
+    assert not result.ok and "can't set Colour" in result.error and acting.start.tried == 0
 
 
 async def test_a_refusal_from_the_system_is_data_and_is_tried_once() -> None:
@@ -675,3 +680,71 @@ async def test_somebody_else_s_card_is_not_this_operator_s_offer() -> None:
 
     run = await acting.world.uow.workflow_runs.get(f.TENANT, str(chat.data["run_id"]))
     assert run is not None and (run.offer or "").startswith("chat:m1:")
+
+
+async def _the_dictionary_places(acting: _Acting, label: str, key: str) -> None:
+    await acting.world.uow.knowledge.add(
+        KnowledgeEntry(
+            id=KnowledgeId(f"kb-field-{key}"),
+            tenant_id=f.TENANT,
+            system="blue_yonder",
+            kind=EntryKind.FIELD,
+            key=key,
+            title=key,
+            body={"labels": [label], "max_length": 30},
+            source="index/field-dictionary.json",
+            evidence=EvidenceLevel.ASSERTED,
+            observed_at=datetime.now(tz=UTC),
+        )
+    )
+
+
+async def test_a_field_the_dictionary_can_place_is_taken_and_passed_to_the_run() -> None:
+    acting = await _acting()
+    await _the_dictionary_places(acting, "Department", "deptCode")
+    said = Turn(said=SAID.said + " in the department Finance")
+    values = {**GIVEN, "Department": "Finance"}
+
+    result = await acting.job.run(CTX, {"job_id": JOB, "values": values}, said)
+
+    assert result.ok, result.error
+    run = await acting.world.uow.workflow_runs.get(f.TENANT, str(result.data["run_id"]))
+    assert run is not None and run.values == values
+
+
+async def test_a_field_the_dictionary_cannot_place_is_refused_with_the_honest_reason() -> None:
+    acting = await _acting()
+    await _the_dictionary_places(acting, "Department", "deptCode")
+    said = Turn(said=SAID.said + " from the manufacturer Acme")
+
+    result = await acting.job.run(
+        CTX, {"job_id": JOB, "values": {**GIVEN, "Manufacturer": "Acme"}}, said
+    )
+
+    assert not result.ok and "this job can't set Manufacturer" in result.error
+    assert "has no" not in result.error and acting.started == []
+
+
+async def test_a_placeable_value_still_has_to_be_the_operator_s_own_words() -> None:
+    acting = await _acting()
+    await _the_dictionary_places(acting, "Department", "deptCode")
+
+    result = await acting.job.run(
+        CTX, {"job_id": JOB, "values": {**GIVEN, "Department": "Finance"}}, SAID
+    )
+
+    assert not result.ok and "Department" in result.error and acting.started == []
+
+
+async def test_find_jobs_lists_a_field_the_page_shows_as_optional_and_read_back() -> None:
+    world = await world_with_job()
+    (gesture,) = save_step(gid="g", outline=Outline(fields=(DEPARTMENT,)))[1].values()
+    # The same recorded save, now with the form it was pressed on in view.
+    world.uow.gestures.rows["g"] = replace(gesture, tenant=f.TENANT.value)
+
+    result = await FindJobs(world.uow, FakeClock()).run(CTX, {"query": "create customer type"})
+
+    (job,) = [one for one in _jobs(result) if one["id"] == JOB]
+    (extra,) = [p for p in job["parameters"] if p["name"] == "Department"]
+    assert extra["required"] is False and extra["options"] == ["Finance", "Operations"]
+    assert "read back after saving" in extra["checked"]

@@ -728,3 +728,20 @@ def test_9_a_label_asked_about_ends_the_value_and_is_asked_about() -> None:
     short = answered(_waiting("Customer Type", "Description"), "Customer Type: GGD, Desc: first")
     assert short.values == {"Customer Type": "GGD"}
     assert short.which == {"Desc": ("Description",)}
+
+
+def test_a_secret_named_value_is_never_listed_in_the_question_which_value_should_change() -> None:
+    from sro.domain.chat.asking import refusal_question
+
+    pending = Pending(
+        workflow_id="wfl_1",
+        title="Create a User",
+        values={"User": "jdoe", "Password": "hunter2-not-for-a-chat"},
+        missing=("User", "Password"),
+        changing=True,
+    )
+
+    asked = refusal_question(pending, "the system refused it: Record already exists")
+
+    assert "jdoe" in asked and "Which value should change?" in asked
+    assert "hunter2" not in asked and "Password" not in asked

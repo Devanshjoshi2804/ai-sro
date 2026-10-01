@@ -121,7 +121,11 @@ def _holds(pending: Pending, name: str) -> str:
 
 
 def _the_values(pending: Pending) -> str:
-    return "; ".join(f"{name}: {_short(value)}" for name, value in pending.values.items())
+    return "; ".join(
+        f"{name}: {_short(value)}"
+        for name, value in pending.values.items()
+        if not is_secret_field(name)
+    )
 
 
 def refusal_question(pending: Pending, reason: str, also: str = "") -> str:

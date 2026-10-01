@@ -2130,39 +2130,6 @@ async function handle(message, sender) {
       // A conversation somebody deliberately started. `current` answers with
       // the newest, so nothing else has to be told which one to draw.
       return api.newThread();
-    case "run-workflow": {
-      // "Run it here", off the learned-job card. By id, never by title: the
-      // tenant holds three jobs called "Log in to Keycloak", and a sentence
-      // naming one of them comes back as a question about which was meant.
-      // A job short of a required value parks and asks in the conversation,
-      // which is where that question belongs.
-      if (!message.workflowId)
-        return { ok: false, error: "no job to run" };
-      try {
-        const run = await api.rigStart({
-          workflow_id: message.workflowId,
-          device_id: await state.deviceId(),
-          values: message.values || {},
-          items: [],
-          live: true,
-          allow_focus: true,
-          watched: true,
-        });
-        // The same record `start-rig-run` writes, field for field: `at` is
-        // what `parkedRigRun` reads back as the run's `since`, and a record
-        // written with a different name for it is a run card with no elapsed
-        // time on it.
-        await state.setActiveRun({
-          runId: run.id,
-          at: Date.now(),
-          source: "rig",
-        });
-        void pollRigRun();
-        return { ok: true, run_id: run.id, runId: run.id };
-      } catch (error) {
-        return { ok: false, error: error.problem?.detail || error.message };
-      }
-    }
     case "recent-runs": {
       // The rows, with each job's own title put back on them. The backend
       // answers `workflow_id` and this browser is already holding the shapes

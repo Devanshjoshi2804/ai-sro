@@ -67,6 +67,7 @@ from sro.application.chat.brain_tools import (
     values_of,
     what_is_wrong,
 )
+from sro.application.chat.open_offers import OpenOffer
 from sro.application.context import RequestContext
 from sro.application.execution.workflow_runs import GetWorkflowRun, StartWorkflowRun
 from sro.application.ports.model import Asker
@@ -311,6 +312,9 @@ class FakeStart:
         return None
 
 
+CARD = "offer:card"
+
+
 class FakeStartJob(StartJob):
     """The real `run` and `_launch`; `check` is the real refusals over this world's jobs."""
 
@@ -318,6 +322,13 @@ class FakeStartJob(StartJob):
         self._world = world
         self._start = cast(StartWorkflowRun, FakeStart(world))
         self._spawn = lambda coro: coro.close()
+
+    async def _offers(self, ctx: RequestContext) -> tuple[OpenOffer, ...]:
+        # The card on the operator's panel, if the scenario has one: one run per offer.
+        card = _offer_of(self._world)
+        if card is None:
+            return ()
+        return (OpenOffer(CARD, card.workflow_id, card.title, dict(card.values)),)
 
     async def check(
         self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
@@ -464,7 +475,7 @@ async def _answer_offer(
         return f"Left {offer.title}."
     try:
         await FakeStart(world).execute(
-            ctx, workflow_id=offer.workflow_id, values=offer.values, offer=f"offer:{key}"
+            ctx, workflow_id=offer.workflow_id, values=offer.values, offer=CARD
         )
     except OfferTaken:
         return "That one is already running."

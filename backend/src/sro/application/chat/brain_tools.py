@@ -8,7 +8,7 @@ from typing import ClassVar, Protocol, runtime_checkable
 from sro.application.chat.candidates import rank_jobs, real_jobs
 from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.chat.mailbox import SERVER
-from sro.application.chat.open_offers import standing_offers
+from sro.application.chat.open_offers import OpenOffer, standing_offers
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.chat.understand import held_runs
 from sro.application.connection.sign_in import logins_of
@@ -416,6 +416,9 @@ class StartJob:
         wrong = what_is_wrong(values, fields, turn.said, logins, placeable)
         return ToolResult(ok=False, error="; ".join(wrong)) if wrong else None
 
+    async def _offers(self, ctx: RequestContext) -> tuple[OpenOffer, ...]:
+        return await standing_offers(self._uow, ctx, self._clock.now())
+
     async def run(
         self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
     ) -> ToolResult:
@@ -424,14 +427,7 @@ class StartJob:
         job_id, values = str(args.get("job_id") or ""), values_of(args) or {}
         # An offer of this job already standing for this operator is the one run this job gets:
         # started under its id, a second answer (the card, or this chat) finds the first run.
-        covering = next(
-            (
-                one
-                for one in await standing_offers(self._uow, ctx, self._clock.now())
-                if one.workflow_id == job_id
-            ),
-            None,
-        )
+        covering = next((one for one in await self._offers(ctx) if one.workflow_id == job_id), None)
         return await _launch(
             self._start,
             self._spawn,

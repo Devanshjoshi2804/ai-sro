@@ -38,6 +38,7 @@ from sro.domain.execution.compose import compose as place_values
 from sro.domain.execution.compose import normal
 from sro.domain.execution.field_classes import FieldClass, FieldLimits, labelled
 from sro.domain.execution.mail_job import built_in, is_mail_only, sends_mail
+from sro.domain.execution.waiting import standing as parked_on
 from sro.domain.execution.workflow_run import SETTLED, OfferTaken, WorkflowRun
 from sro.domain.recording.sensitivity import is_secret_field
 from sro.domain.shared.errors import DomainError
@@ -213,6 +214,10 @@ class RunStatus:
         }
 
     async def _question(self, ctx: RequestContext, run: WorkflowRun) -> str:
+        # A password is entered on the run's own card and never said in a chat, so
+        # the model is told where to send the operator, not handed the question.
+        if parked_on(run).get("kind") == "password":
+            return "waiting: enter the password on the run's card, not in this chat"
         # The run's own ask chat, keyed as the run keys it when it asks.
         owner = RequestContext(ctx.tenant_id, PrincipalId(run.started_by or ctx.principal_id.value))
         chat = await self._threads.asking(owner, (run.mail or {}).get("thread") or run.id)

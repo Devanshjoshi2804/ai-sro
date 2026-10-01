@@ -217,6 +217,28 @@ async def test_run_status_says_a_run_came_from_mail_and_what_it_asks() -> None:
     assert one["question"] == "Which customer type code should I use?"
 
 
+async def test_run_status_sends_a_password_question_to_the_run_s_card_and_never_to_chat() -> None:
+    world = await world_with_job()
+    run = await world.ran("running", {})
+    progress = {
+        "asking": {
+            "id": "q_1",
+            "kind": "password",
+            "text": "no usable password is stored for clerk at login.idp.example",
+            "origin": "login.idp.example",
+            "username": "clerk",
+            "field": "password",
+        }
+    }
+    assert await world.uow.workflow_runs.record_progress(f.TENANT, run.id, progress)
+    await world.asked(run, "no usable password is stored for clerk at login.idp.example")
+
+    result = await RunStatus(world.runs, world.threads).run(CTX, {})
+
+    (one,) = _runs(result)
+    assert one["question"] == "waiting: enter the password on the run's card, not in this chat"
+
+
 async def test_run_status_shows_the_caller_s_own_runs_and_no_others() -> None:
     world = await world_with_job()
     await world.ran("held", {}, run_id="run_mine")

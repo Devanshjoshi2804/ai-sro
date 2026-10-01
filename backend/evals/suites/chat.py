@@ -195,7 +195,7 @@ _LATER = "Was the AITE11 request I mailed done?"
 
 # `recent runs` is already in the evidence, read by code at the start of the turn: an answer
 # straight from it is as true as a run_status call and a model call faster.
-_FROM_THE_RUNS = [{"tools": []}]
+_FROM_THE_RUNS: list[dict[str, object]] = [{"tools": []}]
 
 CASES = [
     # the mailbox

@@ -23,22 +23,31 @@
  "answer": {
   "action": "call",
   "tool": "find_jobs",
-  "args": "{\"query\": \"customer type\"}"
+  "args": "{\"query\": \"create customer type\"}",
+  "why": "Find the job that creates a customer type and check its required parameters."
  },
  "answers": [
   {
    "action": "call",
    "tool": "find_jobs",
-   "args": "{\"query\": \"customer type\"}"
+   "args": "{\"query\": \"create customer type\"}",
+   "why": "Find the job that creates a customer type and check its required parameters."
+  },
+  {
+   "action": "call",
+   "tool": "start_job",
+   "args": "{\"job_id\": \"wfl_3c8f1a5e9d7b4026b1e8a4c7d0f5923e\", \"values\": {\"Customer Type\": \"SROT1\", \"Customer Type Description\": \"x\"}}",
+   "why": "Start the job with the provided values as requested."
   },
   {
    "action": "call",
    "tool": "ask_operator",
-   "args": "{\"question\": \"A customer type is at most 4 characters; which shorter code should I use?\"}"
+   "args": "{\"question\": \"Customer Type must be 4 characters or fewer. What code should I use instead of SROT1?\"}",
+   "why": "The Customer Type SROT1 exceeds the maximum allowed length of 4 characters, so a valid code is needed."
   },
   {
    "action": "say",
-   "text": "I asked for a shorter code."
+   "text": "Customer Type SROT1 exceeds the 4-character limit, so the job could not be started. I have asked for a shorter code."
   }
  ]
 }

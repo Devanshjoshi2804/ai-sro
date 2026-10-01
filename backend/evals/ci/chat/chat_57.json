@@ -14,12 +14,12 @@
  },
  "answer": {
   "action": "say",
-  "text": "That is an alert, not a request."
+  "text": "This email is an automatic alert from a monitoring address, not a request from a person, so no action will be taken."
  },
  "answers": [
   {
    "action": "say",
-   "text": "That is an alert, not a request."
+   "text": "This email is an automatic alert from a monitoring address, not a request from a person, so no action will be taken."
   }
  ]
 }

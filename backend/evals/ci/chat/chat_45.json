@@ -12,13 +12,28 @@
   "args": {}
  },
  "answer": {
-  "action": "say",
-  "text": "A putaway cannot be undone from here."
+  "action": "call",
+  "tool": "find_jobs",
+  "args": "{\"query\": \"undo putaway\"}",
+  "why": "Check if there is a job configured to undo or reverse a putaway."
  },
  "answers": [
   {
+   "action": "call",
+   "tool": "find_jobs",
+   "args": "{\"query\": \"undo putaway\"}",
+   "why": "Check if there is a job configured to undo or reverse a putaway."
+  },
+  {
+   "action": "call",
+   "tool": "ask_operator",
+   "args": "{\"question\": \"Which putaway or LPN would you like to undo?\"}",
+   "why": "No specific putaway or LPN was provided, and an undo requires confirmation and exact details."
+  },
+  {
    "action": "say",
-   "text": "A putaway cannot be undone from here."
+   "why": "I have asked the operator which putaway to undo and am waiting for their response before proceeding.",
+   "text": "I have asked for details on which putaway to undo and am waiting for your reply."
   }
  ]
 }

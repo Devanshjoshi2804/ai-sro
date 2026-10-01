@@ -41,17 +41,19 @@
  "answer": {
   "action": "call",
   "tool": "run_status",
-  "args": "{}"
+  "args": "{}",
+  "why": "Check the status of recent runs to see what is currently running."
  },
  "answers": [
   {
    "action": "call",
    "tool": "run_status",
-   "args": "{}"
+   "args": "{}",
+   "why": "Check the status of recent runs to see what is currently running."
   },
   {
    "action": "say",
-   "text": "One run is running and one is done."
+   "text": "Run run_aite5 is currently running for Equipment AITE5."
   }
  ]
 }

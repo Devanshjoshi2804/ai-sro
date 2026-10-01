@@ -25,17 +25,19 @@
  "answer": {
   "action": "call",
   "tool": "lookup",
-  "args": "{\"question\": \"orders shipped on 2026-09-29\"}"
+  "args": "{\"question\": \"orders shipped on 2026-09-29\"}",
+  "why": "Look up orders shipped yesterday (September 29, 2026)."
  },
  "answers": [
   {
    "action": "call",
    "tool": "lookup",
-   "args": "{\"question\": \"orders shipped on 2026-09-29\"}"
+   "args": "{\"question\": \"orders shipped on 2026-09-29\"}",
+   "why": "Look up orders shipped yesterday (September 29, 2026)."
   },
   {
    "action": "say",
-   "text": "I looked up the orders shipped on 2026-09-29."
+   "text": "I checked the system for orders shipped yesterday, September 29, 2026."
   }
  ]
 }

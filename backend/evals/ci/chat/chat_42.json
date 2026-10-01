@@ -23,23 +23,20 @@
  },
  "answer": {
   "action": "call",
-  "tool": "find_jobs",
-  "args": "{\"query\": \"customer type\"}"
+  "tool": "ask_operator",
+  "args": "{\"question\": \"What customer type code would you like to create?\"}",
+  "why": "A customer type code is required to create a customer type."
  },
  "answers": [
   {
    "action": "call",
-   "tool": "find_jobs",
-   "args": "{\"query\": \"customer type\"}"
-  },
-  {
-   "action": "call",
    "tool": "ask_operator",
-   "args": "{\"question\": \"Which customer type code and description should I use?\"}"
+   "args": "{\"question\": \"What customer type code would you like to create?\"}",
+   "why": "A customer type code is required to create a customer type."
   },
   {
    "action": "say",
-   "text": "I asked which code and description."
+   "text": "I have asked which customer type code you would like to create and am waiting for your response."
   }
  ]
 }

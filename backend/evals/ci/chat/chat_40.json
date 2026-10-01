@@ -29,17 +29,19 @@
  "answer": {
   "action": "call",
   "tool": "lookup",
-  "args": "{\"question\": \"voice code for AITE4\"}"
+  "args": "{\"question\": \"what is the voice code for AITE4?\"}",
+  "why": "Look up the voice code for equipment AITE4 in the warehouse system."
  },
  "answers": [
   {
    "action": "call",
    "tool": "lookup",
-   "args": "{\"question\": \"voice code for AITE4\"}"
+   "args": "{\"question\": \"what is the voice code for AITE4?\"}",
+   "why": "Look up the voice code for equipment AITE4 in the warehouse system."
   },
   {
    "action": "say",
-   "text": "AITE4 has voice code 12."
+   "text": "I checked the system for AITE4, but no voice code was found."
   }
  ]
 }

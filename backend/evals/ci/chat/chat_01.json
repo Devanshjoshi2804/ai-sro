@@ -16,17 +16,19 @@
  "answer": {
   "action": "call",
   "tool": "check_mail",
-  "args": "{}"
+  "args": "{}",
+  "why": "Check the inbox for any new work as requested."
  },
  "answers": [
   {
    "action": "call",
    "tool": "check_mail",
-   "args": "{}"
+   "args": "{}",
+   "why": "Check the inbox for any new work as requested."
   },
   {
    "action": "say",
-   "text": "Nothing new in the mailbox asks for a job."
+   "text": "I have checked the mailbox. There is no new work."
   }
  ]
 }

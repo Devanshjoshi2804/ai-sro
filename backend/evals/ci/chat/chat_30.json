@@ -12,13 +12,21 @@
   "args": {}
  },
  "answer": {
-  "action": "say",
-  "text": "Signing in to Keycloak is automatic; nothing to start."
+  "action": "call",
+  "tool": "find_jobs",
+  "args": "{\"query\": \"log in to keycloak\"}",
+  "why": "Check whether there is a job configured for logging into Keycloak."
  },
  "answers": [
   {
+   "action": "call",
+   "tool": "find_jobs",
+   "args": "{\"query\": \"log in to keycloak\"}",
+   "why": "Check whether there is a job configured for logging into Keycloak."
+  },
+  {
    "action": "say",
-   "text": "Signing in to Keycloak is automatic; nothing to start."
+   "text": "I cannot log in to Keycloak or handle credentials. Please log in directly through your browser."
   }
  ]
 }

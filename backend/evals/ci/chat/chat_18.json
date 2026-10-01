@@ -24,17 +24,19 @@
  "answer": {
   "action": "call",
   "tool": "ask_operator",
-  "args": "{\"question\": \"Which code, and warehouse or transport?\"}"
+  "args": "{\"question\": \"What is the code for the equipment type you would like to create?\"}",
+  "why": "The equipment type code was not provided."
  },
  "answers": [
   {
    "action": "call",
    "tool": "ask_operator",
-   "args": "{\"question\": \"Which code, and warehouse or transport?\"}"
+   "args": "{\"question\": \"What is the code for the equipment type you would like to create?\"}",
+   "why": "The equipment type code was not provided."
   },
   {
    "action": "say",
-   "text": "I asked which one you mean."
+   "text": "I have asked for the equipment type code and am waiting for your reply."
   }
  ]
 }

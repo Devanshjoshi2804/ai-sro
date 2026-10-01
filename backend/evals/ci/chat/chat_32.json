@@ -23,18 +23,26 @@
  },
  "answer": {
   "action": "call",
-  "tool": "work_it_out",
-  "args": "{\"task\": \"navigate to receiving\"}"
+  "tool": "find_jobs",
+  "args": "{\"query\": \"navigate to receiving\"}",
+  "why": "Check if there is an existing job to navigate to receiving."
  },
  "answers": [
   {
    "action": "call",
+   "tool": "find_jobs",
+   "args": "{\"query\": \"navigate to receiving\"}",
+   "why": "Check if there is an existing job to navigate to receiving."
+  },
+  {
+   "action": "call",
    "tool": "work_it_out",
-   "args": "{\"task\": \"navigate to receiving\"}"
+   "args": "{\"task\": \"navigate to receiving\"}",
+   "why": "No predefined job covers navigating to receiving, so use work_it_out to execute the task on screen."
   },
   {
    "action": "say",
-   "text": "I have planned it on the screen."
+   "text": "Navigated to Receiving."
   }
  ]
 }

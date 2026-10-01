@@ -8,7 +8,7 @@ import json
 from sro.application.chat.ask_the_asker import DRAFTED, SendTheDraft
 from sro.application.chat.from_the_mail import FromTheMail
 from sro.application.runtime.answer_run import AnswerRun
-from sro.domain.chat.asking import NEEDS
+from sro.domain.chat.asking import NEEDS, standing
 from tests.unit.application.rig.test_from_the_mail import _found, _Mailbox, _Reads
 from tests.unit.application.runtime.test_a_refused_write import (
     CTX,
@@ -30,12 +30,17 @@ def _reply(said: str, sender: str = "") -> str:
 
 
 async def _replied(
-    world: SteelRun, asking: _Asking, said: str, *reading: dict[str, object], sender: str = ""
+    world: SteelRun,
+    asking: _Asking,
+    said: str,
+    *reading: dict[str, object],
+    sender: str = "",
+    reads: _Reads | None = None,
 ) -> None:
     await FromTheMail(
         world.uow,
         _Mailbox(search=_found("m-2"), **{"m-2": _reply(said, sender)}),
-        _Reads(*reading),
+        reads or _Reads(*reading),
         answer=AnswerRun(world.uow, FakeDurableExecution()),
         clock=FakeClock(),
         ids=FakeIdFactory(),
@@ -161,7 +166,9 @@ async def _question_and_new_run_offers(by_mail: bool) -> tuple[str, list[str]]:
     return question.id.value, offers
 
 
-async def test_the_mail_and_the_panel_start_a_refusal_s_answer_under_the_questions_own_key() -> None:
+async def test_the_mail_and_the_panel_start_a_refusal_s_answer_under_the_questions_own_key() -> (
+    None
+):
     # One question, one key: otherwise uq_workflow_runs_one_per_offer cannot
     # stop the operator's typed answer and a mail reply both starting a run.
     for by_mail in (True, False):
@@ -182,3 +189,45 @@ async def test_a_display_name_holding_the_asked_address_does_not_answer_for_its_
 
     chat = await _chat(world, THREAD)
     assert not [one for one in chat.messages if one.text.startswith("A reply")]
+
+
+_QUOTING = (
+    "use another one\n\nOn Tue, AI-SRO <a@x.com> wrote:\n> Description Pet shops is already used"
+)
+_THE_REFUSED: dict[str, object] = {
+    "job": WORKFLOW.id,
+    "values": [{"field": "Description", "value": "Pet shops", "quote": "Pet shops"}],
+    "missing": [],
+    "sure": True,
+}
+
+
+async def test_a_reply_that_quotes_the_refused_value_does_not_bring_it_back() -> None:
+    world, asking = await _refused_run(mail=ENVELOPE)
+    reads = _Reads(_THE_REFUSED)
+
+    await _replied(world, asking, _QUOTING, reads=reads)
+
+    assert "Pet shops" not in reads.saw[0], "the quoted mail was read for values"
+    assert _new_runs(world) == []
+    asked = standing((await _chat(world, THREAD)).messages)
+    assert asked is not None and (asked.decision or {}).get("kind") == NEEDS
+
+
+async def test_a_refused_value_read_out_of_a_reply_is_never_taken_as_the_answer() -> None:
+    world, asking = await _refused_run(mail=ENVELOPE)
+
+    await _replied(world, asking, "use another one, Pet shops it was", _THE_REFUSED)
+
+    assert _new_runs(world) == []
+    asked = standing((await _chat(world, THREAD)).messages)
+    assert asked is not None and (asked.decision or {}).get("kind") == NEEDS
+
+
+async def test_typing_the_refused_value_in_the_panel_is_not_an_answer_either() -> None:
+    world, asking = await _refused_run(mail=ENVELOPE)
+    chat = await _chat(world, THREAD)
+
+    await asking.converse(world).execute(CTX, thread_id=chat.id, text="Pet shops")
+
+    assert _new_runs(world) == []

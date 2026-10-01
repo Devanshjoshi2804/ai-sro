@@ -853,8 +853,7 @@ def answered(pending: Pending, said: str, logins: Logins = Logins()) -> Pending:
         if (why := refusal(one, value, _limits(pending, name), logins))
     }
     taken = {name: one for name, one in named.items() if name not in refused}
-    if pending.changing:
-        taken = changes(pending, taken)
+    taken = changes(pending, taken)
     not_had = (
         *reply.dropped,
         *(

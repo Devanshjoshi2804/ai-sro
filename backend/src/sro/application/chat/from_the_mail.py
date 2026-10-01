@@ -55,6 +55,7 @@ from sro.domain.chat.asking import (
     sourced,
     waiting_on_mail,
 )
+from sro.domain.chat.mail_reply import without_the_quote
 from sro.domain.chat.thread import Said, Speaker
 from sro.domain.execution.learned_step import limits_for, too_long
 from sro.domain.execution.mail_job import MAIL_BODY, addresses_in, one_address_in, sender_address
@@ -302,13 +303,17 @@ class FromTheMail:
                 look.theirs += 1
                 await self._elsewhere(ctx, back)
                 raise _Theirs
-            await self._answer_the_run(ctx, back, said, message)
+            await self._answer_the_run(ctx, back, mail.typed, message)
             return None
         if back is not None:
-            return await self._carrying_on(ctx, message, back, said, thread, subject, titles, held)
+            return await self._carrying_on(
+                ctx, message, back, mail.typed, thread, subject, titles, held
+            )
         asked, asked_of = await self._was_asked(ctx, thread)
         if asked is not None and (not asked_of or asked_of == sender_address(mail.sender)):
-            return await self._answered_by_mail(ctx, message, asked, said, thread, subject, held)
+            return await self._answered_by_mail(
+                ctx, message, asked, mail.typed, thread, subject, held
+            )
         whole, earlier = await self._conversation(ctx, thread, message) if thread else ("", "")
         text = whole or said
         got = await read_request(text, known.facts, asker, held=known.held_by, logins=known.logins)
@@ -691,21 +696,20 @@ class FromTheMail:
         # A value the system refused is not an answer: it is asked for again.
         values = {name: one for name, one in asked.values.items() if name not in asked.refused}
         missing = [name for name in asked.missing if not values.get(name)]
-        if asked.changing:
-            # The system named no value: any one that changes answers, the rest stay.
-            values = dict(asked.values)
-            changed = changes(
-                asked,
-                await self._reply_says(
-                    ctx, said, held.get(asked.workflow_id), missing, question=question(asked)
-                ),
-            )
-            values |= changed
-            missing = [] if changed else list(asked.missing)
-        else:
-            values |= await self._reply_says(
+        # A value the system refused never comes back as an answer, however the
+        # reply was read: only a changed value answers, a changing question
+        # taking any one that changes and keeping the rest.
+        read = changes(
+            asked,
+            await self._reply_says(
                 ctx, said, held.get(asked.workflow_id), missing, question=question(asked)
-            )
+            ),
+        )
+        if asked.changing:
+            values = dict(asked.values) | read
+            missing = [] if read else list(asked.missing)
+        else:
+            values |= read
             missing = [name for name in missing if name not in values]
         if missing and self._gather is not None and not asked.changing:
             found = await self._gather.execute(
@@ -715,7 +719,7 @@ class FromTheMail:
                 because=said[:K_BECAUSE],
                 rounds=K_OFFER_ROUNDS,
             )
-            values |= {name: one.value for name, one in found.values.items()}
+            values |= changes(asked, {name: one.value for name, one in found.values.items()})
             missing = [name for name in missing if name not in values]
         logger.info(
             "%s: a reply answers the question standing on %s (%d of %d)",
@@ -941,8 +945,13 @@ class FromTheMail:
             str(said.get(part) or "").strip() for part in ("subject", "body", "snippet")
         )
         whole = " ".join(whole.split())
+        # What was typed, not the mail it quotes: a reply is read for values from this.
+        typed = " ".join(
+            f"{said.get('subject') or ''} {without_the_quote(str(said.get('body') or ''))}".split()
+        )
         return _Mail(
             said=whole[:K_TEXT],
+            typed=typed[:K_TEXT],
             thread=str(said.get("thread_id") or ""),
             subject=" ".join(str(said.get("subject") or "").split())[:K_SUBJECT],
             sent_to=sent_to_others(
@@ -1048,6 +1057,7 @@ class _Reach:
 @dataclass(frozen=True, slots=True)
 class _Mail:
     said: str = ""
+    typed: str = ""
     thread: str = ""
     subject: str = ""
     sent_to: tuple[str, ...] = ()

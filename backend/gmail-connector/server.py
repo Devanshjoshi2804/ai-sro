@@ -270,6 +270,17 @@ def authorize(tenant: str, operator: str) -> None:
     _keep(tenant, operator, str(granted["refresh_token"]))
 
 
+_AUTOMATION = (
+    "auto-submitted",
+    "precedence",
+    "content-type",
+    "x-auto-response-suppress",
+    "list-unsubscribe",
+    "x-autoreply",
+    "x-autorespond",
+)
+
+
 def _headers_of(payload: dict[str, Any]) -> dict[str, str]:
     return {
         str(one.get("name", "")).lower(): str(one.get("value", ""))
@@ -394,6 +405,8 @@ def _get(token: str, arguments: dict[str, Any], mailbox: str = "") -> str:
             "mailbox": mailbox,
             "subject": head.get("subject", ""),
             "body": _body_of(payload),
+            # What says a mail is a machine's (RFC 3834): the look never answers or reads one.
+            "headers": {name: head[name] for name in _AUTOMATION if name in head},
         },
         indent=1,
     )

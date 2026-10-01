@@ -55,6 +55,7 @@ from sro.domain.chat.asking import (
     sourced,
     waiting_on_mail,
 )
+from sro.domain.chat.automated_mail import is_automated
 from sro.domain.chat.mail_reply import without_the_quote
 from sro.domain.chat.thread import Said, Speaker
 from sro.domain.execution.learned_step import limits_for, too_long
@@ -296,6 +297,10 @@ class FromTheMail:
             mail.marker,
         )
         if not said:
+            return None
+        if mail.automated:
+            # An auto-reply, a bounce, a list mail or an alert: never answered, never read for work.
+            logger.info("%s: ignored an automated mail", tenant)
             return None
         if await is_ours(
             self._uow,
@@ -982,6 +987,10 @@ class FromTheMail:
             marker=str(said.get("marker") or ""),
             sender=" ".join(str(said.get("from") or "").split())[:K_SUBJECT],
             arrived=_when(str(said.get("date") or "")),
+            automated=is_automated(
+                str(said.get("from") or ""),
+                said.get("headers") if isinstance(said.get("headers"), dict) else {},
+            ),
         )
 
     async def _conversation(
@@ -1086,6 +1095,7 @@ class _Mail:
     marker: str = ""
     sender: str = ""
     arrived: str = ""
+    automated: bool = False
 
 
 @dataclass(frozen=True, slots=True)

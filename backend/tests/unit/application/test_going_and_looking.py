@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Mapping
+from dataclasses import replace
 from types import MappingProxyType
 from typing import Any
 from urllib.parse import unquote
@@ -776,6 +777,121 @@ async def test_a_whole_unfiltered_list_without_the_record_still_says_no() -> Non
     )
 
     assert what_was_found(answers).startswith("No, none of the 2")
+
+
+def _typed(value: str, *, at: float = 50.0) -> Gesture:
+    return replace(_gesture(at=at), action=Action(kind="type", at=at, value=value))
+
+
+def _shape(read_query: str, write_query: str, *extra: Gesture) -> list[Gesture]:
+    """The QA shape (values anonymised): a recorded list read and a recorded save, each with
+    scope and a cache-buster on the URL."""
+    return [
+        _gesture(_call(path=GRID, query=read_query, at=100.0), at=100.0),
+        _gesture(
+            _call(method="POST", path="/data/WM/wm/suppliers", query=write_query, at=200.0),
+            at=200.0,
+        ),
+        *extra,
+    ]
+
+
+READ = "query=[]&siteId=SG&subsites=a,b&_dc=1700000001001"
+WROTE = "siteId=SG&subsites=a,b&_dc=1700000001002"
+
+
+def test_a_param_the_recorded_writes_carry_with_the_same_value_is_scope_not_a_filter() -> None:
+    """R-L6: siteId=SG is where records are made; the read of that place is the whole list.
+    _dc differs on every call, never was typed and a write carried it: no filter either."""
+    address = address_for(_asked_for("X"), _shape(READ, WROTE, _typed("hello")))
+
+    assert address is not None and address.narrowed == ()
+
+
+def test_a_cache_buster_that_repeats_across_recorded_calls_stays_a_filter() -> None:
+    """The QA evidence: 1064 _dc values carried, 720 distinct (calls in one millisecond)."""
+    again = _gesture(_call(path="/data/WM/wm/other", query="_dc=1700000001001", at=300.0), at=300.0)
+
+    address = address_for(_asked_for("X"), _shape(READ, WROTE, _typed("hello"), again))
+
+    assert address is not None and address.narrowed == ("_dc",)
+
+
+@pytest.mark.parametrize(
+    ("read", "write", "typed", "narrowed"),
+    [
+        # the write saved to another place: the read is a different list
+        ("query=[]&siteId=SG&_dc=1700000000001", "siteId=NL&_dc=1700000000002", "", ("siteId",)),
+        # the writes never carried it: nothing proves it is scope
+        ("query=[]&siteId=SG&_dc=1700000000001", "_dc=1700000000002", "", ("siteId",)),
+        # a cache-buster no write carries
+        ("query=[]&_dc=1700000000001", "siteId=SG", "", ("_dc",)),
+        # a value the operator typed is record content, whatever a write also carried
+        ("query=[]&siteId=SG&_dc=1700000000001", "siteId=SG&_dc=1700000000002", "sg", ("siteId",)),
+        ("query=[]&_dc=1700000001234", "_dc=1700000000002", "1700000001234", ("_dc",)),
+        # a read only for one of the write's values
+        ("query=[]&subsites=a", "subsites=a,b", "", ("subsites",)),
+    ],
+)
+def test_a_param_unproven_by_what_was_recorded_stays_a_filter(
+    read: str, write: str, typed: str, narrowed: tuple[str, ...]
+) -> None:
+    extra = (_typed(typed),) if typed else ()
+
+    address = address_for(_asked_for("ZW1"), _shape(read, write, *extra))
+
+    assert address is not None and address.narrowed == narrowed
+
+
+def test_a_write_that_failed_proves_nothing() -> None:
+    gestures = [
+        _gesture(_call(path=GRID, query="query=[]&siteId=SG")),
+        _gesture(_call(method="POST", path=SUPPLIERS, query="siteId=SG", status=500), at=200.0),
+    ]
+
+    address = address_for(_asked_for("X"), gestures)
+
+    assert address is not None and address.narrowed == ("siteId",)
+
+
+def test_scope_proven_on_one_system_is_not_proof_on_another() -> None:
+    elsewhere = replace(
+        _call(method="POST", path=SUPPLIERS, query="siteId=SG"),
+        url="https://other.example.com/x?siteId=SG",
+    )
+    gestures = [_gesture(_call(path=GRID, query="query=[]&siteId=SG")), _gesture(elsewhere, at=2.0)]
+
+    address = address_for(_asked_for("X"), gestures)
+
+    assert address is not None and address.narrowed == ("siteId",)
+
+
+async def test_a_list_read_with_scope_and_cache_buster_says_no_and_a_hit_says_yes() -> None:
+    gestures = _shape(READ, WROTE, _typed("hello"))
+    world = await lookup_world(*gestures)
+    world.http.answer(200, WHOLE)
+
+    answers = await world.run_lookups.execute(
+        CTX, plan=Plan(question="q", lookups=(_asked_for("ZWOYBN"),))
+    )
+    assert what_was_found(answers).startswith("No, none of the 2")
+
+    world.http.answer(200, json.dumps({"data": [{"code": "ZWOYBN"}]}))
+    answers = await world.run_lookups.execute(
+        CTX, plan=Plan(question="q", lookups=(_asked_for("ZWOYBN"),))
+    )
+    assert what_was_found(answers).startswith("Yes")
+
+
+async def test_a_key_found_in_a_narrowed_read_is_still_a_yes() -> None:
+    world = await lookup_world(_gesture(_call(path=GRID, query=SEARCHED)))
+    world.http.answer(200, json.dumps({"data": [{"code": "ZWOYBN"}]}))
+
+    answers = await world.run_lookups.execute(
+        CTX, plan=Plan(question="q", lookups=(_asked_for("ZWOYBN"),))
+    )
+
+    assert what_was_found(answers).startswith("Yes")
 
 
 def test_a_screen_waits_for_the_reads_any_gesture_on_its_route_made() -> None:

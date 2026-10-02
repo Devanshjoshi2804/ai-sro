@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping
 
+from sro.application.chat.mailbox import message_of
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
@@ -94,6 +95,21 @@ class RecordFeedback:
             if theirs != brain["category"]:
                 other = {"category": theirs, "reply": said_of(chain.text) if chain else ""}
                 await self._keep(ctx, DISAGREEMENT, thread_id, operator, brain, other)
+
+    async def mail_budget(self, ctx: RequestContext, offer: str, trouble: tuple[str, ...]) -> None:
+        """The brain's reading of a mail ran out of steps or budget (`offer` is the mail's key)."""
+        try:
+            await self._add(
+                ctx,
+                BUDGET,
+                "",
+                message_of(offer),
+                "",
+                {"mode": "mail"},
+                {"trouble": list(trouble)},
+            )
+        except Exception:
+            logger.exception("feedback (%s) could not be kept", BUDGET)
 
     async def mail_disagreement(
         self,

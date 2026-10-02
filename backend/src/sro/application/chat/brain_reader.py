@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 
 from sro.application.chat.brain import Brain
 from sro.application.chat.brain_tools import values_of
+from sro.application.chat.feedback import RecordFeedback
 from sro.application.chat.mailbox import Unread
 from sro.application.context import RequestContext
 from sro.domain.chat.brain_turn import Origin
@@ -26,8 +27,8 @@ class MailReading:
 
 
 class BrainReader:
-    def __init__(self, brain: Brain) -> None:
-        self._brain = brain
+    def __init__(self, brain: Brain, feedback: RecordFeedback | None = None) -> None:
+        self._brain, self._feedback = brain, feedback
 
     async def read(
         self, ctx: RequestContext, *, text: str, earlier: str, sender: str, subject: str, offer: str
@@ -42,9 +43,13 @@ class BrainReader:
         )
         tried = [(call, result) for call, result in reply.steps if call.tool == "start_job"]
         if not tried:
-            if reply.failed or "budget" in reply.trouble:
+            if reply.failed:
                 # Not "no job": the brain could not read it. The mail is left to be read again.
                 raise Unread(reply.said)
+            if reply.trouble and self._feedback is not None:
+                # Out of steps or budget with no start is no job (and remembered as such: a mail
+                # that does this every time must not be read again at every look).
+                await self._feedback.mail_budget(ctx, offer, reply.trouble)
             return None
         # A dry "would" does not end the turn: the last start that passed its checks is the
         # reading; only when none passed, the last refusal (it may be a missing-only one).

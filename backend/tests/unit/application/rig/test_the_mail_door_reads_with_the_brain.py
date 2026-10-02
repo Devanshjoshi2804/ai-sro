@@ -348,3 +348,23 @@ async def test_a_shadow_reader_that_raises_never_breaks_the_look() -> None:
 async def test_a_secret_a_shadow_read_carries_is_not_kept() -> None:
     uow, _ = await _shadow(MailReading(JOB, {"Password": "hunter2"}, (), True))
     assert "hunter2" not in repr(uow.chat_feedback.rows[0].brain)
+
+
+async def test_a_mail_the_brain_gave_no_job_is_not_read_again_and_does_not_stop_the_next() -> None:
+    world = await mail_world(sure=True, values={}, steel=True)
+    world.mailbox._answers["search"] = _found("m-1", "m-2")
+    world.mailbox._answers["m-2"] = _mail("please create GPX again")
+    reader = _Reader(None)
+    door = _look(
+        world.uow,
+        world.mailbox,
+        world.reads,
+        start=world.start,
+        reader=_to(reader),
+        reader_tenants=LIVE,
+    )
+
+    first = await door.execute(CTX)
+    await door.execute(CTX)
+
+    assert first.stopped == "" and reader.asked == 2, "both mails read once, none again"

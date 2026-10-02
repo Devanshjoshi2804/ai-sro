@@ -861,7 +861,7 @@ class Container:
             attempts=self.record_attempt(),
             asks=self.ask_about_the_offer(),
             # Built on first use: the brain's own mail tool is a FromTheMail too.
-            reader=(lambda: BrainReader(self.brain())) if wanted else None,
+            reader=(lambda: BrainReader(self.brain(), self.record_feedback())) if wanted else None,
             reader_tenants=live,
             shadow_tenants=shadow,
             feedback=self.record_feedback(),

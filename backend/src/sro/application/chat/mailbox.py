@@ -33,6 +33,10 @@ def mail_key(message: str) -> str:
     return f"mail:{message}"
 
 
+def message_of(key: str) -> str:
+    return key.removeprefix(mail_key(""))
+
+
 K_ELSEWHERE = "a reply its starter's own look has to take"
 
 K_TAKEN = "a reply its starter's own look took"

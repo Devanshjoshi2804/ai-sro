@@ -127,3 +127,22 @@ async def test_a_turn_that_could_not_answer_is_unread_not_no_job() -> None:
     acting = await _acting()
     with pytest.raises(Unread):
         await _read(acting, SAID, Answer(data=None, error="down"))
+
+
+async def test_a_turn_that_hit_its_steps_with_no_start_is_no_job_and_is_recorded() -> None:
+    from sro.application.chat.brain import K_BRAIN_STEPS
+    from sro.application.chat.feedback import RecordFeedback
+    from tests.unit.fakes import FakeClock, FakeIdFactory
+
+    acting = await _acting()
+    brain, _ = _brain(acting, *[_call("find_jobs") for _ in range(K_BRAIN_STEPS)])
+    uow = acting.world.uow
+    reader = BrainReader(brain, RecordFeedback(uow, FakeIdFactory(), FakeClock()))
+
+    got = await reader.read(
+        CTX, text=SAID, earlier="", sender="p@acme.example", subject="", offer="mail:m9"
+    )
+
+    assert got is None
+    (row,) = uow.chat_feedback.rows
+    assert row.kind == "budget" and row.message_id == "m9"

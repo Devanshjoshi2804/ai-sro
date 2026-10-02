@@ -35,7 +35,7 @@ from sro.application.execution.mail_job import (
 from sro.application.execution.one_time_secrets import OneTimeSecrets
 from sro.application.execution.stops import Stops
 from sro.application.execution.workflow_runs import StartWorkflowRun
-from sro.application.ports.tools import ToolResult
+from sro.application.ports.tools import NotConnected, ToolResult, ToolsUnavailable
 from sro.application.runtime.answer_run import AnswerRun
 from sro.domain.execution.mail_job import K_SEND_WINDOW_S, JobRecipient, is_mail_only
 from sro.domain.execution.progress import Progress
@@ -248,6 +248,58 @@ async def test_the_mail_is_sent_as_written_and_gmails_answer_finishes_the_run() 
     said = fresh[0].messages[-1].text
     assert said.startswith("Sent to alex.r@example.com")
     assert "Re: New customer type" in said and sent["body"] in said, "what went is shown"
+
+
+class _TimesOut(_Mailbox):
+    """A connector whose send is called and does not answer in time."""
+
+    def __init__(self, gone: Exception) -> None:
+        super().__init__()
+        self.gone, self.sends = gone, 0
+
+    async def call(self, *call: Any) -> ToolResult:
+        if call[3] == "send_message":
+            self.sends += 1
+            raise self.gone
+        return await super().call(*call)
+
+
+async def _sent_through(mailbox: _Mailbox) -> WorkflowRun:
+    uow = FakeUnitOfWork()
+    return await draft_the_mail_job(
+        CTX,
+        await _a_run(uow),
+        _reply_job(),
+        {},
+        uow=uow,
+        tools=mailbox,
+        asker=_written("alex.r@example.com"),
+        clock=FakeClock(),
+        ids=FakeIdFactory(),
+        servers={},
+    )
+
+
+async def test_a_send_that_timed_out_may_have_gone_and_is_never_retried_by_itself() -> None:
+    """The connector may have carried on after the backend stopped waiting: the operator is told
+    to look in Sent before pressing Retry, which would send the mail a second time."""
+    mailbox = _TimesOut(ToolsUnavailable("outlook did not answer: ReadTimeout"))
+
+    done = await _sent_through(mailbox)
+
+    assert mailbox.sends == 1, "one try, no automatic second send"
+    assert done.outcome == "failed"
+    (step,) = done.steps
+    assert step.verdict == "unclear" and step.made == {}
+    assert "may have gone" in step.reason and "check Sent before retrying" in step.reason
+    assert "nothing was sent" not in step.reason
+
+
+async def test_a_mailbox_that_is_not_connected_still_says_nothing_was_sent() -> None:
+    done = await _sent_through(_TimesOut(NotConnected("devansh has not connected outlook")))
+
+    (step,) = done.steps
+    assert step.verdict == "failed" and "nothing was sent" in step.reason
 
 
 async def test_what_the_job_does_reaches_the_model_only_inside_a_fence() -> None:

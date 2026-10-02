@@ -54,6 +54,9 @@ SESSION = uuid.uuid4().hex
 
 GRAPH = "/v1.0/me"
 CONNECTION_TTL_S = 60.0  # how long a disconnect in Nango can go unnoticed
+# A send must have answered before the backend gives up on the call (its CALL_TIMEOUT is 30 s): past
+# this budget no /send is made, so a send never goes after the backend has been told it did not.
+SEND_BUDGET_S = 20.0
 K_MAX_LIMIT = 100
 K_THREAD_PAGES = 10
 K_STASHED_PAGES = 2000
@@ -173,6 +176,7 @@ class Graph:
     nango: NangoClient
     connection: str
     who: tuple[str, str]
+    deadline: float = float("inf")  # monotonic; only a send checks it
 
     async def call(
         self,
@@ -746,9 +750,21 @@ async def _send(graph: Graph, arguments: Mapping[str, Any]) -> str:
     ident = str(draft.get("id") or "")
     if not ident:
         raise RuntimeError("Outlook made no draft for the mail, so nothing was sent")
-    await graph.call(
-        "POST", f"{GRAPH}/messages/{urllib.parse.quote(ident, safe='')}/send", "the send"
-    )
+    remaining = graph.deadline - monotonic()
+    if remaining <= 0:
+        raise RuntimeError("Outlook took too long; nothing was sent")
+    try:
+        await asyncio.wait_for(
+            graph.call(
+                "POST", f"{GRAPH}/messages/{urllib.parse.quote(ident, safe='')}/send", "the send"
+            ),
+            remaining,
+        )
+    except TimeoutError:
+        raise RuntimeError(
+            "Outlook did not confirm the send in time; the mail may have gone: "
+            "check Sent before retrying"
+        ) from None
     print(f"  -> sent to {len(message['toRecipients'])} recipient(s)")
     return json.dumps({"status": "sent", "id": ident})
 
@@ -762,8 +778,10 @@ async def run_tool(tenant: str, operator: str, name: str, arguments: Mapping[str
     client = httpx.AsyncClient(timeout=20.0, transport=TRANSPORT)
     nango = NangoClient(NANGO_URL, NANGO_KEY, http=client)
     try:
-        who = (tenant, operator)
-        return await _DO[name](Graph(nango, await _connection(nango, who), who), arguments)
+        who, deadline = (tenant, operator), monotonic() + SEND_BUDGET_S
+        return await _DO[name](
+            Graph(nango, await _connection(nango, who), who, deadline), arguments
+        )
     finally:
         await nango.aclose()
 

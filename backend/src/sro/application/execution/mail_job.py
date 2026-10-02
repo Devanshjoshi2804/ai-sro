@@ -21,7 +21,7 @@ from sro.application.context import RequestContext
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
-from sro.application.ports.tools import ToolCaller, ToolsUnavailable
+from sro.application.ports.tools import NotConnected, ToolCaller, ToolsUnavailable
 from sro.application.shared.asking import ask
 from sro.domain.chat.asking import said_yes, the_request
 from sro.domain.chat.thread import Speaker
@@ -291,6 +291,9 @@ async def _mails_found(
     return tuple(dict.fromkeys(one for one in threads if one))
 
 
+MAY_HAVE_GONE = "the mailbox did not answer, so the mail may have gone; check Sent before retrying"
+
+
 def _seconds(value: object) -> float:
     return float(value) if isinstance(value, int | float) else math.inf
 
@@ -320,8 +323,11 @@ async def send_the_mail(
             at=clock.now(),
             servers=servers,
         )
-    except (ToolsUnavailable, NotSent) as gone:
+    except (NotConnected, NotSent) as gone:
         return "", f"the mailbox could not be reached, so nothing was sent: {gone}"
+    except ToolsUnavailable as gone:
+        # No answer: the connector may have carried on and sent it, and a Retry would send it twice.
+        return "", f"{MAY_HAVE_GONE}: {gone}"
     try:
         said = json.loads(answered.text or "{}")
     except ValueError:
@@ -403,7 +409,7 @@ async def draft_the_mail_job(
             order=len(run.steps),
             of_step=0,
             says="Send the mail",
-            verdict="held" if sent_id else "failed",
+            verdict="held" if sent_id else "unclear" if MAY_HAVE_GONE in why else "failed",
             verdict_by="status" if sent_id else "none",
             reason=f"The mailbox took the mail to {written.to} (id {sent_id})" if sent_id else why,
             made={"message": sent_id} if sent_id else {},

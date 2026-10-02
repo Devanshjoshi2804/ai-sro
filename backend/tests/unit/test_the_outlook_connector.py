@@ -636,6 +636,49 @@ def test_a_draft_that_will_not_send_is_an_error_not_a_sent_mail(
         )
 
 
+def test_a_send_whose_deadline_has_passed_makes_no_send_call(
+    outlook: ModuleType, nango: FakeNango, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The backend gives up on a call after 30 s and tells the operator nothing was sent; a mail
+    that went after that would be sent again by the Retry."""
+    now = [0.0]
+    monkeypatch.setattr(outlook, "monotonic", lambda: now[0])
+
+    def slow_draft(_p: dict[str, str], _b: Any) -> dict[str, str]:
+        now[0] = outlook.SEND_BUDGET_S + 1  # Graph was slow making the draft
+        return {"id": "AAMk-imm-1"}
+
+    nango.on("POST", "/v1.0/me/messages", slow_draft)
+    nango.on("POST", "/v1.0/me/messages/AAMk-imm-1/send", None)
+
+    with pytest.raises(RuntimeError, match="nothing was sent"):
+        asyncio.run(
+            outlook.run_tool("acme", "sam", "send_message", {"to": "a@x.test", "body": "x"})
+        )
+
+    assert [p for p, _b in _posts(nango)] == ["/proxy/v1.0/me/messages"], "no /send"
+
+
+def test_a_send_that_does_not_answer_within_the_budget_says_it_may_have_gone(
+    outlook: ModuleType, nango: FakeNango, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _drafts(nango)
+    monkeypatch.setattr(outlook, "SEND_BUDGET_S", 0.2)
+    first = outlook.Graph.call
+
+    async def hangs(self: Any, method: str, path: str, what: str, **kept: Any) -> Any:
+        if what == "the send":
+            await asyncio.sleep(5)
+        return await first(self, method, path, what, **kept)
+
+    monkeypatch.setattr(outlook.Graph, "call", hangs)
+
+    with pytest.raises(RuntimeError, match="check Sent before retrying"):
+        asyncio.run(
+            outlook.run_tool("acme", "sam", "send_message", {"to": "a@x.test", "body": "x"})
+        )
+
+
 def test_every_graph_call_asks_for_immutable_ids(outlook: ModuleType, nango: FakeNango) -> None:
     """Ids change when a mail moves folders unless asked otherwise
     (learn.microsoft.com/graph/outlook-immutable-id); Nango forwards `Nango-Proxy-*`

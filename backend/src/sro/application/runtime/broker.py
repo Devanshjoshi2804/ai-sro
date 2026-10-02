@@ -4,7 +4,7 @@ import asyncio
 import contextlib
 import logging
 from collections import Counter
-from collections.abc import Collection, Mapping
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import replace
 from datetime import datetime, timedelta
 
@@ -143,6 +143,23 @@ class SessionBroker:
 
     async def go_to(self, ctx: RequestContext, held: Held, url: str) -> None:
         await self._driver.goto(held.session, held.target_id, url)
+
+    async def load(
+        self, ctx: RequestContext, held: Held, url: str, reads: Sequence[str], *, deadline_s: float
+    ) -> None:
+        mark = await self._driver.mark(held.session, held.target_id)
+        await self._driver.goto(held.session, held.target_id, url)
+        loop = asyncio.get_running_loop()
+        until = loop.time() + deadline_s
+        for shape in reads:
+            await self._driver.wait_for_call(
+                held.session,
+                held.target_id,
+                method="GET",
+                shape=shape,
+                since=mark,
+                deadline_s=max(0.0, until - loop.time()),
+            )
 
     async def screenshot(self, ctx: RequestContext, held: Held) -> Screen:
         return await self._driver.screenshot(held.session, held.target_id)

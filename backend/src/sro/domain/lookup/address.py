@@ -7,6 +7,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from sro.domain.execution.planning import LIVE_FETCHABLE_HEADERS
 from sro.domain.lookup.plan import Lookup
 from sro.domain.observation.gesture import Gesture
+from sro.domain.observation.trim import path_shape
 from sro.domain.shared.hosts import REDACTED, headers_without_markers
 
 
@@ -21,6 +22,8 @@ class Address:
     seen_at: float | None = None
 
     page: str = ""
+
+    reads: tuple[str, ...] = ()
 
 
 def address_for(lookup: Lookup, gestures: Iterable[Gesture]) -> Address | None:
@@ -67,7 +70,15 @@ def _screen_address(lookup: Lookup, gestures: list[Gesture]) -> Address | None:
     if not on_it:
         return None
     seen = max(on_it, key=lambda gesture: gesture.at)
-    return Address(url=seen.url or "", seen_at=seen.at)
+    reads = dict.fromkeys(
+        path_shape(call.url)
+        for call in seen.requests
+        if call.method.upper() == "GET"
+        and call.status is not None
+        and 200 <= call.status < 300
+        and not call.failure_reason
+    )
+    return Address(url=seen.url or "", seen_at=seen.at, reads=tuple(reads))
 
 
 def _route_name(route: str) -> str:

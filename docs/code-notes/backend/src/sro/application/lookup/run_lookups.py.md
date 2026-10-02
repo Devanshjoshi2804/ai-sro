@@ -231,3 +231,13 @@ Code: `read=read_answer(body, url=address.url) if isinstance(body, str) else Non
 > records, so every existence question ended "could not tell". A call that is not
 > answered 2xx is now a failed lookup that names the status; a sign-in redirect
 > (`is_login`) or `401/403/419` signs in once and tries again.
+
+## `SessionBroker.load` and `Address.reads`: a screen is photographed after its own reads
+
+> QA 2026-10-02: the photograph of the Warehouse Equipment Type page was a spinner
+> and "Loading". The tab had settled (no request in flight at that instant) before the
+> grid's own GET went out. The recording of the screen says which GETs the page made
+> (`Address.reads`, the path shapes of the newest gesture's successful GETs); the page
+> is loaded again while the call log listens and the photograph waits for those calls,
+> sharing one `K_PAINT_S` deadline. A read that never recurs costs the deadline, not
+> the lookup: the photograph is taken anyway.

@@ -40,6 +40,8 @@ K_WHILE_TALKING = 10.0
 
 K_AFTER_HEADERS_S = 1.0
 
+K_PAINT_S = 8.0
+
 
 @dataclass(frozen=True, slots=True)
 class Looked:
@@ -120,6 +122,8 @@ class RunLookups:
                 return _looked(lookup, address, {"status": got.status_code, "body": got.text})
             if await self._broker.signed_out(ctx, held):
                 await self._broker.reauth(ctx, held, page, park=False)
+            if address.reads:
+                await self._broker.load(ctx, held, address.url, address.reads, deadline_s=K_PAINT_S)
             if await self._broker.signed_out(ctx, held):
                 raise SignedOut(f"{page} is still a sign-in page")
             shot = await self._broker.screenshot(ctx, held)

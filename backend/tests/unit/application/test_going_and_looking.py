@@ -287,6 +287,36 @@ async def test_a_screen_is_put_up_in_a_steel_tab_and_nothing_on_it_is_pressed() 
     assert world.driver.tabs == {}
 
 
+async def test_a_screen_is_photographed_after_the_reads_it_made_when_it_was_seen() -> None:
+    """QA 2026-10-02: the photograph of the Warehouse Equipment Type page was a spinner
+    and the word "Loading" -- the shot was taken the moment the tab settled, before the
+    grid's own GET came back. The recording says which GET the page makes."""
+    world = await lookup_world(_gesture(_call(), url=SCREEN_URL))
+    events: list[str] = []
+    driver = world.driver
+    goto, wait, shoot = driver.goto, driver.wait_for_call, driver.screenshot
+
+    async def seen_goto(*args: Any, **kwargs: Any) -> Any:
+        events.append("goto")
+        return await goto(*args, **kwargs)
+
+    async def seen_wait(*args: Any, **kwargs: Any) -> Any:
+        events.append(f"wait {kwargs['method']} {kwargs['shape']}")
+        return await wait(*args, **kwargs)
+
+    async def seen_shot(*args: Any, **kwargs: Any) -> Any:
+        events.append("shot")
+        return await shoot(*args, **kwargs)
+
+    driver.goto, driver.wait_for_call, driver.screenshot = seen_goto, seen_wait, seen_shot  # type: ignore[method-assign]
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(SCREEN,)))
+
+    assert answers.looked[0].ok
+    assert events[-2:] == [f"wait GET {SUPPLIERS}", "shot"]
+    assert "goto" in events[:-2], "the reads are waited for on a load that was being listened to"
+
+
 async def test_an_endpoint_seen_only_as_a_write_is_refused_before_anything_is_sent() -> None:
     world = await lookup_world(_gesture(_call(method="POST")))
 

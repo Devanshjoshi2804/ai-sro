@@ -26,14 +26,23 @@ class Budget:
     calls: int
     usd: float = -1.0
     spent: float = 0.0
+    made: int = 0
 
     def charge(self, calls: int, usd: float) -> None:
         self.calls -= calls
         self.spent += usd
+        self.made += calls
 
     @property
     def out(self) -> bool:
         return self.calls <= 0 or 0 <= self.usd <= self.spent
+
+    @property
+    def short(self) -> bool:
+        """Out for a nested read: one call, and what a call has cost so far, stay with the
+        outer turn, so it can always say what was done."""
+        back = self.spent / self.made if self.made else 0.0
+        return self.calls <= 1 or (self.usd >= 0 and self.usd <= self.spent + back)
 
 
 @dataclass(frozen=True, slots=True)

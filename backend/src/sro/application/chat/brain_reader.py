@@ -54,7 +54,7 @@ class BrainReader:
         offer: str,
         budget: Budget | None = None,
     ) -> MailReading | MailAsked | None:
-        if budget is not None and budget.out:
+        if budget is not None and budget.short:
             raise ModelUnavailable("this message has used what it may spend")
         reply = await self._brain.turn(
             ctx,
@@ -75,7 +75,7 @@ class BrainReader:
         if not tried:
             if question:
                 return MailAsked(_bounded(question))
-            if budget is not None and budget.out and "budget" in reply.trouble:
+            if budget is not None and budget.short and "budget" in reply.trouble:
                 # The turn's budget ran out mid-read: the mail is not "no job", it is unread.
                 raise ModelUnavailable("this message has used what it may spend")
             if reply.failed:

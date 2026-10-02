@@ -194,6 +194,8 @@ class Brain:
             one.removeprefix(_OPERATOR) for one in history[-K_HISTORY:] if one.startswith(_OPERATOR)
         ]
         # A tool that reads on the model too (a mail look) is handed this budget to spend.
+        # A budget handed in is the outer turn's: this is a nested read, which leaves it a call.
+        nested = budget is not None
         budget = budget or Budget(self._max_calls, self._max_turn_usd)
         turn = Turn(
             said="\n".join([message, *theirs, asking]),
@@ -202,7 +204,7 @@ class Brain:
             budget=budget,
         )
         for _ in range(K_BRAIN_STEPS):
-            if budget.out:
+            if budget.short if nested else budget.out:
                 trouble.append("budget")
                 return _stopped(decisions, steps)
             async with self._uow as uow:

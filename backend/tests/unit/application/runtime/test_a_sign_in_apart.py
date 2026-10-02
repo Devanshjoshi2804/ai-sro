@@ -446,5 +446,5 @@ async def test_a_lookups_re_sign_in_that_does_not_finish_leaves_the_run_its_leas
 
     assert _states(uow) == [LeaseState.READY]
     assert run.target_id in driver.tabs
-    assert broker._pool.closed == []  # type: ignore[attr-defined]
+    assert broker._pool.closed == []
     assert await broker.beat(CTX, run.lease.id, holder="run_1")

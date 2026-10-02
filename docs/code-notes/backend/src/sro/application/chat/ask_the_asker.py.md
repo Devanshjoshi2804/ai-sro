@@ -57,7 +57,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/ask_the_
 > decides that a mail should go -- it decides that this mail, which somebody
 > has read, may.
 
-## `_the_draft`, [line 328](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L328): Docstring
+## `_the_draft`, [line 354](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L354): Docstring
 
 > The drafted mail with that id, if it is still the last word on it.
 >
@@ -110,7 +110,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/ask_the_
 > all are reasons not to send, and none of them is an error worth a 500.
 
 
-## `SendTheDraft._claim`, [line 279](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L279): Docstring
+## `SendTheDraft._claim`, [line 294](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L294): Docstring
 
 > Take this draft, or say somebody already has it.
 >
@@ -127,7 +127,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/ask_the_
 > and the guard would let them, which is the one thing this claim
 > exists to stop. The draft id is unique in the tenant on its own.
 
-## `SendTheDraft._say`, [line 287](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L287): Docstring
+## `SendTheDraft._say`, [line 311](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L311): Docstring
 
 > What happened, in the conversation the draft was read in.
 >
@@ -208,7 +208,7 @@ Code: `"thread_id": str(draft.get("thread") or ""),`
 > its own thread cannot be matched back to the run waiting
 > on it, so the person answers into a void.
 
-## `SendTheDraft.execute`, [line 225](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L225): Comment
+## `SendTheDraft.execute`, [line 243](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L243): Comment
 
 Code: `logger.warning(`
 
@@ -217,7 +217,7 @@ Code: `logger.warning(`
 > ladder keeps, and for a stronger reason: a duplicate mail cannot
 > be deleted afterwards.
 
-## `SendTheDraft._say`, [line 306](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L306): Comment
+## `SendTheDraft._say`, [line 331](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L331): Comment
 
 Code: `decision={`
 
@@ -227,7 +227,7 @@ Code: `decision={`
 > panel keyed only on that went on showing `Send it` under
 > a mail already in somebody's inbox.
 
-## `SendTheDraft._say`, [line 310](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L310): Comment
+## `SendTheDraft._say`, [line 335](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L335): Comment
 
 Code: `"to": to,`
 
@@ -236,7 +236,7 @@ Code: `"to": to,`
 > a panel parsing prose to find a fact the decision
 > was already carrying everything else about.
 
-## `_the_draft`, [line 333](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L333): Comment
+## `_the_draft`, [line 359](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L359): Comment
 
 Code: `if str(getattr(message, "id", "")) == str(message_id):`
 
@@ -253,9 +253,9 @@ Code: `thread = await uow.threads.get_for_answer(ctx.tenant_id, thread_id)`
 > lock: the press and the answer are ordered. A press after the answer finds the
 > question closed.
 
-## `SendTheDraft.execute`, [line 139](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L139): Comment
+## `SendTheDraft.execute`, [line 183](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L183): Comment
 
-Code: `if pending_job(thread.messages) is None:`
+Code: `if not question or not still_asking(thread.messages, question):`
 
 > A draft asks about the question standing when it was written. Once that
 > is answered -- typed in the chat, or by the sender's reply -- the server
@@ -263,11 +263,22 @@ Code: `if pending_job(thread.messages) is None:`
 > PHARM26 draft was sent at 10:14:21, after its question was answered at
 > 10:13:50, asking the sender for a value already given.
 
-## `SendTheDraft.execute`, [line 200](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L200): Comment
+## `SendTheDraft.execute`, [line 278](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L278): Comment
 
-Code: `if pending_job(thread.messages) is not None`
+Code: `if still_asking(thread.messages, question)`
 
 > The answer can land while the mail is in flight: the press claimed it with
 > the question standing. Then "I will carry on when they reply" would be about a
 > run that no longer waits on them, so the line says what happened instead.
 > Nothing is sent to the sender to take it back -- that is a separate decision.
+
+## `SendTheDraft.execute`, [line 227](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L227): Comment
+
+Code: `await self._unclaim(ctx, message_id, run_id)`
+
+> `NotConnected` and `NotSent` are definite: the mailbox was never asked to send. The claim
+> `draft:{id}` and the run's `asked_the_asker` are given back, and the message says `retry`, so
+> the card keeps its Send it and the operator reconnects and presses again rather than writing
+> the mail by hand. A failure that may have gone out keeps both: a second press would send it
+> twice, and the text says to look in Sent and, if it is not there, to send it from the
+> mailbox.

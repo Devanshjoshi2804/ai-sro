@@ -2,99 +2,102 @@
   "taken": "2026-10-03",
   "window_days": 30,
   "tenant": "all (QA)",
+  "scope": "failure-class section only (3b), not the full measure.py --json report",
+  "produced_by": "measure.failure_classes(db, tenant=None) from backend/scripts/measure.py at the commit that carries this file, run read-only (SELECT only) inside the QA api container against the QA database through a temporary copy of the script (removed after); measure.py main() needs git, absent in the container, so taken and tenant are set by hand.",
+  "denominator": "each line's 'of' is the number of failing steps (verdict failed or unclear) in the window, 151; the 1,207 steps in the window include held, not_needed and skipped steps",
   "sections": [
     {
       "title": "3b. Failure classes",
-      "why": "Steps that did not hold in the last 30 days, by the class the capture spec targets. Re-derived from workflow_run_steps, never assumed.",
+      "why": "Steps that did not hold in the last 30 days, by the class the capture spec targets. Re-derived from workflow_run_steps, never assumed. Each count is of the failing steps (failed or unclear) in that window, not of all steps.",
       "lines": [
         {
           "label": "steps in class unconfirmed_write",
           "value": 19,
-          "of": 1207,
+          "of": 151,
           "standing": "recorded",
           "note": ""
         },
         {
           "label": "steps in class sign_in",
           "value": 21,
-          "of": 1207,
+          "of": 151,
           "standing": "recorded",
           "note": ""
         },
         {
           "label": "steps in class not_found",
-          "value": 6,
-          "of": 1207,
+          "value": 7,
+          "of": 151,
           "standing": "recorded",
           "note": ""
         },
         {
           "label": "steps in class duplicate",
           "value": 13,
-          "of": 1207,
+          "of": 151,
           "standing": "recorded",
           "note": ""
         },
         {
           "label": "steps in class timing",
           "value": 0,
-          "of": 1207,
+          "of": 151,
           "standing": "recorded",
           "note": ""
         },
         {
           "label": "steps in class wrong_resume",
           "value": 0,
-          "of": 1207,
+          "of": 151,
           "standing": "recorded",
           "note": ""
         },
         {
           "label": "steps in class no_browser",
-          "value": 50,
-          "of": 1207,
+          "value": 49,
+          "of": 151,
           "standing": "recorded",
           "note": ""
         },
         {
           "label": "steps in class wrong_page",
           "value": 2,
-          "of": 1207,
+          "of": 151,
           "standing": "recorded",
           "note": ""
         },
         {
           "label": "steps in class no_approval",
           "value": 15,
-          "of": 1207,
+          "of": 151,
           "standing": "recorded",
           "note": ""
         },
         {
           "label": "steps in class missing_value",
           "value": 11,
-          "of": 1207,
+          "of": 151,
           "standing": "recorded",
           "note": ""
         },
         {
           "label": "steps in class no_model",
           "value": 5,
-          "of": 1207,
+          "of": 151,
           "standing": "recorded",
           "note": ""
         },
         {
           "label": "steps in class screen_disagrees",
           "value": 8,
-          "of": 1207,
+          "of": 151,
           "standing": "recorded",
           "note": ""
         },
         {
           "label": "steps in class other",
           "value": 1,
-          "of": 1207,
+          "of": 151,
           "standing": "recorded",
           "note": ""
         },

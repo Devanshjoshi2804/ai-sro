@@ -42,7 +42,6 @@ CLASSES = (
     "other",
 )
 
-# Each rule cites what the QA baseline (2026-10-03) showed; see the task 1 report.
 _CLASS_WORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
         "unconfirmed_write",
@@ -54,41 +53,42 @@ _CLASS_WORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
         ),
     ),
     ("wrong_resume", ("earlier attempt, never settled", "operator says it was not done")),
+    ("missing_value", ("nobody gave a value", "names nobody", "recipients could not be read")),
     (
         "sign_in",
         (
             "sign-in",
             "signed out",
-            "sign in",
-            "password",
-            "still a sign-in page",
+            "no usable password",
+            "password refused",
+            "password for",
+            "types a password and nothing is stored",
             "signed-in",
             "signed in",
             "signing in",
             "credential field",
         ),
     ),
-    ("duplicate", ("already exists", "duplicate", "already there", "another run of this job")),
+    ("duplicate", ("already exists", "another run of this job")),
     ("no_approval", ("nobody approved", "waiting for approval")),
-    ("missing_value", ("nobody gave a value", "names nobody", "recipients could not be read")),
-    ("no_model", ("no page or no model", "the model said nothing")),
+    ("no_model", ("no page or no model", "the model said nothing", "the model did not answer")),
     (
         "no_browser",
         (
             "no channel open",
             "no_tab_for_system",
             "no tab is open",
-            "did not answer",
+            "not_actionable: the page",
             "failed to fetch",
             "unreachable:",
-            "is on none",
-            "any page",
-            "at null",
-            "is null",
-            "not loaded",
+            "the browser is on none",
+            "browser is currently at null",
+            "not on any page",
+            "not currently on any page",
+            "the browser is currently not loaded",
+            "(navigate first)",
         ),
     ),
-    ("wrong_page", ("the browser is on", "not on the expected page", "not on the step page")),
     (
         "not_found",
         (
@@ -97,12 +97,22 @@ _CLASS_WORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
             "frame_ambiguous",
             "no longer on the page",
             "no recorded control",
-            "no field",
-            "no option",
             "cannot carry a value",
         ),
     ),
     ("timing", ("did not settle", "timed out", "timeout")),
+    ("wrong_page", ("the browser is on", "not on the expected page", "not on the step page")),
+)
+
+_SCREEN_WORDS = (
+    "remains disabled",
+    "is disabled",
+    "is empty",
+    "not open",
+    "wrong record",
+    "rather than",
+    "instead of",
+    "remains on",
 )
 
 
@@ -111,8 +121,9 @@ def class_of(verdict: str, reason: str, by: str = "") -> str:
         return ""
     said = reason.lower()
     named = next((name for name, words in _CLASS_WORDS if any(word in said for word in words)), "")
-    # The screen reader's own free-text account of why a step did not land has no fixed words.
-    return named or ("screen_disagrees" if by == "screen" else "other")
+    if not named and verdict == "failed" and by == "screen":
+        named = "screen_disagrees" if any(word in said for word in _SCREEN_WORDS) else ""
+    return named or "other"
 
 
 @dataclass
@@ -343,7 +354,8 @@ async def failure_classes(db: AsyncConnection, tenant: str | None, *, days: int 
     into = Section(
         "3b. Failure classes",
         f"Steps that did not hold in the last {days} days, by the class the capture spec targets."
-        " Re-derived from workflow_run_steps, never assumed.",
+        " Re-derived from workflow_run_steps, never assumed. Each count is of the failing steps"
+        " (failed or unclear) in that window, not of all steps.",
     )
     rows = await _rows(
         db,
@@ -359,8 +371,9 @@ async def failure_classes(db: AsyncConnection, tenant: str | None, *, days: int 
         for verdict, reason, by in rows
         if (named := class_of(verdict or "", reason or "", by or ""))
     )
+    failing = counted.total()
     for name in CLASSES:
-        into.add(Line(f"steps in class {name}", counted[name], len(rows) or None, "recorded"))
+        into.add(Line(f"steps in class {name}", counted[name], failing or None, "recorded"))
     broken = await _rows(
         db,
         "select lane, count(*) from known_broken where at >= now() - make_interval(days => :days)"

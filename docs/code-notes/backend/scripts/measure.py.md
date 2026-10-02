@@ -47,7 +47,7 @@ Code: `WAREHOUSE = "jdadelivers.com"`
 > rather than inferred: "the host with the most gestures" would silently promote
 > localhost to a warehouse on a laptop that spent a week on fixtures.
 
-## module, [line 121](../../../../backend/scripts/measure.py#L121): Note on the line above
+## module, [line 181](../../../../backend/scripts/measure.py#L181): Note on the line above
 
 Code: `MINE = "(cast(:tenant as text) is null or tenant_id = cast(:tenant as text))"`
 
@@ -63,11 +63,11 @@ Code: `MINE = "(cast(:tenant as text) is null or tenant_id = cast(:tenant as tex
 > error it raises ("could not determine data type of parameter $1") names nothing
 > about tenants.
 
-## `Line`, [line 70](../../../../backend/scripts/measure.py#L70): Docstring
+## `Line`, [line 130](../../../../backend/scripts/measure.py#L130): Docstring
 
 > One measured thing, and what it rests on.
 
-## `unmeasured`, [line 479](../../../../backend/scripts/measure.py#L479): Docstring
+## `unmeasured`, [line 543](../../../../backend/scripts/measure.py#L543): Docstring
 
 > The list this whole script exists to print.
 >
@@ -75,7 +75,7 @@ Code: `MINE = "(cast(:tenant as text) is null or tenant_id = cast(:tenant as tex
 > Written by hand and kept in the report on purpose: a gap that is only
 > visible as a missing section is a gap the next reader will not see.
 
-## `running`, [line 361](../../../../backend/scripts/measure.py#L361): Comment
+## `running`, [line 425](../../../../backend/scripts/measure.py#L425): Comment
 
 Code: `for belt in ("status", "read", "screen"):`
 
@@ -85,7 +85,7 @@ Code: `for belt in ("status", "read", "screen"):`
 > about reality, so each one is asked about by name even when the answer is
 > zero. A rung that has never run is the most useful line on this page.
 
-## `main`, [line 588](../../../../backend/scripts/measure.py#L588): Comment
+## `main`, [line 652](../../../../backend/scripts/measure.py#L652): Comment
 
 Code: `asked = (`
 
@@ -96,15 +96,22 @@ Code: `asked = (`
 > read inside an async function is the kind of thing that works until the
 > day it is called from a server.
 
-## `class_of`, [line 60](../../../../backend/scripts/measure.py#L60): Note on the function
+## `class_of`, [line 119](../../../../backend/scripts/measure.py#L119): Note on the function
 
-> The first matching class wins, in `_CLASS_WORDS` order. `wrong_resume` is
-> checked before `sign_in` because a resumed step's reason names the earlier
-> attempt, and that attempt may itself mention a sign-in. "other" is reviewed
-> by a person, never re-bucketed silently. `known_broken` carries only
-> digests, so it is counted per lane, not classed. Classes beyond the spec's six
-> (`no_browser`, `wrong_page`, `no_approval`, `missing_value`, `no_model`,
-> `screen_disagrees`) exist because the first QA baseline left 80% in "other";
-> each rule's words are reasons seen on QA. `screen_disagrees` is the one rule
-> by who judged (`by == "screen"`), since the screen reader's free text has no
-> fixed words.
+> The first matching class wins, in `_CLASS_WORDS` order, and each rule's words
+> are the reason shapes seen on QA (2026-10-03, 151 failing steps), not generic
+> words: a loose word such as "did not answer" or "is null" also matches the
+> screen reader's free text and the model's own failures. Order is the
+> precedence, tested per adjacent pair: `wrong_resume` before `sign_in` (a
+> resumed step names the earlier attempt, which may mention a sign-in);
+> `missing_value` before `sign_in` ("nobody gave a value for Password" is a
+> missing value); `not_found` and `timing` before `wrong_page` (a reason that
+> names the page it is on and also the real cause is that cause). "other" is
+> reviewed by a person, never re-bucketed silently, and stays the canary for a
+> new cause. `screen_disagrees` is the one rule by who judged: only a `failed`
+> verdict by the screen reader whose free text carries `_SCREEN_WORDS`; an
+> `unclear` step, or screen text with none of those words, is "other".
+> `known_broken` carries only digests, so it is counted per lane, not classed.
+> Classes beyond the spec's six (`no_browser`, `wrong_page`, `no_approval`,
+> `missing_value`, `no_model`, `screen_disagrees`) exist because the first QA
+> baseline left 80% in "other".

@@ -2918,6 +2918,17 @@ class RunQuestionModel(BaseModel):
     field: str = ""
 
 
+_MAIL_LINKS = {
+    "gmail": "https://mail.google.com/mail/#all/",
+    "outlook": "https://outlook.office.com/mail/deeplink/readconv/",
+}
+
+
+def _mail_link(server: str, thread: str) -> str:
+    """A run stored before its server was kept has none: it was a Gmail one."""
+    return _MAIL_LINKS[server] + quote(thread, safe="") if thread and server in _MAIL_LINKS else ""
+
+
 class RunMailModel(BaseModel):
     """The mail a run came from: who sent it, what it was called, when it
     arrived and where to open it. Never its body -- the subject is as much of
@@ -2933,7 +2944,8 @@ class RunMailModel(BaseModel):
 
     thread: str = ""
     link: str = ""
-    """The conversation in Gmail, for the card's "open the mail"."""
+    """The conversation in the mailbox it is in (Gmail or Outlook), for the card's "open the
+    mail"; empty for a server this does not know."""
 
     @classmethod
     def of(cls, mail: Mapping[str, str]) -> RunMailModel:
@@ -2943,7 +2955,7 @@ class RunMailModel(BaseModel):
             sender=mail.get("sender", ""),
             arrived=mail.get("arrived", ""),
             thread=thread,
-            link=f"https://mail.google.com/mail/#all/{quote(thread)}" if thread else "",
+            link=_mail_link(mail.get("server", "gmail"), thread),
         )
 
 

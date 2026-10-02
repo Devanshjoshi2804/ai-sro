@@ -65,7 +65,7 @@ from sro.domain.skill.promotion import PromotionStage
 from sro.domain.skill.workflow import Step, Workflow
 from sro.interface.http.app import create_app, on_start
 from sro.interface.http.deps import get_container
-from sro.interface.http.schemas import WorkflowRunModel
+from sro.interface.http.schemas import RunMailModel, WorkflowRunModel
 from tests import factories as f
 from tests.unit.fakes import FakeAsker, FakeUnitOfWork
 from tests.unit.interface.test_http import _FakeContainer, token_for
@@ -875,6 +875,25 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
         "asking": "",
         "question": None,
     }
+
+
+@pytest.mark.parametrize(
+    ("server", "link"),
+    [
+        ("gmail", "https://mail.google.com/mail/#all/t%2F1"),
+        ("outlook", "https://outlook.office.com/mail/deeplink/readconv/t%2F1"),
+        ("", "https://mail.google.com/mail/#all/t%2F1"),
+        ("imap", ""),
+    ],
+)
+def test_the_run_cards_mail_link_is_built_for_the_server_the_mail_is_on(
+    server: str, link: str
+) -> None:
+    """Day-end 2: an Outlook conversation id opened on Gmail is a dead link. A run stored
+    before the server was kept is a Gmail one; a server nobody knows gets no link."""
+    mail = {"thread": "t/1", **({"server": server} if server else {})}
+
+    assert RunMailModel.of(mail).link == link
 
 
 def test_the_container_builds_the_starter_on_the_cap_and_the_shared_registers(

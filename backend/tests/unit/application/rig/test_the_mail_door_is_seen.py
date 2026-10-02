@@ -206,6 +206,7 @@ async def test_a_run_a_mail_started_carries_the_mail_and_never_its_body() -> Non
         "sender": SENDER,
         "thread": "t-1",
         "arrived": "2026-09-29T11:02:07+05:30",
+        "server": "gmail",
     }
     assert "7781" not in json.dumps(run.mail), "the body travelled with the run"
     wire = WorkflowRunModel.of(run)
@@ -265,7 +266,7 @@ async def test_a_run_started_on_a_mail_conversation_knows_the_mail_it_is_about()
         allow_focus=False,
     )
 
-    assert run.mail == {"thread": "t-9"}
+    assert run.mail == {"thread": "t-9", "server": "gmail"}
     assert plain.mail is None
 
 

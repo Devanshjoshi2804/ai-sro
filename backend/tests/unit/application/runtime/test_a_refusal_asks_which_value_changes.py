@@ -9,12 +9,12 @@ Code already in use asked for all four values, in a sentence ending "..", with
 from __future__ import annotations
 
 import asyncio
-import json
 from dataclasses import replace
 
 from sro.domain.chat.asking import NEEDS, Pending, refusal_question, standing
 from tests.unit.application.runtime.test_a_refused_write import (
     CTX,
+    NOT_LISTED,
     _Asking,
     _chat,
     _refused_run,
@@ -28,9 +28,7 @@ from tests.unit.application.runtime.test_a_reply_to_a_refusal import (
 from tests.unit.runtime_support import WORKFLOW, SteelRun
 
 SAID = '{"message": "Record already exists."}'
-KEY = "4242"
-KEPT = {"Customer Type": KEY, "Description": "Vets"}
-HELD = (200, json.dumps({"data": [{"name": KEY, "description": "Vets"}]}))
+KEPT = {"Customer Type": "GT2", "Description": "Vets"}
 
 
 def _reading(name: str, value: str) -> dict[str, object]:
@@ -44,10 +42,7 @@ def _reading(name: str, value: str) -> dict[str, object]:
 
 async def _unnamed() -> tuple[SteelRun, _Asking]:
     asking = _Asking()
-    world, _ = await _saving((409, SAID), HELD, asking=asking, mail=ENVELOPE)
-    # A key of digits only: the system's words about it name no field.
-    given = {"Customer Type": KEY, "Description": "Pet shops"}
-    world.uow.workflow_runs.rows[world.run_id].values = given
+    world, _ = await _saving((409, SAID), NOT_LISTED, asking=asking, mail=ENVELOPE)
     await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
     assert await world.run_steps.finish(CTX, world.run_id) == "failed"
     return world, asking
@@ -59,10 +54,9 @@ async def test_the_question_says_the_system_s_words_once_and_asks_which_value_ch
     asked = standing((await _chat(world, ENVELOPE["thread"])).messages)
 
     assert asked is not None and (asked.decision or {}).get("kind") == NEEDS
-    assert f'"{KEY} already exists with different values"' in asked.text
-    assert ".." not in asked.text
+    assert 'Record already exists"' in asked.text and ".." not in asked.text
     assert "takes" not in asked.text and "characters" not in asked.text
-    assert KEY in asked.text and "Pet shops" in asked.text
+    assert "GT2" in asked.text and "Pet shops" in asked.text
     assert "Which value should change?" in asked.text
     # No worked example: the one offered used the record's key field, the very
     # value a refusal says clashed, and read as an instruction to change it.

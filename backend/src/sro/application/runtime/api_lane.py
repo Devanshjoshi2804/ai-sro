@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from typing import Literal
@@ -16,6 +17,7 @@ from sro.domain.execution.belts import (
     carries_in_slot,
     confirming_read,
     expected_statuses,
+    record_count,
 )
 from sro.domain.execution.evidence import recorded_call
 from sro.domain.execution.lanes import (
@@ -29,7 +31,6 @@ from sro.domain.execution.lanes import (
 )
 from sro.domain.execution.planning import Planned
 from sro.domain.execution.records import made_by, told_by
-from sro.domain.execution.workflow_run import named_by
 from sro.domain.execution.write_plan import learned_slots, seen_values
 from sro.domain.observation.trim import path_shape
 from sro.domain.recording.sensitivity import K_TOKENS, classify_header
@@ -203,27 +204,29 @@ class ApiLane:
                 read=made,
                 answered=told,
             )
-        # Only the system's own rejection (409) is a refusal, and only over a
-        # record we SAW holding other values, or one the collection listed
-        # without ours whose words name a value of ours ("Description X is
-        # already used"). "Record already exists" over an unfound record may be
-        # our own create that landed: another value would write a second one.
-        said = told["said"]
-        absent = listed is not None and listed.succeeded
-        other = found is not None and found[0] == "other"
+        # Only the system's own rejection (409) is a refusal: a record SEEN
+        # holding other values, or one the write's collection was read without
+        # (a 404 at the key's address proves nothing: equipment types answer it
+        # and list their records). After a 5xx, or a collection that could not
+        # be read, the record may exist unseen: another value would write a
+        # second one.
+        said = told["said"] or f"it answered {status}"
+        absent = not confirmed and found is None and _listed(listed)
         refused = (
             verdict == "unknown"
             and status == K_CONFLICT
             and not _busy(said)
-            and (other or (found is None and absent and bool(named_by(ctx.workflow, values, said))))
+            and ((found is not None and found[0] == "other") or absent)
         )
         if refused:
+            clash = _clash(listed, planned) if absent else None
             return StepResult(
                 "failed",
                 Lane.API,
                 f"{found[1]} already exists with different values"
                 if found is not None
-                else f"the system refused it: {said}",
+                else f"the system refused it: {said}"
+                + (f" {clash} is already used" if clash else ""),
                 never_left=True,
                 refused=True,
                 answered=told,
@@ -355,6 +358,33 @@ class ApiLane:
 
 def _carries(listed: HttpResponse | None, planned: Planned) -> bool:
     return listed is not None and listed.succeeded and carries_in_slot(listed.text, planned.confirm)
+
+
+def _listed(listed: HttpResponse | None) -> bool:
+    """The collection was read as a list of records, not as a sign-in page, an
+    error or a bare object."""
+    if listed is None or not listed.succeeded:
+        return False
+    try:
+        parsed = json.loads(listed.text)
+    except ValueError:
+        return False
+    return isinstance(parsed, list) or (
+        isinstance(parsed, dict) and any(isinstance(one, list) for one in parsed.values())
+    )
+
+
+def _clash(listed: HttpResponse | None, planned: Planned) -> str | None:
+    """ "Record already exists" names no field when the system makes one unique
+    that the operator may pick freely. A value that exactly one record holds
+    can be that field; a value many hold cannot be unique."""
+    if listed is None or not listed.succeeded:
+        return None
+    for slot, value in planned.confirm.items():
+        held_by = record_count(listed.text, {slot: value})
+        if held_by == 1 and slot in planned.filled:
+            return f"{planned.filled[slot]} {value}"
+    return None
 
 
 def needs_of(recorded: Mapping[str, str]) -> list[str]:

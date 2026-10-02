@@ -30,7 +30,7 @@ from sro.domain.chat.asking import NEEDS, Pending, standing
 from sro.domain.chat.thread import Thread
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.waiting import as_said, waiting_on
-from sro.domain.execution.workflow_run import WorkflowRun, named_by
+from sro.domain.execution.workflow_run import WorkflowRun
 from sro.domain.observation.gesture import Gesture
 from sro.domain.skill.workflow import Step, Workflow
 from sro.interface.http.schemas import WorkflowRunModel
@@ -57,7 +57,6 @@ from tests.unit.runtime_support import (
 
 NOT_LISTED = (200, '{"data": []}')  # the write's own collection, without our record
 VALUES = {"Customer Type": "GT2", "Description": "Pet shops"}
-HELD_BY_OTHER = (200, json.dumps({"data": [{"name": "GT2", "description": "Vets"}]}))
 
 REFUSED = json.dumps({"errors": [{"message": "Description Pet shops is already used"}]})
 
@@ -326,13 +325,12 @@ async def _needs_after(said: str, values: dict[str, str]) -> list[str]:
     return (await world.saved_run()).needs
 
 
-def test_a_short_value_in_unrelated_words_does_not_name_a_field() -> None:
-    job = replace(WORKFLOW, parameters=[{"name": "Customer Type"}, {"name": "Description"}])
-    given = {"Customer Type": "42", "Description": "Vets"}
+async def test_a_short_value_in_unrelated_words_does_not_name_a_field() -> None:
+    needs = await _needs_after(
+        "Warehouse 42 could not be saved", {"Customer Type": "42", "Description": "Vets"}
+    )
 
-    named = named_by(job, given, "Warehouse 42 could not be saved")
-
-    assert named == [], "a bare 42 named a field it is not in"
+    assert needs == ["Customer Type", "Description"], "a bare 42 named a field it is not in"
 
 
 async def test_a_field_the_reason_names_is_the_one_asked_about() -> None:

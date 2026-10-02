@@ -1,11 +1,16 @@
 """QA 2026-10-02 (runs run_dac421e9..., run_5fcefc71...): "Create a Warehouse
-Equipment Type" sent one POST to /equipmentTypes; Blue Yonder answered 409
-"Record already exists." and a lookup right after said the type exists. It
-had landed. The run called it refused because its read-back looked in the wrong
-places: the recording's confirming read was a different collection
-(warehouseEquipmentAccesses), and GET /equipmentTypes/<code> answers 404 --
-the record's address is not its code. A landed write is never refused, and a
-409 whose read-back cannot find the record is in doubt, never a value question.
+Equipment Type" sent one POST to /equipmentTypes and Blue Yonder answered 409
+"Record already exists." (read-only on QA afterwards: voice codes 93 and 7 belong
+to SFORK and COUNT, and neither new type is among the 88 the collection lists,
+so those two were real refusals).
+
+The read-back that decided it could not have told otherwise: the recording's
+confirming read was another collection (warehouseEquipmentAccesses), and GET
+/equipmentTypes/<code> answers 404 whatever the collection holds. Had the 409
+come over a record that landed, it would have been refused and the operator
+asked for another value: a second record. The write's own collection is what is
+read, a record found there is done, and a collection that could not be read
+leaves the 409 in doubt.
 """
 
 from __future__ import annotations
@@ -101,7 +106,7 @@ def _recorded() -> tuple[Step, dict[str, Gesture]]:
 class _By:
     """Blue Yonder as seen on QA: the collection lists, the code's own address 404s."""
 
-    def __init__(self, write: HttpResponse, listed: list[dict[str, object]]) -> None:
+    def __init__(self, write: HttpResponse, listed: list[dict[str, object]] | None) -> None:
         self.write, self.listed = write, listed
         self.reads: list[str] = []
 
@@ -110,6 +115,8 @@ class _By:
             return self.write
         self.reads.append(url)
         path = url.split("?")[0]
+        if path.endswith("/equipmentTypes") and self.listed is None:
+            return HttpResponse(500, {}, "")
         if path.endswith("/equipmentTypes"):
             return HttpResponse(
                 200, {}, json.dumps({"@type": "ResponseBodyWrapper", "data": self.listed})
@@ -119,7 +126,9 @@ class _By:
         return HttpResponse(404, {}, '{"message": "Not found"}')
 
 
-async def _saved(write: HttpResponse, listed: list[dict[str, object]]) -> tuple[StepResult, _By]:
+async def _saved(
+    write: HttpResponse, listed: list[dict[str, object]] | None
+) -> tuple[StepResult, _By]:
     step, by_id = _recorded()
     by = _By(write, listed)
     ledger = (VerifiedWrite("POST", "/data/WM/wm/equipmentTypes"),)
@@ -143,8 +152,16 @@ async def test_a_201_whose_record_the_collection_lists_is_done() -> None:
     assert result.verdict == "done"
 
 
-async def test_a_409_whose_record_is_not_found_is_in_doubt_not_a_value_question() -> None:
-    result, _ = await _saved(EXISTS, [{"vehicleTypeId": "OLD", "voiceCode": 93}])
+async def test_a_409_whose_collection_lacks_the_record_never_landed_and_is_refused() -> None:
+    """Voice code 93 belongs to SFORK, 7 to COUNT: Blue Yonder's 409 was a real
+    refusal and neither type is in the 88 it lists."""
+    result, _ = await _saved(EXISTS, [{"vehicleTypeId": "SFORK", "voiceCode": 93}])
+
+    assert result.refused and result.verdict == "failed"
+
+
+async def test_a_409_whose_collection_could_not_be_read_is_in_doubt() -> None:
+    result, _ = await _saved(EXISTS, None)
 
     assert result.verdict == "unknown" and not result.refused
 

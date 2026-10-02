@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 
@@ -7,11 +8,25 @@ import httpx
 
 from sro.application.ports.nango import NangoConnection, NangoUnavailable
 
+logger = logging.getLogger(__name__)
+
 DOWN = "Connections are unavailable right now; try again shortly"
+MISCONFIGURED = "Connections are misconfigured on this server"
+
+K_PAGE_SIZE = 100
+# ponytail: one end user rarely holds more than a few connections; stop after this many pages.
+K_MAX_PAGES = 10
 
 
 class NangoClient:
-    def __init__(self, url: str, secret_key: str, http: httpx.AsyncClient | None = None) -> None:
+    def __init__(
+        self,
+        url: str,
+        secret_key: str,
+        http: httpx.AsyncClient | None = None,
+        page_size: int = K_PAGE_SIZE,
+    ) -> None:
+        self._page_size = page_size
         self._http = http or httpx.AsyncClient(timeout=15.0)
         self._base = url.rstrip("/")
         self._headers = {"Authorization": f"Bearer {secret_key}"}
@@ -37,6 +52,7 @@ class NangoClient:
                 json=json,
             )
         except httpx.HTTPError:
+            logger.warning("nango %s %s unreachable", method, path)
             raise NangoUnavailable(DOWN) from None
 
     async def _ok(
@@ -49,6 +65,9 @@ class NangoClient:
     ) -> httpx.Response:
         response = await self._send(method, path, params=params, json=json)
         if response.is_error:
+            logger.warning("nango %s %s answered %s", method, path, response.status_code)
+            if response.status_code in (401, 403):
+                raise NangoUnavailable(MISCONFIGURED)
             raise NangoUnavailable(DOWN)
         return response
 
@@ -70,21 +89,38 @@ class NangoClient:
         try:
             return str(response.json()["data"]["token"])
         except (ValueError, KeyError, TypeError):
+            logger.warning("nango POST /connect/sessions answered a body we cannot read")
             raise NangoUnavailable(DOWN) from None
 
     async def connections(self, end_user_id: str) -> list[NangoConnection]:
-        response = await self._ok("GET", "/connection", params={"tags[end_user_id]": end_user_id})
-        try:
-            return [
-                NangoConnection(
-                    one["connection_id"],
-                    one["provider_config_key"],
-                    datetime.fromisoformat(one["created"]),
-                )
-                for one in response.json()["connections"]
-            ]
-        except (ValueError, KeyError, TypeError):
-            raise NangoUnavailable(DOWN) from None
+        found: list[NangoConnection] = []
+        for page in range(K_MAX_PAGES):
+            response = await self._ok(
+                "GET",
+                "/connection",
+                params={
+                    "tags[end_user_id]": end_user_id,
+                    "limit": str(self._page_size),
+                    "page": str(page),
+                },
+            )
+            try:
+                rows = response.json()["connections"]
+                found += [
+                    NangoConnection(
+                        one["connection_id"],
+                        one["provider_config_key"],
+                        datetime.fromisoformat(one["created"]),
+                        healthy=not one.get("errors"),
+                    )
+                    for one in rows
+                ]
+            except (ValueError, KeyError, TypeError):
+                logger.warning("nango GET /connection answered a body we cannot read")
+                raise NangoUnavailable(DOWN) from None
+            if len(rows) < self._page_size:
+                break
+        return found
 
     async def proxy(
         self,

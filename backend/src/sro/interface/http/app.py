@@ -138,9 +138,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             yield
         finally:
             await container.capture.stop_all()
-            await container.driver.aclose()
-            if container.nango is not None:
-                await container.nango.aclose()
+            await container.aclose_clients()
             if container.driving_runs is not None:
                 await container.driving_runs.close()
                 container.driving_runs = None

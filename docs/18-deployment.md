@@ -244,6 +244,21 @@ Register this redirect URI in the Azure app: `<NANGO_PUBLIC_URL>/oauth/callback`
 with the value you set. A plain `http://10.11.9.25:8089/...` address will not
 do (Azure takes http redirect URIs for localhost only; check in the portal).
 
+**What the backend needs.** Set these in the env file (the deploy compose passes
+them to the api container):
+
+- `SRO_NANGO_URL`: where the backend reaches Nango inside the compose network,
+  `http://nango-server:8080`.
+- `SRO_NANGO_SECRET_KEY`: the environment secret key from the Nango dashboard
+  (Environment Settings). Leave it blank until Nango is up. A wrong key shows
+  "Connections are misconfigured on this server" and the api log says 401.
+- `SRO_NANGO_PUBLIC_URL` and `SRO_NANGO_PUBLIC_CONNECT_URL`: the same two
+  addresses as `NANGO_PUBLIC_URL` and `NANGO_PUBLIC_CONNECT_URL`, which the
+  console hands to the popup.
+- `SRO_INTEGRATIONS`: the integrations the Connections page offers, as a JSON
+  list of Nango integration ids, for example `["microsoft"]`. Each id must also
+  exist in Nango.
+
 **Console SDK call.** The browser loads the popup from the Connect URL and the
 popup calls the server URL, so the console passes both:
 `nango.openConnectUI({ baseURL: <NANGO_PUBLIC_CONNECT_URL>, apiURL: <NANGO_PUBLIC_URL> })`

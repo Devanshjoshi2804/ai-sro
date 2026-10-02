@@ -267,6 +267,11 @@ class Container:
 
     nango: NangoClient | None = None
 
+    async def aclose_clients(self) -> None:
+        await self.driver.aclose()
+        if self.nango is not None:
+            await self.nango.aclose()
+
     def api_lane(self) -> ApiLane:
         return ApiLane(self.session_broker())
 

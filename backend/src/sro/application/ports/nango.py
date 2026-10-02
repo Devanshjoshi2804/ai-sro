@@ -11,6 +11,7 @@ class NangoConnection:
     connection_id: str
     integration: str
     created_at: datetime
+    healthy: bool = True
 
 
 class Nango(Protocol):

@@ -12,11 +12,11 @@ from sro.interface.http import app
 
 def test_the_api_closes_the_page_driver_when_it_stops() -> None:
     source = inspect.getsource(app.lifespan)
-    assert "container.driver.aclose()" in source, source
-    assert source.index("yield") < source.index("container.driver.aclose()"), source
+    assert "container.aclose_clients()" in source, source
+    assert source.index("yield") < source.index("container.aclose_clients()"), source
 
 
 def test_the_worker_closes_the_page_driver_when_it_stops() -> None:
     source = inspect.getsource(worker.run)
-    assert "container.driver.aclose()" in source, source
-    assert source.index("finally") < source.index("container.driver.aclose()"), source
+    assert "container.aclose_clients()" in source, source
+    assert source.index("finally") < source.index("container.aclose_clients()"), source

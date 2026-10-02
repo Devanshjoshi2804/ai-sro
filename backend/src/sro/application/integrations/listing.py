@@ -27,9 +27,12 @@ class ListIntegrations:
             return []
         if self._nango is None:
             raise NangoUnavailable(NOT_SET_UP)
-        made = {
-            c.integration: c.created_at for c in await self._nango.connections(end_user_id(ctx))
-        }
+        made: dict[str, datetime] = {}
+        for one in await self._nango.connections(end_user_id(ctx)):
+            if one.healthy:
+                made[one.integration] = max(
+                    one.created_at, made.get(one.integration, one.created_at)
+                )
         return [
             IntegrationStatus(name, name in made, made.get(name)) for name in self._integrations
         ]

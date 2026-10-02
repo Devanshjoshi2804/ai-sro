@@ -120,16 +120,23 @@ instead of the page. Mining proposes the action and the value mapping for such a
 - Live on QA per app, after the owner registers its OAuth app: connect, one read, one write with
   read-back and undo, one message through Send it.
 
-## Owner inputs (one OAuth app per provider, pasted into Nango)
+## Who registers what: AI-SRO is the provider
 
-- **Google** (Gmail + Sheets): a Google Cloud OAuth client. Gmail's scopes are "restricted": fine for
-  internal/test users now; Google's verification is needed before outside customers.
-- **Slack**: a Slack app with the bot/user scopes for reading channels, history and posting.
-- **Microsoft** (Teams; can be the same Azure app as Outlook): Teams/chat scopes; some need tenant
-  admin consent.
-- **Atlassian** (Jira): an OAuth 2.0 (3LO) app.
-Each redirect URI is `http://localhost:8089/oauth/callback` on QA (through the tunnel) until the box has
-HTTPS and a hostname.
+AI-SRO is a service used by many customer organisations. **We register one app per provider, once,
+as the publisher**, and put its client id and secret into our Nango. A customer's people only press
+Connect, sign in with their own organisation's account and approve; Nango keeps that connection tagged
+to their tenant and operator (isolation already built and proven). A customer never registers anything.
+
+| Provider | Our one-time job (publisher) | What a customer may need |
+|---|---|---|
+| Microsoft (Outlook, Teams) | One Azure app, "Accounts in any organizational directory" (multi-tenant) | Their admin grants admin consent once for scopes that need it (Teams; often all, if user consent is blocked) |
+| Slack | One Slack app with public distribution on | A workspace admin may approve the install |
+| Google (Gmail, Sheets) | One OAuth client; Gmail scopes are restricted: Google app verification and the yearly security assessment (CASA) before outside customers; until then at most 100 listed test users | A Workspace admin may allow-list the app |
+| Atlassian (Jira) | One OAuth 2.0 (3LO) app with distribution on | Each user's consent |
+
+The callback is `<NANGO_PUBLIC_URL>/oauth/callback`. On QA it is `http://localhost:8089/oauth/callback`
+through the tunnel (only the team); **customers need an HTTPS hostname** for Nango's dashboard API and
+Connect UI (e.g. `https://connect.<domain>`), which comes with the production HTTPS address.
 
 ## Order of work
 
@@ -142,6 +149,6 @@ HTTPS and a hostname.
 
 ## Open questions for the owner
 
-1. Who creates the four OAuth apps (Google, Slack, Microsoft for Teams, Atlassian), and for which
-   test workspace/site/tenant?
+1. GreyOrange registers the four publisher apps (Google, Slack, Microsoft, Atlassian): who owns each,
+   and which test workspace/site/tenant per provider is used on QA?
 2. Slack and Teams inbound (step 5): which channels may the assistant listen in on QA?

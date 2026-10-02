@@ -50,6 +50,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-sro}
+      # init-db.sh creates Nango's own role and database from these.
+      NANGO_DB_USER: ${NANGO_DB_USER:?set NANGO_DB_USER}
+      NANGO_DB_PASSWORD: ${NANGO_DB_PASSWORD:?set NANGO_DB_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
@@ -238,18 +241,23 @@ services:
   # ---------------------------------------------------------------------------
   # Nango, self-hosted (free tier: OAuth + token refresh + proxy; no
   # Elasticsearch, no S3). It is how an operator connects a mail account with
-  # one click. Its data is the `nango` database on our Postgres -- created once
-  # by hand (docs/18-deployment.md "Nango") -- never the `sro` one.
+  # one click. Its data is the `nango` database on our Postgres, owned by its own
+  # `nango` role (init-db.sh on a fresh volume; by hand on an existing one,
+  # docs/18-deployment.md "Nango") -- never the `sro` one.
   # Docs: https://nango.dev/docs/guides/platform/self-hosting
-  # Dashboard and API are on their own proxy port (NANGO_BIND, 8089): they are
-  # not served under a sub-path, so `/nango` on the app's origin cannot work.
+  # Dashboard and API are on their own proxy port (NANGO_BIND, 8089) and the
+  # Connect UI on another (NANGO_CONNECT_BIND, 8082): the dashboard is not
+  # served under a sub-path, so `/nango` on the app's origin cannot work. Both
+  # bind to loopback unless the env file says otherwise.
   # ---------------------------------------------------------------------------
   nango-redis:
-    image: redis:7-alpine
+    image: redis:7.4-alpine
     restart: unless-stopped
 
   nango-server:
-    image: nangohq/nango-server:hosted
+    # Pinned, not the moving `hosted` tag: an upgrade is a deliberate edit here
+    # (docs/18-deployment.md "Upgrading Nango").
+    image: nangohq/nango-server:hosted-0.71.11
     restart: unless-stopped
     depends_on:
       postgres:
@@ -260,12 +268,18 @@ services:
       NANGO_DB_HOST: postgres
       NANGO_DB_PORT: "5432"
       NANGO_DB_NAME: nango
-      NANGO_DB_USER: ${POSTGRES_USER}
-      NANGO_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      NANGO_DB_USER: ${NANGO_DB_USER:?set NANGO_DB_USER}
+      NANGO_DB_PASSWORD: ${NANGO_DB_PASSWORD:?set NANGO_DB_PASSWORD}
       NANGO_ENCRYPTION_KEY: ${NANGO_ENCRYPTION_KEY:?set NANGO_ENCRYPTION_KEY (openssl rand -base64 32); never change it once connections exist}
       # The OAuth callback is <this>/oauth/callback; register that in the
       # provider's app (Azure redirect URI).
-      NANGO_SERVER_URL: ${NANGO_PUBLIC_URL:?set NANGO_PUBLIC_URL, e.g. http://10.11.9.25:8089}
+      NANGO_SERVER_URL: ${NANGO_PUBLIC_URL:?set NANGO_PUBLIC_URL, e.g. http://localhost:8089}
+      NANGO_PUBLIC_SERVER_URL: ${NANGO_PUBLIC_URL}
+      # Connect UI, the one-click popup the console opens. Served by the same
+      # container on 3009; the browser reaches it at NANGO_PUBLIC_CONNECT_URL.
+      FLAG_SERVE_CONNECT_UI: "true"
+      NANGO_CONNECT_UI_PORT: "3009"
+      NANGO_PUBLIC_CONNECT_URL: ${NANGO_PUBLIC_CONNECT_URL:?set NANGO_PUBLIC_CONNECT_URL, e.g. http://localhost:8082}
       NANGO_REDIS_URL: redis://nango-redis:6379
       # Basic auth on the dashboard instead of Nango Cloud's login.
       FLAG_AUTH_ENABLED: "false"
@@ -446,7 +460,8 @@ services:
     ports:
       - "${PUBLIC_BIND:-0.0.0.0:8088}:8080"
       # Nango's dashboard and API: a root-served app, so its own port.
-      - "${NANGO_BIND:-0.0.0.0:8089}:8081"
+      - "${NANGO_BIND:-127.0.0.1:8089}:8081"
+      - "${NANGO_CONNECT_BIND:-127.0.0.1:8082}:8082"
 
 volumes:
   # One Google refresh token per operator, each named by the sha256 of the

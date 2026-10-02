@@ -205,26 +205,67 @@ healthy.
 ## Nango (mail accounts connected with one click)
 
 Self-hosted Nango (free tier: OAuth, token refresh, proxy; no Elasticsearch or
-S3) runs beside AI-SRO. Its data is the database `nango` on our Postgres and
-never touches `sro`. Reference:
+S3) runs beside AI-SRO. Its data is the database `nango` on our Postgres,
+owned by its own role `nango`; it never touches `sro`. Reference:
 <https://nango.dev/docs/guides/platform/self-hosting>.
 
 **Not under `/nango`.** The dashboard is served from the root and has no
-sub-path setting, so it gets its own proxy port, 8089 (`NANGO_BIND`), routed by
-`infra/Caddyfile`'s `:8081` site. `NANGO_PUBLIC_URL` is that address, e.g.
-`http://10.11.9.25:8089`; the OAuth callback is `<NANGO_PUBLIC_URL>/oauth/callback`.
+sub-path setting, so it gets its own proxy port, 8089 (`NANGO_BIND`), and the
+Connect UI (the popup the console opens) gets 8082 (`NANGO_CONNECT_BIND`), both
+routed by `infra/Caddyfile`. **Both bind to loopback by default**: the
+dashboard holds the environment secret key and every connected mailbox's
+grant, over plain HTTP, on a shared box. Reach them by SSH tunnel:
 
-One shot, once per Postgres volume (the init script does not run on an
-existing one):
+```bash
+ssh -L 8089:127.0.0.1:8089 -L 8082:127.0.0.1:8082 <user>@10.11.9.25
+```
+
+Use `0.0.0.0:<port>` in the env file only once TLS and a hostname exist.
+
+**Before pulling this change on the box**, edit `.env.qa`: the new
+`NANGO_*` variables are required, so every `docker compose` command fails until
+they are set. Add `NANGO_DB_USER=nango`, `NANGO_DB_PASSWORD`,
+`NANGO_ENCRYPTION_KEY` (`openssl rand -base64 32`; never change it
+afterwards), `NANGO_PUBLIC_URL`, `NANGO_PUBLIC_CONNECT_URL`,
+`NANGO_DASHBOARD_USERNAME` and `NANGO_DASHBOARD_PASSWORD`.
+
+**The redirect URI.** The OAuth redirect happens in the operator's browser,
+and Nango's callback is `<NANGO_PUBLIC_URL>/oauth/callback`. Pick one:
+
+- Tunnel: `NANGO_PUBLIC_URL=http://localhost:8089` and
+  `NANGO_PUBLIC_CONNECT_URL=http://localhost:8082`. Register
+  `http://localhost:8089/oauth/callback` in the Azure app. Check in the Azure
+  portal that it accepts an `http://localhost` redirect URI before relying on
+  this.
+- Once TLS and a hostname exist: `NANGO_PUBLIC_URL=https://nango.<host>`, a
+  matching https Connect URL, and register `https://nango.<host>/oauth/callback`.
+
+Register this redirect URI in the Azure app: `<NANGO_PUBLIC_URL>/oauth/callback`
+with the value you set. A plain `http://10.11.9.25:8089/...` address will not
+do (Azure takes http redirect URIs for localhost only; check in the portal).
+
+**Console SDK call.** The browser loads the popup from the Connect URL and the
+popup calls the server URL, so the console passes both:
+`nango.openConnectUI({ baseURL: <NANGO_PUBLIC_CONNECT_URL>, apiURL: <NANGO_PUBLIC_URL> })`
+(<https://nango.dev/docs/reference/frontend/frontend-sdk>).
+
+**Database.** A fresh Postgres volume creates the `nango` role and database
+from `infra/init-db.sh`. On the existing QA volume (the init script does not
+run on an existing one), once:
 
 ```bash
 docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa \
-  exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "CREATE DATABASE nango"'
+  exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  -v nu="$NANGO_DB_USER" -v np="$NANGO_DB_PASSWORD"' <<'SQL'
+CREATE ROLE :"nu" LOGIN PASSWORD :'np';
+CREATE DATABASE nango OWNER :"nu";
+SQL
 ```
 
-Then set `NANGO_ENCRYPTION_KEY` (`openssl rand -base64 32`; never change it
-afterwards), `NANGO_PUBLIC_URL`, `NANGO_DASHBOARD_USERNAME/PASSWORD` in
-`.env.qa` and start it, and reload Caddy to publish the port:
+(The `postgres` container only has the new `NANGO_DB_*` variables after it is
+recreated: `up -d --no-deps postgres` first.)
+
+Then start it, and recreate Caddy to publish the new ports:
 
 ```bash
 docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa \
@@ -233,15 +274,17 @@ docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa \
   up -d --no-deps --force-recreate caddy      # a new published port needs a recreate
 ```
 
-Open `NANGO_PUBLIC_URL` in a browser and sign in with the dashboard basic-auth
-credentials. Create the integration `microsoft`: client id and secret from the
-Azure app registration (its redirect URI is the callback above), scopes
+Open the dashboard through the tunnel (`http://localhost:8089`) and sign in
+with the basic-auth credentials. Create the integration `microsoft`: client id
+and secret from the Azure app registration, scopes
 `offline_access Mail.Read Mail.ReadWrite Mail.Send User.Read`. Copy the
 environment secret key (Environment Settings) into `.env.qa` as
 `SRO_NANGO_SECRET_KEY`. `SRO_NANGO_URL` stays `http://nango-server:3003`.
 
-The dashboard is plain HTTP with basic auth on a shared network: reach it over
-the tunnel or restrict `NANGO_BIND` to loopback until TLS exists.
+**Upgrading Nango.** The image is pinned (`nangohq/nango-server:hosted-<version>`,
+tags on Docker Hub, versions on <https://github.com/NangoHQ/nango/releases>)
+and so is Redis. To upgrade, edit the tag in `infra/docker-compose.deploy.yml`,
+read the release notes, and `up -d --no-deps nango-server`.
 
 ## Which mail connector a tenant is on
 

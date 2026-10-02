@@ -7,8 +7,12 @@
 # not an infrastructure change.
 set -eu
 
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-'SQL'
+# Nango gets its own role owning only its own database, not the superuser.
+psql -v ON_ERROR_STOP=1 -v nu="$NANGO_DB_USER" -v np="$NANGO_DB_PASSWORD" \
+    --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-'SQL'
     CREATE DATABASE temporal;
     CREATE DATABASE temporal_visibility;
+    CREATE ROLE :"nu" LOGIN PASSWORD :'np';
+    CREATE DATABASE nango OWNER :"nu";
     CREATE EXTENSION IF NOT EXISTS vector;
 SQL

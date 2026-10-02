@@ -13,9 +13,10 @@ import asyncio
 import json
 from collections.abc import Mapping
 from dataclasses import replace
+from datetime import UTC, datetime
 from types import MappingProxyType
 from typing import Any
-from urllib.parse import unquote
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 import pytest
 
@@ -25,7 +26,7 @@ from sro.application.lookup.run_lookups import K_AFTER_HEADERS_S, K_WHILE_TALKIN
 from sro.application.ports.http import HttpResponse
 from sro.domain.execution.account import Account, LeaseState
 from sro.domain.execution.lanes import Lane, StepResult
-from sro.domain.lookup.address import address_for
+from sro.domain.lookup.address import Address, address_for
 from sro.domain.lookup.plan import Lookup, Plan
 from sro.domain.observation.gesture import Action, Call, Gesture
 from sro.domain.shared.hosts import REDACTED
@@ -783,52 +784,112 @@ def _typed(value: str, *, at: float = 50.0) -> Gesture:
     return replace(_gesture(at=at), action=Action(kind="type", at=at, value=value))
 
 
-def _shape(read_query: str, write_query: str, *extra: Gesture) -> list[Gesture]:
-    """The QA shape (values anonymised): a recorded list read and a recorded save, each with
-    scope and a cache-buster on the URL."""
-    return [
-        _gesture(_call(path=GRID, query=read_query, at=100.0), at=100.0),
-        _gesture(
-            _call(method="POST", path="/data/WM/wm/suppliers", query=write_query, at=200.0),
-            at=200.0,
-        ),
-        *extra,
+T0 = 1_700_000_000.0
+PARTNERS = "/data/WM/wm/partners"
+
+
+def _dc(at: float, skew_ms: int = 0) -> str:
+    return f"_dc={int(at * 1000) + skew_ms}"
+
+
+def _shape(
+    read_query: str, write_query: str, *extra: Gesture, stamped: bool = True
+) -> list[Gesture]:
+    """The QA shape (values anonymised): a recorded list read, two recorded saves to two endpoints
+    and (stamped) enough other reads to carry a request-time stamp on at least five calls. The
+    queries name the stamp as `{dc}`: each call's own started_at in milliseconds."""
+    calls = [
+        (GRID, "GET", read_query, T0),
+        (SUPPLIERS, "POST", write_query, T0 + 100),
+        (PARTNERS, "POST", write_query, T0 + 200),
     ]
+    if stamped:
+        calls += [(f"/data/WM/wm/r{n}", "GET", "{dc}", T0 + 300 + n) for n in range(3)]
+    return [
+        _gesture(_call(method=m, path=path, query=q.replace("{dc}", _dc(at)), at=at), at=at)
+        for path, m, q, at in calls
+    ] + list(extra)
 
 
-READ = "query=[]&siteId=SG&subsites=a,b&_dc=1700000001001"
-WROTE = "siteId=SG&subsites=a,b&_dc=1700000001002"
+READ = "query=[]&siteId=SG&subsites=a,b&{dc}"
+WROTE = "siteId=SG&subsites=a,b&{dc}"
 
 
 def test_a_param_the_recorded_writes_carry_with_the_same_value_is_scope_not_a_filter() -> None:
-    """R-L6: siteId=SG is where records are made; the read of that place is the whole list.
-    _dc differs on every call, never was typed and a write carried it: no filter either."""
+    """R-L6/R-L8: siteId=SG is where records are made, said by saves to two endpoints; the read
+    of that place is the whole list. _dc is each call's own time (R-L7): no filter either."""
     address = address_for(_asked_for("X"), _shape(READ, WROTE, _typed("hello")))
 
     assert address is not None and address.narrowed == ()
 
 
-def test_a_cache_buster_that_repeats_across_recorded_calls_stays_a_filter() -> None:
-    """The QA evidence: 1064 _dc values carried, 720 distinct (calls in one millisecond)."""
-    again = _gesture(_call(path="/data/WM/wm/other", query="_dc=1700000001001", at=300.0), at=300.0)
+def test_a_stamp_two_calls_carry_with_the_same_value_is_still_a_stamp() -> None:
+    """R-L7: the QA evidence had 217 _dc values shared by calls in one millisecond; sharing a
+    value is no reason to read it as a filter, only a value that is not the call's time is."""
+    twin = _gesture(_call(path="/data/WM/wm/r0", query=_dc(T0 + 300), at=T0 + 300), at=T0 + 300)
 
-    address = address_for(_asked_for("X"), _shape(READ, WROTE, _typed("hello"), again))
+    address = address_for(_asked_for("X"), [*_shape(READ, WROTE), twin])
+
+    assert address is not None and address.narrowed == ()
+
+
+@pytest.mark.parametrize("value", ["1700000000", "1700000900000", str(10**14)])
+def test_a_big_number_that_is_not_near_its_call_s_time_is_a_filter(value: str) -> None:
+    """The old '10+ digit' shape accepted any of these."""
+    gestures = _shape(READ.replace("{dc}", f"_dc={value}"), WROTE)
+
+    address = address_for(_asked_for("X"), gestures)
 
     assert address is not None and address.narrowed == ("_dc",)
+
+
+def test_a_param_one_call_carries_off_its_time_ruins_the_stamp_for_every_call() -> None:
+    off = _gesture(
+        _call(path="/data/WM/wm/r0", query=_dc(T0 + 300, 6000), at=T0 + 300), at=T0 + 300
+    )
+
+    address = address_for(_asked_for("X"), [*_shape(READ, WROTE), off])
+
+    assert address is not None and address.narrowed == ("_dc",)
+
+
+def test_a_stamp_within_five_seconds_of_its_call_counts_and_six_does_not() -> None:
+    near = _shape(READ.replace("{dc}", _dc(T0, 4999)), WROTE)
+    far = _shape(READ.replace("{dc}", _dc(T0, 5001)), WROTE)
+
+    assert (address_for(_asked_for("X"), near) or _never()).narrowed == ()
+    assert (address_for(_asked_for("X"), far) or _never()).narrowed == ("_dc",)
+
+
+def test_a_stamp_seen_on_fewer_than_five_calls_is_not_proven() -> None:
+    address = address_for(_asked_for("X"), _shape(READ, WROTE, stamped=False))
+
+    assert address is not None and address.narrowed == ("_dc",)
+
+
+def test_the_replay_sends_a_fresh_stamp_and_leaves_the_scope_as_recorded() -> None:
+    now = T0 + 5000
+    address = address_for(_asked_for("X"), _shape(READ, WROTE), now)
+
+    assert address is not None
+    sent = dict(parse_qsl(urlsplit(address.url).query))
+    assert sent["_dc"] == str(int(now * 1000))
+    assert sent["siteId"] == "SG" and sent["subsites"] == "a,b" and sent["query"] == "[]"
+
+
+def _never() -> Address:
+    raise AssertionError("no address")
 
 
 @pytest.mark.parametrize(
     ("read", "write", "typed", "narrowed"),
     [
         # the write saved to another place: the read is a different list
-        ("query=[]&siteId=SG&_dc=1700000000001", "siteId=NL&_dc=1700000000002", "", ("siteId",)),
+        ("query=[]&siteId=SG", "siteId=NL", "", ("siteId",)),
         # the writes never carried it: nothing proves it is scope
-        ("query=[]&siteId=SG&_dc=1700000000001", "_dc=1700000000002", "", ("siteId",)),
-        # a cache-buster no write carries
-        ("query=[]&_dc=1700000000001", "siteId=SG", "", ("_dc",)),
+        ("query=[]&siteId=SG", "x=1", "", ("siteId",)),
         # a value the operator typed is record content, whatever a write also carried
-        ("query=[]&siteId=SG&_dc=1700000000001", "siteId=SG&_dc=1700000000002", "sg", ("siteId",)),
-        ("query=[]&_dc=1700000001234", "_dc=1700000000002", "1700000001234", ("_dc",)),
+        ("query=[]&siteId=SG", "siteId=SG", "sg", ("siteId",)),
         # a read only for one of the write's values
         ("query=[]&subsites=a", "subsites=a,b", "", ("subsites",)),
     ],
@@ -843,10 +904,23 @@ def test_a_param_unproven_by_what_was_recorded_stays_a_filter(
     assert address is not None and address.narrowed == narrowed
 
 
+def test_a_param_one_endpoint_wrote_is_not_scope() -> None:
+    one = [
+        _gesture(_call(path=GRID, query="query=[]&status=ACTIVE")),
+        _gesture(_call(method="POST", path=SUPPLIERS, query="status=ACTIVE"), at=200.0),
+        _gesture(_call(method="PUT", path=SUPPLIERS, query="status=ACTIVE"), at=300.0),
+    ]
+
+    address = address_for(_asked_for("X"), one)
+
+    assert address is not None and address.narrowed == ("status",)
+
+
 def test_a_write_that_failed_proves_nothing() -> None:
     gestures = [
         _gesture(_call(path=GRID, query="query=[]&siteId=SG")),
-        _gesture(_call(method="POST", path=SUPPLIERS, query="siteId=SG", status=500), at=200.0),
+        _gesture(_call(method="POST", path=SUPPLIERS, query="siteId=SG"), at=200.0),
+        _gesture(_call(method="POST", path=PARTNERS, query="siteId=SG", status=500), at=300.0),
     ]
 
     address = address_for(_asked_for("X"), gestures)
@@ -855,26 +929,35 @@ def test_a_write_that_failed_proves_nothing() -> None:
 
 
 def test_scope_proven_on_one_system_is_not_proof_on_another() -> None:
-    elsewhere = replace(
-        _call(method="POST", path=SUPPLIERS, query="siteId=SG"),
-        url="https://other.example.com/x?siteId=SG",
-    )
-    gestures = [_gesture(_call(path=GRID, query="query=[]&siteId=SG")), _gesture(elsewhere, at=2.0)]
+    def elsewhere(path: str) -> Call:
+        return replace(
+            _call(method="POST", path=path, query="siteId=SG"),
+            url=f"https://other.example.com{path}?siteId=SG",
+        )
+
+    gestures = [
+        _gesture(_call(path=GRID, query="query=[]&siteId=SG")),
+        _gesture(elsewhere(SUPPLIERS), at=2.0),
+        _gesture(elsewhere(PARTNERS), at=3.0),
+    ]
 
     address = address_for(_asked_for("X"), gestures)
 
     assert address is not None and address.narrowed == ("siteId",)
 
 
-async def test_a_list_read_with_scope_and_cache_buster_says_no_and_a_hit_says_yes() -> None:
-    gestures = _shape(READ, WROTE, _typed("hello"))
-    world = await lookup_world(*gestures)
+async def test_a_list_read_with_scope_and_stamp_says_no_and_a_hit_says_yes() -> None:
+    """The QA-shaped equipmentTypes read: scope and a stamp, a whole list, so it can say No."""
+    world = await lookup_world(*_shape(READ, WROTE, _typed("hello")))
     world.http.answer(200, WHOLE)
 
     answers = await world.run_lookups.execute(
         CTX, plan=Plan(question="q", lookups=(_asked_for("ZWOYBN"),))
     )
     assert what_was_found(answers).startswith("No, none of the 2")
+    (sent,) = world.http.sent
+    now_ms = int(datetime(2026, 3, 1, 9, 0, tzinfo=UTC).timestamp() * 1000)
+    assert dict(parse_qsl(urlsplit(str(sent["url"])).query))["_dc"] == str(now_ms)
 
     world.http.answer(200, json.dumps({"data": [{"code": "ZWOYBN"}]}))
     answers = await world.run_lookups.execute(

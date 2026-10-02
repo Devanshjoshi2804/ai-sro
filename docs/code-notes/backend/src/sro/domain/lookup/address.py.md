@@ -30,11 +30,11 @@ Comments and docstrings moved out of [`backend/src/sro/domain/lookup/address.py`
 > write, and this refuses anything that is not a recorded GET. Two belts,
 > because this is the half that reaches somebody's warehouse.
 
-## `Address`, [line 19](../../../../../../../backend/src/sro/domain/lookup/address.py#L19): Docstring
+## `Address`, [line 21](../../../../../../../backend/src/sro/domain/lookup/address.py#L21): Docstring
 
 > One lookup, as something the extension can be asked to do.
 
-## `Address`, [line 22](../../../../../../../backend/src/sro/domain/lookup/address.py#L22): Note on the line above
+## `Address`, [line 24](../../../../../../../backend/src/sro/domain/lookup/address.py#L24): Note on the line above
 
 Code: `live_headers: tuple[str, ...] = ()`
 
@@ -42,7 +42,7 @@ Code: `live_headers: tuple[str, ...] = ()`
 > out at the boundary, so what is stored is the marker's own text; the tab
 > the operator is signed into has the real value.
 
-## `Address`, [line 24](../../../../../../../backend/src/sro/domain/lookup/address.py#L24): Note on the line above
+## `Address`, [line 26](../../../../../../../backend/src/sro/domain/lookup/address.py#L26): Note on the line above
 
 Code: `struck: tuple[str, ...] = ()`
 
@@ -50,14 +50,14 @@ Code: `struck: tuple[str, ...] = ()`
 > goes without them and the system may well answer -- but the first thing to
 > look at when it does not.
 
-## `Address`, [line 26](../../../../../../../backend/src/sro/domain/lookup/address.py#L26): Note on the line above
+## `Address`, [line 28](../../../../../../../backend/src/sro/domain/lookup/address.py#L28): Note on the line above
 
 Code: `seen_at: float | None = None`
 
 > When the evidence this address came from was recorded. A month-old
 > session still names the right host; its session token may be spent.
 
-## `Address`, [line 28](../../../../../../../backend/src/sro/domain/lookup/address.py#L28): Note on the line above
+## `Address`, [line 30](../../../../../../../backend/src/sro/domain/lookup/address.py#L30): Note on the line above
 
 Code: `page: str = ""`
 
@@ -67,11 +67,11 @@ Code: `page: str = ""`
 > system refuses for any reason but auth is read off that page instead. Empty
 > for a screen, whose `url` already is the page.
 
-## `address_for`, [line 35](../../../../../../../backend/src/sro/domain/lookup/address.py#L35): Docstring
+## `address_for`, [line 37](../../../../../../../backend/src/sro/domain/lookup/address.py#L37): Docstring
 
 > Where this lookup goes, or nothing if this deployment has not been there.
 
-## `_call_address`, [line 42](../../../../../../../backend/src/sro/domain/lookup/address.py#L42): Docstring
+## `_call_address`, [line 45](../../../../../../../backend/src/sro/domain/lookup/address.py#L45): Docstring
 
 > The newest successful GET of this exact path, re-aimed at the question.
 >
@@ -81,7 +81,7 @@ Code: `page: str = ""`
 > with a plausible-looking answer, which is the failure this whole module is
 > arranged against.
 
-## `_call_address`, [line 64](../../../../../../../backend/src/sro/domain/lookup/address.py#L64): Note
+## `_call_address`, [line 67](../../../../../../../backend/src/sro/domain/lookup/address.py#L67): Note
 
 Code: `worked, key=lambda one: (-len(narrowing(one[1].url)), one[1].started_at or 0.0)`
 
@@ -95,7 +95,7 @@ Code: `worked, key=lambda one: (-len(narrowing(one[1].url)), one[1].started_at o
 > which a scope (`siteId`) or a requirement is not written in a recording, and a scope
 > removed reads another list. A narrowed read answers what it holds, never "No".
 
-## `_screen_address`, [line 78](../../../../../../../backend/src/sro/domain/lookup/address.py#L78): Docstring
+## `_screen_address`, [line 83](../../../../../../../backend/src/sro/domain/lookup/address.py#L83): Docstring
 
 > The newest page url whose fragment names this route.
 >
@@ -106,7 +106,7 @@ Code: `worked, key=lambda one: (-len(narrowing(one[1].url)), one[1].started_at o
 > differently by the two sides, so the comparison is over the part they
 > agree on.
 
-## `_route_name`, [line 186](../../../../../../../backend/src/sro/domain/lookup/address.py#L186): Docstring
+## `_route_name`, [line 198](../../../../../../../backend/src/sro/domain/lookup/address.py#L198): Docstring
 
 > A route as the screen it names, however either side spells it.
 >
@@ -116,7 +116,7 @@ Code: `worked, key=lambda one: (-len(narrowing(one[1].url)), one[1].started_at o
 > the menu are the catalogue's, and the trailing separators are the
 > application's own padding for parameters the screen was opened without.
 
-## `_with_params`, [line 191](../../../../../../../backend/src/sro/domain/lookup/address.py#L191): Docstring
+## `_with_params`, [line 203](../../../../../../../backend/src/sro/domain/lookup/address.py#L203): Docstring
 
 > The recorded url, asking the question that was planned.
 >

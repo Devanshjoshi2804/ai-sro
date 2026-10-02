@@ -666,17 +666,18 @@ async def lookup_world(*gestures: Gesture) -> LookupWorld:
     driver.shows_sign_in_until_signed = True
     driver.http = http
     lane = SigningLane(driver)
+    clock = FakeClock()
     broker = _CountingBroker(
         uow,
         FakeBrowserPool({"http://steel:3000": 1}),
         driver,
         FakeAccountLocks(),
         vault,
-        FakeClock(),
+        clock,
         ui=lane,
         close_s=0.05,
     )
-    world = LookupWorld(RunLookups(uow, broker), broker, uow, driver, http, lane)
+    world = LookupWorld(RunLookups(uow, broker, clock), broker, uow, driver, http, lane)
     broker.world = world
     return world
 

@@ -12,7 +12,9 @@ from sro.domain.observation.trim import path_shape
 from sro.domain.shared.hosts import REDACTED, headers_without_markers, origin_of
 
 K_EMPTY = ("", "[]", "{}", "null")
-K_TIMESTAMP_DIGITS = 10
+K_STAMP_CALLS = 5
+K_STAMP_SKEW_MS = 5000
+K_SCOPE_PATHS = 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,14 +34,15 @@ class Address:
     narrowed: tuple[str, ...] = ()
 
 
-def address_for(lookup: Lookup, gestures: Iterable[Gesture]) -> Address | None:
+def address_for(lookup: Lookup, gestures: Iterable[Gesture], now: float = 0.0) -> Address | None:
+    """`now` (epoch seconds) is what a request-time stamp param is replayed with."""
     seen = list(gestures)
     if lookup.how == "call":
-        return _call_address(lookup, seen)
+        return _call_address(lookup, seen, now)
     return _screen_address(lookup, seen)
 
 
-def _call_address(lookup: Lookup, gestures: list[Gesture]) -> Address | None:
+def _call_address(lookup: Lookup, gestures: list[Gesture], now: float) -> Address | None:
     worked = [
         (gesture, call)
         for gesture in gestures
@@ -52,20 +55,22 @@ def _call_address(lookup: Lookup, gestures: list[Gesture]) -> Address | None:
     ]
     if not worked:
         return None
-    proven: dict[str, frozenset[tuple[str, str]]] = {}
+    proven: dict[str, tuple[frozenset[tuple[str, str]], frozenset[str]]] = {}
 
     def narrowing(url: str) -> tuple[str, ...]:
         origin = origin_of(url)
         if origin not in proven:
             proven[origin] = _proven_params(origin, lookup, gestures)
-        return _narrowing(url, lookup, proven[origin])
+        return _narrowing(url, lookup, *proven[origin])
 
     gesture, call = max(
         worked, key=lambda one: (-len(narrowing(one[1].url)), one[1].started_at or 0.0)
     )
     struck_out = [name for name, value in call.request_headers.items() if REDACTED in value]
     return Address(
-        url=_with_params(call.url, lookup.params),
+        url=_with_params(
+            call.url, {**_stamped(call.url, proven[origin_of(call.url)][1], now), **lookup.params}
+        ),
         headers=headers_without_markers(call.request_headers),
         live_headers=tuple(n for n in struck_out if n.lower() in LIVE_FETCHABLE_HEADERS),
         struck=tuple(n for n in struck_out if n.lower() not in LIVE_FETCHABLE_HEADERS),
@@ -104,11 +109,13 @@ def _screen_address(lookup: Lookup, gestures: list[Gesture]) -> Address | None:
     )
 
 
-def _narrowing(url: str, lookup: Lookup, proven: frozenset[tuple[str, str]]) -> tuple[str, ...]:
+def _narrowing(
+    url: str, lookup: Lookup, scope: frozenset[tuple[str, str]], stamps: frozenset[str]
+) -> tuple[str, ...]:
     """What the replayed read filters by besides the key asked for: a param the planner named
     is that search only when its value is the key and nothing else (status=ACTIVE reads a subset;
     a JSON filter, a longer code or a second value could narrow, so it reads as could-not-tell).
-    A (name, value) the system's own writes prove (`_proven_params`) is scope, not a filter."""
+    A scope pair or a stamp name the system's own calls prove (`_proven_params`) is no filter."""
     key = lookup.find.casefold() if lookup.find else None
     return tuple(
         name
@@ -116,19 +123,21 @@ def _narrowing(url: str, lookup: Lookup, proven: frozenset[tuple[str, str]]) -> 
             urlsplit(_with_params(url, lookup.params)).query, keep_blank_values=True
         )
         if value.strip() not in K_EMPTY
-        and (name, value) not in proven
+        and (name, value) not in scope
+        and name not in stamps
         and not (name in lookup.params and key and _is_the_key(value, key))
     )
 
 
 def _proven_params(
     origin: str, lookup: Lookup, gestures: list[Gesture]
-) -> frozenset[tuple[str, str]]:
-    """The (name, value) pairs on this system that are no filter, proven by what was recorded.
-    Scope: a successful write carried the same pair, so the place records are made is the place
-    read (siteId=SG). Cache-buster: the name's values are all distinct timestamp-sized numbers
-    over every recorded call, none was ever typed, and a write carried it too. A value the
-    operator typed (or the key asked for) is record content, never proof.
+) -> tuple[frozenset[tuple[str, str]], frozenset[str]]:
+    """What the recorded calls of this system prove is no filter: (scope pairs, stamp names).
+    Scope: a successful write to each of at least two endpoint paths carried the same
+    (name, value), so it is session-wide context (siteId=SG), not one write's field
+    (status=ACTIVE). A value the operator typed (or the key asked for) is record content, never
+    proof. Stamp: on every recorded call carrying the name (at least K_STAMP_CALLS) the value is
+    that call's own started_at in epoch milliseconds, give or take K_STAMP_SKEW_MS (_dc).
     Anything else stays a filter."""
     typed = {
         gesture.action.value.casefold()
@@ -138,33 +147,36 @@ def _proven_params(
     calls = [
         call for gesture in gestures for call in gesture.requests if origin_of(call.url) == origin
     ]
-    carried = [(call, _params(call.url)) for call in calls]
-    wrote = {
+    wrote: dict[tuple[str, str], set[str]] = {}
+    carried: dict[str, list[bool]] = {}
+    for call in calls:
+        for name, value in _params(call.url):
+            carried.setdefault(name, []).append(_is_its_time(value, call.started_at))
+            if (
+                call.method.upper() != "GET"
+                and call.status is not None
+                and 200 <= call.status < 300
+            ):
+                wrote.setdefault((name, value), set()).add(urlsplit(call.url).path)
+    scope = frozenset(
         pair
-        for call, pairs in carried
-        if call.method.upper() != "GET" and call.status is not None and 200 <= call.status < 300
-        for pair in pairs
-    }
-    seen = Counter(pair for _, pairs in carried for pair in pairs)
-    names: dict[str, list[str]] = {}
-    for name, value in seen:
-        names.setdefault(name, []).append(value)
-    busters = {
-        name
-        for name, values in names.items()
-        if all(seen[(name, value)] == 1 and _a_timestamp(value) for value in values)
-        and not typed.intersection(value.casefold() for value in values)
-        and any(pair[0] == name for pair in wrote)
-    }
-    return frozenset(
-        pair
-        for pair in seen
-        if pair[1].casefold() not in typed and (pair in wrote or pair[0] in busters)
+        for pair, paths in wrote.items()
+        if len(paths) >= K_SCOPE_PATHS and pair[1].casefold() not in typed
+    )
+    stamps = frozenset(name for name, ok in carried.items() if len(ok) >= K_STAMP_CALLS and all(ok))
+    return scope, stamps
+
+
+def _is_its_time(value: str, started_at: float | None) -> bool:
+    return (
+        started_at is not None
+        and value.isdigit()
+        and abs(int(value) - started_at * 1000) <= K_STAMP_SKEW_MS
     )
 
 
-def _a_timestamp(value: str) -> bool:
-    return value.isdigit() and len(value) >= K_TIMESTAMP_DIGITS
+def _stamped(url: str, stamps: frozenset[str], now: float) -> dict[str, str]:
+    return {name: str(int(now * 1000)) for name, _ in _params(url) if name in stamps}
 
 
 def _params(url: str) -> set[tuple[str, str]]:

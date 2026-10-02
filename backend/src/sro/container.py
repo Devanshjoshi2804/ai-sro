@@ -459,7 +459,7 @@ class Container:
         )
 
     def run_lookups(self) -> RunLookups:
-        return RunLookups(self.unit_of_work(), self.session_broker())
+        return RunLookups(self.unit_of_work(), self.session_broker(), self.clock)
 
     def create_trigger(self) -> CreateTrigger:
         return CreateTrigger(

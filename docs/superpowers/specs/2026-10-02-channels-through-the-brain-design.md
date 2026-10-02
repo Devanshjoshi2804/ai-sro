@@ -58,9 +58,10 @@ connector (Gmail | Outlook | Slack ...)  -->  Inbound message {channel, thread, 
   No token ever reaches the browser or our logs.
 - Our connectors call the channel's API through Nango's proxy (or take a fresh token from Nango and call
   it directly). The connector stays ours: it decides what is read, what is drafted and what is sent.
-- Admin, once per tenant: register the app (Azure app registration with Mail.Read, Mail.ReadWrite,
-  Mail.Send; a Slack app with chat:write, channels:history, im:history), paste its client id and secret
-  into Nango.
+- Publisher, once per provider (not per tenant): AI-SRO registers one multi-tenant app per provider (an
+  Azure app for "accounts in any organizational directory" with Mail.Read, Mail.ReadWrite, Mail.Send; a
+  Slack app with public distribution) and pastes its client id and secret into Nango. Customers only
+  connect and consent; a customer's admin may need to grant admin consent once.
 - Licence: Nango is under the Elastic License. GreyOrange legal approved self-hosting it inside AI-SRO
   on 2026-10-02. Fallback if that ever changes: Activepieces (MIT).
 

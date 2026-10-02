@@ -12,6 +12,7 @@ class NangoConnection:
     integration: str
     created_at: datetime
     healthy: bool = True
+    end_user_id: str = ""  # the tag Nango holds, so a caller can check whose it is
 
 
 class Nango(Protocol):

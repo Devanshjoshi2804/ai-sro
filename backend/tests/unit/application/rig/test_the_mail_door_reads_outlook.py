@@ -12,6 +12,12 @@ from types import ModuleType
 
 from sro.application.ports.tools import ToolResult
 from sro.domain.shared.identifiers import PrincipalId, TenantId
+from tests.unit.application.rig.test_a_mail_job_is_written_not_clicked import (
+    THREAD,
+    _a_run,
+    _reply_job,
+    _written,
+)
 from tests.unit.application.rig.test_from_the_mail import (
     CTX,
     JOB,
@@ -68,3 +74,48 @@ async def test_a_mail_that_arrived_in_outlook_starts_its_run_like_a_gmail_one(
     assert len(world.durable.runs_started) == 1
     assert [tool for _who, tool, _args in mailbox.asked][:2] == ["search_threads", "get_message"]
     assert "GT2" in reads.saw[0]
+
+
+async def test_a_mail_the_outlook_connector_sent_is_recorded_as_sent_and_not_retried(
+    outlook: ModuleType,  # noqa: F811
+    nango: FakeNango,  # noqa: F811
+) -> None:
+    """The connector's real send answer goes through mail_job's send path. An answer with
+    no id read as 'the mailbox did not say the mail went': the run failed after the mail
+    had gone, and the operator's retry mailed it twice."""
+    from sro.application.execution.mail_job import draft_the_mail_job
+    from tests import factories as f
+    from tests.unit.fakes import FakeClock, FakeIdFactory, FakeUnitOfWork
+
+    original = _mail(
+        "orig",
+        conversationId=THREAD,
+        **{"from": {"emailAddress": {"name": "Alex R", "address": "alex.r@example.com"}}},
+    )
+    nango.on("GET", "/v1.0/me/messages", {"value": [original]})
+    nango.on("POST", "/v1.0/me/messages/orig/createReply", {"id": "AAMk-imm-9"})
+    nango.on("POST", "/v1.0/me/messages/AAMk-imm-9/send", None)
+    uow, mailbox = FakeUnitOfWork(), _OutlookMailbox(outlook)
+
+    finished = await draft_the_mail_job(
+        CTX,
+        await _a_run(uow),
+        _reply_job(),
+        {},
+        uow=uow,
+        tools=mailbox,
+        asker=_written("alex.r@example.com"),
+        clock=FakeClock(),
+        ids=FakeIdFactory(),
+        servers={},
+    )
+
+    assert finished.outcome == "held"
+    (step,) = finished.steps
+    assert (step.verdict, step.made) == ("held", {"message": "AAMk-imm-9"})
+    said = (await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1))[
+        0
+    ].messages[-1]
+    assert said.text.startswith("Sent to alex.r@example.com")
+    sends = [p for m, p, *_ in nango.seen if m == "POST" and p.endswith("/send")]
+    assert sends == ["/proxy/v1.0/me/messages/AAMk-imm-9/send"]  # one mail went, once

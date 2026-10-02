@@ -112,6 +112,7 @@ class NangoClient:
                         one["provider_config_key"],
                         datetime.fromisoformat(one["created"]),
                         healthy=not one.get("errors"),
+                        end_user_id=str((one.get("tags") or {}).get("end_user_id", "")),
                     )
                     for one in rows
                 ]
@@ -131,11 +132,18 @@ class NangoClient:
         integration: str,
         params: Mapping[str, str] | None = None,
         body: object | None = None,
+        headers: Mapping[str, str] | None = None,
     ) -> httpx.Response:
+        # Nango forwards `Nango-Proxy-<Name>` to the provider as `<Name>`
+        # (nango.dev/docs/reference/api/proxy/get).
         return await self._send(
             method.upper(),
             f"/proxy{path}",
-            extra={"Connection-Id": connection_id, "Provider-Config-Key": integration},
+            extra={
+                "Connection-Id": connection_id,
+                "Provider-Config-Key": integration,
+                **{f"Nango-Proxy-{name}": value for name, value in (headers or {}).items()},
+            },
             params=params,
             json=body,
         )

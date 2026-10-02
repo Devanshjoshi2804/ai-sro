@@ -306,6 +306,48 @@ async def test_the_proxy_carries_the_connection_headers_and_the_secret_only_to_n
     assert sent.headers["Authorization"] == f"Bearer {SECRET}"
 
 
+async def test_the_proxy_forwards_headers_to_the_provider_under_nangos_prefix() -> None:
+    """Nango passes `Nango-Proxy-<Name>` on to the provider as `<Name>`."""
+    seen: list[httpx.Request] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json={})
+
+    nango = NangoClient(
+        "http://nango:8080/", SECRET, httpx.AsyncClient(transport=httpx.MockTransport(handle))
+    )
+    await nango.proxy(
+        "post",
+        "/v1.0/me/messages",
+        connection_id="c1",
+        integration="microsoft",
+        headers={"Prefer": 'IdType="ImmutableId"'},
+    )
+
+    assert seen[0].headers["Nango-Proxy-Prefer"] == 'IdType="ImmutableId"'
+    assert "Prefer" not in seen[0].headers
+
+
+async def test_a_connection_carries_the_end_user_tag_nango_holds() -> None:
+    def handle(request: httpx.Request) -> httpx.Response:
+        row = {
+            "connection_id": "c1",
+            "provider_config_key": "microsoft",
+            "created": "2026-09-30T00:00:00+00:00",
+            "tags": {"end_user_id": "acme:sam"},
+        }
+        return httpx.Response(200, json={"connections": [row, {**row, "tags": {}}]})
+
+    nango = NangoClient(
+        "http://nango:8080/", SECRET, httpx.AsyncClient(transport=httpx.MockTransport(handle))
+    )
+
+    first, second = await nango.connections("acme:sam")
+
+    assert (first.end_user_id, second.end_user_id) == ("acme:sam", "")
+
+
 def _real_vault(container: _FakeContainer, tmp_path: Path) -> FileCredentialVault:
     vault = FileCredentialVault(path=tmp_path / "vault", key=Fernet.generate_key().decode())
     container.vault = vault

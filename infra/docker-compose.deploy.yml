@@ -257,13 +257,21 @@ services:
   # in Nango ends access within a minute though the bearer stays in the vault.
   # No published port, like the Gmail one.
   # ---------------------------------------------------------------------------
+  #
+  # Behind the `outlook` profile: the Nango secret key is only readable from Nango's
+  # dashboard once Nango is up, so this cannot start with the rest. Both keys are
+  # `:-` here (a `:?` would fail `config` for every service, Nango included); the
+  # connector refuses to start without them (check_config) and says why.
+  # Order: up nango-server, read its secret key, set both keys, then
+  # `docker compose --profile outlook up -d outlook-connector`.
   outlook-connector:
+    profiles: ["outlook"]
     image: ${BACKEND_IMAGE:?set BACKEND_IMAGE, e.g. ai-sro-backend:8b27470}
     restart: unless-stopped
     environment:
       NANGO_URL: ${SRO_NANGO_URL:-http://nango-server:8080}
-      NANGO_SECRET_KEY: ${SRO_NANGO_SECRET_KEY:?set SRO_NANGO_SECRET_KEY, from the Nango dashboard}
-      CONNECTOR_SIGNING_KEY: ${SRO_CONNECTOR_SIGNING_KEY:?set SRO_CONNECTOR_SIGNING_KEY (openssl rand -hex 32)}
+      NANGO_SECRET_KEY: ${SRO_NANGO_SECRET_KEY:-}
+      CONNECTOR_SIGNING_KEY: ${SRO_CONNECTOR_SIGNING_KEY:-}
       OUTLOOK_CONNECTOR_HOST: 0.0.0.0
     command: ["python", "outlook-connector/server.py", "8934"]
     healthcheck:

@@ -94,12 +94,24 @@ class FakeNango:
                 path,
                 params,
                 body,
-                {k: v for k, v in request.headers.items() if k.lower() in ("connection-id",)},
+                {
+                    k: v
+                    for k, v in request.headers.items()
+                    if k.lower() in ("connection-id", "nango-proxy-prefer")
+                },
             )
         )
         if path == "/connection":
             assert params["tags[end_user_id]"].startswith("acme:")
-            return httpx.Response(200, json={"connections": self.connections})
+            return httpx.Response(
+                200,
+                json={
+                    "connections": [
+                        {"tags": {"end_user_id": params["tags[end_user_id]"]}, **one}
+                        for one in self.connections
+                    ]
+                },
+            )
         assert path.startswith("/proxy")
         assert request.headers["provider-config-key"] == "microsoft"
         graph = path.removeprefix("/proxy")
@@ -441,9 +453,7 @@ def test_unread_and_attachment_are_filters_without_words_and_client_side_with_th
 
     only = run(outlook, "search_threads", {"query": "is:unread has:attachment"})
     params = listing(nango)
-    # $orderby needs its property first in $filter, so the filter opens with it.
-    assert params["$filter"].startswith("receivedDateTime ge ")
-    assert params["$filter"].endswith(" and isRead eq false and hasAttachments eq true")
+    assert params["$filter"] == "isRead eq false and hasAttachments eq true"
     assert [m["id"] for m in only["messages"]] == ["u", "r"]  # Graph already filtered
 
     with_words = run(outlook, "search_threads", {"query": "invoice is:unread"})
@@ -458,9 +468,9 @@ def test_an_unknown_operator_is_searched_as_plain_words(
     run(outlook, "search_threads", {"query": 'label:work "x\\" OR 1=1" (a)'})
 
     params = listing(nango)
-    # Only the operators this connector writes (AND, OR, NOT) reach KQL: quotes, backslashes
-    # and parentheses in the mail-derived query are gone.
-    assert params["$search"] == '"(label AND work) AND x OR (1 AND 1) AND a"'
+    # Only the operators this connector writes (AND, OR, NOT, grouping) reach KQL: quotes
+    # and backslashes in the mail-derived query are gone.
+    assert params["$search"] == '"(label AND work) AND x OR (1 AND 1) AND (a)"'
     assert "\\" not in params["$search"].strip('"')
 
 
@@ -528,8 +538,19 @@ def test_one_operators_page_token_is_no_use_to_another(
 # --- sending ------------------------------------------------------------------------------
 
 
-def test_a_new_mail_is_sent_with_the_marker_header(outlook: ModuleType, nango: FakeNango) -> None:
-    nango.on("POST", "/v1.0/me/sendMail", None)
+def _posts(nango: FakeNango) -> list[tuple[str, Any]]:
+    return [(p, b) for m, p, _q, b, _h in nango.seen if m == "POST"]
+
+
+def _drafts(nango: FakeNango, ident: str = "AAMk-imm-1") -> None:
+    nango.on("POST", "/v1.0/me/messages", {"id": ident})
+    nango.on("POST", f"/v1.0/me/messages/{ident}/send", None)
+
+
+def test_a_new_mail_is_made_a_draft_with_the_marker_then_sent_and_answers_its_id(
+    outlook: ModuleType, nango: FakeNango
+) -> None:
+    _drafts(nango)
 
     got = run(
         outlook,
@@ -543,9 +564,15 @@ def test_a_new_mail_is_sent_with_the_marker_header(outlook: ModuleType, nango: F
         },
     )
 
-    assert got == {"status": "sent", "id": ""}
-    (_, _, _, body, _) = next(s for s in nango.seen if s[0] == "POST")
-    message = body["message"]
+    # The id is the draft's immutable id: it is the Sent Items copy's id too
+    # (learn.microsoft.com/graph/outlook-immutable-id, "Immutable ID with sending mail").
+    assert got == {"status": "sent", "id": "AAMk-imm-1"}
+    made, sent = _posts(nango)
+    assert (
+        made[0] == "/proxy/v1.0/me/messages"
+        and sent[0] == "/proxy/v1.0/me/messages/AAMk-imm-1/send"
+    )
+    message = made[1]
     assert message["subject"] == "Done"
     assert message["body"] == {"contentType": "Text", "content": "It is done."}
     assert [r["emailAddress"]["address"] for r in message["toRecipients"]] == [
@@ -557,16 +584,18 @@ def test_a_new_mail_is_sent_with_the_marker_header(outlook: ModuleType, nango: F
 
 
 def test_no_marker_means_no_header(outlook: ModuleType, nango: FakeNango) -> None:
-    nango.on("POST", "/v1.0/me/sendMail", None)
+    _drafts(nango)
     run(outlook, "send_message", {"to": "a@x.test", "body": "hi"})
 
-    (_, _, _, body, _) = next(s for s in nango.seen if s[0] == "POST")
-    assert "internetMessageHeaders" not in body["message"]
+    assert "internetMessageHeaders" not in _posts(nango)[0][1]
 
 
-def test_an_answer_is_a_reply_in_the_conversation(outlook: ModuleType, nango: FakeNango) -> None:
+def test_an_answer_is_a_reply_draft_made_with_the_marker_then_sent(
+    outlook: ModuleType, nango: FakeNango
+) -> None:
     nango.on("GET", "/v1.0/me/messages", lambda p, _b: {"value": [_mail("orig")]})
-    nango.on("POST", "/v1.0/me/messages/orig/reply", None)
+    nango.on("POST", "/v1.0/me/messages/orig/createReply", {"id": "AAMk-imm-2"})
+    nango.on("POST", "/v1.0/me/messages/AAMk-imm-2/send", None)
 
     got = run(
         outlook,
@@ -581,14 +610,46 @@ def test_an_answer_is_a_reply_in_the_conversation(outlook: ModuleType, nango: Fa
         },
     )
 
-    assert got["status"] == "sent"
-    (_, _, _, body, _) = next(s for s in nango.seen if s[0] == "POST")
+    assert got == {"status": "sent", "id": "AAMk-imm-2"}
+    made, sent = _posts(nango)
+    assert made[0] == "/proxy/v1.0/me/messages/orig/createReply"
+    assert sent[0] == "/proxy/v1.0/me/messages/AAMk-imm-2/send"
+    body = made[1]
     assert body["comment"] == "Added."
     assert "body" not in body["message"]  # Graph refuses a comment and a body together
     assert body["message"]["internetMessageHeaders"] == [{"name": "X-SRO-Marker", "value": "mk-2"}]
     assert body["message"]["toRecipients"][0]["emailAddress"]["address"] == "alice@example.com"
     looked = next(q for p, q in nango.graph_calls() if p == "/proxy/v1.0/me/messages")
     assert looked["$filter"] == "internetMessageId eq '<orig@mail.example>'"
+
+
+def test_a_draft_that_will_not_send_is_an_error_not_a_sent_mail(
+    outlook: ModuleType, nango: FakeNango
+) -> None:
+    nango.on("POST", "/v1.0/me/messages", {"id": "AAMk-imm-1"})  # no /send route: Graph 404s
+
+    with pytest.raises(RuntimeError, match="the send"):
+        asyncio.run(
+            outlook.run_tool("acme", "sam", "send_message", {"to": "a@x.test", "body": "x"})
+        )
+
+
+def test_every_graph_call_asks_for_immutable_ids(outlook: ModuleType, nango: FakeNango) -> None:
+    """Ids change when a mail moves folders unless asked otherwise
+    (learn.microsoft.com/graph/outlook-immutable-id); Nango forwards `Nango-Proxy-*`
+    headers (nango.dev/docs/reference/api/proxy/get)."""
+    _drafts(nango)
+    nango.on("GET", "/v1.0/me/messages", {"value": [_mail("m1")]})
+    nango.on("GET", "/v1.0/me/messages/m1", _mail("m1"))
+
+    run(outlook, "search_threads", {"query": "newer_than:2d"})
+    run(outlook, "get_message", {"id": "m1"})
+    run(outlook, "get_thread", {"id": "conv-1"})
+    run(outlook, "send_message", {"to": "a@x.test", "body": "hi"})
+
+    graph = [h for _m, p, _q, _b, h in nango.seen if p.startswith("/proxy")]
+    assert len(graph) >= 8
+    assert all(h["nango-proxy-prefer"] == 'IdType="ImmutableId"' for h in graph)
 
 
 def test_a_reply_to_a_mail_that_is_not_here_is_not_sent_as_a_new_one(
@@ -813,3 +874,217 @@ def test_a_server_without_a_strong_key_does_not_start(
         monkeypatch.setattr(outlook, "SIGNING_KEY", weak)
         with pytest.raises(SystemExit, match="CONNECTOR_SIGNING_KEY"):
             outlook.check_config()
+
+
+# --- fix round 1 ---------------------------------------------------------------------------
+
+
+def _search_of(outlook: ModuleType, nango: FakeNango, query: str) -> str:
+    nango.on("GET", "/v1.0/me/messages", {"value": []})
+    run(outlook, "search_threads", {"query": query})
+    return listing(nango)["$search"]
+
+
+@pytest.mark.parametrize(
+    ("asked", "kql"),
+    [
+        ("a AND b", "a AND b"),
+        ("AND foo", "foo"),
+        ("foo AND", "foo"),
+        ("invoice NOT paid", "invoice AND NOT paid"),
+        ("NOT paid", "NOT paid"),
+        ("invoice NOT", "invoice"),
+        ("a OR OR b", "a OR b"),
+        ("a AND OR b", "a OR b"),
+        ("(a OR b) c", "(a OR b) AND c"),
+        ("c (a OR b)", "c AND (a OR b)"),
+        ("-(a b)", "NOT (a AND b)"),
+        ("a ()", "a"),
+        ("a (b", "a AND (b)"),
+        ("a b) c", "a AND b AND c"),
+        ("subject:(a OR b)", "(subject:a OR subject:b)"),
+        ("from:x subject:(a b) c", "from:x AND (subject:a AND subject:b) AND c"),
+    ],
+)
+def test_a_models_operators_become_valid_kql(
+    outlook: ModuleType, nango: FakeNango, asked: str, kql: str
+) -> None:
+    assert _search_of(outlook, nango, asked) == f'"{kql}"'
+
+
+def test_two_operators_are_never_written_in_a_row(outlook: ModuleType) -> None:
+    for asked in ("a AND AND b", "NOT NOT a", "a OR AND NOT", "((a)) OR (", "OR ( OR a )"):
+        said = outlook._kql(outlook.translate(asked, NOW).clauses)
+        assert not re.search(r"\b(AND|OR|NOT) (AND|OR)\b", said), (asked, said)
+        assert said.count("(") == said.count(")"), (asked, said)
+
+
+def test_a_filter_with_no_date_bound_has_no_orderby_and_no_sentinel_date(
+    outlook: ModuleType, nango: FakeNango
+) -> None:
+    """$orderby's property must appear in $filter first (user-list-messages); with no date
+    to put there, ordering is left out rather than faking a date."""
+    nango.on("GET", "/v1.0/me/messages", {"value": []})
+
+    run(outlook, "search_threads", {"query": "is:unread"})
+    params = listing(nango)
+    assert params["$filter"] == "isRead eq false"
+    assert "$orderby" not in params
+
+    run(outlook, "search_threads", {"query": "before:2026/10/01"})
+    params = listing(nango)
+    assert params["$filter"] == "receivedDateTime lt 2026-10-01T00:00:00Z"
+    assert params["$orderby"] == "receivedDateTime desc"
+
+
+def test_a_next_link_token_is_handed_back_verbatim(outlook: ModuleType, nango: FakeNango) -> None:
+    nxt = (
+        "https://graph.microsoft.com/v1.0/me/messages?%24top=1&%24skiptoken=a%2Bb%3D%3D+c&%24blank="
+    )
+    nango.on("GET", "/v1.0/me/messages", {"value": [], "@odata.nextLink": nxt})
+    first = run(outlook, "search_threads", {"query": "newer_than:2d"})
+
+    run(outlook, "search_threads", {"query": "x", "page": first["next_page"]})
+
+    params = listing(nango)
+    assert params["$skiptoken"] == "a+b==+c"  # %2B stays +, a literal + stays + (not a space)
+    assert params["$blank"] == ""
+
+
+def test_a_comma_in_a_display_name_does_not_break_the_address(
+    outlook: ModuleType, nango: FakeNango
+) -> None:
+    from email.utils import getaddresses, parseaddr
+
+    from sro.application.chat.mailbox import sent_to_others
+
+    own = _mail(
+        "m1",
+        **{
+            "from": _address("Jain, Devansh", "me@corp.example"),
+            "toRecipients": [_address("Doe, John", "jd@x.test"), _address("", "kay@x.test")],
+        },
+    )
+    nango.on("GET", "/v1.0/me/messages/m1", own)
+
+    got = run(outlook, "get_message", {"id": "m1"})
+
+    assert parseaddr(got["from"]) == ("Jain, Devansh", "me@corp.example")
+    assert [a for _n, a in getaddresses([got["to"]])] == ["jd@x.test", "kay@x.test"]
+    assert sent_to_others(got["from"], got["to"], got["cc"], got["mailbox"]) == (
+        "jd@x.test",
+        "kay@x.test",
+        "bob@example.com",
+    )
+
+
+def test_the_caches_follow_the_connection_not_the_operator(
+    outlook: ModuleType, nango: FakeNango, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Disconnect mailbox A, connect B: B's own address and folders, not A's."""
+    clock = [1000.0]
+    monkeypatch.setattr(outlook, "monotonic", lambda: clock[0])
+    nango.on("GET", "/v1.0/me/messages/m1", _mail("m1"))
+    run(outlook, "get_message", {"id": "m1"})
+
+    nango.connections = [
+        {
+            "connection_id": "nango-conn-B",
+            "provider_config_key": "microsoft",
+            "created": "2026-10-01T00:00:00+00:00",
+            "errors": [],
+        }
+    ]
+    nango.on("GET", "/v1.0/me", {"mail": "b@other.example"})
+    nango.on("GET", "/v1.0/me/mailFolders/sentitems", {"id": "B-sent"})
+    clock[0] += outlook.CONNECTION_TTL_S + 1
+
+    got = run(outlook, "get_message", {"id": "m1"})
+
+    assert got["mailbox"] == "b@other.example"
+    assert got["sent"] is False  # B's Sent Items folder is B-sent, not A's id
+
+
+def test_a_cached_address_expires(
+    outlook: ModuleType, nango: FakeNango, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    clock = [1000.0]
+    monkeypatch.setattr(outlook, "monotonic", lambda: clock[0])
+    nango.on("GET", "/v1.0/me/messages/m1", _mail("m1"))
+    run(outlook, "get_message", {"id": "m1"})
+    run(outlook, "get_message", {"id": "m1"})
+
+    def asked() -> int:
+        return len([p for p, _q in nango.graph_calls() if p == "/proxy/v1.0/me"])
+
+    assert asked() == 1
+
+    clock[0] += outlook.CONNECTION_TTL_S + 1
+    run(outlook, "get_message", {"id": "m1"})
+    assert asked() == 2
+
+
+def test_a_connection_tagged_for_another_operator_is_no_grant(
+    outlook: ModuleType, nango: FakeNango
+) -> None:
+    """Defence in depth: Nango's tag filter is trusted, but not alone."""
+    nango.connections = [
+        {
+            "connection_id": "mallory",
+            "provider_config_key": "microsoft",
+            "created": "2026-10-01T00:00:00+00:00",
+            "errors": [],
+            "tags": {"end_user_id": "acme:eve"},
+        }
+    ]
+
+    with pytest.raises(outlook.NoGrant):
+        asyncio.run(outlook.run_tool("acme", "sam", "search_threads", {"query": "x"}))
+    assert not [s for s in nango.seen if s[1].startswith("/proxy")]
+
+
+@pytest.mark.parametrize("arguments", [None, "text", ["a"], {"id": 5}])
+def test_any_failure_is_the_error_envelope_not_a_dropped_socket(
+    outlook: ModuleType, nango: FakeNango, server: str, arguments: Any
+) -> None:
+    nango.on("GET", "/v1.0/me/messages/5", _mail("5"))
+    session = _session(server)
+    got = _rpc(
+        server,
+        "tools/call",
+        {"name": "get_message", "arguments": arguments},
+        bearer=sign_bearer(KEY, "outlook", "acme", "sam"),
+        session=session,
+    ).json()
+
+    result = got["result"]
+    if arguments == {"id": 5}:
+        assert "isError" not in result  # a number id is read as text, like Gmail's
+    else:
+        assert result["isError"] is True
+
+
+def test_an_unexpected_error_is_logged_by_type_only(
+    outlook: ModuleType,
+    nango: FakeNango,
+    server: str,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    async def boom(*_a: Any, **_k: Any) -> str:
+        raise KeyError("secret-mail-body nango-secret")
+
+    monkeypatch.setattr(outlook, "run_tool", boom)
+    session = _session(server)
+    got = _rpc(
+        server,
+        "tools/call",
+        {"name": "get_message", "arguments": {"id": "m1"}},
+        bearer=sign_bearer(KEY, "outlook", "acme", "sam"),
+        session=session,
+    ).json()
+
+    assert got["result"]["isError"] is True
+    shown = got["result"]["content"][0]["text"] + capsys.readouterr().out
+    assert "KeyError" in shown
+    assert "secret-mail-body" not in shown and "nango-secret" not in shown

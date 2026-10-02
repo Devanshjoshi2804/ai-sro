@@ -10,7 +10,10 @@ Graph facts this leans on (learn.microsoft.com/en-us/graph):
   api/user-list-messages        $filter+$orderby: every $orderby property must lead the
                                 $filter (else InefficientFilter); a nextLink is applied whole.
   search-query-parameter        $search on messages: KQL, newest first, up to 1000 results.
-  api/message-reply, user-sendmail  202 with no body; custom headers must be named x-*.
+  api/user-post-messages,       a send is a draft made with its headers (x-* only, at creation),
+  message-createreply, message-send   then sent; 201 with the draft's id, /send 202 no body.
+  outlook-immutable-id          `Prefer: IdType="ImmutableId"` keeps an id across folder moves;
+                                the draft's id is the Sent Items copy's id.
 """
 
 from __future__ import annotations
@@ -24,10 +27,10 @@ import sys
 import urllib.parse
 import uuid
 from collections import OrderedDict
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from email.utils import format_datetime, getaddresses
+from email.utils import format_datetime, formataddr, getaddresses
 from html.parser import HTMLParser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Lock
@@ -60,6 +63,10 @@ PAGE_TOKEN = re.compile(r"[A-Za-z0-9_-]{1,256}")
 
 def now() -> datetime:
     return datetime.now(UTC)
+
+
+class UnknownTool(Exception):
+    """A tool name this connector does not have (not a LookupError: a KeyError is one)."""
 
 
 class NoGrant(Exception):
@@ -183,6 +190,7 @@ class Graph:
             integration=INTEGRATION,
             params=params,
             body=body,
+            headers={"Prefer": 'IdType="ImmutableId"'},
         )
         if response.status_code >= 400:
             detail = ""
@@ -199,8 +207,9 @@ class Graph:
 
 
 _CONNECTIONS: dict[tuple[str, str], tuple[str, float]] = {}
-_FOLDERS: dict[tuple[str, str], dict[str, str]] = {}
-_MAILBOXES: dict[tuple[str, str], str] = {}
+# What one mailbox says about itself, by Nango connection id (not by operator: a
+# disconnect and a new Connect is another mailbox) and for as long as a connection is kept.
+_ABOUT: dict[tuple[str, str], tuple[str, float]] = {}
 
 
 async def _connection(nango: NangoClient, who: tuple[str, str]) -> str:
@@ -211,7 +220,10 @@ async def _connection(nango: NangoClient, who: tuple[str, str]) -> str:
     found = [
         one
         for one in await nango.connections(f"{who[0]}:{who[1]}")
-        if one.integration == INTEGRATION and one.healthy
+        # Nango filtered by the tag; its answer is checked against it all the same.
+        if one.integration == INTEGRATION
+        and one.healthy
+        and one.end_user_id == f"{who[0]}:{who[1]}"
     ]
     if not found:
         _CONNECTIONS.pop(who, None)
@@ -221,24 +233,36 @@ async def _connection(nango: NangoClient, who: tuple[str, str]) -> str:
     return newest
 
 
+async def _about(
+    graph: Graph, what: str, path: str, select: str, pick: Callable[[dict[str, Any]], str]
+) -> str:
+    kept = _ABOUT.get((graph.connection, what))
+    if kept and kept[1] > monotonic():
+        return kept[0]
+    value = pick(await graph.call("GET", path, what, params={"$select": select}))
+    _ABOUT[(graph.connection, what)] = (value, monotonic() + CONNECTION_TTL_S)
+    return value
+
+
 async def _folder(graph: Graph, name: str) -> str:
     """A well-known folder's id (the id is what a message's parentFolderId says)."""
-    known = _FOLDERS.setdefault(graph.who, {})
-    if name not in known:
-        got = await graph.call(
-            "GET", f"{GRAPH}/mailFolders/{name}", f"the {name} folder", params={"$select": "id"}
-        )
-        known[name] = str(got.get("id", ""))
-    return known[name]
+    return await _about(
+        graph,
+        f"the {name} folder",
+        f"{GRAPH}/mailFolders/{name}",
+        "id",
+        lambda got: str(got.get("id", "")),
+    )
 
 
 async def _mailbox(graph: Graph) -> str:
-    if graph.who not in _MAILBOXES:
-        got = await graph.call(
-            "GET", GRAPH, "the mailbox's own address", params={"$select": "mail,userPrincipalName"}
-        )
-        _MAILBOXES[graph.who] = str(got.get("mail") or got.get("userPrincipalName") or "")
-    return _MAILBOXES[graph.who]
+    return await _about(
+        graph,
+        "the mailbox's own address",
+        GRAPH,
+        "mail,userPrincipalName",
+        lambda got: str(got.get("mail") or got.get("userPrincipalName") or ""),
+    )
 
 
 # --- Graph's shapes into Gmail's -----------------------------------------------------------
@@ -261,7 +285,8 @@ def _one(recipient: object) -> str:
     if not isinstance(mail, dict):
         return ""
     name, address = str(mail.get("name") or ""), str(mail.get("address") or "")
-    return f"{name} <{address}>" if name and address else address or name
+    # formataddr quotes "Last, First", which a bare `Last, First <a@b>` would split in two.
+    return formataddr((name, address)) if address else name
 
 
 def _many(recipients: object) -> str:
@@ -298,7 +323,8 @@ class _Text(HTMLParser):
 
 
 def _body_of(mail: dict[str, Any]) -> str:
-    body = mail.get("body") if isinstance(mail.get("body"), dict) else {}
+    said = mail.get("body")
+    body: dict[str, Any] = said if isinstance(said, dict) else {}
     content = str(body.get("content") or "")
     if str(body.get("contentType", "")).lower() != "html":
         return content
@@ -316,7 +342,8 @@ _FOLDERS_OF = {
     "trash": "deleteditems",
     "spam": "junkemail",
 }
-_TOKEN = re.compile(r'-?(?:[A-Za-z_]+:)?(?:"[^"]*"|\S+)')
+_TOKEN = re.compile(r'-?(?:[A-Za-z_]+:)?(?:\(|"[^"]*"|[^\s()]+)|[()]')
+_PROPS = ("from", "to", "cc", "bcc", "subject")
 _UNIT = {
     "h": timedelta(hours=1),
     "d": timedelta(days=1),
@@ -327,7 +354,7 @@ _UNIT = {
 
 @dataclass
 class Query:
-    clauses: list[str] = field(default_factory=list)  # KQL, joined by AND unless an OR sits between
+    clauses: list[str] = field(default_factory=list)  # KQL tokens, see translate()
     after: datetime | None = None
     before: datetime | None = None
     folder: str = ""
@@ -356,16 +383,35 @@ def _instant(text: str) -> datetime | None:
 
 
 def translate(query: str, at: datetime) -> Query:
-    """The Gmail operators this system sends, in Graph's terms; the rest is plain words."""
+    """The Gmail operators this system sends, in Graph's terms; the rest is plain words.
+
+    `clauses` is KQL as tokens: terms, "AND"-free operators OR / NOT, and "(" / ")".
+    A property before a group (`subject:(a OR b)`) goes on every bare word inside it.
+    """
     out = Query()
-    for found in _TOKEN.findall(re.sub(r"[(){}]", " ", query)):
+    props: list[str] = []  # the open groups' properties ("" for none)
+    for found in _TOKEN.findall(query.replace("{", " ").replace("}", " ")):
         negated, term = found.startswith("-"), found.lstrip("-")
-        if term == "OR":
-            out.clauses.append("OR")
+        if term == ")":
+            if props:
+                props.pop()
+                out.clauses.append(")")
+            continue
+        if term == "(" or (term.endswith(":(") and re.fullmatch(r"[A-Za-z_]+:\(", term)):
+            prop = term[:-2].lower() if term != "(" else (props[-1] if props else "")
+            props.append(prop if prop in _PROPS else props[-1] if props else "")
+            out.clauses += ["NOT"] * negated + ["("]
+            continue
+        if term == "AND":
+            continue
+        if term in ("OR", "NOT"):
+            out.clauses.append(term)
             continue
         op, _, value = term.partition(":") if re.match(r"[A-Za-z_]+:", term) else ("", "", term)
         op, value = op.lower(), value.strip('"')
-        plain = _term(f"{op} {value}" if op else value)
+        inside = props[-1] if props else ""
+        plain = _term(f"{op} {value}" if op else value, "" if op else inside)
+        flag = ["NOT"] * negated
         if op == "in" and value.lower() == "chats":
             continue
         if op == "in" and value.lower() == "anywhere":
@@ -378,42 +424,73 @@ def translate(query: str, at: datetime) -> Query:
                 out.after = edge
             else:
                 out.before = edge
-        elif op in ("after", "before") and (edge := _instant(value)):
+        elif op in ("after", "before") and (when := _instant(value)):
             if op == "after":
-                out.after = edge
+                out.after = when
             else:
-                out.before = edge
+                out.before = when
         elif op == "is" and value.lower() in ("unread", "read"):
             out.unread = (value.lower() == "unread") != negated
         elif op == "has" and value.lower() == "attachment":
             out.attachment = not negated
-        elif op in ("from", "to", "cc", "bcc", "subject") and _term(value, op):
-            out.clauses.append(("NOT " if negated else "") + _term(value, op))
+        elif op in _PROPS and _term(value, op):
+            out.clauses += [*flag, _term(value, op)]
         elif plain:
-            out.clauses.append(("NOT " if negated else "") + plain)
+            out.clauses += [*flag, plain]
+    out.clauses += [")"] * len(props)
     return out
 
 
-def _kql(clauses: list[str]) -> str:
-    kept = list(clauses)
-    while kept and kept[0] == "OR":
-        kept.pop(0)
-    while kept and kept[-1] == "OR":
-        kept.pop()
+def _kql(tokens: list[str]) -> str:
+    """Tokens into KQL that is always valid: AND between neighbours, never two operators in
+    a row, no dangling OR / NOT, no empty or unbalanced group."""
     out: list[str] = []
-    for clause in kept:
-        if out and out[-1] != "OR" and clause != "OR":
+    opens: list[int] = []  # where each open "(" sits in out
+
+    def glue() -> None:
+        if out and out[-1] not in ("OR", "NOT", "("):
             out.append("AND")
-        if clause == "OR" and out and out[-1] == "OR":
-            continue
-        out.append(clause)
-    return " ".join(out)
+
+    def close() -> None:
+        start = opens.pop()
+        while len(out) > start + 1 and out[-1] in ("OR", "NOT"):
+            out.pop()
+        if len(out) == start + 1:  # nothing inside: no group, and no NOT in front of it
+            out.pop()
+            while out and out[-1] in ("NOT", "AND"):
+                out.pop()
+        else:
+            out.append(")")
+
+    for piece in tokens:
+        if piece == "(":
+            glue()
+            opens.append(len(out))
+            out.append("(")
+        elif piece == ")":
+            if opens:
+                close()
+        elif piece == "OR":
+            if out and out[-1] not in ("OR", "NOT", "("):
+                out.append("OR")
+        elif piece == "NOT":
+            if not out or out[-1] != "NOT":
+                glue()
+                out.append("NOT")
+        else:
+            glue()
+            out.append(piece)
+    while opens:
+        close()
+    while out and out[-1] in ("OR", "NOT", "AND"):
+        out.pop()
+    return " ".join(out).replace("( ", "(").replace(" )", ")")
 
 
 def _filter(q: Query) -> str:
-    # $orderby's property has to lead the $filter, so it is always there when anything is.
-    low = iso(q.after) if q.after else "0001-01-01T00:00:00Z"
-    parts = [f"receivedDateTime ge {low}"]
+    parts = []
+    if q.after:
+        parts.append(f"receivedDateTime ge {iso(q.after)}")
     if q.before:
         parts.append(f"receivedDateTime lt {iso(q.before)}")
     if q.unread is not None:
@@ -447,13 +524,20 @@ _PAGES: OrderedDict[str, tuple[tuple[str, str], str, dict[str, str], Query]] = O
 _PAGES_LOCK = Lock()
 
 
+def _query_of(query: str) -> dict[str, str]:
+    """A nextLink's query as it was written: a $skiptoken's `+` stays a `+` and a blank value
+    stays (parse_qsl would turn the one into a space and drop the other)."""
+    pairs = (part.partition("=") for part in query.split("&") if part)
+    return {urllib.parse.unquote(k): urllib.parse.unquote(v) for k, _, v in pairs}
+
+
 def _stash(who: tuple[str, str], link: object, q: Query) -> str:
     if not isinstance(link, str) or not link:
         return ""
     split = urllib.parse.urlsplit(link)
     token = secrets.token_urlsafe(16)
     with _PAGES_LOCK:
-        _PAGES[token] = (who, split.path, dict(urllib.parse.parse_qsl(split.query)), q)
+        _PAGES[token] = (who, split.path, _query_of(split.query), q)
         while len(_PAGES) > K_STASHED_PAGES:
             _PAGES.popitem(last=False)
     return token
@@ -481,9 +565,12 @@ async def _search(graph: Graph, arguments: Mapping[str, Any]) -> str:
         if q.clauses:  # Graph refuses $filter and $orderby beside $search
             params["$search"] = f'"{_kql(q.clauses)}"'
         else:
-            params["$orderby"] = "receivedDateTime desc"
-            if q.after or q.before or q.unread is not None or q.attachment is not None:
-                params["$filter"] = _filter(q)
+            # $orderby's property must appear in $filter first (user-list-messages), so it is
+            # asked for only when the filter has a received-date bound or there is no filter.
+            if flt := _filter(q):
+                params["$filter"] = flt
+            if not flt or q.after or q.before:
+                params["$orderby"] = "receivedDateTime desc"
     listed = await graph.call("GET", path, "the search", params=params)
     hidden = (
         set()
@@ -564,7 +651,7 @@ async def _conversation(graph: Graph, conversation: str) -> list[dict[str, Any]]
         if not isinstance(link, str) or not link:
             break
         split = urllib.parse.urlsplit(link)
-        path, params = split.path, dict(urllib.parse.parse_qsl(split.query))
+        path, params = split.path, _query_of(split.query)
     return sorted(
         found, key=lambda r: _when(r.get("receivedDateTime")) or datetime.min.replace(tzinfo=UTC)
     )
@@ -629,6 +716,8 @@ async def _answered(graph: Graph, answering: str, thread: str) -> str:
 
 
 async def _send(graph: Graph, arguments: Mapping[str, Any]) -> str:
+    """Make a draft (with the marker header: custom headers can only be set at creation),
+    send it, and answer its immutable id, which is also the Sent Items copy's id."""
     message: dict[str, Any] = {"toRecipients": _recipients(arguments.get("to"))}
     if arguments.get("bcc"):
         message["bccRecipients"] = _recipients(arguments["bcc"])
@@ -640,19 +729,24 @@ async def _send(graph: Graph, arguments: Mapping[str, Any]) -> str:
     thread = str(arguments.get("thread_id", "")).strip()
     if answering or thread:
         target = urllib.parse.quote(await _answered(graph, answering, thread), safe="")
-        await graph.call(
+        draft = await graph.call(
             "POST",
-            f"{GRAPH}/messages/{target}/reply",
-            "the reply",
+            f"{GRAPH}/messages/{target}/createReply",
+            "the reply draft",
             body={"comment": str(arguments.get("body", "")), "message": message},
         )
     else:
         message["subject"] = str(arguments.get("subject", ""))
         message["body"] = {"contentType": "Text", "content": str(arguments.get("body", ""))}
-        await graph.call("POST", f"{GRAPH}/sendMail", "the send", body={"message": message})
+        draft = await graph.call("POST", f"{GRAPH}/messages", "the draft", body=message)
+    ident = str(draft.get("id") or "")
+    if not ident:
+        raise RuntimeError("Outlook made no draft for the mail, so nothing was sent")
+    await graph.call(
+        "POST", f"{GRAPH}/messages/{urllib.parse.quote(ident, safe='')}/send", "the send"
+    )
     print(f"  -> sent to {len(message['toRecipients'])} recipient(s)")
-    # Graph answers 202 with no body, so there is no id to give back; the marker is the handle.
-    return json.dumps({"status": "sent", "id": ""})
+    return json.dumps({"status": "sent", "id": ident})
 
 
 _DO = {"search_threads": _search, "get_message": _get, "get_thread": _thread, "send_message": _send}
@@ -660,7 +754,7 @@ _DO = {"search_threads": _search, "get_message": _get, "get_thread": _thread, "s
 
 async def run_tool(tenant: str, operator: str, name: str, arguments: Mapping[str, Any]) -> str:
     if name not in _DO:
-        raise LookupError(f"no tool called {name}")
+        raise UnknownTool(f"no tool called {name}")
     client = httpx.AsyncClient(timeout=20.0, transport=TRANSPORT)
     nango = NangoClient(NANGO_URL, NANGO_KEY, http=client)
     try:
@@ -723,12 +817,22 @@ class Connector(BaseHTTPRequestHandler):
                 print("  ! a call with no grant behind its bearer")
                 self._reply(200, self._error(request.get("id"), -32001, NO_GRANT))
                 return
-            except LookupError as unknown:
+            except UnknownTool as unknown:
                 self._reply(200, self._failed(request.get("id"), str(unknown)))
                 return
             except (RuntimeError, ValueError, NangoUnavailable) as refused:
                 print(f"  ! {refused}")
                 self._reply(200, self._failed(request.get("id"), str(refused)))
+                return
+            except Exception as odd:  # like Gmail's: an envelope, never a dropped socket
+                # The type only: its text could hold mail, an id or a key.
+                print(f"  ! {type(odd).__name__}")
+                self._reply(
+                    200,
+                    self._failed(
+                        request.get("id"), f"the Outlook connector failed ({type(odd).__name__})"
+                    ),
+                )
                 return
             self._reply(
                 200,

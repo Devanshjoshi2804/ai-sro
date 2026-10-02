@@ -881,7 +881,7 @@ def test_a_finished_run_reaches_the_wire_whole() -> None:
     ("server", "link"),
     [
         ("gmail", "https://mail.google.com/mail/#all/t%2F1"),
-        ("outlook", "https://outlook.office.com/mail/deeplink/readconv/t%2F1"),
+        ("outlook", ""),
         ("", "https://mail.google.com/mail/#all/t%2F1"),
         ("imap", ""),
     ],
@@ -892,6 +892,29 @@ def test_the_run_cards_mail_link_is_built_for_the_server_the_mail_is_on(
     """Day-end 2: an Outlook conversation id opened on Gmail is a dead link. A run stored
     before the server was kept is a Gmail one; a server nobody knows gets no link."""
     mail = {"thread": "t/1", **({"server": server} if server else {})}
+
+    assert RunMailModel.of(mail).link == link
+
+
+@pytest.mark.parametrize(
+    ("server", "stored", "link"),
+    [
+        (
+            "outlook",
+            "https://outlook.office.com/mail/id/AAMk%3D",
+            "https://outlook.office.com/mail/id/AAMk%3D",
+        ),
+        ("outlook", "javascript:alert(1)", ""),
+        ("gmail", "http://elsewhere.example/x", "https://mail.google.com/mail/#all/t%2F1"),
+    ],
+)
+def test_the_run_cards_mail_link_is_the_one_the_mailbox_gave(
+    server: str, stored: str, link: str
+) -> None:
+    """Day-end M3: Graph's `webLink` is the documented way to open a message in Outlook on the
+    web (learn.microsoft.com/graph/api/resources/message); a conversation id has no documented
+    link. Only an https link is kept."""
+    mail = {"thread": "t/1", "server": server, "link": stored}
 
     assert RunMailModel.of(mail).link == link
 

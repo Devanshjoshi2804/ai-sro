@@ -57,7 +57,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/ask_the_
 > decides that a mail should go -- it decides that this mail, which somebody
 > has read, may.
 
-## `_the_draft`, [line 354](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L354): Docstring
+## `_the_draft`, [line 353](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L353): Docstring
 
 > The drafted mail with that id, if it is still the last word on it.
 >
@@ -236,7 +236,7 @@ Code: `"to": to,`
 > a panel parsing prose to find a fact the decision
 > was already carrying everything else about.
 
-## `_the_draft`, [line 359](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L359): Comment
+## `_the_draft`, [line 358](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L358): Comment
 
 Code: `if str(getattr(message, "id", "")) == str(message_id):`
 
@@ -277,8 +277,9 @@ Code: `if still_asking(thread.messages, question)`
 Code: `await self._unclaim(ctx, message_id, run_id)`
 
 > `NotConnected` and `NotSent` are definite: the mailbox was never asked to send. The claim
-> `draft:{id}` and the run's `asked_the_asker` are given back, and the message says `retry`, so
-> the card keeps its Send it and the operator reconnects and presses again rather than writing
+> `draft:{id}` and the run's `asked_the_asker` are given back, and the message is a `mail_not_sent`,
+> a kind of its own because an already-installed extension marks a draft done only on
+> `mail_sent`; the card keeps its Send it and the operator reconnects and presses again rather than writing
 > the mail by hand. A failure that may have gone out keeps both: a second press would send it
 > twice, and the text says to look in Sent and, if it is not there, to send it from the
 > mailbox.

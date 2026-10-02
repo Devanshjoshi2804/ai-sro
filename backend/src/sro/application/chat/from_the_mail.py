@@ -174,6 +174,8 @@ class Offered:
 
     arrived: str = ""
 
+    link: str = ""
+
     offer: str = ""
 
     answered: Sequence[str] = ()
@@ -414,6 +416,7 @@ class FromTheMail:
                     subject=subject,
                     sender=mail.sender,
                     arrived=mail.arrived,
+                    link=mail.link,
                 )
             got = live
         else:
@@ -482,6 +485,7 @@ class FromTheMail:
             cannot_run=got.cannot_run,
             sender=mail.sender,
             arrived=mail.arrived,
+            link=mail.link,
             fresh=not earlier
             or any(
                 not quoted_in(value, earlier)
@@ -1176,6 +1180,7 @@ class FromTheMail:
             marker=str(said.get("marker") or ""),
             sender=" ".join(str(said.get("from") or "").split())[:K_SUBJECT],
             arrived=_when(str(said.get("date") or "")),
+            link=str(said.get("web_link") or ""),
             automated=is_automated(str(said.get("from") or ""), _headers_of(said)),
         )
 
@@ -1318,6 +1323,7 @@ class _Mail:
     marker: str = ""
     sender: str = ""
     arrived: str = ""
+    link: str = ""
     automated: bool = False
 
 
@@ -1363,6 +1369,7 @@ def _envelope(one: Offered) -> dict[str, str]:
             ("subject", one.subject),
             ("sender", one.sender),
             ("arrived", one.arrived),
+            ("link", one.link),
         )
         if value
     }

@@ -63,6 +63,7 @@ def _mail(ident: str, **over: Any) -> dict[str, Any]:
         "isRead": False,
         "hasAttachments": False,
         "isDraft": False,
+        "webLink": f"https://outlook.office.com/mail/id/{ident}",
         **over,
     }
 
@@ -235,7 +236,8 @@ def test_every_tool_answers_the_keys_the_gmail_connector_answers(
 
     assert list(searched) == list(g_search)
     assert list(searched["messages"][0]) == list(g_search["messages"][0])
-    assert list(got) == list(g_get)
+    # Outlook alone says where a message opens (Graph's webLink); Gmail's is built from the thread.
+    assert [k for k in got if k != "web_link"] == list(g_get)
     assert list(thread) == list(g_thread)
     assert list(thread["messages"][0]) == list(g_thread["messages"][0])
     assert {type(v) for v in got.values()} == {type(v) for v in g_get.values()}
@@ -271,10 +273,11 @@ def test_get_message_reads_the_mail_as_gmail_would(outlook: ModuleType, nango: F
     assert got["mailbox"] == "me@corp.example"
     assert got["subject"] == "Create a Customer Type"
     assert got["body"] == "please add Gold"
+    assert got["web_link"] == "https://outlook.office.com/mail/id/m1"
     # Auto-Submitted and Content-Type-like automation headers only, names lowercased.
     assert got["headers"] == {"auto-submitted": "auto-replied"}
     (_, params), *_ = [c for c in nango.graph_calls() if c[0].endswith("/messages/m1")]
-    assert "internetMessageHeaders" in params["$select"]
+    assert "internetMessageHeaders" in params["$select"] and "webLink" in params["$select"]
 
 
 def test_a_message_without_graph_headers_has_empty_headers(

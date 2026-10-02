@@ -2924,15 +2924,16 @@ class RunQuestionModel(BaseModel):
     field: str = ""
 
 
-_MAIL_LINKS = {
-    "gmail": "https://mail.google.com/mail/#all/",
-    "outlook": "https://outlook.office.com/mail/deeplink/readconv/",
-}
-
-
-def _mail_link(server: str, thread: str) -> str:
-    """A run stored before its server was kept has none: it was a Gmail one."""
-    return _MAIL_LINKS[server] + quote(thread, safe="") if thread and server in _MAIL_LINKS else ""
+def _mail_link(server: str, thread: str, given: str = "") -> str:
+    """Where the mailbox said the mail opens, if it did (Outlook: Graph's `webLink`, the one link
+    to a message Microsoft documents -- none is documented for a conversation id), and only
+    https. Gmail's is built from the thread; a run stored before its server was kept was a Gmail
+    one; any other server gets none."""
+    if given.startswith("https://"):
+        return given
+    if server == "gmail" and thread:
+        return "https://mail.google.com/mail/#all/" + quote(thread, safe="")
+    return ""
 
 
 class RunMailModel(BaseModel):
@@ -2961,7 +2962,7 @@ class RunMailModel(BaseModel):
             sender=mail.get("sender", ""),
             arrived=mail.get("arrived", ""),
             thread=thread,
-            link=_mail_link(mail.get("server", "gmail"), thread),
+            link=_mail_link(mail.get("server", "gmail"), thread, mail.get("link", "")),
         )
 
 

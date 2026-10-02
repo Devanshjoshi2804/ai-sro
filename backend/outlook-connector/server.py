@@ -164,7 +164,7 @@ _LIST_SELECT = (
 _FULL_SELECT = (
     "id,conversationId,internetMessageId,internetMessageHeaders,from,toRecipients,"
     "ccRecipients,bccRecipients,subject,body,receivedDateTime,sentDateTime,"
-    "parentFolderId,isDraft"
+    "parentFolderId,isDraft,webLink"
 )
 
 
@@ -632,6 +632,8 @@ async def _get(graph: Graph, arguments: Mapping[str, Any]) -> str:
             "subject": mail.get("subject", ""),
             "body": _body_of(mail),
             "headers": {name: head[name] for name in _AUTOMATION if name in head},
+            # Graph's own link to open the message in Outlook on the web.
+            "web_link": mail.get("webLink", ""),
         },
         indent=1,
     )

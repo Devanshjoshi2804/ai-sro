@@ -13,7 +13,10 @@ mean, and the quirks that say where a system misreports its own data.
 For each system that could answer, give one lookup. Prefer `call` over
 `screen`: a call is an endpoint from the knowledge you were given, and its
 answer is data. Use `screen` only where no endpoint answers the question, and
-give the route exactly as the knowledge names it.
+give the route exactly as the knowledge names it. A screen lists the endpoints it
+`loads`: a question about the records a screen shows is answered by the one of
+those that returns them, as a `call`. A screen's photograph holds no records, so
+it cannot say whether a record exists.
 
 Cite the knowledge you used. Every lookup must name at least one key from what
 you were given, and its `target` must be one of those keys. Do not invent a
@@ -35,7 +38,7 @@ not."""
 
 PLAN_LOOKUP = Prompt(
     name="plan_lookup",
-    version=3,
+    version=4,
     model="gemini-3.8-flash",
     fallback_model="gemini-3.7-flash",
     thinking=None,

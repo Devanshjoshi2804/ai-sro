@@ -170,6 +170,18 @@ def _read(data: dict[str, object]) -> list[Lookup]:
     return found
 
 
+def _loaded_by(screen: dict[str, object], known: list[KnowledgeEntry]) -> list[str]:
+    resources = screen.get("resources")
+    named = {str(one) for one in resources} if isinstance(resources, list) else set()
+    return [
+        entry.key
+        for entry in known
+        if entry.kind is EntryKind.ENDPOINT
+        and isinstance(entry.body, dict)
+        and entry.body.get("resource") in named
+    ]
+
+
 def _shown(question: str, known: list[KnowledgeEntry]) -> str:
     lines = [f"QUESTION: {question}", ""]
     for kind in WHAT_TO_SHOW:
@@ -185,5 +197,7 @@ def _shown(question: str, known: list[KnowledgeEntry]) -> str:
             if routes := body.get("seen_on_routes"):
                 shown = routes[:6] if isinstance(routes, list) else routes
                 lines.append(f"      seen on: {shown}")
+            if kind is EntryKind.SCREEN and (loaded := _loaded_by(body, known)):
+                lines.append(f"      loads: {', '.join(loaded)}")
         lines.append("")
     return "\n".join(lines)

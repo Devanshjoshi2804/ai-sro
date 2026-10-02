@@ -108,3 +108,14 @@ Code: `return Planned(`
 > Refused whole rather than filtered: a plan that quietly drops one
 > of its systems answers a narrower question than the one asked,
 > and says nothing about having done so.
+
+## `_shown`, screens: why a screen lists what it `loads`
+
+> QA 2026-10-02: "is there a warehouse equipment type called ZWOYBN" was planned as a
+> SCREEN. The catalogue's screen entry names the resources it loads (`resources`:
+> workZones, workAreas, warehouseEquipmentAccesses, equipmentTypes, codes) and the
+> Warehouse Equipment Type grid IS a GET on `equipmentTypes`, but the planner saw the
+> screen by title only and the endpoint under another title, so nothing joined them.
+> The join is `screen.resources` against `endpoint.resource`, over what was retrieved
+> only (a citation must name something it was shown). The prompt (v4) says a screen's
+> photograph holds no records.

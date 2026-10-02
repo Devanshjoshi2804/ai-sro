@@ -588,6 +588,7 @@ class RunSteps:
                 planned_by=by,
                 reason=result.reason,
                 made=dict(result.read),
+                sent=dict(result.sent) or None,
                 result=dict(result.answered) or None,
             )
         )

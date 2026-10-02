@@ -12,7 +12,12 @@ from sro.application.execution.plan_step import replay_without_asking
 from sro.application.ports.http import HttpResponse
 from sro.application.runtime.broker import K_HEADERS_WAIT_S, SessionBroker
 from sro.application.runtime.step import Held, LaneContext, Stopped
-from sro.domain.execution.belts import carries_in_slot, confirming_read, expected_statuses
+from sro.domain.execution.belts import (
+    carries_in_slot,
+    confirming_read,
+    expected_statuses,
+    record_count,
+)
 from sro.domain.execution.evidence import recorded_call
 from sro.domain.execution.lanes import (
     K_CONFLICT,
@@ -57,6 +62,15 @@ class ApiLane:
         self._broker = broker
 
     async def execute(self, step: Step, values: Mapping[str, str], ctx: LaneContext) -> StepResult:
+        sent: dict[str, object] = {}
+        result = await self._execute(step, values, ctx, sent)
+        return replace(result, sent=sent)
+
+    async def _execute(
+        self, step: Step, values: Mapping[str, str], ctx: LaneContext, sent: dict[str, object]
+    ) -> StepResult:
+        """`sent` is filled the moment before the call leaves, so a write that
+        failed still says what it sent (never a header: those carry the session)."""
         planned = replay_of(step, values, ctx)
         recorded = recorded_call(step, ctx.by_id)
         held = ctx.held
@@ -88,6 +102,7 @@ class ApiLane:
             return _unsent("the call cannot be built as recorded", "unsendable", path_shape(url))
         ctx.check_stop()
         await ctx.about_to_write(self.lane)
+        sent.update(kind=planned.kind, payload={"method": method, "url": url, "body": body})
         try:
             answered = await self._broker.send(
                 ctx.ctx,
@@ -172,9 +187,11 @@ class ApiLane:
                 answered=told,
             )
         try:
-            confirmed = await self._its_record(planned, ctx, held, headers, made) or (
-                await self._confirmed(step, planned, ctx, held, fresh=False)
+            confirmed = await self._its_record(planned, ctx, held, headers, made)
+            listed = (
+                None if confirmed else await self._listing(step, planned, ctx, held, fresh=False)
             )
+            confirmed = confirmed or _carries(listed, planned)
             found = None if confirmed else await self._by_key(planned, ctx, held, headers)
         except (Stopped, asyncio.CancelledError):
             raise
@@ -198,12 +215,14 @@ class ApiLane:
         )
         if refused and found is not None:
             said = told["said"] or f"it answered {status}"
+            clash = _clash(listed, planned) if found[0] == "absent" else None
             return StepResult(
                 "failed",
                 Lane.API,
                 f"{found[1]} already exists with different values"
                 if found[0] == "other"
-                else f"the system refused it: {said}",
+                else f"the system refused it: {said}"
+                + (f" {clash} is already used" if clash else ""),
                 never_left=True,
                 refused=True,
                 answered=told,
@@ -289,14 +308,20 @@ class ApiLane:
     async def _confirmed(
         self, step: Step, planned: Planned, ctx: LaneContext, held: Held, *, fresh: bool
     ) -> bool:
+        return _carries(await self._listing(step, planned, ctx, held, fresh=fresh), planned)
+
+    async def _listing(
+        self, step: Step, planned: Planned, ctx: LaneContext, held: Held, *, fresh: bool
+    ) -> HttpResponse | None:
+        """The recording's own confirming read, aimed at this run's values."""
         probe = confirming_read(step, ctx.by_id)
         if probe is None or not planned.confirm or REDACTED in probe.url:
-            return False
+            return None
         if _origin(probe.url) != _origin(str(planned.payload["url"])):
-            return False
+            return None
         url = _aimed(probe.url, planned, seen_values(ctx.workflow, ctx.by_id))
         if url is None:
-            return False
+            return None
         headers = await session_headers(
             self._broker,
             ctx.ctx,
@@ -307,9 +332,25 @@ class ApiLane:
             needs=needs_of(probe.request_headers),
         )
         if not _sendable(url, headers):
-            return False
-        got = await self._broker.send(ctx.ctx, held, "GET", url, headers=headers)
-        return got.succeeded and carries_in_slot(got.text, planned.confirm)
+            return None
+        return await self._broker.send(ctx.ctx, held, "GET", url, headers=headers)
+
+
+def _carries(listed: HttpResponse | None, planned: Planned) -> bool:
+    return listed is not None and listed.succeeded and carries_in_slot(listed.text, planned.confirm)
+
+
+def _clash(listed: HttpResponse | None, planned: Planned) -> str | None:
+    """ "Record already exists" names no field when the system makes one unique
+    that the operator may pick freely. A value that exactly one record holds
+    can be that field; a value many hold cannot be unique."""
+    if listed is None or not listed.succeeded:
+        return None
+    for slot, value in planned.confirm.items():
+        held_by = record_count(listed.text, {slot: value})
+        if held_by == 1 and slot in planned.filled:
+            return f"{planned.filled[slot]} {value}"
+    return None
 
 
 def needs_of(recorded: Mapping[str, str]) -> list[str]:

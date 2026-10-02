@@ -3,10 +3,24 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping, Sequence
 
+from sro.application.capture.rig_wire import (
+    EffectEvent,
+    GestureEvent,
+    PageEvent,
+    RequestEvent,
+    SnapshotEvent,
+)
 from sro.application.capture.rig_wire import Gesture as WireGesture
-from sro.application.capture.rig_wire import GestureEvent, PageEvent, RequestEvent, SnapshotEvent
 from sro.application.observation.admit import Event
 from sro.domain.observation.outline import K_OUTLINES_PER_GESTURE, outline_kept
+from sro.domain.observation.seen import (
+    choice_kept,
+    cookies_kept,
+    effect_kept,
+    extras_kept,
+    mail_thread_kept,
+    place_kept,
+)
 from sro.domain.recording.redaction import redact_body
 from sro.domain.recording.sensitivity import (
     REDACTED,
@@ -31,6 +45,7 @@ _EVENT_KEYS = {
         ("request", RequestEvent),
         ("page", PageEvent),
         ("snapshot", SnapshotEvent),
+        ("effect", EffectEvent),
     )
 }
 _GESTURE_KEYS = frozenset(WireGesture.model_fields)
@@ -63,6 +78,17 @@ def _event(event: Event, made: Mapping[str, Mapping[str, object]]) -> Event:
     request = out.get("request")
     if isinstance(request, Mapping):
         out["request"] = _request(request)
+    if out.get("kind") == "effect":
+        out["effect"] = effect_kept(out.get("effect")) or {}
+        frame_path = out.get("frame_path")
+        if isinstance(frame_path, list):
+            out["frame_path"] = [
+                _hop(hop) if isinstance(hop, Mapping) else hop for hop in frame_path
+            ]
+    if "cookies" in out:
+        out["cookies"] = cookies_kept(out["cookies"])
+    if "mail_thread" in out:
+        out["mail_thread"] = mail_thread_kept(out["mail_thread"])
     out.pop("snapshot", None)
 
     detail = out.get("detail")
@@ -90,6 +116,10 @@ def _gesture(
             for one in (raw if isinstance(raw, list) else [])[-K_OUTLINES_PER_GESTURE:]
             if (kept := outline_kept(one)) is not None
         ]
+    if "place" in out:
+        out["place"] = place_kept(out["place"])
+    if "choice" in out:
+        out["choice"] = choice_kept(out["choice"])
     frame_path = out.get("frame_path")
     if isinstance(frame_path, list):
         out["frame_path"] = [_hop(hop) if isinstance(hop, Mapping) else hop for hop in frame_path]
@@ -143,6 +173,10 @@ def _element(node: Mapping[str, object]) -> dict[str, object]:
     component = out.get("component")
     if isinstance(component, Mapping):
         out["component"] = _element(component)
+    if any(key in out for key in ("labelText", "fullName", "siblingIndex", "siblingCount")):
+        out |= extras_kept(out)
+        if out.get("secret"):
+            out["labelText"] = out["fullName"] = None
     return out
 
 

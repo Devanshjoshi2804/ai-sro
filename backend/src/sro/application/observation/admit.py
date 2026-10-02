@@ -10,7 +10,7 @@ from sro.domain.observation.policy import ObservationPolicy
 
 Event = Mapping[str, object]
 
-KINDS = ("gesture", "request", "snapshot", "page")
+KINDS = ("gesture", "request", "snapshot", "page", "effect")
 
 _SIGNALS = ("role", "name", "text", "testId", "cssPath", "xpath")
 
@@ -80,6 +80,16 @@ def _why_not(
             return "a snapshot event with no snapshot in it"
         if event.get("taken_at") is None:
             return "a snapshot with no time on it"
+        return _url_refusal(event.get("url"), policy, granted, ours)
+
+    if kind == "effect":
+        if not isinstance(event.get("of"), str) or not event.get("of"):
+            return "an effect that does not say which gesture it followed"
+        of_at = event.get("of_at")
+        if isinstance(of_at, bool) or not isinstance(of_at, int | float):
+            return "an effect with no gesture time cannot be joined to its gesture"
+        if _mapping(event.get("effect")) is None:
+            return "an effect event with no effect in it"
         return _url_refusal(event.get("url"), policy, granted, ours)
 
     if not event.get("page_kind"):

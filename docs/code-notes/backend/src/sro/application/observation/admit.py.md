@@ -45,7 +45,7 @@ Code: `_SIGNALS = ("role", "name", "text", "testId", "cssPath", "xpath")`
 > the console would switch it back on. Watching the apparatus record is never
 > what anybody meant by watching the work.
 
-## `_is_ours`, [line 107](../../../../../../../backend/src/sro/application/observation/admit.py#L107): Docstring
+## `_is_ours`, [line 117](../../../../../../../backend/src/sro/application/observation/admit.py#L117): Docstring
 
 > Whether this url is this system talking to itself.
 >
@@ -60,9 +60,14 @@ Code: `_SIGNALS = ("role", "name", "text", "testId", "cssPath", "xpath")`
 > would make every warehouse page on it unrecordable with no grant able to
 > restore it.
 
-## `_url_refusal`, [line 103](../../../../../../../backend/src/sro/application/observation/admit.py#L103): Comment
+## `_url_refusal`, [line 113](../../../../../../../backend/src/sro/application/observation/admit.py#L113): Comment
 
 Code: `return "this page is outside what the tenant agreed to observe"`
 
 > Never the URL itself: this refusal is logged and read, and the point
 > of an exclusion is that the excluded page leaves no trace here.
+
+## `_why_not`, [line 45](../../../../../../../backend/src/sro/application/observation/admit.py#L45): Note on the effect rule
+
+> An `effect` needs `of` and a numeric `of_at` (without them it cannot be
+> joined to its gesture), an `effect` object, and a URL the policy allows.

@@ -12,6 +12,7 @@ from pydantic import (
     model_validator,
 )
 
+from sro.domain.observation.outline import said_text
 from sro.domain.observation.redaction import SECRET_HEADER_HINTS as SECRET_HEADER_HINTS
 from sro.domain.observation.redaction import SECRET_HEADERS as SECRET_HEADERS
 from sro.domain.observation.redaction import SECRET_SHAPES as SECRET_SHAPES
@@ -23,6 +24,7 @@ from sro.domain.observation.redaction import redact_body as redact_body
 from sro.domain.observation.redaction import redact_shapes as redact_shapes
 from sro.domain.observation.redaction import redact_url as redact_url
 from sro.domain.observation.redaction import shapes_in as shapes_in
+from sro.domain.observation.seen import cookies_kept, mail_thread_kept
 from sro.domain.shared.hosts import REDACTED as REDACTED
 from sro.domain.shared.hosts import headers_without_markers as headers_without_markers
 
@@ -90,6 +92,10 @@ class Target(BaseModel):
     attributes: dict[str, Any] = Field(default_factory=dict)
     component: Component | None = None
     landmarks: list[Landmark] = Field(default_factory=list)
+    labelText: str | None = None
+    fullName: str | None = None
+    siblingIndex: int | None = None
+    siblingCount: int | None = None
 
     @model_validator(mode="after")
     def must_carry_some_signal(self) -> "Target":
@@ -107,6 +113,15 @@ class Target(BaseModel):
             self.attributes.pop("value", None)
         if self.attributes:
             self.attributes = redact_attributes(self.attributes)
+        return self
+
+    @model_validator(mode="after")
+    def the_new_prose_is_said_or_dropped_here(self) -> "Target":
+        if self.secret:
+            self.labelText = None
+            self.fullName = None
+        self.labelText = said_text(self.labelText)
+        self.fullName = said_text(self.fullName)
         return self
 
 
@@ -152,6 +167,55 @@ class Outline(BaseModel):
     messages: list[OutlineMessage] = Field(default_factory=list)
 
 
+class Place(BaseModel):
+    route: str | None = None
+    title: str | None = None
+    headings: list[str] = Field(default_factory=list)
+    tabs: list[str] = Field(default_factory=list)
+    grid: str | None = None
+    landmarks: list[str] = Field(default_factory=list)
+    version: str | None = None
+
+
+class Seen(BaseModel):
+    role: str
+    text: str | None = None
+    title: str | None = None
+    buttons: list[str] = Field(default_factory=list)
+
+
+class FieldChange(BaseModel):
+    label: str
+    change: str
+
+
+class Effect(BaseModel):
+    appeared: list[Seen] = Field(default_factory=list)
+    vanished: list[Seen] = Field(default_factory=list)
+    route_before: str | None = None
+    route_after: str | None = None
+    fields: list[FieldChange] = Field(default_factory=list)
+    requests_ms: int | None = None
+    mask_ms: int | None = None
+    quiet_ms: int | None = None
+    ended: str | None = None
+    errors: list[str] = Field(default_factory=list)
+    shortcuts: list[str] = Field(default_factory=list)
+
+
+class Choice(BaseModel):
+    chosen: str | None = None
+    index: int | None = None
+    options: list[str] = Field(default_factory=list)
+
+
+class CookieSeen(BaseModel):
+    name: str
+    expires_at: float | None = None
+    domain: str | None = None
+    session: bool = False
+
+
 class Gesture(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
@@ -169,6 +233,8 @@ class Gesture(BaseModel):
     prior: AfterState | None = None
     prior_of: str | None = None
     outlines: list[Outline] = Field(default_factory=list)
+    place: Place | None = None
+    choice: Choice | None = None
 
     @model_validator(mode="after")
     def a_credential_value_is_dropped_here(self) -> "Gesture":
@@ -323,12 +389,42 @@ class PageEvent(BaseModel):
     detail: str | None = None
     tab_id: int | None = None
     opener_tab_id: int | None = None
+    cookies: list[CookieSeen] = Field(default_factory=list)
+    mail_thread: str | None = None
 
     @model_validator(mode="after")
     def a_credential_on_a_page_event_is_dropped_here(self) -> "PageEvent":
         if self.url:
             self.url = redact_url(self.url)
         self.detail = redact_body(self.detail, None)
+        return self
+
+    @model_validator(mode="after")
+    def only_names_and_ids_reach_a_page_event(self) -> "PageEvent":
+        self.cookies = [
+            CookieSeen.model_validate(one)
+            for one in cookies_kept([c.model_dump() for c in self.cookies])
+        ]
+        self.mail_thread = mail_thread_kept(self.mail_thread)
+        return self
+
+
+class EffectEvent(BaseModel):
+    kind: Literal["effect"]
+    of: str
+    of_at: float
+    url: str | None = None
+    frame_path: list[FrameHop] | None = None
+    effect: Effect
+    tab_id: int | None = None
+    frame_url: str | None = None
+
+    @model_validator(mode="after")
+    def a_credential_in_a_url_is_dropped_here(self) -> "EffectEvent":
+        if self.url:
+            self.url = redact_url(self.url)
+        if self.frame_url:
+            self.frame_url = redact_url(self.frame_url)
         return self
 
 
@@ -340,7 +436,7 @@ class SnapshotEvent(BaseModel):
 
 
 Event = Annotated[
-    GestureEvent | RequestEvent | PageEvent | SnapshotEvent,
+    GestureEvent | RequestEvent | PageEvent | SnapshotEvent | EffectEvent,
     Field(discriminator="kind"),
 ]
 

@@ -143,3 +143,31 @@ def test_a_url_that_names_no_system_names_no_page_either() -> None:
     assert page_of("") is None
     assert page_of("about:blank") is None
     assert page_of("/portal/page") is None
+
+
+def test_an_effect_event_parses_and_a_secret_target_loses_its_new_prose() -> None:
+    effect = {
+        "kind": "effect",
+        "of": "r.1",
+        "of_at": 1.5,
+        "url": "https://wms.example/a?token=abc12345678",
+        "effect": {"appeared": [{"role": "status", "text": "Saved"}]},
+    }
+    secret = {
+        "kind": "gesture",
+        "gesture": {
+            "kind": "type",
+            "at": 1.0,
+            "target": {
+                "role": "textbox",
+                "secret": True,
+                "labelText": "Password",
+                "fullName": "Password",
+            },
+        },
+    }
+    batch, rejected = parse_batch(dict(BATCH, events=[effect, secret]))
+    assert rejected == () and len(batch.events) == 2
+    assert "abc12345678" not in (batch.events[0].url or "")
+    target = batch.events[1].gesture.target
+    assert target is not None and target.labelText is None and target.fullName is None

@@ -78,7 +78,7 @@ async def _run(
         version.promote(current, f.at(700), f.OPERATOR)
     await uow.skills.add(skill)
 
-    executor = ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), ui)
+    executor = ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), ui, servers={})
     return await executor.execute(
         CTX,
         ExecutionRequest(
@@ -130,7 +130,9 @@ async def test_a_missing_session_is_not_escalated_to_a_browser() -> None:
         version.promote(stage, f.at(700), f.OPERATOR)
     await uow.skills.add(skill)
 
-    run = await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), ui).execute(
+    run = await ExecuteSkill(
+        uow, http, vault, FakeClock(), FakeIdFactory(), ui, servers={}
+    ).execute(
         CTX,
         ExecutionRequest(
             skill_id=SkillId("skill-1"),
@@ -180,7 +182,9 @@ async def test_a_task_run_in_the_browser_is_driven_step_by_step() -> None:
         version.promote(stage, f.at(700), f.OPERATOR)
     await uow.skills.add(skill)
 
-    run = await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), ui).execute(
+    run = await ExecuteSkill(
+        uow, http, vault, FakeClock(), FakeIdFactory(), ui, servers={}
+    ).execute(
         CTX,
         ExecutionRequest(
             skill_id=SkillId("skill-1"),
@@ -207,7 +211,9 @@ async def test_a_shadow_run_in_the_browser_withholds_the_gesture() -> None:
     version.promote(PromotionStage.SHADOW, f.at(700), f.OPERATOR)
     await uow.skills.add(skill)
 
-    run = await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), ui).execute(
+    run = await ExecuteSkill(
+        uow, http, vault, FakeClock(), FakeIdFactory(), ui, servers={}
+    ).execute(
         CTX,
         ExecutionRequest(
             skill_id=SkillId("skill-1"), parameters={"shipment_id": "555"}, medium=Medium.UI
@@ -245,7 +251,7 @@ async def test_a_control_that_has_vanished_escalates_to_vision() -> None:
     await uow.skills.add(skill)
 
     run = await ExecuteSkill(
-        uow, http, vault, FakeClock(), FakeIdFactory(), ui, None, vision
+        uow, http, vault, FakeClock(), FakeIdFactory(), ui, None, vision, servers={}
     ).execute(
         CTX,
         ExecutionRequest(
@@ -316,7 +322,16 @@ async def test_vision_looks_at_the_browser_the_run_is_being_performed_in() -> No
     await uow.skills.add(skill)
 
     await ExecuteSkill(
-        uow, http, vault, FakeClock(), FakeIdFactory(), ours, None, vision, agents=agents
+        uow,
+        http,
+        vault,
+        FakeClock(),
+        FakeIdFactory(),
+        ours,
+        None,
+        vision,
+        agents=agents,
+        servers={},
     ).execute(
         CTX,
         ExecutionRequest(

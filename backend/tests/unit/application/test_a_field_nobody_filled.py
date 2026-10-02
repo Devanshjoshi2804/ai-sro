@@ -716,7 +716,7 @@ async def _sent(parameters: dict[str, str], version: SkillVersion) -> dict[str, 
     await vault.store(_SCOPED, "session=live")
     await _promoted(uow, version, PromotionStage.ASSISTED)
 
-    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), servers={}).execute(
         CTX,
         ExecutionRequest(
             skill_id=SkillId("skill-1"), parameters=parameters, authorized_by="supervisor"
@@ -883,7 +883,7 @@ async def test_a_run_that_supplies_no_value_for_an_optional_parameter_sends_the_
     await vault.store(_SCOPED, "session=live")
     await _promoted(uow, _work_area_version(), PromotionStage.ASSISTED)
 
-    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), servers={}).execute(
         CTX,
         ExecutionRequest(
             skill_id=SkillId("skill-1"),
@@ -906,7 +906,7 @@ async def test_a_run_that_supplies_the_value_sends_the_value() -> None:
     await vault.store(_SCOPED, "session=live")
     await _promoted(uow, _work_area_version(), PromotionStage.ASSISTED)
 
-    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), servers={}).execute(
         CTX,
         ExecutionRequest(
             skill_id=SkillId("skill-1"),
@@ -935,7 +935,7 @@ async def test_an_empty_value_supplied_for_an_optional_parameter_is_nobody_suppl
     await vault.store(_SCOPED, "session=live")
     await _promoted(uow, _work_area_version(), PromotionStage.ASSISTED)
 
-    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), servers={}).execute(
         CTX,
         ExecutionRequest(
             skill_id=SkillId("skill-1"),
@@ -963,7 +963,7 @@ async def test_a_quantity_that_would_write_a_field_nobody_demonstrated_is_refuse
     await _promoted(uow, _work_area_version(), PromotionStage.ASSISTED)
 
     with pytest.raises(NotRunnable, match="delta_priority is sent as a bare number"):
-        await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+        await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), servers={}).execute(
             CTX,
             ExecutionRequest(
                 skill_id=SkillId("skill-1"),
@@ -986,7 +986,7 @@ async def test_a_value_that_would_end_its_own_string_is_escaped_rather_than_refu
     await vault.store(_SCOPED, "session=live")
     await _promoted(uow, _work_area_version(), PromotionStage.ASSISTED)
 
-    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), servers={}).execute(
         CTX,
         ExecutionRequest(
             skill_id=SkillId("skill-1"),
@@ -1014,7 +1014,7 @@ async def test_a_supplied_value_never_adds_a_field_the_demonstration_did_not_sen
     await _promoted(uow, _work_area_version(), PromotionStage.ASSISTED)
 
     for value in ('","approved":true,"x":"', "back\\slash", '""', 'he said "go"'):
-        await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+        await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), servers={}).execute(
             CTX,
             ExecutionRequest(
                 skill_id=SkillId("skill-1"),
@@ -1112,7 +1112,7 @@ async def test_a_value_a_response_produced_is_escaped_into_the_body() -> None:
     )
     await _promoted(uow, version, PromotionStage.ASSISTED)
 
-    run = await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+    run = await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), servers={}).execute(
         CTX,
         ExecutionRequest(skill_id=SkillId("skill-1"), parameters={}, authorized_by="supervisor"),
     )
@@ -1149,7 +1149,7 @@ async def test_a_body_that_is_one_parameter_is_sent_exactly_as_supplied() -> Non
     )
     await _promoted(uow, version, PromotionStage.ASSISTED)
 
-    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), servers={}).execute(
         CTX,
         ExecutionRequest(
             skill_id=SkillId("skill-1"),
@@ -1172,7 +1172,7 @@ async def test_a_required_input_nobody_supplied_still_refuses_to_run() -> None:
     await _promoted(uow, _work_area_version(), PromotionStage.ASSISTED)
 
     with pytest.raises(NotRunnable, match="no value supplied for work_area"):
-        await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+        await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), servers={}).execute(
             CTX,
             ExecutionRequest(
                 skill_id=SkillId("skill-1"), parameters={}, authorized_by="supervisor"
@@ -1229,7 +1229,9 @@ async def _run_by_clicking(values: dict[str, str], *, ui: FakeUiDriver) -> Run:
     uow, http, vault = FakeUnitOfWork(), FakeHttpCaller(), FakeCredentialVault()
     await _promoted(uow, _version_with_optional_delta(), PromotionStage.ASSISTED)
 
-    return await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), ui).execute(
+    return await ExecuteSkill(
+        uow, http, vault, FakeClock(), FakeIdFactory(), ui, servers={}
+    ).execute(
         CTX,
         ExecutionRequest(
             skill_id=SkillId("skill-1"),
@@ -1337,7 +1339,9 @@ async def test_a_healed_step_is_retried_with_the_parameters_it_was_performed_wit
         ),
     )
 
-    outcome = await ExecuteStep(uow, http, vault, heal=healer).execute(CTX, run_id=run.id, index=0)
+    outcome = await ExecuteStep(uow, http, vault, heal=healer, servers={}).execute(
+        CTX, run_id=run.id, index=0
+    )
 
     assert healer.asked == 1
     assert outcome.disposition is StepDisposition.PERFORMED, outcome.detail

@@ -45,7 +45,9 @@ def _runner(uow: FakeUnitOfWork, clock: FakeClock) -> RunFromPreview:
     to. The default step's `UiPlan` carries no locator, so the UI medium this
     call always drives ends every run in a clean SKIPPED disposition rather
     than an exception -- there is nothing for `_perform_in_ui` to find."""
-    executor = ExecuteSkill(uow, FakeHttpCaller(), FakeCredentialVault(), clock, FakeIdFactory())
+    executor = ExecuteSkill(
+        uow, FakeHttpCaller(), FakeCredentialVault(), clock, FakeIdFactory(), servers={}
+    )
     return RunFromPreview(uow, clock, executor)
 
 

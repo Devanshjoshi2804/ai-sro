@@ -51,6 +51,7 @@ async def test_the_heartbeat_look_and_the_poll_racing_read_one_mail_once(
             answer=AnswerRun(SqlUnitOfWork(session_factory), FakeDurableExecution()),
             clock=FakeClock(),
             ids=FakeIdFactory(),
+            servers={},
         )
         for _ in range(2)
     )

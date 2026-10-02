@@ -18,7 +18,6 @@ from sro.application.chat.mailbox import (
     K_ELSEWHERE,
     K_REMEMBER,
     K_TAKEN,
-    NO_SERVERS,
     Unread,
     elsewhere_key,
     is_ours,
@@ -217,7 +216,7 @@ class FromTheMail:
         shadow_tenants: frozenset[str] = frozenset(),
         feedback: RecordFeedback | None = None,
         spawn: Spawn | None = None,
-        servers: Mapping[str, str] = NO_SERVERS,
+        servers: Mapping[str, str],
     ) -> None:
         self._servers = servers
         self._build = reader

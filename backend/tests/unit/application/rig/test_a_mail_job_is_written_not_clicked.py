@@ -202,6 +202,7 @@ async def test_a_mail_to_somebody_nobody_named_is_never_drafted() -> None:
         asker=_written("stranger@example.com"),
         clock=FakeClock(),
         ids=FakeIdFactory(),
+        servers={},
     )
 
     assert mailbox.sent == []
@@ -224,6 +225,7 @@ async def test_the_mail_is_sent_as_written_and_gmails_answer_finishes_the_run() 
         asker=_written("alex.r@example.com"),
         clock=FakeClock(),
         ids=FakeIdFactory(),
+        servers={},
     )
 
     (sent,) = mailbox.sent
@@ -264,6 +266,7 @@ async def test_what_the_job_does_reaches_the_model_only_inside_a_fence() -> None
         asker=asker,
         clock=FakeClock(),
         ids=FakeIdFactory(),
+        servers={},
     )
 
     sent = str(asker.asked[0]["evidence"])
@@ -331,6 +334,7 @@ async def _write(
         uow=uow or FakeUnitOfWork(),
         tools=mailbox,
         asker=_written(to, body),
+        servers={},
     )
 
 
@@ -485,6 +489,7 @@ async def test_an_address_the_mail_asks_for_is_asked_about_never_sent_to() -> No
         asker=_written("alex.r@example.com, eve@evil.example"),
         clock=FakeClock(),
         ids=FakeIdFactory(),
+        servers={},
     )
 
     assert mailbox.sent == []
@@ -531,6 +536,7 @@ async def test_the_model_sees_who_each_message_went_to_and_its_id() -> None:
         uow=FakeUnitOfWork(),
         tools=_Mailbox(),
         asker=asker,
+        servers={},
     )
 
     sent = str(asker.asked[0]["evidence"])
@@ -553,6 +559,7 @@ async def test_a_demonstrated_bcc_is_pressed_out_as_bcc() -> None:
         asker=_written("alex.r@example.com, boss@wh.example"),
         clock=FakeClock(),
         ids=FakeIdFactory(),
+        servers={},
     )
 
     (sent,) = mailbox.sent
@@ -570,6 +577,7 @@ async def _asked_who(uow: FakeUnitOfWork) -> WorkflowRun:
         asker=_written("vendor@supplier.example"),
         clock=FakeClock(),
         ids=FakeIdFactory(),
+        servers={},
     )
 
 
@@ -587,6 +595,7 @@ def _answering(uow: FakeUnitOfWork, mailbox: _Mailbox, durable: FakeDurableExecu
             asker=_written("vendor@supplier.example"),
             clock=FakeClock(),
             ids=FakeIdFactory(),
+            servers={},
         )
 
     return AnswerRun(uow, durable, resume=resume)
@@ -673,6 +682,7 @@ async def test_an_answer_carried_out_twice_sends_once() -> None:
             asker=_written("vendor@supplier.example"),
             clock=FakeClock(),
             ids=FakeIdFactory(),
+            servers={},
         )
 
     assert len(mailbox.sent) == 1
@@ -694,8 +704,9 @@ async def test_the_answer_s_resume_redrafts_the_run_s_own_mail_job() -> None:
         stops=Stops(),
         approvals=Approvals(),
         one_time_secrets=OneTimeSecrets(),
-        gather=GatherContext(tools=mailbox, asker=_written("vendor@supplier.example")),
+        gather=GatherContext(tools=mailbox, asker=_written("vendor@supplier.example"), servers={}),
         ids=FakeIdFactory(),
+        servers={},
     )
     await starter.answered(CTX, run.id)
     assert mailbox.sent == []
@@ -730,6 +741,7 @@ async def test_an_empty_draft_on_the_new_flash_is_written_again_on_the_older_one
         uow=FakeUnitOfWork(),
         tools=_Mailbox(),
         asker=asker,
+        servers={},
     )
 
     assert [one["model"] for one in asker.asked] == ["gemini-3.8-flash", "gemini-3.7-flash"]

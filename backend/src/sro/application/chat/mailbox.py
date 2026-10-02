@@ -6,7 +6,6 @@ import secrets
 from collections.abc import Mapping
 from datetime import datetime, timedelta
 from email.utils import getaddresses, parseaddr
-from types import MappingProxyType
 
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
@@ -15,12 +14,20 @@ from sro.application.ports.tools import ToolCaller, ToolResult
 logger = logging.getLogger(__name__)
 
 SERVER = "gmail"
-NO_SERVERS: Mapping[str, str] = MappingProxyType({})
 
 
 def server_for(tenant_id: str, servers: Mapping[str, str]) -> str:
     """The mail server this tenant's mailbox is on: gmail unless it is set."""
     return servers.get(tenant_id, SERVER)
+
+
+def mail_server_of(recorded: str, tenant_id: str, servers: Mapping[str, str]) -> str:
+    """A server a skill was recorded on: a mail server is the tenant's own, any other stays."""
+    return (
+        server_for(tenant_id, servers)
+        if recorded in {SERVER, "outlook", *servers.values()}
+        else recorded
+    )
 
 
 K_REMEMBER = timedelta(days=30)
@@ -66,7 +73,7 @@ async def send_as_this_system(
     arguments: Mapping[str, str],
     *,
     at: datetime,
-    servers: Mapping[str, str] = NO_SERVERS,
+    servers: Mapping[str, str],
 ) -> ToolResult:
     marker = secrets.token_hex(16)
     async with uow as unit:

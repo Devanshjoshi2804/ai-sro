@@ -704,6 +704,7 @@ class Container:
             self.repair_drift(),
             self.stops,
             self.tools,
+            servers=self.settings.mail_servers,
         )
 
     def start_run(self) -> StartRun:
@@ -753,6 +754,7 @@ class Container:
             self.agents(),
             self.tools,
             self.clock,
+            servers=self.settings.mail_servers,
         )
 
     def finish_run(self) -> FinishRun:

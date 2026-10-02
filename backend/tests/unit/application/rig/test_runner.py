@@ -6594,7 +6594,7 @@ async def test_a_step_that_changes_the_mailbox_stops_the_run_and_is_never_clicke
 
     assert run.outcome == "stopped"
     assert [(one.of_step, one.verdict) for one in run.steps] == [(0, "failed")], run.steps
-    assert "Gmail tool cannot" in run.steps[0].reason
+    assert "mail tool cannot" in run.steps[0].reason
     assert not [
         one for one in channel.sent if "mail.google.com" in json.dumps(one.get("payload") or {})
     ], "it drove the operator's mailbox"

@@ -5,7 +5,7 @@ import logging
 from collections.abc import Mapping
 
 from sro.application.chat.announce import SayWhatHappened
-from sro.application.chat.mailbox import NO_SERVERS, NotSent, send_as_this_system, server_for
+from sro.application.chat.mailbox import NotSent, send_as_this_system, server_for
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
@@ -29,7 +29,7 @@ class DraftForTheAsker:
         tools: ToolCaller,
         clock: Clock,
         ids: IdFactory,
-        servers: Mapping[str, str] = NO_SERVERS,
+        servers: Mapping[str, str],
     ) -> None:
         self._servers = servers
         self._uow = uow
@@ -162,7 +162,7 @@ class SendTheDraft:
         tools: ToolCaller,
         clock: Clock,
         ids: IdFactory,
-        servers: Mapping[str, str] = NO_SERVERS,
+        servers: Mapping[str, str],
     ) -> None:
         self._servers = servers
         self._uow = uow

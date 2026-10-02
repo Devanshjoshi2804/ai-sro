@@ -69,7 +69,7 @@ class _Steps:
 
 
 def _gather(tools: Any, asker: Any) -> GatherContext:
-    return GatherContext(tools=tools, asker=asker)
+    return GatherContext(tools=tools, asker=asker, servers={})
 
 
 def _fence(evidence: str, name: str) -> Any:

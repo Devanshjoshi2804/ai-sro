@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import subprocess
 from functools import lru_cache
 from pathlib import Path
@@ -205,6 +206,17 @@ class Settings(BaseSettings):
                 "in sro.domain.prompts. Remove the key; a different model is a prompt change."
             )
         return data
+
+    @field_validator("mail_servers")
+    @classmethod
+    def _a_mail_server_is_a_connector_name(cls, value: dict[str, str]) -> dict[str, str]:
+        for tenant, server in value.items():
+            if not tenant.strip() or not re.fullmatch(r"[a-z0-9_-]+", server):
+                raise ValueError(
+                    f"SRO_MAIL_SERVERS maps a tenant id to a connector name of lowercase "
+                    f"letters, digits, '_' or '-'; got {tenant!r}: {server!r}"
+                )
+        return value
 
     @field_validator("otlp_endpoint", mode="before")
     @classmethod

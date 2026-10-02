@@ -10,14 +10,14 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/mailbox.
 > `mail_job`, and `mail_job` used to take these from the two chat modules --
 > a cycle.
 
-## module, [line 17](../../../../../../../backend/src/sro/application/chat/mailbox.py#L17): Note on the line above
+## module, [line 16](../../../../../../../backend/src/sro/application/chat/mailbox.py#L16): Note on the line above
 
 Code: `SERVER = "gmail"`
 
 > The connector this looks in, named rather than every connector a deployment
 > holds. `SERVER` says the whole of why.
 
-## module, [line 26](../../../../../../../backend/src/sro/application/chat/mailbox.py#L26): Note on the line above
+## module, [line 33](../../../../../../../backend/src/sro/application/chat/mailbox.py#L33): Note on the line above
 
 Code: `K_REMEMBER = timedelta(days=30)`
 
@@ -28,7 +28,7 @@ Code: `K_REMEMBER = timedelta(days=30)`
 > comes round again is one nobody acted on in a month, and offering it a second
 > time is not the worst thing this could do.
 
-## `sent_to_others`, [line 126](../../../../../../../backend/src/sro/application/chat/mailbox.py#L126): Note
+## `sent_to_others`, [line 133](../../../../../../../backend/src/sro/application/chat/mailbox.py#L133): Note
 
 > Who else a request went to when the operator sent it: every To and Cc
 > address other than the mailbox's own, when the sender is the mailbox. So a
@@ -38,7 +38,7 @@ Code: `K_REMEMBER = timedelta(days=30)`
 > work, and how every test request on this deployment is written. Addresses
 > are compared case-folded; `email.utils` does the parsing.
 
-## `mail_key`, [line 40](../../../../../../../backend/src/sro/application/chat/mailbox.py#L40): Docstring
+## `mail_key`, [line 47](../../../../../../../backend/src/sro/application/chat/mailbox.py#L47): Docstring
 
 > The key a mail is read under in the claim ledger, for every door: the look
 > keeps a mail it has read under it. It says "read", never "this system sent
@@ -49,7 +49,7 @@ Code: `K_REMEMBER = timedelta(days=30)`
 > system's own sent mail was read back as the operator's; now `is_ours` is the
 > one check of `sent_key`, and the look calls it before it reads a mail.
 
-## `send_as_this_system`, [line 71](../../../../../../../backend/src/sro/application/chat/mailbox.py#L71): Comment
+## `send_as_this_system`, [line 78](../../../../../../../backend/src/sro/application/chat/mailbox.py#L78): Comment
 
 Code: `marker = secrets.token_hex(16)`
 

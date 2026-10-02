@@ -183,7 +183,7 @@ async def test_a_run_reads_the_mail_asks_for_the_archive_and_never_opens_a_brows
     assert read.more and not read.asking
     assert asked.asking
     asking = Progress.of((await world.saved_run()).progress).asking
-    assert asking["kind"] == "step" and "Gmail tool cannot" in asking["text"]
+    assert asking["kind"] == "step" and "mail tool cannot" in asking["text"]
     assert (world.lanes.ui.calls, world.lanes.sight.calls, world.lanes.api.calls) == (0, 0, 0)
 
     world.run_steps = run_steps

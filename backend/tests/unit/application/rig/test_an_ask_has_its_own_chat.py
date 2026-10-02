@@ -72,7 +72,7 @@ class _Ask:
         self.world = world
         self.mailbox = mailbox or _Asker()
         self.clock, self.ids = FakeClock(), world.wiring["ids"]
-        drafter = DraftForTheAsker(world.uow, self.mailbox, self.clock, self.ids)
+        drafter = DraftForTheAsker(world.uow, self.mailbox, self.clock, self.ids, servers={})
 
         async def drafts(ctx: object, pending: Pending, thread: str, question: str) -> bool:
             return await drafter.execute(CTX, pending, question=question, thread=thread)
@@ -102,7 +102,7 @@ class _Ask:
         return found
 
     def sender(self) -> SendTheDraft:
-        return SendTheDraft(self.world.uow, self.mailbox, self.clock, self.ids)
+        return SendTheDraft(self.world.uow, self.mailbox, self.clock, self.ids, servers={})
 
 
 def _kinds(thread: Thread) -> list[str]:

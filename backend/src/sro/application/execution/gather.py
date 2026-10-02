@@ -6,7 +6,7 @@ import time
 from collections.abc import Mapping, Sequence
 from types import MappingProxyType
 
-from sro.application.chat.mailbox import NO_SERVERS, server_for
+from sro.application.chat.mailbox import server_for
 from sro.application.context import RequestContext
 from sro.application.ports.model import Asker
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
@@ -26,9 +26,7 @@ from sro.domain.shared.prices import Answer
 
 
 class GatherContext:
-    def __init__(
-        self, tools: ToolCaller, asker: Asker, servers: Mapping[str, str] = NO_SERVERS
-    ) -> None:
+    def __init__(self, tools: ToolCaller, asker: Asker, servers: Mapping[str, str]) -> None:
         self._servers = servers
         self._tools = tools
         self._asker = asker

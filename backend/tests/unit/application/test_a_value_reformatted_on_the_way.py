@@ -214,7 +214,7 @@ async def test_the_run_sends_the_value_in_the_format_the_second_system_wants() -
         CTX,
         ExecutionRequest(skill_id=skill.id, parameters={}, authorized_by="supervisor"),
     )
-    step = ExecuteStep(uow, http, vault)
+    step = ExecuteStep(uow, http, vault, servers={})
     await step.execute(CTX, run_id=run.id, index=0)
     await step.execute(CTX, run_id=run.id, index=1)
 

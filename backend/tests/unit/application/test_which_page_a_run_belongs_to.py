@@ -92,6 +92,7 @@ async def test_the_browser_is_told_both_the_page_and_whether_it_may_be_shown() -
         fakes.FakeHttpCaller(),
         fakes.FakeCredentialVault(),
         agents=agents,
+        servers={},
     )
     run = Run(
         id=RunId("run-1"),
@@ -158,6 +159,7 @@ def test_the_browser_is_told_what_to_say_on_the_page_it_is_driving() -> None:
         fakes.FakeHttpCaller(),
         fakes.FakeCredentialVault(),
         agents=agents,
+        servers={},
     )
     run = Run(
         id=RunId("run-1"),
@@ -194,6 +196,7 @@ def test_a_step_nobody_named_still_drives_rather_than_refusing() -> None:
         fakes.FakeHttpCaller(),
         fakes.FakeCredentialVault(),
         agents=agents,
+        servers={},
     )
     run = Run(
         id=RunId("run-1"),
@@ -303,6 +306,7 @@ def test_the_browser_is_told_which_screen_to_be_on() -> None:
         fakes.FakeHttpCaller(),
         fakes.FakeCredentialVault(),
         agents=agents,
+        servers={},
     )
     run = Run(
         id=RunId("run-1"),
@@ -337,6 +341,7 @@ def test_a_skill_that_recorded_no_screen_says_so_rather_than_inventing_one() -> 
         fakes.FakeHttpCaller(),
         fakes.FakeCredentialVault(),
         agents=agents,
+        servers={},
     )
     run = Run(
         id=RunId("run-1"),

@@ -1340,6 +1340,7 @@ async def test_the_question_says_which_step_the_run_had_reached() -> None:
         approvals=Approvals(),
         one_time_secrets=OneTimeSecrets(),
         ids=FakeIdFactory(),
+        servers={},
     )
     await starter.ask_for_values(_ctx(), run, "Create a Customer Type")
 
@@ -1394,6 +1395,7 @@ async def test_the_question_offers_the_fields_the_page_does_not_ask_for() -> Non
         approvals=Approvals(),
         one_time_secrets=OneTimeSecrets(),
         ids=FakeIdFactory(),
+        servers={},
     )
     await starter.ask_for_values(_ctx(), run, "Create a Customer Type")
 
@@ -1480,6 +1482,7 @@ async def _short_of(
         approvals=Approvals(),
         one_time_secrets=OneTimeSecrets(),
         ids=FakeIdFactory(),
+        servers={},
     )
     return run, starter
 

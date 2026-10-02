@@ -43,7 +43,7 @@ SCOPED = f"{f.TENANT}/{COOKIE_REF}"
 def _executor(
     uow: FakeUnitOfWork, http: FakeHttpCaller, vault: FakeCredentialVault
 ) -> ExecuteSkill:
-    return ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory())
+    return ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), servers={})
 
 
 async def _skill(  # type: ignore[no-untyped-def]

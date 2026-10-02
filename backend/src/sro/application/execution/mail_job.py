@@ -12,7 +12,6 @@ from datetime import UTC, datetime
 from sro.application.chat.announce import SayWhatHappened
 from sro.application.chat.mailbox import (
     K_REMEMBER,
-    NO_SERVERS,
     NotSent,
     is_ours,
     send_as_this_system,
@@ -98,7 +97,7 @@ async def write_the_mail(
     tools: ToolCaller,
     asker: Asker,
     shown: Mapping[str, str] | None = None,
-    servers: Mapping[str, str] = NO_SERVERS,
+    servers: Mapping[str, str],
 ) -> Written | str:
     conversation = await _conversation(ctx, tools, thread, servers) if thread else []
     allowed = await _allowed(ctx, uow, tools, workflow, by_id, servers)
@@ -303,7 +302,7 @@ async def send_the_mail(
     mail: Written,
     *,
     clock: Clock,
-    servers: Mapping[str, str] = NO_SERVERS,
+    servers: Mapping[str, str],
 ) -> tuple[str, str]:
     try:
         answered = await send_as_this_system(
@@ -329,7 +328,7 @@ async def send_the_mail(
         said = {}
     sent_id = str(said.get("id") or "") if isinstance(said, dict) else ""
     if not sent_id:
-        return "", f"Gmail did not say the mail went: {answered.text[:200]}"
+        return "", f"The mailbox did not say the mail went: {answered.text[:200]}"
     if mail.named:
         by = {"address": ", ".join(mail.named), "by": ctx.principal_id.value}
         await keep_the_named(ctx, uow, mail.job, by, at=clock.now())
@@ -357,7 +356,7 @@ async def draft_the_mail_job(
     clock: Clock,
     ids: IdFactory,
     shown: Mapping[str, str] | None = None,
-    servers: Mapping[str, str] = NO_SERVERS,
+    servers: Mapping[str, str],
 ) -> WorkflowRun:
     waiting = read_wait(run.awaiting) if run.awaiting else None
     thread = waiting.thread if waiting and workflow.id != SEND_A_MAIL else ""
@@ -406,7 +405,7 @@ async def draft_the_mail_job(
             says="Send the mail",
             verdict="held" if sent_id else "failed",
             verdict_by="status" if sent_id else "none",
-            reason=f"Gmail took the mail to {written.to} (id {sent_id})" if sent_id else why,
+            reason=f"The mailbox took the mail to {written.to} (id {sent_id})" if sent_id else why,
             made={"message": sent_id} if sent_id else {},
         )
     )
@@ -469,7 +468,7 @@ async def redraft_the_mail_job(
     asker: Asker,
     clock: Clock,
     ids: IdFactory,
-    servers: Mapping[str, str] = NO_SERVERS,
+    servers: Mapping[str, str],
 ) -> WorkflowRun:
     progress = Progress.of(run.progress)
     asking = progress.asking

@@ -49,6 +49,7 @@ async def _replied(
         clock=FakeClock(),
         ids=FakeIdFactory(),
         start=asking.start,
+        servers={},
     ).execute(reader)
 
 
@@ -118,7 +119,7 @@ async def _sent_to_the_sender() -> tuple[SteelRun, _Asking]:
     world, asking = await _refused_run(mail=ENVELOPE)
     chat = await _chat(world, THREAD)
     (draft,) = [one for one in chat.messages if (one.decision or {}).get("kind") == DRAFTED]
-    sent = SendTheDraft(world.uow, asking.mailbox, FakeClock(), FakeIdFactory())
+    sent = SendTheDraft(world.uow, asking.mailbox, FakeClock(), FakeIdFactory(), servers={})
     assert await sent.execute(CTX, chat.id, draft.id.value) == "tanisha@example.com"
     return world, asking
 

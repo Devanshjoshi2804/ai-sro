@@ -77,7 +77,7 @@ async def _sent(**parameters: str) -> str:
         version.promote(stage, f.at(700), f.OPERATOR)
     await uow.skills.add(skill)
 
-    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), servers={}).execute(
         CTX,
         ExecutionRequest(
             skill_id=SkillId("skill-1"),

@@ -618,6 +618,29 @@ async def test_a_takeover_proves_the_browser_it_names_with_its_secret(
     assert heard["device_id"] == LAPTOP
 
 
+async def test_a_press_from_a_mail_names_the_tenant_s_mail_server(
+    client: httpx.AsyncClient,
+    container: _FakeContainer,
+    held: Workflow,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    heard: dict[str, Any] = {}
+
+    class _Outlook:
+        def mail_server(self, ctx: Any) -> str:
+            return "outlook"
+
+        async def execute(self, ctx: Any, **given: Any) -> WorkflowRun:
+            heard.update(given)
+            raise NotFound("stop here")
+
+    monkeypatch.setattr(container, "start_workflow_run", _Outlook)
+
+    await client.post("/v1/workflow-runs", json=_body(mail_thread="t-9"))
+
+    assert heard["conversation"] == ("outlook", "t-9")
+
+
 async def test_a_takeover_s_tab_is_a_number_never_true(
     client: httpx.AsyncClient, uow: FakeUnitOfWork, held: Workflow
 ) -> None:

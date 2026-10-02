@@ -107,7 +107,7 @@ class _Doors:
 
     def look(self) -> FromTheMail:
         clock, ids = FakeClock(), FakeIdFactory()
-        drafter = DraftForTheAsker(self.uow, self.mailbox, clock, ids)
+        drafter = DraftForTheAsker(self.uow, self.mailbox, clock, ids, servers={})
 
         async def drafts(ctx: RequestContext, pending: Pending, thread: str, asked: str) -> bool:
             return await drafter.execute(ctx, pending, question=asked, thread=thread)
@@ -123,6 +123,7 @@ class _Doors:
             start=self.start,
             attempts=RecordAttempt(self.uow, FakeIdFactory(), FakeClock()),
             asks=AskAboutTheOffer(self.uow, clock, ids, drafts),
+            servers={},
         )
 
     def reply(self, said: str, value: str) -> None:

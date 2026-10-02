@@ -98,7 +98,7 @@ K_CAP_EVERY = 10
 K_STEP_SLACK = 3
 
 BY_HAND = (
-    "this step changes your mailbox in a way the Gmail tool cannot, and a run never clicks "
+    "this step changes your mailbox in a way the mail tool cannot, and a run never clicks "
     "in your mailbox: do it there yourself, then run the job again from the next step"
 )
 
@@ -598,7 +598,7 @@ async def _through_the_mailbox(
         record.verdict, record.verdict_by, record.reason = "failed", "none", why
         return
     record.verdict, record.verdict_by = "held", "status"
-    record.reason = f"Gmail took the mail to {written.to} (id {sent_id})"
+    record.reason = f"The mailbox took the mail to {written.to} (id {sent_id})"
     record.made = {"message": sent_id}
 
 

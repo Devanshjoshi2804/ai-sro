@@ -34,7 +34,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/execution/gat
 > the port's, not this module's -- it takes the tenant and the principal and
 > passes them down.
 
-## `GatherContext._ask_the_mailbox`, [line 171](../../../../../../../backend/src/sro/application/execution/gather.py#L171): Note on the line above
+## `GatherContext._ask_the_mailbox`, [line 169](../../../../../../../backend/src/sro/application/execution/gather.py#L169): Note on the line above
 
 Code: `server_for(ctx.tenant_id.value, self._servers),`
 
@@ -46,7 +46,7 @@ Code: `server_for(ctx.tenant_id.value, self._servers),`
 
 > Find a job's values in the mailbox, or say which ones are missing.
 
-## `_values_in`, [line 180](../../../../../../../backend/src/sro/application/execution/gather.py#L180): Docstring
+## `_values_in`, [line 178](../../../../../../../backend/src/sro/application/execution/gather.py#L178): Docstring
 
 > The model's reported values, as far as they are the right shape.
 >
@@ -54,7 +54,7 @@ Code: `server_for(ctx.tenant_id.value, self._servers),`
 > two must not lose the good one, and a value with no message behind it is
 > dropped by `keep` a moment later anyway.
 
-## `_ran_out`, [line 200](../../../../../../../backend/src/sro/application/execution/gather.py#L200): Docstring
+## `_ran_out`, [line 198](../../../../../../../backend/src/sro/application/execution/gather.py#L198): Docstring
 
 > What happened when the clock beat the mailbox.
 >
@@ -62,21 +62,21 @@ Code: `server_for(ctx.tenant_id.value, self._servers),`
 > value nobody found is to ask a person, and that is the same move it makes
 > for a mailbox that genuinely does not hold one.
 
-## `_sentence`, [line 205](../../../../../../../backend/src/sro/application/execution/gather.py#L205): Docstring
+## `_sentence`, [line 203](../../../../../../../backend/src/sro/application/execution/gather.py#L203): Docstring
 
 > What happened, for a person reading the run rather than the code.
 
-## `_also`, [line 213](../../../../../../../backend/src/sro/application/execution/gather.py#L213): Docstring
+## `_also`, [line 211](../../../../../../../backend/src/sro/application/execution/gather.py#L211): Docstring
 
 > The bill so far. Kept because a loop that can ask six times is a loop
 > somebody will want the cost of.
 
-## `GatherContext.tools`, [line 37](../../../../../../../backend/src/sro/application/execution/gather.py#L37): Docstring
+## `GatherContext.tools`, [line 35](../../../../../../../backend/src/sro/application/execution/gather.py#L35): Docstring
 
 > The connectors this gather reads through. A mail job sends through
 > the same one rather than being handed a second copy of it.
 
-## `GatherContext.execute`, [line 40](../../../../../../../backend/src/sro/application/execution/gather.py#L40): Docstring
+## `GatherContext.execute`, [line 38](../../../../../../../backend/src/sro/application/execution/gather.py#L38): Docstring
 
 > Look, up to `rounds` times, and come back with what was found.
 >
@@ -87,7 +87,7 @@ Code: `server_for(ctx.tenant_id.value, self._servers),`
 > demonstration's record again, which is the defect the whole replay path
 > exists to have fixed.
 
-## `GatherContext._look`, [line 140](../../../../../../../backend/src/sro/application/execution/gather.py#L140): Docstring
+## `GatherContext._look`, [line 138](../../../../../../../backend/src/sro/application/execution/gather.py#L138): Docstring
 
 > One call to the mailbox, as this operator. What was asked, and what
 > came back -- both as text, because history is a note and not a payload.
@@ -97,11 +97,11 @@ Code: `server_for(ctx.tenant_id.value, self._servers),`
 > loop then has a chance to try a different query rather than the whole
 > gather failing on one bad call.
 
-## `GatherContext._search`, [line 159](../../../../../../../backend/src/sro/application/execution/gather.py#L159): Docstring
+## `GatherContext._search`, [line 157](../../../../../../../backend/src/sro/application/execution/gather.py#L157): Docstring
 
 > One search, by whatever words were chosen for it.
 
-## `GatherContext._ask_the_mailbox`, [line 164](../../../../../../../backend/src/sro/application/execution/gather.py#L164): Docstring
+## `GatherContext._ask_the_mailbox`, [line 162](../../../../../../../backend/src/sro/application/execution/gather.py#L162): Docstring
 
 > One call, as this operator. What was asked, and what came back.
 >
@@ -109,7 +109,7 @@ Code: `server_for(ctx.tenant_id.value, self._servers),`
 > about, not an exception: the loop then has a chance to try a different
 > query rather than the whole gather failing on one bad call.
 
-## `GatherContext.execute`, [line 52](../../../../../../../backend/src/sro/application/execution/gather.py#L52): Comment
+## `GatherContext.execute`, [line 50](../../../../../../../backend/src/sro/application/execution/gather.py#L50): Comment
 
 Code: `unasked: set[str] = set()`
 
@@ -118,7 +118,7 @@ Code: `unasked: set[str] = set()`
 > done, and silence about the other half is the fault this exists to
 > stop being invisible.
 
-## `GatherContext.execute`, [line 56](../../../../../../../backend/src/sro/application/execution/gather.py#L56): Comment
+## `GatherContext.execute`, [line 54](../../../../../../../backend/src/sro/application/execution/gather.py#L54): Comment
 
 Code: `until = time.monotonic() + patience`
 
@@ -126,7 +126,7 @@ Code: `until = time.monotonic() + patience`
 > many times this looks, and on the day the model answers a round with
 > a 5xx the retry that follows is measured in minutes.
 
-## `GatherContext.execute`, [line 58](../../../../../../../backend/src/sro/application/execution/gather.py#L58): Comment
+## `GatherContext.execute`, [line 56](../../../../../../../backend/src/sro/application/execution/gather.py#L56): Comment
 
 Code: `opening = because.strip() or job.strip()`
 
@@ -143,7 +143,7 @@ Code: `opening = because.strip() or job.strip()`
 > by a call, and it means "the mailbox does not hold this" is always a
 > statement about the mailbox rather than about the prompt.
 
-## `GatherContext.execute`, [line 68](../../../../../../../backend/src/sro/application/execution/gather.py#L68): Comment
+## `GatherContext.execute`, [line 66](../../../../../../../backend/src/sro/application/execution/gather.py#L66): Comment
 
 Code: `left = until - time.monotonic()`
 
@@ -152,7 +152,7 @@ Code: `left = until - time.monotonic()`
 > take, which on the day the model answers with a 5xx is a
 > different number by two orders of magnitude.
 
-## `GatherContext.execute`, [line 70](../../../../../../../backend/src/sro/application/execution/gather.py#L70): Comment
+## `GatherContext.execute`, [line 68](../../../../../../../backend/src/sro/application/execution/gather.py#L68): Comment
 
 Code: `return Gathered(`
 
@@ -161,14 +161,14 @@ Code: `return Gathered(`
 > person is asked. What WAS found is kept -- a code read in the
 > first round is not less true for the second round being slow.
 
-## `GatherContext.execute`, [line 120](../../../../../../../backend/src/sro/application/execution/gather.py#L120): Comment
+## `GatherContext.execute`, [line 118](../../../../../../../backend/src/sro/application/execution/gather.py#L118): Comment
 
 Code: `unasked |= set(dropped(offered, wanted))`
 
 > What it offered that this job has no parameter for, kept so
 > somebody can be told. See `dropped`.
 
-## `GatherContext.execute`, [line 128](../../../../../../../backend/src/sro/application/execution/gather.py#L128): Comment
+## `GatherContext.execute`, [line 126](../../../../../../../backend/src/sro/application/execution/gather.py#L126): Comment
 
 Code: `history.append(note("nothing was asked", str(answer.data.get("why") or "")))`
 
@@ -177,7 +177,7 @@ Code: `history.append(note("nothing was asked", str(answer.data.get("why") or ""
 > so would the next answer. Stopping is cheaper than spending
 > the rest of the budget proving it.
 
-## `GatherContext._look`, [line 153](../../../../../../../backend/src/sro/application/execution/gather.py#L153): Comment
+## `GatherContext._look`, [line 151](../../../../../../../backend/src/sro/application/execution/gather.py#L151): Comment
 
 Code: `tool, arguments = "get_message", {"id": message}`
 

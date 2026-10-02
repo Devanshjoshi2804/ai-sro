@@ -6,14 +6,14 @@ Comments and docstrings moved out of [`backend/src/sro/config.py`](../../../../.
 
 > Runtime configuration. One Settings object, read from the environment.
 
-## module, [line 48](../../../../../backend/src/sro/config.py#L48): Note on the line above
+## module, [line 49](../../../../../backend/src/sro/config.py#L49): Note on the line above
 
 Code: `_LOOPBACK = ("127.0.0.1", "localhost", "[::1]")`
 
 > The same machine under three names. `Settings.attach_hosts` says so too, and
 > `our_own_origins` reads the same set rather than a second copy of it.
 
-## `_git_head`, [line 32](../../../../../backend/src/sro/config.py#L32): Docstring
+## `_git_head`, [line 33](../../../../../backend/src/sro/config.py#L33): Docstring
 
 > The commit the working tree is on, asked once at import of the settings.
 >
@@ -23,11 +23,11 @@ Code: `_LOOPBACK = ("127.0.0.1", "localhost", "[::1]")`
 > answered with "unknown". A process that refuses to start because it could
 > not name itself would be a worse failure than the one this exists to catch.
 
-## `_origins_of`, [line 51](../../../../../backend/src/sro/config.py#L51): Docstring
+## `_origins_of`, [line 52](../../../../../backend/src/sro/config.py#L52): Docstring
 
 > One configured url as the (host:port, path prefix) pairs it stands for.
 
-## `Settings`, [line 98](../../../../../backend/src/sro/config.py#L98): Note on the line above
+## `Settings`, [line 99](../../../../../backend/src/sro/config.py#L99): Note on the line above
 
 Code: `louder_for: str = ""`
 
@@ -38,7 +38,7 @@ Code: `louder_for: str = ""`
 > process to DEBUG -- every tenant, every sweep, every query, for as long as
 > it takes to reproduce -- or see nothing. See `whose.Louder`.
 
-## `Settings`, [line 100](../../../../../backend/src/sro/config.py#L100): Note on the line above
+## `Settings`, [line 101](../../../../../backend/src/sro/config.py#L101): Note on the line above
 
 Code: `revision: str = Field(default_factory=_git_head)`
 
@@ -51,7 +51,7 @@ Code: `revision: str = Field(default_factory=_git_head)`
 > the diagnosis looked like a code bug. Nothing enforces a match: a rolling
 > deploy is two revisions on purpose.
 
-## `Settings`, [line 104](../../../../../backend/src/sro/config.py#L104): Note on the line above
+## `Settings`, [line 105](../../../../../backend/src/sro/config.py#L105): Note on the line above
 
 Code: `ui_debugger_url: str = ""`
 
@@ -61,7 +61,7 @@ Code: `ui_debugger_url: str = ""`
 > would have escalated records that there was no browser rather than
 > pretending the step was impossible.
 
-## `Settings`, [line 111](../../../../../backend/src/sro/config.py#L111): Note on the line above
+## `Settings`, [line 112](../../../../../backend/src/sro/config.py#L112): Note on the line above
 
 Code: `s3_public_endpoint_url: str | None = None`
 
@@ -75,7 +75,7 @@ Code: `s3_public_endpoint_url: str | None = None`
 > error anybody saw. Unset means the two are the same address, which is true
 > on a laptop and was the only case ever exercised.
 
-## `Settings`, [line 114](../../../../../backend/src/sro/config.py#L114): Note on the line above
+## `Settings`, [line 115](../../../../../backend/src/sro/config.py#L115): Note on the line above
 
 Code: `cors_origins: tuple[str, ...] = ()`
 
@@ -86,7 +86,7 @@ Code: `cors_origins: tuple[str, ...] = ()`
 > only same-origin callers, which is the right default for an API whose other
 > client is a server-rendered console.
 
-## `Settings`, [line 116](../../../../../backend/src/sro/config.py#L116): Note on the line above
+## `Settings`, [line 117](../../../../../backend/src/sro/config.py#L117): Note on the line above
 
 Code: `mcp_servers: str = ""`
 
@@ -98,7 +98,7 @@ Code: `mcp_servers: str = ""`
 > assisted, and `why_not_autonomous` says so rather than leaving somebody
 > waiting on a streak that cannot move.
 
-## `Settings`, [line 119](../../../../../backend/src/sro/config.py#L119): Note on the line above
+## `Settings`, [line 120](../../../../../backend/src/sro/config.py#L120): Note on the line above
 
 Code: `steel_public_base_url: str | None = None`
 
@@ -115,7 +115,7 @@ Code: `steel_public_base_url: str | None = None`
 >
 > Unset means the two are the same address, which is true on a laptop.
 
-## `Settings`, [line 129](../../../../../backend/src/sro/config.py#L129): Note on the line above
+## `Settings`, [line 130](../../../../../backend/src/sro/config.py#L130): Note on the line above
 
 Code: `steel_tenants: tuple[str, ...] = ()`
 
@@ -125,13 +125,13 @@ Code: `steel_tenants: tuple[str, ...] = ()`
 > the worker share one environment block in the deploy file, so both read
 > the same list.
 
-## `Settings`, [line 121](../../../../../backend/src/sro/config.py#L121): Note on the line above
+## `Settings`, [line 122](../../../../../backend/src/sro/config.py#L122): Note on the line above
 
 Code: `steel_cdp_url: str = "http://localhost:9223"`
 
 > Chrome DevTools endpoint Steel publishes. Playwright connects over it.
 
-## `Settings`, [line 123](../../../../../backend/src/sro/config.py#L123): Note on the line above
+## `Settings`, [line 124](../../../../../backend/src/sro/config.py#L124): Note on the line above
 
 Code: `browser_height: int = 1000`
 
@@ -141,7 +141,7 @@ Code: `browser_height: int = 1000`
 > the default the operator is reading a postage stamp, and the accessibility
 > tree that gets captured is one of a layout nobody uses.
 
-## `Settings`, [line 157](../../../../../backend/src/sro/config.py#L157): Note on the line above
+## `Settings`, [line 158](../../../../../backend/src/sro/config.py#L158): Note on the line above
 
 Code: `attach_hosts: tuple[str, ...] = ("127.0.0.1", "localhost", "[::1]")`
 
@@ -154,7 +154,7 @@ Code: `attach_hosts: tuple[str, ...] = ("127.0.0.1", "localhost", "[::1]")`
 > loopback is the whole legitimate set; widen it only for a remote debugger
 > somebody actually runs.
 
-## `Settings`, [line 159](../../../../../backend/src/sro/config.py#L159): Note on the line above
+## `Settings`, [line 160](../../../../../backend/src/sro/config.py#L160): Note on the line above
 
 Code: `api_url: str = "http://localhost:8000"`
 
@@ -168,7 +168,7 @@ Code: `api_url: str = "http://localhost:8000"`
 > Also `our_own_hosts` below, which is a different kind of wrong: too NARROW
 > there and the evidence plane records this system recording.
 
-## `Settings`, [line 161](../../../../../backend/src/sro/config.py#L161): Note on the line above
+## `Settings`, [line 162](../../../../../backend/src/sro/config.py#L162): Note on the line above
 
 Code: `console_url: str = "http://localhost:3000"`
 
@@ -181,14 +181,14 @@ Code: `console_url: str = "http://localhost:3000"`
 > is exactly that shape: `cors_origins` holds only the extension, and the
 > console at :3000 was being captured with nothing to name it.
 
-## `Settings`, [line 214](../../../../../backend/src/sro/config.py#L214): Note on the line above
+## `Settings`, [line 226](../../../../../backend/src/sro/config.py#L226): Note on the line above
 
 Code: `inline_body_limit_bytes: int = Field(default=256 * 1024)`
 
 > Payloads above this go to object storage and the row keeps the URI.
 > Nothing is discarded either way -- see docs/11-capture-completeness.md.
 
-## `Settings`, [line 216](../../../../../backend/src/sro/config.py#L216): Note on the line above
+## `Settings`, [line 228](../../../../../backend/src/sro/config.py#L228): Note on the line above
 
 Code: `observation_artifact_bytes: int = 8_000_000`
 
@@ -201,7 +201,7 @@ Code: `observation_artifact_bytes: int = 8_000_000`
 > The measurement travels with the number on purpose. A constant whose reason
 > is missing is one the next person re-tunes by guess.
 
-## `Settings`, [line 218](../../../../../backend/src/sro/config.py#L218): Note on the line above
+## `Settings`, [line 230](../../../../../backend/src/sro/config.py#L230): Note on the line above
 
 Code: `observation_batch_events: int = 5000`
 
@@ -214,14 +214,14 @@ Code: `observation_batch_events: int = 5000`
 > A bound on one request and not on a day: a browser with more than this to
 > say splits it, and the refusal names the count so that it can.
 
-## `Settings`, [line 223](../../../../../backend/src/sro/config.py#L223): Note on the line above
+## `Settings`, [line 235](../../../../../backend/src/sro/config.py#L235): Note on the line above
 
 Code: `capture_video: bool = True`
 
 > Screencast the demonstration. Encoded as it arrives, so a long session
 > costs disk rather than memory.
 
-## `Settings`, [line 225](../../../../../backend/src/sro/config.py#L225): Note on the line above
+## `Settings`, [line 237](../../../../../backend/src/sro/config.py#L237): Note on the line above
 
 Code: `capture_video_fps: int = 2`
 
@@ -230,7 +230,7 @@ Code: `capture_video_fps: int = 2`
 > Sampled with screenshots rather than a screencast: a screencast would take
 > the live view away from the operator (Chrome allows one consumer per page).
 
-## `Settings`, [line 227](../../../../../backend/src/sro/config.py#L227): Note on the line above
+## `Settings`, [line 239](../../../../../backend/src/sro/config.py#L239): Note on the line above
 
 Code: `capture_redact_secret_values: bool = True`
 
@@ -241,7 +241,7 @@ Code: `capture_redact_secret_values: bool = True`
 > the evidence store a credential store -- do not, without a decision that says
 > who is accountable for it.
 
-## `Settings`, [line 229](../../../../../backend/src/sro/config.py#L229): Note on the line above
+## `Settings`, [line 241](../../../../../backend/src/sro/config.py#L241): Note on the line above
 
 Code: `vault_project: str | None = None`
 
@@ -257,20 +257,20 @@ Code: `vault_project: str | None = None`
 > refuses at first use with a sentence naming the extra, rather than
 > `no module named google.cloud`.
 
-## `Settings`, [line 232](../../../../../backend/src/sro/config.py#L232): Note on the line above
+## `Settings`, [line 244](../../../../../backend/src/sro/config.py#L244): Note on the line above
 
 Code: `vault_key: str | None = None`
 
 > Fernet key for the file vault. Without it the vault refuses to start
 > rather than writing plaintext. Generate one with `make vault-key`.
 
-## `Settings`, [line 234](../../../../../backend/src/sro/config.py#L234): Note on the line above
+## `Settings`, [line 246](../../../../../backend/src/sro/config.py#L246): Note on the line above
 
 Code: `transcription_enabled: bool = False`
 
 > Narration transcription is optional. Default binding is NullTranscriber.
 
-## `Settings`, [line 236](../../../../../backend/src/sro/config.py#L236): Note on the line above
+## `Settings`, [line 248](../../../../../backend/src/sro/config.py#L248): Note on the line above
 
 Code: `rig_sweep_seconds: float = 60.0`
 
@@ -327,7 +327,7 @@ Code: `rig_sweep_seconds: float = 60.0`
 > it holds no state worth replaying, and a missed sweep is corrected by the
 > next one reading the same window.
 
-## `Settings`, [line 240](../../../../../backend/src/sro/config.py#L240): Note on the line above
+## `Settings`, [line 252](../../../../../backend/src/sro/config.py#L252): Note on the line above
 
 Code: `mining_window_hours: int = 24`
 
@@ -339,7 +339,7 @@ Code: `mining_window_hours: int = 24`
 > whose browsers uploaded in the window. The pass itself then reads that
 > tenant's whole history, which is `_one_pass`'s own recorded ceiling.
 
-## `Settings`, [line 242](../../../../../backend/src/sro/config.py#L242): Note on the line above
+## `Settings`, [line 254](../../../../../backend/src/sro/config.py#L254): Note on the line above
 
 Code: `session_sweep_seconds: float = 600.0`
 
@@ -349,7 +349,7 @@ Code: `session_sweep_seconds: float = 600.0`
 > sessions have been observed to last. This is only how often the question is
 > asked, and asking is a cached read.
 
-## `Settings`, [line 244](../../../../../backend/src/sro/config.py#L244): Note on the line above
+## `Settings`, [line 256](../../../../../backend/src/sro/config.py#L256): Note on the line above
 
 Code: `retention_sweep_seconds: float = 86400.0`
 
@@ -357,7 +357,7 @@ Code: `retention_sweep_seconds: float = 86400.0`
 > retention window is measured in days, so checking more often than that
 > buys nothing but repeated table scans.
 
-## `Settings`, [line 246](../../../../../backend/src/sro/config.py#L246): Note on the line above
+## `Settings`, [line 258](../../../../../backend/src/sro/config.py#L258): Note on the line above
 
 Code: `auth_secret: str = ""`
 
@@ -368,7 +368,7 @@ Code: `auth_secret: str = ""`
 > a default here would be a key every deployment shares. Generate one with
 > `make auth-secret`.
 
-## `Settings`, [line 248](../../../../../backend/src/sro/config.py#L248): Note on the line above
+## `Settings`, [line 260](../../../../../backend/src/sro/config.py#L260): Note on the line above
 
 Code: `gemini_api_key: str = ""`
 
@@ -376,7 +376,7 @@ Code: `gemini_api_key: str = ""`
 > exactly as it does today -- deliberately, for deployments that may not send
 > a customer's screen or a customer's words to a hosted model.
 
-## `Settings`, [line 250](../../../../../backend/src/sro/config.py#L250): Note on the line above
+## `Settings`, [line 262](../../../../../backend/src/sro/config.py#L262): Note on the line above
 
 Code: `gemini_mine_timeout_ms: int = 600_000`
 
@@ -400,7 +400,7 @@ Code: `gemini_mine_timeout_ms: int = 600_000`
 > that a dead socket costs one sweep rather than a night -- which is what
 > the paragraph below is about and why a timeout exists at all.
 
-## `Settings`, [line 252](../../../../../backend/src/sro/config.py#L252): Note on the line above
+## `Settings`, [line 264](../../../../../backend/src/sro/config.py#L264): Note on the line above
 
 Code: `gemini_timeout_ms: int = 120_000`
 
@@ -422,7 +422,7 @@ Code: `gemini_timeout_ms: int = 120_000`
 > recorded either way -- which is what the rest of the rig already knows how
 > to carry.
 
-## `Settings`, [line 254](../../../../../backend/src/sro/config.py#L254): Note on the line above
+## `Settings`, [line 266](../../../../../backend/src/sro/config.py#L266): Note on the line above
 
 Code: `gemini_read_tail: int = 0`
 
@@ -468,7 +468,7 @@ Code: `gemini_read_tail: int = 0`
 > A deployment that later finds something to do with `continues` should --
 > that is the one field this pays for.
 
-## `Settings`, [line 256](../../../../../backend/src/sro/config.py#L256): Note on the line above
+## `Settings`, [line 268](../../../../../backend/src/sro/config.py#L268): Note on the line above
 
 Code: `gemini_read_at_once: int = 8`
 
@@ -503,7 +503,7 @@ Code: `gemini_read_at_once: int = 8`
 > the kind of failure that passes every test and corrupts a connection in
 > production.
 
-## `Settings`, [line 258](../../../../../backend/src/sro/config.py#L258): Note on the line above
+## `Settings`, [line 270](../../../../../backend/src/sro/config.py#L270): Note on the line above
 
 Code: `daily_usd_cap: float = -1.0`
 
@@ -538,7 +538,7 @@ Code: `daily_usd_cap: float = -1.0`
 > and works: a deployment that wants a ceiling sets one, and `over_cap` still
 > says how much of what. What is gone is a ceiling nobody chose.
 
-## `Settings`, [line 260](../../../../../backend/src/sro/config.py#L260): Note on the line above
+## `Settings`, [line 272](../../../../../backend/src/sro/config.py#L272): Note on the line above
 
 Code: `gemini_embedding_model: str = "gemini-embedding-2"`
 
@@ -559,7 +559,7 @@ Code: `gemini_embedding_model: str = "gemini-embedding-2"`
 > arrives with no migration on `knowledge_entries.embedding`, no rebuild of
 > the HNSW index that only landed in 0050, and one re-embed.
 
-## `Settings`, [line 262](../../../../../backend/src/sro/config.py#L262): Note on the line above
+## `Settings`, [line 274](../../../../../backend/src/sro/config.py#L274): Note on the line above
 
 Code: `interpretation_enabled: bool = False`
 
@@ -569,7 +569,7 @@ Code: `interpretation_enabled: bool = False`
 > becomes a skill -- with mechanical step descriptions and no proposed
 > parameters.
 
-## `Settings`, [line 264](../../../../../backend/src/sro/config.py#L264): Note on the line above
+## `Settings`, [line 276](../../../../../backend/src/sro/config.py#L276): Note on the line above
 
 Code: `vision_enabled: bool = False`
 
@@ -587,7 +587,7 @@ Code: `vision_enabled: bool = False`
 > `keycloak_client_secret`, documenting nothing -- a second orphan of the same
 > move this docstring already records.)
 
-## `Settings`, [line 266](../../../../../backend/src/sro/config.py#L266): Note on the line above
+## `Settings`, [line 278](../../../../../backend/src/sro/config.py#L278): Note on the line above
 
 Code: `keycloak_realm_url: str = ""`
 
@@ -596,7 +596,7 @@ Code: `keycloak_realm_url: str = ""`
 > Empty means no token source: runs authenticate with the session cookies,
 > which work and expire on the identity provider's schedule.
 
-## `Settings`, [line 270](../../../../../backend/src/sro/config.py#L270): Note on the line above
+## `Settings`, [line 282](../../../../../backend/src/sro/config.py#L282): Note on the line above
 
 Code: `keycloak_client_secret: str = ""`
 
@@ -605,7 +605,7 @@ Code: `keycloak_client_secret: str = ""`
 > -- so this is set when the realm says the client is confidential rather
 > than guessed at.
 
-## `Settings`, [line 271](../../../../../backend/src/sro/config.py#L271): Note on the line above
+## `Settings`, [line 283](../../../../../backend/src/sro/config.py#L283): Note on the line above
 
 Code: `knowledge_embeddings_enabled: bool = False`
 
@@ -613,7 +613,7 @@ Code: `knowledge_embeddings_enabled: bool = False`
 > retrieval works without them, and turning them on sends the knowledge base's
 > titles to a hosted model.
 
-## `Settings.our_own_origins`, [line 163](../../../../../backend/src/sro/config.py#L163): Docstring
+## `Settings.our_own_origins`, [line 164](../../../../../backend/src/sro/config.py#L164): Docstring
 
 > This deployment itself, as (host:port, path prefix) pairs.
 >
@@ -658,7 +658,7 @@ Code: `knowledge_embeddings_enabled: bool = False`
 > `console_url` -- a console served same-origin or proxied through its
 > own server never appears in it, which is exactly this deployment.
 
-## `_origins_of`, [line 56](../../../../../backend/src/sro/config.py#L56): Comment
+## `_origins_of`, [line 57](../../../../../backend/src/sro/config.py#L57): Comment
 
 Code: `if ":" in host:`
 
@@ -666,7 +666,7 @@ Code: `if ":" in host:`
 > IPv6 literal needs, so they go back on before it is compared to a netloc
 > anybody wrote by hand.
 
-## `_origins_of`, [line 62](../../../../../backend/src/sro/config.py#L62): Comment
+## `_origins_of`, [line 63](../../../../../backend/src/sro/config.py#L63): Comment
 
 Code: `return set()`
 
@@ -675,7 +675,7 @@ Code: `return set()`
 > `localhost:8000.` would become bare `localhost` and refuse every
 > page on it, including the warehouse test server.
 
-## `Settings`, [line 238](../../../../../backend/src/sro/config.py#L238): Note
+## `Settings`, [line 250](../../../../../backend/src/sro/config.py#L250): Note
 
 Code: `mail_sweep_seconds: float = 60.0`
 
@@ -683,7 +683,7 @@ Code: `mail_sweep_seconds: float = 60.0`
 > turn the poll off. A minute because the extension's heartbeat looks once a
 > minute: the operator sees no change in how soon a mail is acted on.
 
-## module, [line 18](../../../../../backend/src/sro/config.py#L18): Note on the line above
+## module, [line 19](../../../../../backend/src/sro/config.py#L19): Note on the line above
 
 Code: `RETIRED_MODEL_SETTINGS = frozenset(`
 
@@ -694,7 +694,7 @@ Code: `RETIRED_MODEL_SETTINGS = frozenset(`
 > on the prompt record. `SRO_GEMINI_EMBEDDING_MODEL` is not here: an
 > embedding is not a prompt.
 
-## `_RetiredModelSettings`, [line 70](../../../../../backend/src/sro/config.py#L70): Docstring
+## `_RetiredModelSettings`, [line 71](../../../../../backend/src/sro/config.py#L71): Docstring
 
 > A settings source that reads nothing into a field. It looks at what the
 > environment and the `.env` file hold, because neither hands an unknown key

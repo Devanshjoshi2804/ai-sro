@@ -84,7 +84,9 @@ class _Asking:
         self.start: StartWorkflowRun | None = None
 
     def wire(self, world: SteelRun) -> StartWorkflowRun:
-        drafter = DraftForTheAsker(world.uow, self.mailbox, FakeClock(NOW), FakeIdFactory())
+        drafter = DraftForTheAsker(
+            world.uow, self.mailbox, FakeClock(NOW), FakeIdFactory(), servers={}
+        )
 
         async def drafts(ctx: RequestContext, run_id: str, pending: Pending, asked: str) -> bool:
             return await drafter.execute(ctx, pending, question=asked, run_id=run_id)
@@ -102,6 +104,7 @@ class _Asking:
             asker_drafts=drafts,
             durable=FakeDurableExecution(),
             steel_tenants=frozenset({TENANT.value}),
+            servers={},
         )
         return self.start
 

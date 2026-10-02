@@ -202,6 +202,18 @@ Every live QA session on that container is lost when it recreates, same as
 any Steel restart; release it and start over once the new container is
 healthy.
 
+## Which mail connector a tenant is on
+
+`SRO_MAIL_SERVERS` is a JSON object from tenant id to connector name, e.g.
+`'{"acme": "outlook"}'`; a tenant not listed is on `gmail`. A name is lowercase
+letters, digits, `_` or `-`, and anything else stops the settings load.
+
+Switch a tenant only when none of its runs is waiting on a mail. A run records
+the server its mail is on (`awaiting.server`) when it starts, so one already
+waiting when the setting changes keeps looking for its answer on the old server
+and is never matched to a reply on the new one. Let those runs finish or stop
+them first.
+
 ## Five things that are quiet when wrong
 
 1. **`SRO_API_URL` and `SRO_CONSOLE_URL` default to localhost.** They are not

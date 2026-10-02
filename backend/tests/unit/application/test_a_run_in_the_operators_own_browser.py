@@ -74,7 +74,7 @@ async def test_a_gesture_goes_to_the_device_the_run_named() -> None:
     run = await _run(uow, medium=Medium.UI, device=LAPTOP)
 
     outcome = await ExecuteStep(
-        uow, FakeHttpCaller(), FakeCredentialVault(), server, agents=agents
+        uow, FakeHttpCaller(), FakeCredentialVault(), server, agents=agents, servers={}
     ).execute(CTX, run_id=run.id, index=0)
 
     assert outcome.disposition is StepDisposition.PERFORMED
@@ -90,7 +90,7 @@ async def test_a_call_in_a_device_run_goes_out_of_the_operators_page() -> None:
     await _assisted_skill(uow)
     run = await _run(uow, medium=Medium.NETWORK, device=LAPTOP)
 
-    await ExecuteStep(uow, server_caller, FakeCredentialVault(), agents=agents).execute(
+    await ExecuteStep(uow, server_caller, FakeCredentialVault(), agents=agents, servers={}).execute(
         CTX, run_id=run.id, index=0
     )
 
@@ -104,7 +104,7 @@ async def test_a_device_run_with_no_channel_open_does_not_fall_back_to_our_brows
     run = await _run(uow, medium=Medium.UI, device=LAPTOP)
 
     outcome = await ExecuteStep(
-        uow, FakeHttpCaller(), FakeCredentialVault(), server, agents=None
+        uow, FakeHttpCaller(), FakeCredentialVault(), server, agents=None, servers={}
     ).execute(CTX, run_id=run.id, index=0)
 
     assert outcome.disposition is StepDisposition.FAILED
@@ -117,9 +117,9 @@ async def test_a_call_in_a_device_run_is_never_sent_from_the_server_instead() ->
     await _assisted_skill(uow)
     run = await _run(uow, medium=Medium.NETWORK, device=LAPTOP)
 
-    outcome = await ExecuteStep(uow, server_caller, FakeCredentialVault(), agents=None).execute(
-        CTX, run_id=run.id, index=0
-    )
+    outcome = await ExecuteStep(
+        uow, server_caller, FakeCredentialVault(), agents=None, servers={}
+    ).execute(CTX, run_id=run.id, index=0)
 
     assert outcome.disposition is StepDisposition.FAILED
     assert server_caller.sent == []
@@ -130,9 +130,9 @@ async def test_a_run_naming_no_device_is_performed_where_it_always_was() -> None
     await _assisted_skill(uow)
     run = await _run(uow, medium=Medium.UI, device=None)
 
-    await ExecuteStep(uow, FakeHttpCaller(), FakeCredentialVault(), server, agents=agents).execute(
-        CTX, run_id=run.id, index=0
-    )
+    await ExecuteStep(
+        uow, FakeHttpCaller(), FakeCredentialVault(), server, agents=agents, servers={}
+    ).execute(CTX, run_id=run.id, index=0)
 
     assert agents.asked_for == []
     assert server.asked != []
@@ -170,7 +170,7 @@ async def test_a_shadow_run_in_somebodys_browser_still_withholds_its_writes(
     )
 
     outcome = await ExecuteStep(
-        uow, FakeHttpCaller(), FakeCredentialVault(), FakeUiDriver(), agents=agents
+        uow, FakeHttpCaller(), FakeCredentialVault(), FakeUiDriver(), agents=agents, servers={}
     ).execute(CTX, run_id=run.id, index=0)
 
     assert outcome.disposition is StepDisposition.WITHHELD
@@ -196,6 +196,7 @@ async def test_a_stopped_run_says_a_person_stopped_it_rather_than_that_it_failed
         FakeUiDriver(),
         agents=agents,
         stops=stops,
+        servers={},
     )
 
     started = await executor.begin(
@@ -234,6 +235,7 @@ async def test_a_run_nobody_stopped_is_not_treated_as_stopped() -> None:
         FakeUiDriver(),
         agents=agents,
         stops=stops,
+        servers={},
     )
 
     request = ExecutionRequest(

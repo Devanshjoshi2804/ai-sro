@@ -72,7 +72,7 @@ async def test_a_withheld_write_leaves_the_next_step_withheld_not_failed() -> No
     )
     assert run.stage is PromotionStage.SHADOW
 
-    step = ExecuteStep(uow, http, vault)
+    step = ExecuteStep(uow, http, vault, servers={})
     first = await step.execute(CTX, run_id=run.id, index=0)
     second = await step.execute(CTX, run_id=run.id, index=1)
 
@@ -89,7 +89,7 @@ async def test_the_run_a_rehearsal_produces_is_a_clean_one() -> None:
     run = await StartRun(uow, FakeClock(), FakeIdFactory()).execute(
         CTX, ExecutionRequest(skill_id=f.skill().id, parameters={})
     )
-    step = ExecuteStep(uow, http, vault)
+    step = ExecuteStep(uow, http, vault, servers={})
     await step.execute(CTX, run_id=run.id, index=0)
     await step.execute(CTX, run_id=run.id, index=1)
 
@@ -149,7 +149,7 @@ async def test_a_value_no_withheld_step_would_have_minted_is_a_real_failure() ->
     run = await StartRun(uow, FakeClock(), FakeIdFactory()).execute(
         CTX, ExecutionRequest(skill_id=f.skill().id, parameters={})
     )
-    step = ExecuteStep(uow, http, vault)
+    step = ExecuteStep(uow, http, vault, servers={})
     for index in (0, 1):
         await step.execute(CTX, run_id=run.id, index=index)
     third = await step.execute(CTX, run_id=run.id, index=2)

@@ -544,6 +544,7 @@ async def test_three_real_runs_that_escalated_leave_a_repaired_version_behind() 
         ui,
         learn=LearnFromRun(record),
         repair=RepairDrift(uow, clock, AskAbout(uow, record)),
+        servers={},
     )
 
     for _ in range(SETTLED):

@@ -899,6 +899,7 @@ async def test_a_takeover_after_the_operator_s_own_save_sends_only_the_rest(
         one_time_secrets=OneTimeSecrets(),
         durable=FakeDurableExecution(),
         steel_tenants=frozenset({TENANT}),
+        servers={},
     )
     run = await starter.execute(
         CTX,

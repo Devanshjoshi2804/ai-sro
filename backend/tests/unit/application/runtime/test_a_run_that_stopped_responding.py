@@ -45,6 +45,7 @@ def _starter(world: SteelRun, *, steel: bool = True) -> StartWorkflowRun:
         one_time_secrets=OneTimeSecrets(),
         durable=world.durable,
         steel_tenants=frozenset({TENANT.value}) if steel else frozenset(),
+        servers={},
     )
 
 

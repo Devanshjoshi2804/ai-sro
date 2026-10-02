@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 
 from sro.application.chat.announce import SayWhatHappened
 from sro.application.chat.feedback import RecordFeedback
-from sro.application.chat.mailbox import NO_SERVERS, server_for
+from sro.application.chat.mailbox import server_for
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
@@ -141,7 +141,7 @@ class StartWorkflowRun:
         durable: DurableExecution | None = None,
         steel_tenants: frozenset[str] = frozenset(),
         feedback: RecordFeedback | None = None,
-        servers: Mapping[str, str] = NO_SERVERS,
+        servers: Mapping[str, str],
     ) -> None:
         self._servers = servers
         self._uow = uow

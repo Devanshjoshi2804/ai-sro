@@ -103,7 +103,7 @@ async def test_a_clean_run_advances_the_version_s_case_for_autonomy() -> None:
     http.answer(status_code=200, text='{"ok": true}')
     version = await _skill(uow)
 
-    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), servers={}).execute(
         CTX,
         ExecutionRequest(
             skill_id=SkillId("skill-1"),
@@ -128,7 +128,7 @@ async def test_a_skill_that_keeps_failing_demotes_itself() -> None:
         ids = FakeIdFactory()
         for _ in range(index):
             ids.new_run_id()  # a fresh id per run
-        await ExecuteSkill(uow, http, vault, FakeClock(), ids).execute(
+        await ExecuteSkill(uow, http, vault, FakeClock(), ids, servers={}).execute(
             CTX,
             ExecutionRequest(
                 skill_id=SkillId("skill-1"),
@@ -148,7 +148,7 @@ async def test_a_withheld_shadow_run_changes_no_counter() -> None:
     http.answer(status_code=200, text="{}")
     version = await _skill(uow, PromotionStage.SHADOW)
 
-    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), servers={}).execute(
         CTX, ExecutionRequest(skill_id=SkillId("skill-1"), parameters={"shipment_id": "1"})
     )
 

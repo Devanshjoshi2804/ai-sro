@@ -75,6 +75,7 @@ def _executor(uow: FakeUnitOfWork, agents: FakeAgentDrivers | None = None) -> Ex
         FakeClock(),
         FakeIdFactory(),
         agents=agents,
+        servers={},
     )
 
 

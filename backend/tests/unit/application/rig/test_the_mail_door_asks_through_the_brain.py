@@ -579,9 +579,14 @@ async def test_a_connector_error_is_not_reported_as_asked() -> None:
     assert (
         "Asked" not in last.text
         and "could not confirm" in last.text
-        and "check Sent" in last.text and "send it from your mailbox" in last.text
+        and "check Sent" in last.text
+        and "send it from your mailbox" in last.text
     )
-    assert "403 Forbidden" in last.text and "check Sent" in last.text and "send it from your mailbox" in last.text
+    assert (
+        "403 Forbidden" in last.text
+        and "check Sent" in last.text
+        and "send it from your mailbox" in last.text
+    )
     assert "can send it again" not in last.text
 
 
@@ -591,7 +596,11 @@ async def test_a_connector_that_says_it_may_have_gone_says_to_check_sent() -> No
     )
 
     assert to == "" and last.decision["sent"] is False
-    assert "Asked" not in last.text and "check Sent" in last.text and "send it from your mailbox" in last.text
+    assert (
+        "Asked" not in last.text
+        and "check Sent" in last.text
+        and "send it from your mailbox" in last.text
+    )
 
 
 async def test_a_send_with_no_id_is_not_reported_as_asked() -> None:
@@ -601,5 +610,6 @@ async def test_a_send_with_no_id_is_not_reported_as_asked() -> None:
     assert (
         "Asked" not in last.text
         and "could not confirm" in last.text
-        and "check Sent" in last.text and "send it from your mailbox" in last.text
+        and "check Sent" in last.text
+        and "send it from your mailbox" in last.text
     )

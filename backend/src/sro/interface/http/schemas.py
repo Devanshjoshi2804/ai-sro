@@ -124,6 +124,12 @@ class ConnectSessionModel(BaseModel):
 class IntegrationModel(BaseModel):
     integration: str
     connected: bool
+    """Nango holds a healthy connection for this operator."""
+
+    linked: bool
+    """The mail connector also holds a bearer it accepts. Connected but not linked is the state
+    to finish with `/link`, never with a second Connect."""
+
     connected_at: datetime | None
     available: bool
     """False when this server lists the integration but Nango has none set up."""

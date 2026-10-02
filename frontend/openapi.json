@@ -27633,6 +27633,10 @@
             "type": "boolean",
             "title": "Connected"
           },
+          "linked": {
+            "type": "boolean",
+            "title": "Linked"
+          },
           "connected_at": {
             "anyOf": [
               {
@@ -27654,6 +27658,7 @@
         "required": [
           "integration",
           "connected",
+          "linked",
           "connected_at",
           "available"
         ],

@@ -38,6 +38,7 @@ async def list_integrations(container: ContainerDep, ctx: ContextDep) -> list[In
         IntegrationModel(
             integration=one.integration,
             connected=one.connected,
+            linked=one.linked,
             connected_at=one.connected_at,
             available=one.available,
         )
@@ -54,6 +55,7 @@ async def link_integration(
     return IntegrationModel(
         integration=one.integration,
         connected=one.connected,
+        linked=one.linked,
         connected_at=one.connected_at,
         available=one.available,
     )

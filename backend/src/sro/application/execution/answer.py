@@ -40,6 +40,10 @@ class Answer:
 
     labels: tuple[str, ...] = ()
 
+    records: tuple[dict[str, str], ...] = ()
+    """Every record read, whole -- `sample` is cut for display, and "is it in
+    there" is not a question to ask of a cut."""
+
     @property
     def counted(self) -> int | None:
         if self.total is not None:
@@ -86,6 +90,7 @@ def merge(answers: tuple[Answer, ...]) -> Answer | None:
         columns=first.columns,
         labels=labels,
         distinct=held,
+        records=tuple(row for answer in real for row in answer.records)[:MAX_ROWS],
     )
 
 
@@ -120,13 +125,33 @@ def read_answer(body: str | None, *, url: str = "") -> Answer | None:
     return Answer(
         rows=len(records),
         total=total,
-        partial=total is None and _is_a_page(len(records), url),
+        partial=_has_more(document) or (total is None and _is_a_page(len(records), url)),
         sample=sample,
         truncated=len(records) > MAX_ROWS,
         labels=tuple(_describe(row) for row in sample),
         columns=columns,
         distinct=held,
+        records=tuple(_whole(record) for record in shown),
     )
+
+
+_PAGING = ("next", "nextpage", "nextpagetoken", "nextcursor", "nexturl", "hasmore", "hasnext")
+
+
+def _has_more(document: dict[str, object]) -> bool:
+    """The server says there is another page, in any of the usual ways."""
+    for key, value in document.items():
+        if key == "data":
+            continue
+        if key.lower().replace("_", "") in _PAGING and value not in (False, None, "", 0):
+            return True
+        if isinstance(value, dict) and _has_more(value):
+            return True
+    return False
+
+
+def _whole(record: dict[str, object]) -> dict[str, str]:
+    return {key: str(value).strip() for key, value in record.items() if _sayable(value)}
 
 
 def _total(document: dict[str, object], returned: int, url: str) -> int | None:

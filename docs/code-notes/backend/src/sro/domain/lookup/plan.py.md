@@ -82,7 +82,7 @@ Code: `cites: tuple[str, ...] = ()`
 > nothing cannot be checked, and is refused for the reason an uncited step
 > is.
 
-## `Asked`, [line 25](../../../../../../../backend/src/sro/domain/lookup/plan.py#L25): Docstring
+## `Asked`, [line 27](../../../../../../../backend/src/sro/domain/lookup/plan.py#L27): Docstring
 
 > A question this deployment will not answer by guessing.
 >
@@ -90,11 +90,11 @@ Code: `cites: tuple[str, ...] = ()`
 > systems while asking about the sixth has already answered the question it
 > claims to be asking.
 
-## `Plan`, [line 33](../../../../../../../backend/src/sro/domain/lookup/plan.py#L33): Docstring
+## `Plan`, [line 35](../../../../../../../backend/src/sro/domain/lookup/plan.py#L35): Docstring
 
 > Where the answer to one question lives, or the question that stops it.
 
-## `unknown_targets`, [line 44](../../../../../../../backend/src/sro/domain/lookup/plan.py#L44): Docstring
+## `unknown_targets`, [line 46](../../../../../../../backend/src/sro/domain/lookup/plan.py#L46): Docstring
 
 > The targets no entry in the knowledge base names.
 >
@@ -103,7 +103,7 @@ Code: `cites: tuple[str, ...] = ()`
 > still guessed, and the fact that the guess happened to exist somewhere is
 > luck rather than evidence. The same reading `validate` takes of a citation.
 
-## `in_declared_slots`, [line 49](../../../../../../../backend/src/sro/domain/lookup/plan.py#L49): Note
+## `in_declared_slots`, [line 51](../../../../../../../backend/src/sro/domain/lookup/plan.py#L51): Note
 
 > The model picks VALUES for the slots an endpoint declares (the knowledge
 > entry's `params`) and nothing else. A key it invents is dropped here, where
@@ -113,11 +113,11 @@ Code: `cites: tuple[str, ...] = ()`
 > nobody watching (L1 review M4). A declared slot the recording also carries
 > is the point: it is the question being asked now.
 
-## `uncited`, [line 64](../../../../../../../backend/src/sro/domain/lookup/plan.py#L64): Docstring
+## `uncited`, [line 66](../../../../../../../backend/src/sro/domain/lookup/plan.py#L66): Docstring
 
 > Lookups whose citations name nothing the planner was shown.
 
-## `open_question_for`, [line 71](../../../../../../../backend/src/sro/domain/lookup/plan.py#L71): Docstring
+## `open_question_for`, [line 73](../../../../../../../backend/src/sro/domain/lookup/plan.py#L73): Docstring
 
 > The unanswered question this one lands on, if it lands on one.
 >
@@ -150,17 +150,17 @@ Code: `cites: tuple[str, ...] = ()`
 > because it stops the question AND teaches the operator to ignore the one
 > stop that was real.
 
-## `_stops`, [line 98](../../../../../../../backend/src/sro/domain/lookup/plan.py#L98): Docstring
+## `_stops`, [line 100](../../../../../../../backend/src/sro/domain/lookup/plan.py#L100): Docstring
 
 > Whether this ambiguity is about what was asked.
 
-## `_listed`, [line 113](../../../../../../../backend/src/sro/domain/lookup/plan.py#L113): Docstring
+## `_listed`, [line 115](../../../../../../../backend/src/sro/domain/lookup/plan.py#L115): Docstring
 
 > A JSON column's list, or nothing. `body` is `jsonb`, so every field in
 > it is `object` until something checks -- and a guard that assumed a list
 > would raise on the one entry somebody wrote by hand.
 
-## `_stem`, [line 119](../../../../../../../backend/src/sro/domain/lookup/plan.py#L119): Docstring
+## `_stem`, [line 121](../../../../../../../backend/src/sro/domain/lookup/plan.py#L121): Docstring
 
 > A word as it is compared: lowered, unpunctuated, and singular.
 >
@@ -175,7 +175,7 @@ Code: `cites: tuple[str, ...] = ()`
 > the first open ambiguity in the store. Short words are dropped whole: `at`,
 > `set` and `the` are in every question ever asked.
 
-## `open_question_for`, [line 74](../../../../../../../backend/src/sro/domain/lookup/plan.py#L74): Comment
+## `open_question_for`, [line 76](../../../../../../../backend/src/sro/domain/lookup/plan.py#L76): Comment
 
 Code: `settled = {`
 
@@ -184,7 +184,7 @@ Code: `settled = {`
 > about one row. Read once here: a question whose answer sits two rows
 > further down would otherwise stop a plan the deployment has an answer for.
 
-## `_stops`, [line 107](../../../../../../../backend/src/sro/domain/lookup/plan.py#L107): Comment
+## `_stops`, [line 109](../../../../../../../backend/src/sro/domain/lookup/plan.py#L109): Comment
 
 Code: `return bool(words & entity)`
 
@@ -192,7 +192,7 @@ Code: `return bool(words & entity)`
 > Split on the separator: the key writes `transport_mode` where an
 > operator writes "transport modes".
 
-## `_stops`, [line 109](../../../../../../../backend/src/sro/domain/lookup/plan.py#L109): Comment
+## `_stops`, [line 111](../../../../../../../backend/src/sro/domain/lookup/plan.py#L111): Comment
 
 Code: `return parts[3].lower() in asked.lower()`
 
@@ -200,7 +200,7 @@ Code: `return parts[3].lower() in asked.lower()`
 > the word came out of a demonstration and lands inside the operator's
 > own sentence in whatever form they wrote it.
 
-## `_stops`, [line 110](../../../../../../../backend/src/sro/domain/lookup/plan.py#L110): Comment
+## `_stops`, [line 112](../../../../../../../backend/src/sro/domain/lookup/plan.py#L112): Comment
 
 Code: `return False`
 

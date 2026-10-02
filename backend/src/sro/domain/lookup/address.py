@@ -98,7 +98,8 @@ def _screen_address(lookup: Lookup, gestures: list[Gesture]) -> Address | None:
 
 def _narrowing(url: str, lookup: Lookup) -> tuple[str, ...]:
     """What the replayed read filters by besides the key asked for: a param the planner named
-    is that search only when its value carries the key (status=ACTIVE reads a subset)."""
+    is that search only when its value is the key and nothing else (status=ACTIVE reads a subset;
+    a JSON filter, a longer code or a second value could narrow, so it reads as could-not-tell)."""
     key = lookup.find.casefold() if lookup.find else None
     return tuple(
         name
@@ -106,8 +107,20 @@ def _narrowing(url: str, lookup: Lookup) -> tuple[str, ...]:
             urlsplit(_with_params(url, lookup.params)).query, keep_blank_values=True
         )
         if value.strip() not in K_EMPTY
-        and not (name in lookup.params and key and key in value.casefold())
+        and not (name in lookup.params and key and _is_the_key(value, key))
     )
+
+
+def _is_the_key(value: str, key: str) -> bool:
+    text = value.strip().casefold()
+    return (
+        key in text
+        and text[:1] not in "[{"
+        and not any(char.isalnum() for char in text.replace(key, "", 1).translate(_WILDCARDS))
+    )
+
+
+_WILDCARDS = str.maketrans("", "", "*%?")
 
 
 def _route_name(route: str) -> str:

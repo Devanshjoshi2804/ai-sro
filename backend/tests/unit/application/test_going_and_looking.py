@@ -689,7 +689,7 @@ def test_a_filter_the_lookup_names_is_not_a_narrowing_it_did_not_ask_for() -> No
         ("query=[]", {"status": "ACTIVE"}, ("status",)),
         ("query=[]", {"status": "ZW1"}, ()),
         ("query=[]", {"code": "zw1"}, ()),
-        ("query=[]", {"query": '[{"property":"code","value":"ZW1"}]'}, ()),
+        ("query=[]", {"query": '[{"property":"code","value":"ZW1"}]'}, ("query",)),
         ("query=[]", {"query": '[{"property":"site","value":"SG"}]'}, ("query",)),
         ("query=[]", {"code": "ZW1", "status": "ACTIVE"}, ("status",)),
     ],
@@ -703,6 +703,36 @@ def test_a_named_param_is_no_narrowing_only_when_it_carries_the_key_asked_for(
     lookup = Lookup(system="blue_yonder", how="call", target=GRID, find="ZW1", params=params)
 
     address = address_for(lookup, [_gesture(_call(path=GRID, query=recorded))])
+
+    assert address is not None and address.narrowed == narrowed
+
+
+@pytest.mark.parametrize(
+    ("find", "params", "narrowed"),
+    [
+        ("ZW1", {"query": '[{"f":"status","v":"INACTIVE"},{"f":"name","v":"ZW1"}]'}, ("query",)),
+        ("ZW1", {"query": '[{"f":"name","v":"ZW1","op":"ne"}]'}, ("query",)),
+        ("ZW1", {"query": '[{"f":"name","v":"ZW1"}]'}, ("query",)),
+        # exclude=ZW1 is, by value, the same as name=ZW1: only the planner's slot tells them apart.
+        ("ZW1", {"exclude": "ZW1"}, ()),
+        ("ZW1", {"name": "ZW10"}, ("name",)),
+        ("ZW1", {"name": "ZW1*"}, ()),
+        ("ZW1", {"name": "%ZW1%"}, ()),
+        ("ZW1", {"name": "ZW1"}, ()),
+        ("ZW1", {"name": "zw1"}, ()),
+        ("ZW1", {"name": ""}, ()),
+        ("ZW1", {"code_from": "ZW1", "code_to": "ZW9"}, ("code_to",)),
+        ("ZW1", {"code_from": "ZW0", "code_to": "ZW1"}, ("code_from",)),
+    ],
+)
+def test_a_named_param_is_exempt_only_when_it_is_the_key_and_nothing_else(
+    find: str, params: dict[str, str], narrowed: tuple[str, ...]
+) -> None:
+    """Review 3 A: containment is a proxy; a value that holds the key and still narrows (a second
+    filter, a negation, a longer code, a range end) must read as could-not-tell."""
+    lookup = Lookup(system="blue_yonder", how="call", target=GRID, find=find, params=params)
+
+    address = address_for(lookup, [_gesture(_call(path=GRID, query="query=[]"))])
 
     assert address is not None and address.narrowed == narrowed
 

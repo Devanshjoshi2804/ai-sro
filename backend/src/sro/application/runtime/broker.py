@@ -180,15 +180,16 @@ class SessionBroker:
         `apart_s`, shared by every ask, kept going when this one gives up) and this waits at
         most that long for it, then raises `SigningIn`; the next ask finds the lease ready.
         """
-        # Only a chat ask hears a failure kept from a chat's sign-in; a run signs in for itself.
+        held = await self._attached(ctx, account, start_url, holder, park)
+        if held is not None:
+            return held
+        # Only a chat ask hears a failure kept from a chat's sign-in (a ready lease makes it
+        # stale); a run signs in for itself.
         if (
             patience_s is not None
             and (failed := self.signings.failure(account.key, self._clock.now())) is not None
         ):
             raise failed
-        held = await self._attached(ctx, account, start_url, holder, park)
-        if held is not None:
-            return held
         if patience_s is None:
             async with self._locks.hold(account):
                 return await self._ready(ctx, account, start_url, holder=holder, park=park)
@@ -270,12 +271,16 @@ class SessionBroker:
         self, ctx: RequestContext, lease: Lease, start_url: str, deadline_s: float
     ) -> None:
         mine = self._own()
-        held = await mine._tab(lease, start_url)
+        held: Held | None = None
         try:
+            held = await mine._tab(lease, start_url)
             async with mine._bounded(start_url, deadline_s):
                 await mine.reauth(ctx, held, start_url, park=False)
         finally:
-            await mine.release(ctx, held)
+            if held is not None:
+                # A tab that will not close must not hide why the sign-in failed.
+                with contextlib.suppress(Exception):
+                    await mine.release(ctx, held)
 
     async def reattach(
         self, ctx: RequestContext, lease_id: str, target_id: str, *, holder: str

@@ -13,7 +13,7 @@ from collections.abc import Mapping
 import pytest
 
 from sro.application.connection.refusals import ForgetsRefusalOnWrite
-from sro.application.ports.page import PageGone
+from sro.application.ports.page import PageGone, SessionRef
 from sro.application.runtime.broker import (
     K_FAILURE,
     SessionBroker,
@@ -373,3 +373,45 @@ async def test_shutdown_does_not_wait_for_a_sign_in_that_will_not_stop() -> None
     assert not task.done()
     task.cancel()
     await asyncio.gather(task, return_exceptions=True)
+
+
+async def test_a_failure_kept_from_a_chat_sign_in_is_stale_once_a_run_has_signed_in() -> None:
+    """Review 3 B: a ready lease outranks the kept failure; the chat ask is not told no."""
+    uow, driver, vault = await _signing_world()
+    lane = _SlowSignIn(driver)
+    broker = _broker(uow, driver, vault, lane)
+    with pytest.raises(SigningIn):
+        await broker.acquire(
+            CTX, LENA, APP, holder="lookup_1", park=False, patience_s=0.0, apart_s=0.05
+        )
+    await broker.signings.settled()
+    lane.gate.set()
+    await broker.acquire(CTX, LENA, APP, holder="run_1")
+
+    held = await _apart(broker, "lookup_2", patience_s=60.0)
+
+    assert held.lease.state is LeaseState.READY
+
+
+class _FailsReally(SigningLane):
+    async def execute(self, step: Step, values: Mapping[str, str], ctx: LaneContext) -> StepResult:
+        raise ValueError("the real failure")
+
+
+async def test_a_re_sign_in_apart_that_fails_reports_that_not_the_tab_release(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Review 3 C: the finally's release must not mask what actually broke."""
+    uow, driver, vault = await _signing_world()
+    broker = _broker(uow, driver, vault)
+    held = await broker.acquire(CTX, LENA, APP, holder="run_1")
+    driver.expire_session()
+    broker._ui = _FailsReally(driver)
+
+    async def gone(session: SessionRef, target_id: str) -> None:
+        raise OSError("the driver went away")
+
+    monkeypatch.setattr(driver, "close_tab", gone)
+
+    with pytest.raises(ValueError, match="the real failure"):
+        await broker.reauth_apart(CTX, held, APP, patience_s=60.0, apart_s=30.0)

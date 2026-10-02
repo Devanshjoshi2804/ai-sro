@@ -30,7 +30,7 @@ from sro.domain.chat.asking import NEEDS, Pending, standing
 from sro.domain.chat.thread import Thread
 from sro.domain.execution.progress import Progress
 from sro.domain.execution.waiting import as_said, waiting_on
-from sro.domain.execution.workflow_run import WorkflowRun
+from sro.domain.execution.workflow_run import WorkflowRun, named_by
 from sro.domain.observation.gesture import Gesture
 from sro.domain.skill.workflow import Step, Workflow
 from sro.interface.http.schemas import WorkflowRunModel
@@ -55,7 +55,9 @@ from tests.unit.runtime_support import (
     steel_run,
 )
 
+NOT_LISTED = (200, '{"data": []}')  # the write's own collection, without our record
 VALUES = {"Customer Type": "GT2", "Description": "Pet shops"}
+HELD_BY_OTHER = (200, json.dumps({"data": [{"name": "GT2", "description": "Vets"}]}))
 
 REFUSED = json.dumps({"errors": [{"message": "Description Pet shops is already used"}]})
 
@@ -159,7 +161,7 @@ async def test_a_save_answered_with_a_server_error_keeps_the_status_and_what_it_
 
 
 async def test_a_clash_whose_record_is_absent_fails_in_its_own_words_and_is_not_redone() -> None:
-    world, http = await _saving((409, REFUSED), (404, ""))
+    world, http = await _saving((409, REFUSED), NOT_LISTED)
 
     await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
 
@@ -168,12 +170,12 @@ async def test_a_clash_whose_record_is_absent_fails_in_its_own_words_and_is_not_
     assert "Description Pet shops is already used" in last.reason
     assert "nothing confirms it" not in last.reason
     assert world.lanes.ui.calls == 0, "a refused value was handed to another lane"
-    assert [one["method"] for one in http.sent] == ["POST", "GET"]
+    assert [one["method"] for one in http.sent] == ["POST", "GET", "GET"]
 
 
 async def _refused_run(mail: dict[str, str] | None = None) -> tuple[SteelRun, _Asking]:
     asking = _Asking()
-    world, _ = await _saving((409, REFUSED), (404, ""), asking=asking, mail=mail)
+    world, _ = await _saving((409, REFUSED), NOT_LISTED, asking=asking, mail=mail)
     outcome = await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
     assert not outcome.more and not outcome.asking, "a refusal parked the run on a person"
     assert await world.run_steps.finish(CTX, world.run_id) == "failed"
@@ -296,7 +298,7 @@ def _fails_once(asking: _Asking, *, after: bool) -> list[int]:
 
 async def _asked_after_a_retry(*, after: bool) -> int:
     asking = _Asking()
-    world, _ = await _saving((409, REFUSED), (404, ""), asking=asking)
+    world, _ = await _saving((409, REFUSED), NOT_LISTED, asking=asking)
     _fails_once(asking, after=after)
     await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
     with contextlib.suppress(RuntimeError):
@@ -317,19 +319,20 @@ async def test_a_retried_finish_does_not_ask_again_when_the_question_already_sta
 async def _needs_after(said: str, values: dict[str, str]) -> list[str]:
     asking = _Asking()
     job_values = {"Customer Type": values["Customer Type"], "Description": values["Description"]}
-    world, _ = await _saving((409, json.dumps({"message": said})), (404, ""), asking=asking)
+    world, _ = await _saving((409, json.dumps({"message": said})), NOT_LISTED, asking=asking)
     world.uow.workflow_runs.rows[world.run_id].values = job_values
     await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
     await world.run_steps.finish(CTX, world.run_id)
     return (await world.saved_run()).needs
 
 
-async def test_a_short_value_in_unrelated_words_does_not_name_a_field() -> None:
-    needs = await _needs_after(
-        "Warehouse 42 could not be saved", {"Customer Type": "42", "Description": "Vets"}
-    )
+def test_a_short_value_in_unrelated_words_does_not_name_a_field() -> None:
+    job = replace(WORKFLOW, parameters=[{"name": "Customer Type"}, {"name": "Description"}])
+    given = {"Customer Type": "42", "Description": "Vets"}
 
-    assert needs == ["Customer Type", "Description"], "a bare 42 named a field it is not in"
+    named = named_by(job, given, "Warehouse 42 could not be saved")
+
+    assert named == [], "a bare 42 named a field it is not in"
 
 
 async def test_a_field_the_reason_names_is_the_one_asked_about() -> None:
@@ -355,7 +358,7 @@ async def test_a_value_the_reason_quotes_names_its_field_only_as_a_whole_word() 
 async def test_a_409_that_says_busy_is_in_doubt_not_a_refused_value() -> None:
     """A conflict that means "in progress, retry" says nothing about the person's values."""
     busy = json.dumps({"message": "Another request is in progress, please retry"})
-    world, _ = await _saving((409, busy), (404, ""))
+    world, _ = await _saving((409, busy), NOT_LISTED)
 
     await world.run_steps.step(CTX, world.run_id, stop=asyncio.Event())
 
@@ -371,7 +374,7 @@ async def test_a_retried_finish_drafts_once_when_the_draft_was_lost_after_the_qu
     and a second retry must not draft twice."""
     envelope = {"thread": THREAD, "subject": "new customer type", "sender": "tanisha@example.com"}
     asking = _Asking()
-    world, _ = await _saving((409, REFUSED), (404, ""), asking=asking, mail=envelope)
+    world, _ = await _saving((409, REFUSED), NOT_LISTED, asking=asking, mail=envelope)
     assert asking.start is not None
     real, dropped = asking.start._asker_drafts, [False]
 

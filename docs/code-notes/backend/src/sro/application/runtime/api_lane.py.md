@@ -79,17 +79,20 @@ Code: `if missing:`
 > person answers `AccountBusy` and the run queues -- and retries with
 > fresh headers.
 
-## `ApiLane._confirmed`, [line 308](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L308): Comment
+## `ApiLane._confirmed`, [line 316](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L316): Comment
 
-> One check for `execute` and `read_back`. The confirming read goes only to
-> the write's own origin (a GET recorded after the write may be analytics or
-> the identity provider). It confirms only when the replay filled named body
-> slots and one record carries every slot with this run's value
+> One check for `execute` and `read_back`. The read is the collection the
+> write went to, with the query the write used. The recording's own
+> confirming read stands in only when it read that same collection (or a
+> record in it): Blue Yonder's equipment-type save was followed by a read of
+> its access list, which never holds the type, so a type that had landed read
+> back as absent. It confirms only when the replay filled named body slots
+> and one record carries every slot with this run's value
 > (`carries_in_slot`): the value in another field, another row or a longer
 > string is not the record this run wrote. A write with no filled slots is
 > never confirmed by a read-back.
 
-## `_aimed`, [line 449](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L449): Comment
+## `_aimed`, [line 459](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L459): Comment
 
 > The recorded read names the recorded record. A path segment equal to a value
 > the recording saw for a filled parameter is replaced by this run's value. A
@@ -107,7 +110,7 @@ Code: `if status in K_AUTH_REFUSED and ctx.reauthed:`
 > the lane's own failure, with a fingerprint, and the step joins the
 > known-broken list instead of signing in again on every run.
 
-## `ApiLane._execute`, [line 209](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L209): Note
+## `ApiLane._execute`, [line 214](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L214): Note
 
 Code: `refused = (`
 
@@ -117,11 +120,16 @@ Code: `refused = (`
 > operator to go and look in Blue Yonder -- something the system could check.
 >
 > Only a write the system did NOT accept (409, 5xx: `unknown`) can be
-> proven refused. Present with other values means the key already exists.
-> Absent means the save was refused, in the system's own words, only after
-> a 409: after a 5xx the record may live at an id nobody can guess, so the
-> write stays `unknown`. A refusal is `failed` and `refused`, and never
-> handed to another lane.
+> proven refused, and only a 409: after a 5xx the record may live at an id
+> nobody can guess. Refused means the collection or the key's address shows
+> the key held with other values, or the collection was read, lacks the
+> record, and the system's words name a value of ours ("Description X is
+> already used"). "Record already exists" over a record not found stays
+> `unknown`: Blue Yonder answered it for an equipment type that had landed
+> (2026-10-02), and another value would have written a second one. A 404 at
+> the key's address proves nothing (equipment types answer it and list the
+> record). A refusal is `failed` and `refused`, and never handed to another
+> lane.
 > A write the system DID accept (2xx) whose record is absent stays
 > `unknown`: the address may not be where this system keeps it, and a
 > write that went in is never called refused. A read-back that cannot be
@@ -132,7 +140,7 @@ Code: `refused = (`
 > (Blue Yonder's `AITE6*!trlr_typ`) answers 404 there, which is why the
 > resourceId read and the recording's own confirming read go first.
 
-## `session_headers`, [line 366](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L366): Note on the line above
+## `session_headers`, [line 370](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L370): Note on the line above
 
 Code: `async def session_headers(`
 
@@ -142,7 +150,7 @@ Code: `async def session_headers(`
 > session did not answer itself. `wait_s` is how long the broker may wait for
 > the headers `needs` names; a caller with a budget passes what is left of it.
 
-## `needs_of`, [line 356](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L356): Note on the line above
+## `needs_of`, [line 360](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L360): Note on the line above
 
 Code: `def needs_of(recorded: Mapping[str, str]) -> list[str]:`
 
@@ -154,7 +162,7 @@ Code: `def needs_of(recorded: Mapping[str, str]) -> list[str]:`
 > read-back (so a read-back after `fresh=True` waits for its CSRF token rather
 > than answering from an empty since-mark log), and lookups.
 
-## `confirmed_keys`, [line 402](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L402): Function
+## `confirmed_keys`, [line 406](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L406): Function
 
 > The learned fields this write's read-back confirmed, as `StepResult.keyed`
 > reads (`{parameter: body_key}`), so `_settle_fields` holds them and a run

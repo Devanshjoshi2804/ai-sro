@@ -16,7 +16,6 @@ from sro.domain.execution.belts import (
     carries_in_slot,
     confirming_read,
     expected_statuses,
-    record_count,
 )
 from sro.domain.execution.evidence import recorded_call
 from sro.domain.execution.lanes import (
@@ -30,6 +29,7 @@ from sro.domain.execution.lanes import (
 )
 from sro.domain.execution.planning import Planned
 from sro.domain.execution.records import made_by, told_by
+from sro.domain.execution.workflow_run import named_by
 from sro.domain.execution.write_plan import learned_slots, seen_values
 from sro.domain.observation.trim import path_shape
 from sro.domain.recording.sensitivity import K_TOKENS, classify_header
@@ -43,7 +43,7 @@ K_REPRESENTATION = frozenset({"content-type", "accept"})
 
 _GONE = frozenset({404, 410})
 
-Found = Literal["ours", "other", "absent"]
+Found = Literal["ours", "other"]
 
 
 _BUSY = ("in progress", "in-progress", "busy", "locked", "retry", "try again", "concurrent")
@@ -192,7 +192,7 @@ class ApiLane:
                 None if confirmed else await self._listing(step, planned, ctx, held, fresh=False)
             )
             confirmed = confirmed or _carries(listed, planned)
-            found = None if confirmed else await self._by_key(planned, ctx, held, headers)
+            found = None if confirmed else await self._by_key(planned, ctx, held, headers, listed)
         except (Stopped, asyncio.CancelledError):
             raise
         except Exception as lost:
@@ -203,26 +203,27 @@ class ApiLane:
                 read=made,
                 answered=told,
             )
-        # Only the system's own rejection (409) is a refusal. After a 5xx the
-        # record may exist at an id we cannot guess, or under values that are
-        # ours: another value would write a second record.
+        # Only the system's own rejection (409) is a refusal, and only over a
+        # record we SAW holding other values, or one the collection listed
+        # without ours whose words name a value of ours ("Description X is
+        # already used"). "Record already exists" over an unfound record may be
+        # our own create that landed: another value would write a second one.
+        said = told["said"]
+        absent = listed is not None and listed.succeeded
+        other = found is not None and found[0] == "other"
         refused = (
             verdict == "unknown"
             and status == K_CONFLICT
-            and not _busy(told["said"])
-            and found is not None
-            and found[0] in ("other", "absent")
+            and not _busy(said)
+            and (other or (found is None and absent and bool(named_by(ctx.workflow, values, said))))
         )
-        if refused and found is not None:
-            said = told["said"] or f"it answered {status}"
-            clash = _clash(listed, planned) if found[0] == "absent" else None
+        if refused:
             return StepResult(
                 "failed",
                 Lane.API,
                 f"{found[1]} already exists with different values"
-                if found[0] == "other"
-                else f"the system refused it: {said}"
-                + (f" {clash} is already used" if clash else ""),
+                if found is not None
+                else f"the system refused it: {said}",
                 never_left=True,
                 refused=True,
                 answered=told,
@@ -256,7 +257,7 @@ class ApiLane:
         headers = await session_headers(
             self._broker, ctx.ctx, ctx.held, str(planned.payload["url"]), {}, fresh=ctx.reauthed
         )
-        found = await self._by_key(planned, ctx, ctx.held, headers)
+        found = await self._by_key(planned, ctx, ctx.held, headers, None)
         return "done" if found is not None and found[0] == "ours" else None
 
     async def _its_record(
@@ -277,15 +278,22 @@ class ApiLane:
         return got.succeeded and carries_in_slot(got.text, planned.confirm)
 
     async def _by_key(
-        self, planned: Planned, ctx: LaneContext, held: Held, headers: Mapping[str, str]
+        self,
+        planned: Planned,
+        ctx: LaneContext,
+        held: Held,
+        headers: Mapping[str, str],
+        listed: HttpResponse | None,
     ) -> tuple[Found, str] | None:
+        """Who holds the key. A 404 at the key's address says nothing: Blue
+        Yonder's equipment types answer 404 there and list the record."""
         key = _key_of(ctx.workflow.parameters, planned)
         if key is None:
             return None
         slot, value = key
+        if listed is not None and listed.succeeded and carries_in_slot(listed.text, {slot: value}):
+            return "other", value
         got = await self._read_at(planned, ctx, held, headers, value)
-        if got.status_code in _GONE:
-            return "absent", value
         if not got.succeeded:
             return None
         if carries_in_slot(got.text, planned.confirm):
@@ -313,13 +321,22 @@ class ApiLane:
     async def _listing(
         self, step: Step, planned: Planned, ctx: LaneContext, held: Held, *, fresh: bool
     ) -> HttpResponse | None:
-        """The recording's own confirming read, aimed at this run's values."""
+        """The collection the write went to, read with the query the write used.
+        The recording's own confirming read stands in only when it read that
+        same collection (or a record in it): it can be another one (an equipment type's save was
+        followed by a read of its access list, which never holds the type)."""
+        written = recorded_call(step, ctx.by_id)
+        wrote = str(planned.payload["url"])
+        if written is None or not planned.confirm or REDACTED in wrote:
+            return None
         probe = confirming_read(step, ctx.by_id)
-        if probe is None or not planned.confirm or REDACTED in probe.url:
-            return None
-        if _origin(probe.url) != _origin(str(planned.payload["url"])):
-            return None
-        url = _aimed(probe.url, planned, seen_values(ctx.workflow, ctx.by_id))
+        url: str | None = wrote
+        shown = written.request_headers
+        if probe is not None and REDACTED not in probe.url and _same_collection(probe.url, wrote):
+            url, shown = (
+                _aimed(probe.url, planned, seen_values(ctx.workflow, ctx.by_id)),
+                probe.request_headers,
+            )
         if url is None:
             return None
         headers = await session_headers(
@@ -327,9 +344,9 @@ class ApiLane:
             ctx.ctx,
             held,
             url,
-            probe.request_headers,
+            {k: v for k, v in shown.items() if k.lower() != "content-type"},
             fresh=fresh,
-            needs=needs_of(probe.request_headers),
+            needs=needs_of(shown),
         )
         if not _sendable(url, headers):
             return None
@@ -338,19 +355,6 @@ class ApiLane:
 
 def _carries(listed: HttpResponse | None, planned: Planned) -> bool:
     return listed is not None and listed.succeeded and carries_in_slot(listed.text, planned.confirm)
-
-
-def _clash(listed: HttpResponse | None, planned: Planned) -> str | None:
-    """ "Record already exists" names no field when the system makes one unique
-    that the operator may pick freely. A value that exactly one record holds
-    can be that field; a value many hold cannot be unique."""
-    if listed is None or not listed.succeeded:
-        return None
-    for slot, value in planned.confirm.items():
-        held_by = record_count(listed.text, {slot: value})
-        if held_by == 1 and slot in planned.filled:
-            return f"{planned.filled[slot]} {value}"
-    return None
 
 
 def needs_of(recorded: Mapping[str, str]) -> list[str]:
@@ -430,6 +434,12 @@ def _key_of(parameters: Sequence[Mapping[str, object]], planned: Planned) -> tup
 
 def _content_type(headers: Mapping[str, str]) -> str | None:
     return next((value for name, value in headers.items() if name.lower() == "content-type"), None)
+
+
+def _same_collection(read: str, wrote: str) -> bool:
+    """The write's own collection, or a record's address inside it."""
+    one, other = urlsplit(read).path.rstrip("/"), urlsplit(wrote).path.rstrip("/")
+    return _origin(read) == _origin(wrote) and (one == other or one.startswith(other + "/"))
 
 
 def _origin(url: str) -> tuple[str, str]:

@@ -616,13 +616,14 @@ async def _answered(*answers: tuple[int, str]) -> tuple[StepResult, FakeHttpCall
 
 async def test_a_clash_whose_record_is_absent_was_refused_in_the_system_s_own_words() -> None:
     result, http = await _answered(
-        (409, '{"message": "Description Pet shops is already used"}'), (404, "")
+        (409, '{"message": "Description Pet shops is already used"}'), (200, '{"data": []}')
     )
 
     assert result.verdict == "failed" and result.refused
     assert "Description Pet shops is already used" in result.reason
     assert [(one["method"], str(one["url"])) for one in http.sent] == [
         ("POST", WRITE),
+        ("GET", WRITE),
         ("GET", f"{WRITE}/GT2"),
     ]
 

@@ -1833,7 +1833,7 @@ test("a mail that has gone is not offered again", () => {
   assert.equal(item.dataset.answered, "sent");
 });
 
-const aDraftThen = (sent) => [
+const aDraftThen = (kind, sent) => [
   ASKED,
   {
     id: "m-draft",
@@ -1853,17 +1853,18 @@ const aDraftThen = (sent) => [
     speaker: "system",
     text: "A mail was tried.",
     said_at: "2026-09-18T13:01:00Z",
-    decision: { kind: "mail_sent", run_id: "run_1", draft_id: "m-draft", ...sent },
+    decision: { kind, run_id: "run_1", draft_id: "m-draft", ...sent },
   },
 ];
 
 test("a mail that definitely did not go keeps its Send it", () => {
   // Day-end D-7: the mailbox was not connected, nothing was sent, and the backend
-  // gave the claim back -- so the operator reconnects and presses again, instead
-  // of writing the mail by hand.
+  // gave the claim back -- so the operator reconnects and presses again. It is a
+  // kind of its own because the ledger of an extension already installed marks a
+  // draft done on `mail_sent` alone.
   const item = messages(
     ledger(
-      { id: "thr-1", messages: aDraftThen({ sent: false, retry: true }) },
+      { id: "thr-1", messages: aDraftThen("mail_not_sent", { sent: false }) },
       {},
       { onPress: () => {} },
     ),
@@ -1875,7 +1876,7 @@ test("a mail that definitely did not go keeps its Send it", () => {
 test("a mail that may have gone is not offered again", () => {
   const item = messages(
     ledger(
-      { id: "thr-1", messages: aDraftThen({ sent: false }) },
+      { id: "thr-1", messages: aDraftThen("mail_sent", { sent: false }) },
       {},
       { onPress: () => {} },
     ),

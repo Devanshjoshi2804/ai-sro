@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from dataclasses import replace
 from typing import Any
 
@@ -48,9 +49,18 @@ def _worth_retrying(problem: Exception) -> bool:
     return isinstance(code, int) and 500 <= code < 600
 
 
+_THE_KEY = re.compile(r"api[ _]key", re.IGNORECASE)
+
+
 def _an_outage(problem: Exception) -> bool:
     code = getattr(problem, "code", None)
-    return not isinstance(code, int) or code >= 500 or code in (401, 403, 429)
+    # Gemini answers an invalid or expired key with a 400: configuration, not this one prompt.
+    return (
+        not isinstance(code, int)
+        or code >= 500
+        or code in (401, 403, 429)
+        or (code == 400 and bool(_THE_KEY.search(str(problem))))
+    )
 
 
 class GeminiAsker:

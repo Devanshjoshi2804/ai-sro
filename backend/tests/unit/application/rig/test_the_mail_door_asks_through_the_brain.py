@@ -499,6 +499,7 @@ class _Pressed:
 
     def __init__(self, world: _W, send: SendTheDraft, found: Any, draft: Any) -> None:
         self.world, self._send, self._found, self._draft = world, send, found, draft
+        self.asked: tuple[Any, str, str] | None = None
 
     async def press(self) -> str:
         return await self._send.execute(CTX, self._found.id, self._draft.id.value)
@@ -522,12 +523,19 @@ async def _drafted_and_pressed(how: Any) -> _Pressed:
             "t-1": json.dumps({"messages": [{"id": "m-1", "from": SENDER, "subject": "s"}]}),
         },
     )
-    await _door(world, *MISSING_ONE, drafts=_real_drafts(world)).execute(CTX)
+    real, asked = _real_drafts(world), []
+
+    async def spy(ctx: RequestContext, pending: Any, thread: str, question: str) -> bool:
+        asked.append((pending, thread, question))
+        return await real(ctx, pending, thread, question)
+
+    await _door(world, *MISSING_ONE, drafts=spy).execute(CTX)
     found = await ReadThreads(world.uow).asking(CTX, "t-1")
     assert found is not None
     (mail,) = await _drafts_made(world)
     send = SendTheDraft(world.uow, world.mailbox, FakeClock(), FakeIdFactory(), {})
     pressed = _Pressed(world, send, found, mail)
+    pressed.asked = asked[0]
     assert await pressed.press() == ""
     return pressed
 
@@ -540,7 +548,9 @@ async def test_a_draft_that_was_definitely_not_sent_can_be_sent_again_once_recon
     pressed = await _drafted_and_pressed(NotConnected("outlook has no grant: reconnect it"))
     last = await pressed.last()
 
-    assert last.decision["sent"] is False and last.decision["retry"] is True
+    # A distinct kind: the installed extension marks a draft done only on `mail_sent`,
+    # so this keeps Send it there too, and the "waiting on a reply" readers ignore it.
+    assert last.decision["kind"] == "mail_not_sent" and last.decision["sent"] is False
     assert "Nothing was sent" in last.text and "reconnect" in last.text.lower()
     assert "check Sent" not in last.text
 
@@ -549,13 +559,24 @@ async def test_a_draft_that_was_definitely_not_sent_can_be_sent_again_once_recon
     assert await pressed.press() == SENDER and pressed.sends() == 2
 
 
+async def test_a_not_sent_note_does_not_make_the_same_refusal_draft_again() -> None:
+    from sro.application.ports.tools import NotConnected
+
+    pressed = await _drafted_and_pressed(NotConnected("outlook has no grant: reconnect it"))
+    world = pressed.world
+    assert pressed.asked is not None
+
+    assert await _real_drafts(world)(CTX, *pressed.asked) is False
+    assert len(await _drafts_made(world)) == 1
+
+
 async def test_a_draft_that_may_have_gone_is_never_sent_a_second_time() -> None:
     from sro.application.ports.tools import ToolsUnavailable
 
     pressed = await _drafted_and_pressed(ToolsUnavailable("outlook did not answer: ReadTimeout"))
     last = await pressed.last()
 
-    assert last.decision["sent"] is False and not last.decision.get("retry")
+    assert last.decision["kind"] == "mail_sent" and last.decision["sent"] is False
     pressed.world.mailbox.how = ToolResult(text='{"id": "sent-1"}')
 
     assert await pressed.press() == "" and pressed.sends() == 1

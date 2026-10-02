@@ -12,6 +12,7 @@ from types import ModuleType
 
 from sro.application.ports.tools import ToolResult
 from sro.domain.shared.identifiers import PrincipalId, TenantId
+from tests import factories as f
 from tests.unit.application.rig.test_a_mail_job_is_written_not_clicked import (
     THREAD,
     _a_run,
@@ -74,6 +75,8 @@ async def test_a_mail_that_arrived_in_outlook_starts_its_run_like_a_gmail_one(
     assert len(world.durable.runs_started) == 1
     assert [tool for _who, tool, _args in mailbox.asked][:2] == ["search_threads", "get_message"]
     assert "GT2" in reads.saw[0]
+    (run,) = await world.uow.workflow_runs.for_workflow(f.TENANT, JOB)
+    assert run.mail["link"] == "https://outlook.office.com/mail/id/m-1"
 
 
 async def test_a_mail_the_outlook_connector_sent_is_recorded_as_sent_and_not_retried(

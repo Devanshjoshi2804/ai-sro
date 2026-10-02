@@ -12,7 +12,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/gemini/ask
 > Search grounding is never enabled: it voids zero data retention (thirty days of
 > storage, no opt-out), and this process reads live customer payloads.
 
-## module, [line 15](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L15): Note on the line above
+## module, [line 16](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L16): Note on the line above
 
 Code: `K_MAX_OUTPUT_TOKENS = 65536`
 
@@ -29,7 +29,7 @@ Code: `K_MAX_OUTPUT_TOKENS = 65536`
 > ceiling needs a lower one. Anthropic bills thinking outside its ceiling and is
 > unaffected.
 
-## module, [line 18](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L18): Note on the line above
+## module, [line 19](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L19): Note on the line above
 
 Code: `LESS_THINKING: dict[Effort, Effort] = {"high": "medium", "medium": "low", "low": "minimal"}`
 
@@ -57,7 +57,7 @@ Code: `LESS_THINKING: dict[Effort, Effort] = {"high": "medium", "medium": "low",
 > by model -- each model's own levels and floor -- here, where both the
 > record's level and the step-down meet.
 
-## module, [line 41](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L41): Note on the line above
+## module, [line 42](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L42): Note on the line above
 
 Code: `K_TRIES = 3`
 
@@ -77,25 +77,25 @@ Code: `K_TRIES = 3`
 > retry risks paying twice for one answer. Two extra attempts against a 2-in-3
 > failure rate is worth that; ten would not be.
 
-## module, [line 43](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L43): Note on the line above
+## module, [line 44](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L44): Note on the line above
 
 Code: `K_BACKOFF_S = 2.0`
 
 > Waited before a retry, multiplied by the attempt number. A server that just
 > gave up on a large request is a server that wants a moment.
 
-## `truncated`, [line 21](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L21): Docstring
+## `truncated`, [line 22](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L22): Docstring
 
 > Whether the model stopped because it hit the output ceiling. The SDK
 > says so on the candidate's `finish_reason`; compared by name so a fake and
 > the enum both read. A cut-off answer is not "not json": it is a page the
 > model was not allowed to finish, and the row should say which.
 
-## `build_config`, [line 28](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L28): Docstring
+## `build_config`, [line 29](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L29): Docstring
 
 > The config every call uses. No tools, ever — see the module docstring.
 
-## `_worth_retrying`, [line 46](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L46): Docstring
+## `_worth_retrying`, [line 47](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L47): Docstring
 
 > Whether this failure is the far end's and might not happen again.
 >
@@ -108,7 +108,7 @@ Code: `K_BACKOFF_S = 2.0`
 > Read off `code` rather than by catching `ServerError` by name, so an SDK
 > that renames its exceptions does not silently turn this off.
 
-## `GeminiAsker.__init__`, [line 57](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L57): Docstring
+## `GeminiAsker.__init__`, [line 67](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L67): Docstring
 
 > Only a client: production hands it the metered one `container.py` builds
 > with `metered_client(..., timeout_ms=...)`, so no asker can reach the model
@@ -117,7 +117,7 @@ Code: `K_BACKOFF_S = 2.0`
 > socket held a reading pass for 19 hours here, having read nothing and said
 > nothing.
 
-## `build_config`, [line 34](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L34): Comment
+## `build_config`, [line 35](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L35): Comment
 
 Code: `max_output_tokens=K_MAX_OUTPUT_TOKENS,`
 
@@ -126,7 +126,7 @@ Code: `max_output_tokens=K_MAX_OUTPUT_TOKENS,`
 > and was filed as "not json": $1.16 for nothing, and nothing said
 > why. The models this rig names all write up to this.
 
-## `build_config`, [line 35](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L35): Comment
+## `build_config`, [line 36](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L36): Comment
 
 Code: `thinking_config=None`
 
@@ -136,7 +136,7 @@ Code: `thinking_config=None`
 > ThinkingLevel(...) because the SDK types the field as its own enum,
 > and a plain str fails mypy. It takes "high" case-insensitively.
 
-## `GeminiAsker.ask`, [line 77](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L77): Comment
+## `GeminiAsker.ask`, [line 87](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L87): Comment
 
 Code: `logger.info("the answer hit the output ceiling at %s; asking again at %s", effort, lower)`
 
@@ -145,7 +145,7 @@ Code: `logger.info("the answer hit the output ceiling at %s; asking again at %s"
 > that reported only the answer that arrived would understate a pass
 > that had to ask twice, which is the one figure this is about.
 
-## `GeminiAsker._parts`, [line 98](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L98): Comment
+## `GeminiAsker._parts`, [line 108](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L108): Comment
 
 Code: `parts: list[Any] = [part for part in (instructions, evidence) if part]`
 
@@ -153,7 +153,7 @@ Code: `parts: list[Any] = [part for part in (instructions, evidence) if part]`
 > benign in the SDK, and rejected by some endpoints. umbrella.py passes
 > instructions="" on every call.
 
-## `GeminiAsker._parts`, [line 101](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L101): Comment
+## `GeminiAsker._parts`, [line 111](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L111): Comment
 
 Code: `for more in images:`
 
@@ -162,7 +162,7 @@ Code: `for more in images:`
 > under the mime type its caller read off the upload: the transcriber's
 > narration.
 
-## `GeminiAsker._asked_once`, [line 112](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L112): Comment
+## `GeminiAsker._asked_once`, [line 122](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L122): Comment
 
 Code: `with doing("model.ask") as span:`
 
@@ -170,7 +170,7 @@ Code: `with doing("model.ask") as span:`
 > nothing could account for: a request that took ninety seconds said so
 > and said nothing about which of its model calls that was.
 
-## `GeminiAsker._asked_once`, [line 125](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L125): Comment
+## `GeminiAsker._asked_once`, [line 135](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L135): Comment
 
 Code: `except Exception as raised:`
 
@@ -185,7 +185,7 @@ Code: `except Exception as raised:`
 > a retry that could never succeed. Raised, it fails where the embedder's
 > already did, loudly, at the code that forgot to name its tenant.
 
-## `GeminiAsker._asked_once`, [line 140](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L140): Comment
+## `GeminiAsker._asked_once`, [line 150](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L150): Comment
 
 Code: `unreachable=problem is None or _an_outage(problem),`
 
@@ -200,7 +200,7 @@ Code: `unreachable=problem is None or _an_outage(problem),`
 > it left `newer_than:2d`; as a plain failed read it is counted toward `K_UNREAD`
 > and the mail is given up on.
 
-## `GeminiAsker._asked_once`, [line 146](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L146): Comment
+## `GeminiAsker._asked_once`, [line 156](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L156): Comment
 
 Code: `thought_tokens = getattr(usage, "thoughts_token_count", None) or 0`
 
@@ -212,14 +212,14 @@ Code: `thought_tokens = getattr(usage, "thoughts_token_count", None) or 0`
 > short visible answer can carry thousands of billed tokens the bill
 > showed and we did not.
 
-## `GeminiAsker._asked_once`, [line 149](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L149): Comment
+## `GeminiAsker._asked_once`, [line 159](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L159): Comment
 
 Code: `out_tokens = (raw_out or 0) + thought_tokens`
 
 > Kept apart in the record and added together for the bill: one number
 > says what the model wrote, the other says what it cost.
 
-## `GeminiAsker._asked_once`, [line 154](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L154): Comment
+## `GeminiAsker._asked_once`, [line 164](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L164): Comment
 
 Code: `return Answer(`
 

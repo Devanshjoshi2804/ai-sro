@@ -53,11 +53,13 @@ Code: `answers=[`
 > question that named something is that thing and not the
 > collection it was in.
 
-## `_mail_link`, [line 2935](../../../../../../../backend/src/sro/interface/http/schemas.py#L2935): Comment
+## `_mail_link`, [line 2932](../../../../../../../backend/src/sro/interface/http/schemas.py#L2932): Comment
 
-Code: `return _MAIL_LINKS[server] + quote(thread, safe="") if thread and server in _MAIL_LINKS else ""`
+Code: `if given.startswith("https://"):`
 
-> A thread id is a link only on the server that issued it: Gmail's goes after `#all/` and
-> an Outlook conversation id after `deeplink/readconv/`. The run stores which server its mail came
-> from; one nobody here knows gets no link rather than a wrong one, and a run stored before the
-> server was kept reads as Gmail, which was all there was.
+> Outlook has no link we can build from a conversation id: Microsoft documents only Graph's
+> `webLink` on a message (learn.microsoft.com/graph/api/resources/message). So the connector
+> carries it, the run stores it as `mail.link`, and only an https one is shown. Gmail's goes
+> after `#all/` on its thread id; a run stored before its server was kept reads as Gmail, which
+> was all there was; any other server, or an Outlook run with no stored link, gets none rather
+> than a wrong one.

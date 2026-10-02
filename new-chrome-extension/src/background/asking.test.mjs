@@ -114,6 +114,11 @@ test("a chat whose mail was sent and whose question still stands is waiting on t
   assert.equal(waiting.at, Date.parse("2026-09-30T13:00:00Z"));
 });
 
+test("a mail that definitely did not go is not a wait", () => {
+  const notSent = { ...sentAt("2026-09-30T13:00:00Z"), decision: { kind: "mail_not_sent", sent: false } };
+  assert.equal(waitingOnReply([chat("thr_a", asked, drafted, notSent)]), null);
+});
+
 test("a draft nobody sent is not a wait", () => {
   assert.equal(waitingOnReply([chat("thr_a", asked, drafted)]), null);
 });

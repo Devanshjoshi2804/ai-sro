@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/application/chat/brain.py`](../../../../../../../backend/src/sro/application/chat/brain.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `Brain._turn`, [line 197](../../../../../../../backend/src/sro/application/chat/brain.py#L197): Comment
+## `Brain._turn`, [line 199](../../../../../../../backend/src/sro/application/chat/brain.py#L199): Comment
 
 Code: `budget = budget or Budget(self._max_calls, self._max_turn_usd)`
 

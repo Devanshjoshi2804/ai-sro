@@ -257,6 +257,37 @@ async def test_only_an_outage_is_unreachable_a_rejected_prompt_is_a_failed_read(
     assert answer.error and answer.unreachable is outage
 
 
+@pytest.mark.parametrize(
+    ("said", "outage"),
+    [
+        ("API key not valid. Please pass a valid API key. reason: API_KEY_INVALID", True),
+        ("API Key expired. Please renew the API key.", True),
+        ("Request contains an invalid argument: the schema has no field x", False),
+    ],
+)
+async def test_a_400_about_the_key_is_a_configuration_outage_one_about_the_prompt_is_not(
+    said: str, outage: bool
+) -> None:
+    """Gemini answers an invalid API key with a 400: every mail would count Unread and be given
+    up on, when the look should stop and say the model is not reachable."""
+
+    class _Invalid(_Coded):
+        def __init__(self) -> None:
+            super().__init__(400)
+            self.args = (f"400 INVALID_ARGUMENT. {said}",)
+
+    def _raise() -> Any:
+        raise _Invalid()
+
+    client, _ = _fake_client(_raise)
+
+    answer = await GeminiAsker(client=client).ask(
+        model="gemini-3.8-flash", instructions="i", evidence="e", schema={"type": "object"}
+    )
+
+    assert answer.error and answer.unreachable is outage
+
+
 async def test_a_call_that_never_returned_does_not_claim_to_be_free() -> None:
     """We cannot tell whether it was billed before it failed, so the cost
     figure is not to be trusted -- which is what `unpriced` means."""

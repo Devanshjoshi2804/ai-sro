@@ -25,6 +25,10 @@ class NotSent(Exception):
     code = "not_sent"
 
 
+class Unread(Exception):
+    """The mail could not be read this time: it is released to be read again."""
+
+
 def mail_key(message: str) -> str:
     return f"mail:{message}"
 

@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 
 from sro.application.chat.brain import Brain
 from sro.application.chat.brain_tools import values_of
+from sro.application.chat.mailbox import Unread
 from sro.application.context import RequestContext
 from sro.domain.chat.brain_turn import Origin
 
@@ -41,6 +42,9 @@ class BrainReader:
         )
         tried = [(call, result) for call, result in reply.steps if call.tool == "start_job"]
         if not tried:
+            if reply.failed or "budget" in reply.trouble:
+                # Not "no job": the brain could not read it. The mail is left to be read again.
+                raise Unread(reply.said)
             return None
         # A dry "would" does not end the turn: the last start that passed its checks is the
         # reading; only when none passed, the last refusal (it may be a missing-only one).
@@ -50,7 +54,8 @@ class BrainReader:
         if result.ok:
             return MailReading(job, values, (), True)
         missing = _only_missing(result.error)
-        return MailReading(job, values, missing, False) if missing else None
+        # The brain committed to one job: what is missing does not make it unsure of the job.
+        return MailReading(job, values, missing, True) if missing else None
 
 
 def _only_missing(error: str) -> tuple[str, ...]:

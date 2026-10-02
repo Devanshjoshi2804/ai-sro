@@ -28,7 +28,7 @@ Code: `K_REMEMBER = timedelta(days=30)`
 > comes round again is one nobody acted on in a month, and offering it a second
 > time is not the worst thing this could do.
 
-## `sent_to_others`, [line 109](../../../../../../../backend/src/sro/application/chat/mailbox.py#L109): Note
+## `sent_to_others`, [line 113](../../../../../../../backend/src/sro/application/chat/mailbox.py#L113): Note
 
 > Who else a request went to when the operator sent it: every To and Cc
 > address other than the mailbox's own, when the sender is the mailbox. So a
@@ -38,7 +38,7 @@ Code: `K_REMEMBER = timedelta(days=30)`
 > work, and how every test request on this deployment is written. Addresses
 > are compared case-folded; `email.utils` does the parsing.
 
-## `mail_key`, [line 28](../../../../../../../backend/src/sro/application/chat/mailbox.py#L28): Docstring
+## `mail_key`, [line 32](../../../../../../../backend/src/sro/application/chat/mailbox.py#L32): Docstring
 
 > The key a mail is read under in the claim ledger, for every door: the look
 > keeps a mail it has read under it. It says "read", never "this system sent
@@ -49,7 +49,7 @@ Code: `K_REMEMBER = timedelta(days=30)`
 > system's own sent mail was read back as the operator's; now `is_ours` is the
 > one check of `sent_key`, and the look calls it before it reads a mail.
 
-## `send_as_this_system`, [line 54](../../../../../../../backend/src/sro/application/chat/mailbox.py#L54): Comment
+## `send_as_this_system`, [line 58](../../../../../../../backend/src/sro/application/chat/mailbox.py#L58): Comment
 
 Code: `marker = secrets.token_hex(16)`
 

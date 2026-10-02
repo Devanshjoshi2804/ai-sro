@@ -62,6 +62,9 @@ class BrainReply:
     # What went wrong on the way that the operator is not told of: "budget" (the turn hit its
     # steps, calls or spend), "fell_back" (a second model answered), "unreadable_args".
     trouble: tuple[str, ...] = ()
+    # The model could not answer at all (down, over the cap, or the turn broke): `said` is the
+    # apology, not a reading of anything.
+    failed: bool = False
 
 
 def _args_of(raw: object) -> dict[str, object] | None:

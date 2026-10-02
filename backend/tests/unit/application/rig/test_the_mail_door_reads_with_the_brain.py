@@ -9,6 +9,7 @@ from typing import Any
 from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.brain_reader import MailReading
 from sro.application.chat.feedback import RecordFeedback
+from sro.application.chat.mailbox import Unread
 from sro.application.context import RequestContext
 from sro.domain.chat.asking import NEEDS
 from tests import factories as f
@@ -16,13 +17,16 @@ from tests.unit.application.rig.test_from_the_mail import (
     CTX,
     JOB,
     _found,
+    _Gathers,
     _held,
     _look,
     _mail,
     _Mailbox,
     _reading,
     _Reads,
+    _short,
     _thread,
+    mail_world,
 )
 from tests.unit.fakes import FakeClock, FakeIdFactory
 
@@ -33,10 +37,21 @@ LIVE = frozenset({f.TENANT.value})
 class _Reader:
     def __init__(self, reading: MailReading | None) -> None:
         self.reading, self.asked = reading, 0
+        self.seen: list[dict[str, Any]] = []
 
-    async def read(self, ctx: RequestContext, **_: object) -> MailReading | None:
+    async def read(self, ctx: RequestContext, **kept: object) -> MailReading | None:
         self.asked += 1
+        self.seen.append(kept)
         return self.reading
+
+
+def _to(reader: Any) -> Any:
+    return lambda: reader
+
+
+class _Fails:
+    async def read(self, ctx: RequestContext, **_: object) -> MailReading | None:
+        raise Unread("the brain could not answer")
 
 
 class _NeverRead:
@@ -52,13 +67,11 @@ async def _live(reader: Any, thread: str = "", drafts: Any = None) -> Any:
     uow = await _held()
     asks = AskAboutTheOffer(uow, FakeClock(), FakeIdFactory(), drafts)
     reads = _Reads()
-    door = _look(uow, _mailbox(thread), reads, asks=asks, reader=reader, reader_tenants=LIVE)
+    door = _look(uow, _mailbox(thread), reads, asks=asks, reader=_to(reader), reader_tenants=LIVE)
     return uow, reads, door
 
 
 async def test_a_live_tenant_s_complete_mail_starts_one_run_from_the_brain_s_reading() -> None:
-    from tests.unit.application.rig.test_from_the_mail import mail_world
-
     world = await mail_world(sure=True, values={}, steel=True, thread="t-1")
     world.mailbox._answers["m-1"] = json.dumps(
         {
@@ -72,7 +85,12 @@ async def test_a_live_tenant_s_complete_mail_starts_one_run_from_the_brain_s_rea
     )
     reader = _Reader(MailReading(JOB, {"Customer Type": "GT2"}, (), True))
     door = _look(
-        world.uow, world.mailbox, world.reads, start=world.start, reader=reader, reader_tenants=LIVE
+        world.uow,
+        world.mailbox,
+        world.reads,
+        start=world.start,
+        reader=_to(reader),
+        reader_tenants=LIVE,
     )
 
     await door.execute(CTX)
@@ -84,8 +102,6 @@ async def test_a_live_tenant_s_complete_mail_starts_one_run_from_the_brain_s_rea
 
 
 async def test_a_live_tenant_s_mail_missing_the_description_is_asked_and_drafted() -> None:
-    from tests.unit.application.rig.test_from_the_mail import mail_world
-
     world = await mail_world(sure=True, values={}, steel=True, thread="t-1")
     drafted: list[Any] = []
 
@@ -103,7 +119,7 @@ async def test_a_live_tenant_s_mail_missing_the_description_is_asked_and_drafted
         world.reads,
         start=world.start,
         asks=asks,
-        reader=reader,
+        reader=_to(reader),
         reader_tenants=LIVE,
     )
 
@@ -117,8 +133,6 @@ async def test_a_live_tenant_s_mail_missing_the_description_is_asked_and_drafted
 
 
 async def test_a_live_tenant_s_injection_mail_starts_nothing_asks_nothing_drafts_nothing() -> None:
-    from tests.unit.application.rig.test_from_the_mail import mail_world
-
     world = await mail_world(sure=True, values={}, steel=True, thread="t-1")
     drafted: list[Any] = []
 
@@ -133,7 +147,7 @@ async def test_a_live_tenant_s_injection_mail_starts_nothing_asks_nothing_drafts
         world.reads,
         start=world.start,
         asks=asks,
-        reader=_Reader(None),
+        reader=_to(_Reader(None)),
         reader_tenants=LIVE,
     )
 
@@ -145,17 +159,132 @@ async def test_a_live_tenant_s_injection_mail_starts_nothing_asks_nothing_drafts
 
 
 async def test_a_reply_on_a_standing_question_never_reaches_the_reader() -> None:
-    from tests.unit.application.rig.test_from_the_mail import (
-        _short,
+    uow = await _held()
+    await uow.workflow_runs.save(
+        _short("t-9", needs=["Customer Type"], values={"Customer Type Description": "north dock"})
+    )
+    gather = _Gathers(**{"Customer Type": "GU9"})
+    door = _look(
+        uow, _mailbox("t-9"), _Reads(), gather, reader=_to(_NeverRead()), reader_tenants=LIVE
     )
 
-    uow = await _held()
-    stale = _short("t-9", needs=["Customer Type"], values={})
-    stale.awaiting = {"server": "gmail", "thread": "t-9", "until": "2999-01-01T00:00:00+00:00"}
-    await uow.workflow_runs.save(stale)
-    door = _look(uow, _mailbox("t-9"), _Reads(), reader=_NeverRead(), reader_tenants=LIVE)
+    looked = await door.execute(CTX)
+
+    (one,) = looked.offered
+    assert one.values == {"Customer Type Description": "north dock", "Customer Type": "GU9"}, (
+        "the existing answer path ran"
+    )
+
+
+async def test_a_live_mail_the_gather_completes_starts_its_run() -> None:
+    world = await mail_world(sure=True, values={}, steel=True, thread="t-1")
+    reader = _Reader(
+        MailReading(JOB, {"Customer Type": "GPX"}, ("Customer Type Description",), True)
+    )
+    gather = _Gathers(**{"Customer Type Description": "north dock"})
+    door = _look(
+        world.uow,
+        world.mailbox,
+        world.reads,
+        gather,
+        start=world.start,
+        reader=_to(reader),
+        reader_tenants=LIVE,
+    )
+
+    looked = await door.execute(CTX)
+
+    (run,) = await world.uow.workflow_runs.for_workflow(f.TENANT, JOB)
+    assert run.offer == "mail:m-1" and looked.offered[0].started
+
+
+async def test_a_brain_that_could_not_read_leaves_the_mail_for_the_next_look() -> None:
+    world = await mail_world(sure=True, values={}, steel=True)
+    door = _look(
+        world.uow,
+        world.mailbox,
+        world.reads,
+        start=world.start,
+        reader=_to(_Fails()),
+        reader_tenants=LIVE,
+    )
+
+    looked = await door.execute(CTX)
+    assert looked.stopped and looked.asks_nothing == ()
+
+    reader = _Reader(MailReading(JOB, {"Customer Type": "GT2"}, (), True))
+    again = _look(
+        world.uow,
+        world.mailbox,
+        world.reads,
+        start=world.start,
+        reader=_to(reader),
+        reader_tenants=LIVE,
+    )
+    await again.execute(CTX)
+    assert reader.asked == 1, "the mail was read again, not remembered as asking for nothing"
+
+
+async def test_the_reader_is_built_on_first_use_and_asked_with_the_offer_and_earlier_mails() -> (
+    None
+):
+    world = await mail_world(sure=True, values={}, steel=True, thread="t-1")
+    world.mailbox._answers["t-1"] = json.dumps(
+        {
+            "id": "t-1",
+            "messages": [
+                {"id": "m-0", "body": "the old mail"},
+                {"id": "m-1", "body": "please create GPX"},
+            ],
+        }
+    )
+    reader = _Reader(None)
+    built: list[int] = []
+
+    def build() -> _Reader:
+        built.append(1)
+        return reader
+
+    door = _look(world.uow, world.mailbox, world.reads, reader=build, reader_tenants=LIVE)
+    assert built == []
 
     await door.execute(CTX)
+
+    assert built == [1] and reader.seen[0]["offer"] == "mail:m-1"
+    assert "the old mail" in reader.seen[0]["earlier"]
+    assert "please create GPX" not in reader.seen[0]["earlier"]
+
+
+async def test_a_live_sign_in_chore_is_refused_as_the_matcher_refuses_it() -> None:
+    from dataclasses import replace
+
+    world = await mail_world(sure=True, values={}, steel=True)
+    base = await world.uow.workflows.get(f.TENANT, JOB)
+    async with world.uow as uow:
+        await uow.workflows.save(
+            replace(
+                base,
+                id="wfl_chore",
+                title="Sign in to the console",
+                narrative="sign in to the console",
+                signs_in=True,
+            )
+        )
+        await uow.commit()
+    world.mailbox._answers["m-1"] = _mail("please sign in to the console")
+    reader = _Reader(MailReading(JOB, {"Customer Type": "GT2"}, (), True))
+    door = _look(
+        world.uow,
+        world.mailbox,
+        world.reads,
+        start=world.start,
+        reader=_to(reader),
+        reader_tenants=LIVE,
+    )
+
+    looked = await door.execute(CTX)
+
+    assert looked.offered[0].cannot_run and world.durable.runs_started == []
 
 
 async def _shadow(reading: MailReading | None) -> tuple[Any, _Reader]:
@@ -167,7 +296,7 @@ async def _shadow(reading: MailReading | None) -> tuple[Any, _Reader]:
         uow,
         _mailbox(),
         reads,
-        reader=reader,
+        reader=_to(reader),
         shadow_tenants=LIVE,
         feedback=RecordFeedback(uow, FakeIdFactory(), FakeClock()),
         spawn=spawned.append,
@@ -183,6 +312,9 @@ async def test_a_shadow_disagreement_is_recorded() -> None:
     assert reader.asked == 1
     (row,) = uow.chat_feedback.rows
     assert row.kind == "disagreement" and row.message_id == "m-1"
+    assert row.brain["read"] == {"job": JOB, "values": {"Customer Type": "OTHER"}}
+    assert row.other["read"] == {"job": JOB, "values": {"Customer Type": "GPX"}}
+    assert reader.seen[0]["offer"] == "mail:m-1"
 
 
 async def test_a_shadow_agreement_records_nothing() -> None:
@@ -203,7 +335,7 @@ async def test_a_shadow_reader_that_raises_never_breaks_the_look() -> None:
         uow,
         _mailbox(),
         _Reads(_reading(JOB)),
-        reader=_Boom(),
+        reader=_to(_Boom()),
         shadow_tenants=LIVE,
         feedback=RecordFeedback(uow, FakeIdFactory(), FakeClock()),
         spawn=spawned.append,
@@ -211,3 +343,8 @@ async def test_a_shadow_reader_that_raises_never_breaks_the_look() -> None:
     assert (await door.execute(CTX)).offered
     await asyncio.gather(*spawned)
     assert uow.chat_feedback.rows == []
+
+
+async def test_a_secret_a_shadow_read_carries_is_not_kept() -> None:
+    uow, _ = await _shadow(MailReading(JOB, {"Password": "hunter2"}, (), True))
+    assert "hunter2" not in repr(uow.chat_feedback.rows[0].brain)

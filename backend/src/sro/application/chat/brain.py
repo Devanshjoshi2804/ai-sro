@@ -54,7 +54,9 @@ def _cannot(
     why: str, decisions: list[dict[str, object]], steps: list[tuple[ToolCall, ToolResult]]
 ) -> BrainReply:
     # What the turn already did stays on the record: a run it started is still a run.
-    return BrainReply(f"I can't answer right now: {why}.", tuple(decisions), tuple(steps))
+    return BrainReply(
+        f"I can't answer right now: {why}.", tuple(decisions), tuple(steps), failed=True
+    )
 
 
 def _stopped(

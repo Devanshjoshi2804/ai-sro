@@ -112,8 +112,8 @@ class RecordFeedback:
                 "",
                 message_id,
                 said,
-                {"mode": "shadow", "read": brain},
-                {"read": chain},
+                {"mode": "shadow", "read": kept(brain)},
+                {"read": kept(chain)},
             )
         except Exception:
             logger.exception("feedback (%s) could not be kept", DISAGREEMENT)

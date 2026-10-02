@@ -628,7 +628,7 @@ Code: `answers=IsItAnAnswer(self.asker),`
 > standing at the panel waiting to find out what happens to the
 > sentence they just pressed Enter on.
 
-## `Container.from_the_mail`, [line 854](../../../../../backend/src/sro/container.py#L854): Comment
+## `Container.from_the_mail`, [line 853](../../../../../backend/src/sro/container.py#L853): Comment
 
 Code: `clock=self.clock,`
 

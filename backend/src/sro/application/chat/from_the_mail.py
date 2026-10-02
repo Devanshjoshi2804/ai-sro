@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from collections.abc import AsyncIterator, Mapping, Sequence
+from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
@@ -12,13 +12,14 @@ from typing import TYPE_CHECKING, Protocol
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.announce import SayWhatHappened
-from sro.application.chat.candidates import candidate_of
+from sro.application.chat.candidates import candidate_of, chore_named
 from sro.application.chat.feedback import RecordFeedback
 from sro.application.chat.mailbox import (
     K_ELSEWHERE,
     K_REMEMBER,
     K_TAKEN,
     SERVER,
+    Unread,
     elsewhere_key,
     is_ours,
     mail_key,
@@ -26,6 +27,7 @@ from sro.application.chat.mailbox import (
 )
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.chat.understand import (
+    K_A_CHORE,
     Understood,
     held_runs,
     offer_check,
@@ -209,13 +211,15 @@ class FromTheMail:
         start: StartWorkflowRun | None = None,
         attempts: RecordAttempt | None = None,
         asks: AskAboutTheOffer | None = None,
-        reader: MailReader | None = None,
+        reader: Callable[[], MailReader] | None = None,
         reader_tenants: frozenset[str] = frozenset(),
         shadow_tenants: frozenset[str] = frozenset(),
         feedback: RecordFeedback | None = None,
         spawn: Spawn | None = None,
     ) -> None:
-        self._reader, self._reader_tenants = reader, reader_tenants
+        self._build = reader
+        self._built: MailReader | None = None
+        self._reader_tenants = reader_tenants
         self._shadow_tenants, self._feedback, self._spawn = shadow_tenants, feedback, spawn
         self._uow = uow
         self._asks = asks
@@ -358,20 +362,13 @@ class FromTheMail:
             )
         whole, earlier = await self._conversation(ctx, thread, message) if thread else ("", "")
         text = whole or said
-        if self._reader is not None and tenant in self._reader_tenants:
-            reading = await self._reader.read(
-                ctx,
-                text=mail.typed,
-                earlier=whole,
-                sender=mail.sender,
-                subject=mail.subject,
-                offer=mail_key(message),
-            )
-            if reading is None:
+        if self._build is not None and tenant in self._reader_tenants:
+            live = await self._read_by_the_brain(ctx, message, mail, text, earlier, known)
+            if live is None:
                 logger.info("%s: the brain read a mail that asks for no job", tenant)
                 look.asks_nothing.append(subject)
                 return None
-            got = _as_reading(reading)
+            got = live
         else:
             got = await read_request(
                 text, known.facts, asker, held=known.held_by, logins=known.logins
@@ -379,8 +376,8 @@ class FromTheMail:
             look.spent = _also(look.spent, got.answer)
             if got.answer.data is None:
                 raise Unread(got.answer.error or "the model gave no reading")
-            if self._reader is not None and tenant in self._shadow_tenants:
-                self._compare(ctx, message, mail, got, whole)
+            if self._build is not None and tenant in self._shadow_tenants:
+                self._compare(ctx, message, mail, got, earlier)
         async with self._uow as uow:
             got = await offer_check(uow, ctx.tenant_id, got, known.facts, now=known.now)
         if got.workflow_id is None:
@@ -444,14 +441,47 @@ class FromTheMail:
             ),
         )
 
+    def _reading(self) -> MailReader:
+        """The brain's reader, built on first use: the brain's own mail tool holds a
+        FromTheMail, so building it up front would be a cycle."""
+        build = self._build
+        if self._built is None and build is not None:
+            self._built = build()
+        if self._built is None:
+            raise Unread("this look has no reader")
+        return self._built
+
+    async def _read_by_the_brain(
+        self,
+        ctx: RequestContext,
+        message: str,
+        mail: _Mail,
+        text: str,
+        earlier: str,
+        known: _Known,
+    ) -> Understood | None:
+        chore = chore_named(text, known.facts)
+        if chore is not None:
+            # Signing in is the session broker's work, whoever reads the mail.
+            return Understood(chore.workflow.id, Answer(data={}), cannot_run=[K_A_CHORE])
+        reading = await self._reading().read(
+            ctx,
+            text=mail.typed,
+            earlier=earlier,
+            sender=mail.sender,
+            subject=mail.subject,
+            offer=mail_key(message),
+        )
+        return _as_reading(reading) if reading is not None else None
+
     def _compare(
         self, ctx: RequestContext, message: str, mail: _Mail, got: Understood, whole: str
     ) -> None:
         """Off the request path: what the brain would have read, kept as feedback when it
         differs from what the matcher read. Never raises into the look."""
-        if self._spawn is None or self._feedback is None or self._reader is None:
+        if self._spawn is None or self._feedback is None:
             return
-        reader, feedback = self._reader, self._feedback
+        reader, feedback = self._reading(), self._feedback
 
         async def compare() -> None:
             try:
@@ -1139,10 +1169,6 @@ class FromTheMail:
             await uow.commit()
 
 
-class Unread(Exception):
-    pass
-
-
 class _Theirs(Exception):
     pass
 
@@ -1271,7 +1297,7 @@ def _as_reading(reading: MailReading) -> Understood:
 
 
 def _shape(workflow_id: str | None, values: Mapping[str, str]) -> dict[str, object] | None:
-    return None if workflow_id is None else {"job": workflow_id, "values": sorted(values.items())}
+    return None if workflow_id is None else {"job": workflow_id, "values": dict(values)}
 
 
 def _also(running: Answer, answer: Answer) -> Answer:

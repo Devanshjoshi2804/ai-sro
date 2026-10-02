@@ -42,7 +42,7 @@ async def test_a_mail_without_its_description_reads_as_missing_not_invented() ->
         offer="mail:m2",
     )
     assert got is not None and got.workflow_id == JOB
-    assert got.missing == ("Customer Type Description",) and not got.sure
+    assert got.missing == ("Customer Type Description",) and got.sure
 
 
 async def test_an_injection_mail_reads_as_nothing() -> None:
@@ -117,3 +117,13 @@ async def test_a_complete_mail_refused_for_another_reason_reads_as_nothing() -> 
     assert (
         await _read(acting, SAID, _call("start_job", job_id=JOB, values=values), _say("x")) is None
     )
+
+
+async def test_a_turn_that_could_not_answer_is_unread_not_no_job() -> None:
+    import pytest
+
+    from sro.application.chat.mailbox import Unread
+
+    acting = await _acting()
+    with pytest.raises(Unread):
+        await _read(acting, SAID, Answer(data=None, error="down"))

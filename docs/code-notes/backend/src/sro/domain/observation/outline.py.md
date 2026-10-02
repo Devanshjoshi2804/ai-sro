@@ -34,7 +34,7 @@ Explanations for [`backend/src/sro/domain/observation/outline.py`](../../../../.
 > with a marker: an outline string exists to name a control, and a redacted
 > token names nothing.
 
-## `outline_kept`, [line 106](../../../../../../../backend/src/sro/domain/observation/outline.py#L106): Function
+## `outline_kept`, [line 142](../../../../../../../backend/src/sro/domain/observation/outline.py#L142): Function
 
 > The one server rule for an outline, applied in `redact_events` before the
 > blob is written and before the batch is parsed, so it holds for both
@@ -47,7 +47,7 @@ Explanations for [`backend/src/sro/domain/observation/outline.py`](../../../../.
 > copied (see page-code.js `outlineOf` for why messages keep no text). There
 > is no echo rule: a heading, label or option equal to a typed word is kept.
 
-## `_fitted`, [line 90](../../../../../../../backend/src/sro/domain/observation/outline.py#L90): Function
+## `_fitted`, [line 126](../../../../../../../backend/src/sro/domain/observation/outline.py#L126): Function
 
 > The page's `fitted`, in the same order: option lists from the last field
 > back, then headings, landmarks, messages and buttons from the end, and
@@ -55,7 +55,7 @@ Explanations for [`backend/src/sro/domain/observation/outline.py`](../../../../.
 > because a field is what a run fills by label (X10): a field missing from
 > the outline reads as a field that does not exist.
 
-## `last_outline`, [line 154](../../../../../../../backend/src/sro/domain/observation/outline.py#L154): Function
+## `last_outline`, [line 190](../../../../../../../backend/src/sro/domain/observation/outline.py#L190): Function
 
 > The screen a gesture was made on: its own last outline, else the latest
 > outline sent earlier from the same tab and frame. A gesture made on a screen
@@ -68,10 +68,22 @@ Explanations for [`backend/src/sro/domain/observation/outline.py`](../../../../.
 > M5). The query is ignored: an SPA that rewrites `?id=` stays on one
 > screen.
 
-## `said_text`, [line 63](../../../../../../../backend/src/sro/domain/observation/outline.py#L63): Function
+## `said_text`, [line 96](../../../../../../../backend/src/sro/domain/observation/outline.py#L96): Function
 
 > `_said`'s rule plus the stricter one for new capture text (effects,
-> places, choices, cookies): control and invisible characters are removed,
-> and text with an email, a run of six digits, "password/token/secret" with
-> a value, or a base64-looking run of 20 is dropped. `_said` itself is
+> places, choices, cookies). The input is cut to 480 characters, folded with
+> NFKC (fullwidth digits and `＠` become ASCII), stripped of control and
+> invisible characters and cut to 120 *before* any pattern runs, so every
+> pattern sees at most 120 characters and a megabyte of adversarial text
+> costs microseconds; the checks are on exactly what is stored. Dropped: an
+> email, also `at`/`[at]`/`(at)` and spaced forms; six or more digits even
+> split by space, `.`, `/` or `-` (card, phone, IP), except an ISO date;
+> `PIN`/`CVV`/`OTP` with a digit; password, passcode, pwd, secret, token,
+> api key or authorization with `:`, `=` or `is` and a value; `Bearer` with
+> a value; `eyJ` runs; a token of 20 or more, or two adjacent tokens of 10
+> or more, that mix in digits, `+` or about a fifth capitals. A validation
+> message ("Password is required", "Token is invalid") has a stop word where
+> the value would be and survives, as do dates, times and plain long words.
+> Known ceilings, accepted: a secret with no separator ("password hunter2")
+> and short route path tokens cannot be told from words. `_said` itself is
 > untouched, so existing outlines keep their rows.

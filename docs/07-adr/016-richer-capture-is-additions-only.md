@@ -43,3 +43,7 @@ holds what the person did, not what the page did back.
   effect that matches no or several stored gestures is dropped and logged, never guessed.
 - The `cookies` permission is optional and requested at runtime, so updating the extension shows no
   new warning.
+
+## Accepted ceilings of the new-text sanitiser
+
+Data is kept forever, so `said_text` drops on doubt, but two shapes cannot be told from ordinary words and are accepted: a mail thread reference is kept when it is 16 or more id characters that `redact_shapes` leaves alone (a real Gmail id looks exactly like a short secret), and a route path token under 20 characters that is not digit-heavy (`/reset/Zm9vYmFy`) is kept. A credential written with no separator ("password hunter2") is also kept for the same reason.

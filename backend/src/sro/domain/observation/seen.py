@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import math
 import re
 from collections.abc import Mapping
+from urllib.parse import unquote
 
 from sro.domain.observation.gesture import Choice, CookieSeen, Effect, FieldChange, Place, Seen
 from sro.domain.observation.outline import said_text
@@ -27,6 +27,8 @@ K_MS = 60_000
 K_COOKIES = 40
 K_COOKIE_NAME = 64
 K_MAIL_REF = 200
+K_ROUTE_INPUT = 1000
+K_MS_LIMIT = 10**12
 
 _URL = re.compile(r"\S+://\S+")
 _SHORTCUT = re.compile(
@@ -51,7 +53,10 @@ def _texts(raw: object, cap: int) -> list[str]:
 def _route(raw: object) -> str | None:
     if not isinstance(raw, str) or not raw.strip():
         return None
-    path, _, hashed = raw.partition("#")
+    decoded = raw[:K_ROUTE_INPUT]
+    for _ in range(3):
+        decoded = unquote(decoded)
+    path, _, hashed = decoded.partition("#")
     if "=" in hashed:
         return None
     shaped = path_shape(path) if path else ""
@@ -61,12 +66,7 @@ def _route(raw: object) -> str | None:
 
 
 def _ms(raw: object) -> int | None:
-    if (
-        isinstance(raw, bool)
-        or not isinstance(raw, int | float)
-        or not math.isfinite(raw)
-        or raw < 0
-    ):
+    if isinstance(raw, bool) or not isinstance(raw, int | float) or not 0 <= raw <= K_MS_LIMIT:
         return None
     return min(int(raw), K_MS)
 
@@ -183,7 +183,6 @@ def cookies_kept(raw: object) -> list[dict[str, object]]:
                 "expires_at": float(expires)
                 if isinstance(expires, int | float)
                 and not isinstance(expires, bool)
-                and math.isfinite(expires)
                 and 0 <= expires <= K_COOKIE_EXPIRY
                 else None,
                 "domain": domain

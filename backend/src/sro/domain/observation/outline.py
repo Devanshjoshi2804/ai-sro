@@ -50,21 +50,57 @@ def _said(raw: object) -> str | None:
     return plain[:K_OUTLINE_TEXT]
 
 
+K_SAID_INPUT = K_OUTLINE_TEXT * 4
+K_RANDOM_TOKEN = 10
+
+_STOPS = (
+    "required|invalid|incorrect|missing|empty|wrong|expired|too|must|not|cannot|can|should|"
+    "failed|mismatch|does|did|has|needed"
+)
 _NOT_PERSONAL = re.compile(
-    r"[^\s@]+@[^\s@]+\.[^\s@]+"
-    r"|\d(?:[ -]?\d){5,}"
-    r"|(?:password|passcode|secret|token)\w*\s*(?:[:=]|\bis\b)\s*\S"
-    r"|[A-Za-z0-9+]{20,}"
+    r"\S\s*(?:@|\[at\]|\(at\))\s*\S"
+    r"|\bat\s+[\w-]+(?:\.|\s+dot\s+)[a-z]{2,}"
+    r"|\d(?:[ ./-]?\d){5,}"
+    r"|\b(?:pin|cvv|cvc|otp)\b\W{0,3}\d"
+    r"|\b(?:pass(?:word|code|wd|phrase)?|pwd|secret|token|api[ _-]?key|authorization)s?"
+    r"\s*(?:[:=]|\bis\b)\s*(?!(?:" + _STOPS + r")\b)\S"
+    r"|\bbearer\s+[\w.+/=-]{8,}"
     r"|\b(?:sk|pk|rk)_(?:live|test)_|\b(?:ghp|gho|ghs|xox[abp])[_-]",
     re.ASCII | re.IGNORECASE,
 )
+_JWT = re.compile(r"eyJ[\w-]{5,}", re.ASCII)
+_ISO_DATE = re.compile(r"\b\d{4}[-/]\d{2}[-/]\d{2}\b", re.ASCII)
+_TOKENS = re.compile(r"[A-Za-z0-9+]+", re.ASCII)
+
+
+def _random_looking(token: str) -> bool:
+    if len(token) < K_RANDOM_TOKEN:
+        return False
+    uppers = sum(c.isupper() for c in token)
+    return (
+        any(c.isdigit() for c in token)
+        or "+" in token
+        or (0 < uppers < len(token) and uppers * 5 >= len(token))
+    )
+
+
+def _looks_encoded(text: str) -> bool:
+    tokens = _TOKENS.findall(text)
+    flags = [_random_looking(token) for token in tokens]
+    return any(
+        flag and (len(token) >= 20 or (i + 1 < len(flags) and flags[i + 1]))
+        for i, (token, flag) in enumerate(zip(tokens, flags, strict=True))
+    )
 
 
 def said_text(raw: object) -> str | None:
     if not isinstance(raw, str):
         return None
-    plain = _plain("".join(c for c in _plain(raw) if unicodedata.category(c)[0] != "C"))
-    if _NOT_PERSONAL.search(plain):
+    folded = unicodedata.normalize("NFKC", raw[:K_SAID_INPUT])
+    plain = _plain("".join(c for c in folded if unicodedata.category(c)[0] != "C"))
+    plain = plain[:K_OUTLINE_TEXT]
+    view = _ISO_DATE.sub("~", plain)
+    if _NOT_PERSONAL.search(view) or _JWT.search(view) or _looks_encoded(view):
         return None
     return _said(plain)
 

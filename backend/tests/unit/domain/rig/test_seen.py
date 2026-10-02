@@ -1,3 +1,5 @@
+import time
+
 import pytest
 
 from sro.domain.observation.gesture import Choice, CookieSeen, Effect, FieldChange, Place, Seen
@@ -280,3 +282,112 @@ def test_the_existing_outline_rule_is_unchanged() -> None:
         "x" * 130: None,
         "id=5": None,
     }
+
+
+@pytest.mark.parametrize("huge", [10**400, -(10**400)])
+def test_a_number_beyond_any_float_is_no_number_and_does_not_raise(huge: int) -> None:
+    assert effect_kept({"requests_ms": huge, "mask_ms": huge}) is None
+    (one,) = cookies_kept([{"name": "JSESSIONID", "expires_at": huge}])
+    assert one["expires_at"] is None
+
+
+@pytest.mark.parametrize(
+    "route",
+    [
+        "/a#token%3Dhunter2",
+        "/cb#id_token%3Dshort&state%3Dx",
+        "/u/John%2EDoe%40acme%2Ecom",
+        "/u/john%40acme.com/e",
+        "/u/john%2540acme.com/e",
+        "/x/eyJhbGciOiJIUzI/1NiJ9.eyJzdWIiO/y",
+    ],
+)
+def test_a_route_is_checked_after_percent_decoding(route: str) -> None:
+    kept = place_kept({"title": "T", "route": route})
+    assert kept is not None and kept["route"] is None
+
+
+def test_a_plain_route_survives_decoding() -> None:
+    kept = place_kept({"route": "/orders/new%20order"})
+    assert kept is not None and kept["route"] == "/orders/new order"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "4111.1111.1111.1111",
+        "4111/1111/1111",
+        "tel: 415.555.0132",
+        "\uff14\uff11\uff11\uff11 \uff11\uff11\uff11\uff11 \uff11\uff11\uff11\uff11",
+        "john\uff20acme.com",
+        "john.doe at acme.com",
+        "john.doe[at]acme.com",
+        "john.doe(at)acme.com",
+        "john @ acme . com",
+        "192.168.1.1",
+        "PIN 1234",
+        "pass: hunter2",
+        "pass:hunter2",
+        "api key: x",
+        "api_key: abc",
+        "passphrase: foo",
+        "passwd is x",
+        "Bearer abcdefghij",
+        "Authorization: Bearer abcdefghij",
+        "dGhpcyBpcy.BhIHNlY3Jl.dCB2YWx1ZQ",
+        "dGhpcyBpcy BhIHNlY3Jl dCB2YWx1ZQ",
+        "eyJhbGciOiJIUzI1NiJ9",
+        "eyJhbGciOiJ IUzI1NiJ9",
+    ],
+)
+def test_said_text_drops_the_separated_and_obfuscated_forms(text: str) -> None:
+    assert said_text(text) is None
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Password is required",
+        "Token is invalid",
+        "Password is incorrect",
+        "Password: required",
+        "Saved on 2026-10-03",
+        "Saved on 2026/10/03",
+        "Saved at 10:45:32",
+        "Internationalization",
+        "OrderFulfilmentConfirmation",
+        "ORDER ENTRY",
+        "Updated 12 Oct 2026",
+        "Total: 1,234,567.89",
+        "Page 1 of 1",
+        "Password reset email sent",
+        "Token expired",
+        "Passed 3 of 5",
+    ],
+)
+def test_said_text_keeps_messages_dates_and_long_words(text: str) -> None:
+    assert said_text(text) == text
+
+
+@pytest.mark.parametrize(
+    "make",
+    [
+        lambda: "a." * 500_000,
+        lambda: "a" * 1_000_000,
+        lambda: "1 " * 500_000,
+        lambda: "a@" * 500_000,
+        lambda: " " * 1_000_000,
+        lambda: "a1" * 500_000,
+        lambda: "password " * 110_000,
+        lambda: "Ab1" * 333_333,
+        lambda: "x" * 500_000 + "@" + "y" * 500_000,
+    ],
+)
+def test_adversarial_megabyte_text_is_sanitised_fast(make) -> None:  # type: ignore[no-untyped-def]
+    text = make()
+    started = time.perf_counter()
+    said_text(text)
+    place_kept({"route": text, "title": text, "headings": [text] * 3})
+    cookies_kept([{"name": text, "domain": text}])
+    mail_thread_kept(text)
+    assert time.perf_counter() - started < 0.05

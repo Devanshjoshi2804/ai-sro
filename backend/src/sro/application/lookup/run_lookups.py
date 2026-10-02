@@ -15,6 +15,7 @@ from sro.application.ports.locks import AccountBusy
 from sro.application.ports.page import PageGone
 from sro.application.ports.pool import PoolFull
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.ports.system import Clock
 from sro.application.runtime.api_lane import K_AUTH_REFUSED, needs_of, session_headers
 from sro.application.runtime.broker import SessionBroker, SigningIn
 from sro.application.runtime.step import Held
@@ -68,8 +69,8 @@ class Answers:
 
 
 class RunLookups:
-    def __init__(self, uow: UnitOfWork, broker: SessionBroker) -> None:
-        self._uow, self._broker = uow, broker
+    def __init__(self, uow: UnitOfWork, broker: SessionBroker, clock: Clock) -> None:
+        self._uow, self._broker, self._clock = uow, broker, clock
 
     async def execute(
         self, ctx: RequestContext, *, plan: Plan, within: float = K_DEADLINE_S
@@ -81,7 +82,7 @@ class RunLookups:
         looked: list[Looked] = []
         until = asyncio.get_running_loop().time() + within
         for lookup in plan.lookups:
-            address = address_for(lookup, gestures)
+            address = address_for(lookup, gestures, self._clock.now().timestamp())
             if address is None:
                 looked.append(
                     Looked(

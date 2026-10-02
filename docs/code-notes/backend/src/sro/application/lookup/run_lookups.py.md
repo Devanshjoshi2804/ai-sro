@@ -31,7 +31,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/lookup/run_lo
 > the whole plan. The difference is that a planning failure means the plan is
 > wrong about the world, and a looking failure means one system was shut.
 
-## module, [line 41](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L41): Note on the line above
+## module, [line 42](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L42): Note on the line above
 
 Code: `K_AFTER_HEADERS_S = 1.0`
 
@@ -44,7 +44,7 @@ Code: `K_AFTER_HEADERS_S = 1.0`
 > ponytail: a fixed second; a measured cookie-read time if a slow Chrome
 > ever eats it.
 
-## module, [line 26](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L26): Note on the line above
+## module, [line 27](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L27): Note on the line above
 
 Code: `K_GAPS = (DomainError, PoolFull, PageGone, TargetUnreachable, AccountBusy, BrowserUnavailable)`
 
@@ -55,7 +55,7 @@ Code: `K_GAPS = (DomainError, PoolFull, PageGone, TargetUnreachable, AccountBusy
 > that needs a person is a gap and not a question: nothing is waiting to resume
 > a lookup, so a lookup never waits on a person.
 
-## module, [line 37](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L37): Note on the line above
+## module, [line 38](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L38): Note on the line above
 
 Code: `K_DEADLINE_S = 45.0`
 
@@ -69,7 +69,7 @@ Code: `K_DEADLINE_S = 45.0`
 > This is the budget for `/v1/lookups` and `/v1/ask`, where the answer IS the
 > request and nothing else is held up behind it.
 
-## module, [line 39](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L39): Note on the line above
+## module, [line 40](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L40): Note on the line above
 
 Code: `K_WHILE_TALKING = 10.0`
 
@@ -101,11 +101,11 @@ Code: `K_WHILE_TALKING = 10.0`
 > trade: a question answered late is worth less than a conversation that
 > kept going.
 
-## `Looked`, [line 49](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L49): Docstring
+## `Looked`, [line 50](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L50): Docstring
 
 > What one lookup came back with.
 
-## `Looked`, [line 54](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L54): Note on the line above
+## `Looked`, [line 55](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L55): Note on the line above
 
 Code: `read: Answer | None = None`
 
@@ -131,7 +131,7 @@ Code: `read: Answer | None = None`
 > None where there are no records to speak of -- a page of HTML, one scalar,
 > a screen's photograph. Those keep `answer` and are drawn from it.
 
-## `Looked`, [line 56](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L56): Note on the line above
+## `Looked`, [line 57](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L57): Note on the line above
 
 Code: `detail: str = ""`
 
@@ -139,14 +139,14 @@ Code: `detail: str = ""`
 > person is a different problem from an unreachable system, and flattening them
 > to "failed" throws away the one thing that says which.
 
-## `MissingHeaders`, [line 29](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L29): Note on the line above
+## `MissingHeaders`, [line 30](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L30): Note on the line above
 
 Code: `class MissingHeaders(DomainError):`
 
 > A header the read needs that the account's context never sent within the
 > budget. A `DomainError`, so it is that one lookup's named gap.
 
-## `RunLookups`, [line 70](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L70): Docstring
+## `RunLookups`, [line 71](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L71): Docstring
 
 > Execute a plan on backend Steel, never the operator's browser.
 >
@@ -159,14 +159,14 @@ Code: `class MissingHeaders(DomainError):`
 > the page), `screenshot` and `release` -- never `act`, `point` or the sight
 > model. A target seen only as a write addresses nothing, and nothing is sent.
 
-## `RunLookups.execute`, [line 74](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L74): Docstring
+## `RunLookups.execute`, [line 75](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L75): Docstring
 
 > `within` is the caller's budget, because the callers have different
 > ones: a lookup somebody asked for may take as long as the slowest
 > warehouse, and a lookup inside a conversation turn may not. See
 > `K_WHILE_TALKING`.
 
-## `RunLookups.execute`, [line 80](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L80): Comment (debt)
+## `RunLookups.execute`, [line 81](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L81): Comment (debt)
 
 Code: `gestures = list(await uow.gestures.gestures_for(ctx.tenant_id))`
 
@@ -176,7 +176,7 @@ Code: `gestures = list(await uow.gestures.gestures_for(ctx.tenant_id))`
 > ponytail: whole-store scan; a `calls_for_path` query if a tenant's
 > capture outgrows memory.
 
-## `RunLookups._one`, [line 137](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L137): Comment
+## `RunLookups._one`, [line 138](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L138): Comment
 
 Code: `if lookup.how == "call":`
 
@@ -186,7 +186,7 @@ Code: `if lookup.how == "call":`
 > already up in the tab `acquire` opened (and `reauth` returns it there), so it
 > is photographed with no navigation. The same rule as §3's, applied to a read.
 
-## `RunLookups._one`, [line 154](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L154): Comment
+## `RunLookups._one`, [line 155](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L155): Comment
 
 Code: `raise SignedOut(f"{page} is still a sign-in page")`
 
@@ -196,7 +196,7 @@ Code: `raise SignedOut(f"{page} is still a sign-in page")`
 > form in the tab. A photograph of it would answer the question with a login
 > screen, so it is a named gap instead.
 
-## `RunLookups._send`, [line 197](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L197): Comment
+## `RunLookups._send`, [line 198](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L198): Comment
 
 Code: `needs = needs_of(dict.fromkeys((*address.live_headers, *address.struck), REDACTED))`
 
@@ -213,7 +213,7 @@ Code: `needs = needs_of(dict.fromkeys((*address.live_headers, *address.struck), 
 > (`session_headers`): a recorded `x-user-id` is the operator's, never this
 > account's.
 
-## `_looked`, [line 237](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L237): Comment
+## `_looked`, [line 238](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L238): Comment
 
 Code: `if isinstance(body, str) and (read := read_answer(body, url=address.url))`
 
@@ -227,7 +227,7 @@ Code: `if isinstance(body, str) and (read := read_answer(body, url=address.url))
 > recorded read with nothing narrowing it, and it does not strip a recorded
 > parameter itself: a scope such as `siteId` stripped reads another list entirely.
 
-## `RunLookups._send`, [line 212](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L212): Note
+## `RunLookups._send`, [line 213](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L213): Note
 
 Code: `return await self._broker.send(ctx, held, "GET", address.url, headers=headers)`
 
@@ -243,7 +243,7 @@ Code: `return await self._broker.send(ctx, held, "GET", address.url, headers=hea
 > Still `403` after that is the system's answer ("the system answered 403"), not
 > "still a sign-in page": only a page that is one raises `SignedOut`.
 
-## `RunLookups.execute`, [line 95](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L95): Note
+## `RunLookups.execute`, [line 96](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L96): Note
 
 Code: `async with asyncio.timeout_at(until) as budget:`
 
@@ -251,7 +251,7 @@ Code: `async with asyncio.timeout_at(until) as budget:`
 > long it can wait, and six lookups of ten seconds is a minute. A lookup that starts
 > with the budget spent is "timed out" without being tried.
 
-## `RunLookups._one`, [line 151](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L151): Note
+## `RunLookups._one`, [line 152](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L152): Note
 
 Code: `ctx, held, address.url, address.reads, deadline_s=min(K_PAINT_S, _left(budget))`
 

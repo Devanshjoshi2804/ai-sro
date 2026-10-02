@@ -10,11 +10,14 @@ one system's failure kept as one system's failure.
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 from collections.abc import Mapping
+from dataclasses import replace
+from datetime import UTC, datetime
 from types import MappingProxyType
 from typing import Any
-from urllib.parse import unquote
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 import pytest
 
@@ -24,7 +27,7 @@ from sro.application.lookup.run_lookups import K_AFTER_HEADERS_S, K_WHILE_TALKIN
 from sro.application.ports.http import HttpResponse
 from sro.domain.execution.account import Account, LeaseState
 from sro.domain.execution.lanes import Lane, StepResult
-from sro.domain.lookup.address import address_for
+from sro.domain.lookup.address import Address, address_for
 from sro.domain.lookup.plan import Lookup, Plan
 from sro.domain.observation.gesture import Action, Call, Gesture
 from sro.domain.shared.hosts import REDACTED
@@ -89,7 +92,7 @@ SCREEN = Lookup(system="blue_yonder", how="screen", target=ROUTE, cites=(ROUTE,)
 def test_an_endpoint_is_addressed_from_the_host_this_deployment_signs_into() -> None:
     """The knowledge base catalogues `/data/WM/wm/suppliers` and holds no host.
     The host is whichever one the operator was recorded against."""
-    address = address_for(CALL, [_gesture(_call())])
+    address = address_for(CALL, [_gesture(_call())], T0)
 
     assert address is not None
     assert address.url.startswith(f"{WMS}{SUPPLIERS}?")
@@ -99,6 +102,7 @@ def test_the_question_being_asked_now_beats_the_one_that_was_recorded() -> None:
     address = address_for(
         Lookup(system="blue_yonder", how="call", target=SUPPLIERS, params={"siteId": "MEL"}),
         [_gesture(_call(query="siteId=SG&limit=25"))],
+        T0,
     )
 
     assert address is not None
@@ -117,6 +121,7 @@ def test_the_newest_call_that_worked_is_the_one_reused() -> None:
             _gesture(_call(at=100.0, headers={"x-old": "1"}), at=100.0),
             _gesture(_call(at=900.0, headers={"x-new": "1"}), at=900.0),
         ],
+        T0,
     )
 
     assert address is not None and address.seen_at == 900.0
@@ -139,7 +144,7 @@ def test_a_call_that_is_not_evidence_of_a_working_read_addresses_nothing(call: C
     "which suppliers" with a number, which is a different question with a
     plausible-looking answer. And a POST is refused here as well as in the
     schema -- this is the half that reaches somebody's warehouse."""
-    assert address_for(CALL, [_gesture(call)]) is None
+    assert address_for(CALL, [_gesture(call)], T0) is None
 
 
 def test_a_struck_out_header_is_named_as_live_or_named_as_missing() -> None:
@@ -156,6 +161,7 @@ def test_a_struck_out_header_is_named_as_live_or_named_as_missing() -> None:
                 )
             )
         ],
+        T0,
     )
 
     assert address is not None
@@ -167,7 +173,7 @@ def test_a_struck_out_header_is_named_as_live_or_named_as_missing() -> None:
 def test_a_screen_is_the_page_somebody_was_on_and_not_a_url_built_from_a_route() -> None:
     """`libraryContext` is a session token this side cannot invent. Assembling
     origin + hash produces a url that loads the shell and not the screen."""
-    address = address_for(SCREEN, [_gesture(url=SCREEN_URL)])
+    address = address_for(SCREEN, [_gesture(url=SCREEN_URL)], T0)
 
     assert address is not None and address.url == SCREEN_URL
 
@@ -175,9 +181,9 @@ def test_a_screen_is_the_page_somebody_was_on_and_not_a_url_built_from_a_route()
 def test_a_route_is_matched_however_the_two_sides_spell_it() -> None:
     # The catalogue writes the menu and the route; the application's url
     # carries the menu in its query and only the route after the hash.
-    assert address_for(SCREEN, [_gesture(url=SCREEN_URL)]) is not None
+    assert address_for(SCREEN, [_gesture(url=SCREEN_URL)], T0) is not None
     assert (
-        address_for(SCREEN, [_gesture(url=f"{WMS}/portal/page#wm.config.partners.clients////")])
+        address_for(SCREEN, [_gesture(url=f"{WMS}/portal/page#wm.config.partners.clients////")], T0)
         is None
     )
 
@@ -659,6 +665,7 @@ def test_a_search_somebody_ran_is_not_the_read_that_gets_replayed() -> None:
             _gesture(_call(path=GRID, query="query=[]", at=100.0), at=100.0),
             _gesture(_call(path=GRID, query=SEARCHED, at=900.0), at=900.0),
         ],
+        T0,
     )
 
     assert address is not None and address.narrowed == ()
@@ -666,7 +673,7 @@ def test_a_search_somebody_ran_is_not_the_read_that_gets_replayed() -> None:
 
 
 def test_a_read_that_only_ever_carried_a_search_is_marked_narrowed() -> None:
-    address = address_for(_asked_for("X"), [_gesture(_call(path=GRID, query=SEARCHED))])
+    address = address_for(_asked_for("X"), [_gesture(_call(path=GRID, query=SEARCHED))], T0)
 
     assert address is not None and address.narrowed == ("query",)
 
@@ -676,7 +683,7 @@ def test_a_filter_the_lookup_names_is_not_a_narrowing_it_did_not_ask_for() -> No
         system="blue_yonder", how="call", target=GRID, find="ZWOYBN", params={"code": "ZWOYBN"}
     )
 
-    address = address_for(lookup, [_gesture(_call(path=GRID, query="code=OLD"))])
+    address = address_for(lookup, [_gesture(_call(path=GRID, query="code=OLD"))], T0)
 
     assert address is not None and address.narrowed == ()
     assert "code=ZWOYBN" in address.url
@@ -702,7 +709,7 @@ def test_a_named_param_is_no_narrowing_only_when_it_carries_the_key_asked_for(
     asked-for search itself."""
     lookup = Lookup(system="blue_yonder", how="call", target=GRID, find="ZW1", params=params)
 
-    address = address_for(lookup, [_gesture(_call(path=GRID, query=recorded))])
+    address = address_for(lookup, [_gesture(_call(path=GRID, query=recorded))], T0)
 
     assert address is not None and address.narrowed == narrowed
 
@@ -732,7 +739,7 @@ def test_a_named_param_is_exempt_only_when_it_is_the_key_and_nothing_else(
     filter, a negation, a longer code, a range end) must read as could-not-tell."""
     lookup = Lookup(system="blue_yonder", how="call", target=GRID, find=find, params=params)
 
-    address = address_for(lookup, [_gesture(_call(path=GRID, query="query=[]"))])
+    address = address_for(lookup, [_gesture(_call(path=GRID, query="query=[]"))], T0)
 
     assert address is not None and address.narrowed == narrowed
 
@@ -778,6 +785,286 @@ async def test_a_whole_unfiltered_list_without_the_record_still_says_no() -> Non
     assert what_was_found(answers).startswith("No, none of the 2")
 
 
+def _typed(value: str, *, at: float = 50.0) -> Gesture:
+    return replace(_gesture(at=at), action=Action(kind="type", at=at, value=value))
+
+
+T0 = 1_700_000_000.0
+PARTNERS = "/data/WM/wm/partners"
+
+
+def _dc(at: float, skew_ms: int = 0) -> str:
+    return f"_dc={int(at * 1000) + skew_ms}"
+
+
+def _shape(
+    read_query: str, write_query: str, *extra: Gesture, stamped: bool = True
+) -> list[Gesture]:
+    """The QA shape (values anonymised): a recorded list read, two recorded saves to two endpoints
+    five reads of other endpoints (which carry what the saves carried, so the stamp rides on at
+    least five calls when `stamped`). The queries name the stamp as `{dc}`: each call's own
+    started_at in milliseconds."""
+    calls = [
+        (GRID, "GET", read_query, T0),
+        (SUPPLIERS, "POST", write_query, T0 + 100),
+        (PARTNERS, "POST", write_query, T0 + 200),
+    ]
+    reads = write_query if stamped else write_query.replace("&{dc}", "")
+    calls += [(f"/data/WM/wm/r{n}", "GET", reads, T0 + 300 + n) for n in range(5)]
+    return [
+        _gesture(_call(method=m, path=path, query=q.replace("{dc}", _dc(at)), at=at), at=at)
+        for path, m, q, at in calls
+    ] + list(extra)
+
+
+READ = "query=[]&siteId=SG&subsites=a,b&{dc}"
+WROTE = "siteId=SG&subsites=a,b&{dc}"
+
+
+def test_a_param_the_recorded_writes_carry_with_the_same_value_is_scope_not_a_filter() -> None:
+    """R-L6/R-L8: siteId=SG is where records are made, said by saves to two endpoints; the read
+    of that place is the whole list. _dc is each call's own time (R-L7): no filter either."""
+    address = address_for(_asked_for("X"), _shape(READ, WROTE, _typed("hello")), T0)
+
+    assert address is not None and address.narrowed == ()
+
+
+def test_a_stamp_two_calls_carry_with_the_same_value_is_still_a_stamp() -> None:
+    """R-L7: the QA evidence had 217 _dc values shared by calls in one millisecond; sharing a
+    value is no reason to read it as a filter, only a value that is not the call's time is."""
+    twin = _gesture(
+        _call(path="/data/WM/wm/r0", query=f"siteId=SG&subsites=a,b&{_dc(T0 + 300)}", at=T0 + 300),
+        at=T0 + 300,
+    )
+
+    address = address_for(_asked_for("X"), [*_shape(READ, WROTE), twin], T0)
+
+    assert address is not None and address.narrowed == ()
+
+
+@pytest.mark.parametrize("value", ["1700000000", "1700000900000", str(10**14)])
+def test_a_big_number_that_is_not_near_its_call_s_time_is_a_filter(value: str) -> None:
+    """The old '10+ digit' shape accepted any of these."""
+    gestures = _shape(READ.replace("{dc}", f"_dc={value}"), WROTE)
+
+    address = address_for(_asked_for("X"), gestures, T0)
+
+    assert address is not None and address.narrowed == ("_dc",)
+
+
+def test_a_param_one_call_carries_off_its_time_ruins_the_stamp_for_every_call() -> None:
+    off = _gesture(
+        _call(path="/data/WM/wm/r9", query=_dc(T0 + 300, 6000), at=T0 + 300), at=T0 + 300
+    )
+
+    address = address_for(_asked_for("X"), [*_shape(READ, WROTE), off], T0)
+
+    assert address is not None and address.narrowed == ("_dc",)
+
+
+def test_a_stamp_within_five_seconds_of_its_call_counts_and_six_does_not() -> None:
+    near = _shape(READ.replace("{dc}", _dc(T0, 4999)), WROTE)
+    far = _shape(READ.replace("{dc}", _dc(T0, 5001)), WROTE)
+
+    assert (address_for(_asked_for("X"), near, T0) or _never()).narrowed == ()
+    assert (address_for(_asked_for("X"), far, T0) or _never()).narrowed == ("_dc",)
+
+
+def test_a_stamp_seen_on_fewer_than_five_calls_is_not_proven() -> None:
+    address = address_for(_asked_for("X"), _shape(READ, WROTE, stamped=False), T0)
+
+    assert address is not None and address.narrowed == ("_dc",)
+
+
+def test_the_replay_sends_a_fresh_stamp_and_leaves_the_scope_as_recorded() -> None:
+    now = T0 + 5000
+    address = address_for(_asked_for("X"), _shape(READ, WROTE), now)
+
+    assert address is not None
+    sent = dict(parse_qsl(urlsplit(address.url).query))
+    assert sent["_dc"] == str(int(now * 1000))
+    assert sent["siteId"] == "SG" and sent["subsites"] == "a,b" and sent["query"] == "[]"
+
+
+def _never() -> Address:
+    raise AssertionError("no address")
+
+
+@pytest.mark.parametrize(
+    ("read", "write", "typed", "narrowed"),
+    [
+        # the write saved to another place: the read is a different list
+        ("query=[]&siteId=SG", "siteId=NL", "", ("siteId",)),
+        # the writes never carried it: nothing proves it is scope
+        ("query=[]&siteId=SG", "x=1", "", ("siteId",)),
+        # a value the operator typed is record content, whatever a write also carried
+        ("query=[]&siteId=SG", "siteId=SG", "sg", ("siteId",)),
+        # a read only for one of the write's values
+        ("query=[]&subsites=a", "subsites=a,b", "", ("subsites",)),
+    ],
+)
+def test_a_param_unproven_by_what_was_recorded_stays_a_filter(
+    read: str, write: str, typed: str, narrowed: tuple[str, ...]
+) -> None:
+    extra = (_typed(typed),) if typed else ()
+
+    address = address_for(_asked_for("ZW1"), _shape(read, write, *extra), T0)
+
+    assert address is not None and address.narrowed == narrowed
+
+
+def _reads(query: str, n: int = 5) -> list[Gesture]:
+    return [
+        _gesture(_call(path=f"/data/WM/wm/r{i}", query=query, at=T0 + i), at=T0 + i)
+        for i in range(n)
+    ]
+
+
+def _write(method: str, path: str, query: str, at: float, status: int = 200) -> Gesture:
+    return _gesture(_call(method=method, path=path, query=query, at=at, status=status), at=at)
+
+
+def test_one_endpoint_edited_twice_is_one_endpoint_not_two() -> None:
+    """rr3 #1: PUT /item/1 and /item/2 are one write path shape."""
+    gestures = [
+        _gesture(_call(path=GRID, query="query=[]&status=ACTIVE", at=T0)),
+        _write("PUT", "/data/WM/wm/item/1", "status=ACTIVE", T0 + 1),
+        _write("PUT", "/data/WM/wm/item/2", "status=ACTIVE", T0 + 2),
+        *_reads("status=ACTIVE"),
+    ]
+
+    address = address_for(_asked_for("X"), gestures, T0)
+
+    assert address is not None and address.narrowed == ("status",)
+
+
+def test_a_stamp_every_call_carries_with_one_value_is_a_filter() -> None:
+    """rr3 #2: since=<page load> on a burst of five reads is time-near, but constant."""
+    pl = int(T0 * 1000)
+    gestures = [
+        _gesture(_call(path=GRID, query=f"query=[]&since={pl}", at=T0 + 1)),
+        *_reads(f"since={pl}"),
+    ]
+
+    address = address_for(_asked_for("X"), gestures, T0)
+
+    assert address is not None and address.narrowed == ("since",)
+
+
+def test_head_and_options_are_not_writes() -> None:
+    gestures = [
+        _gesture(_call(path=GRID, query="query=[]&status=ACTIVE", at=T0)),
+        _write("OPTIONS", SUPPLIERS, "status=ACTIVE", T0 + 1, 204),
+        _write("HEAD", PARTNERS, "status=ACTIVE", T0 + 2),
+        *_reads("status=ACTIVE"),
+    ]
+
+    address = address_for(_asked_for("X"), gestures, T0)
+
+    assert address is not None and address.narrowed == ("status",)
+
+
+def test_scope_also_needs_the_pair_on_reads_of_five_other_endpoints() -> None:
+    """rr3 #3: POST-as-read search endpoints look like writes; real scope rides on every read."""
+    saves = [
+        _gesture(_call(path=GRID, query="query=[]&status=ACTIVE", at=T0)),
+        _write("POST", "/data/WM/wm/a/search", "status=ACTIVE", T0 + 1),
+        _write("POST", "/data/WM/wm/b/search", "status=ACTIVE", T0 + 2),
+    ]
+
+    four = address_for(_asked_for("X"), [*saves, *_reads("status=ACTIVE", 4)], T0)
+    five = address_for(_asked_for("X"), [*saves, *_reads("status=ACTIVE", 5)], T0)
+
+    assert four is not None and four.narrowed == ("status",)
+    assert five is not None and five.narrowed == ()
+
+
+def test_now_is_a_required_argument() -> None:
+    assert inspect.signature(address_for).parameters["now"].default is inspect.Parameter.empty
+
+
+def test_a_param_the_planner_named_is_never_exempt_as_a_stamp() -> None:
+    lookup = replace(_asked_for("X"), params={"_dc": "5"})
+
+    address = address_for(lookup, _shape(READ, WROTE), T0)
+
+    assert address is not None and address.narrowed == ("_dc",)
+    assert dict(parse_qsl(urlsplit(address.url).query))["_dc"] == "5"
+
+
+def test_a_param_one_endpoint_wrote_is_not_scope() -> None:
+    one = [
+        _gesture(_call(path=GRID, query="query=[]&status=ACTIVE")),
+        _gesture(_call(method="POST", path=SUPPLIERS, query="status=ACTIVE"), at=200.0),
+        _gesture(_call(method="PUT", path=SUPPLIERS, query="status=ACTIVE"), at=300.0),
+    ]
+
+    address = address_for(_asked_for("X"), one, T0)
+
+    assert address is not None and address.narrowed == ("status",)
+
+
+def test_a_write_that_failed_proves_nothing() -> None:
+    gestures = [
+        _gesture(_call(path=GRID, query="query=[]&siteId=SG")),
+        _gesture(_call(method="POST", path=SUPPLIERS, query="siteId=SG"), at=200.0),
+        _gesture(_call(method="POST", path=PARTNERS, query="siteId=SG", status=500), at=300.0),
+    ]
+
+    address = address_for(_asked_for("X"), gestures, T0)
+
+    assert address is not None and address.narrowed == ("siteId",)
+
+
+def test_scope_proven_on_one_system_is_not_proof_on_another() -> None:
+    def elsewhere(path: str) -> Call:
+        return replace(
+            _call(method="POST", path=path, query="siteId=SG"),
+            url=f"https://other.example.com{path}?siteId=SG",
+        )
+
+    gestures = [
+        _gesture(_call(path=GRID, query="query=[]&siteId=SG")),
+        _gesture(elsewhere(SUPPLIERS), at=2.0),
+        _gesture(elsewhere(PARTNERS), at=3.0),
+    ]
+
+    address = address_for(_asked_for("X"), gestures, T0)
+
+    assert address is not None and address.narrowed == ("siteId",)
+
+
+async def test_a_list_read_with_scope_and_stamp_says_no_and_a_hit_says_yes() -> None:
+    """The QA-shaped equipmentTypes read: scope and a stamp, a whole list, so it can say No."""
+    world = await lookup_world(*_shape(READ, WROTE, _typed("hello")))
+    world.http.answer(200, WHOLE)
+
+    answers = await world.run_lookups.execute(
+        CTX, plan=Plan(question="q", lookups=(_asked_for("ZWOYBN"),))
+    )
+    assert what_was_found(answers).startswith("No, none of the 2")
+    (sent,) = world.http.sent
+    now_ms = int(datetime(2026, 3, 1, 9, 0, tzinfo=UTC).timestamp() * 1000)
+    assert dict(parse_qsl(urlsplit(str(sent["url"])).query))["_dc"] == str(now_ms)
+
+    world.http.answer(200, json.dumps({"data": [{"code": "ZWOYBN"}]}))
+    answers = await world.run_lookups.execute(
+        CTX, plan=Plan(question="q", lookups=(_asked_for("ZWOYBN"),))
+    )
+    assert what_was_found(answers).startswith("Yes")
+
+
+async def test_a_key_found_in_a_narrowed_read_is_still_a_yes() -> None:
+    world = await lookup_world(_gesture(_call(path=GRID, query=SEARCHED)))
+    world.http.answer(200, json.dumps({"data": [{"code": "ZWOYBN"}]}))
+
+    answers = await world.run_lookups.execute(
+        CTX, plan=Plan(question="q", lookups=(_asked_for("ZWOYBN"),))
+    )
+
+    assert what_was_found(answers).startswith("Yes")
+
+
 def test_a_screen_waits_for_the_reads_any_gesture_on_its_route_made() -> None:
     """Review 1 #3: the newest gesture on the route was a click that made no GET."""
     address = address_for(
@@ -786,6 +1073,7 @@ def test_a_screen_waits_for_the_reads_any_gesture_on_its_route_made() -> None:
             _gesture(_call(), at=100.0, url=SCREEN_URL),
             _gesture(at=900.0, url=SCREEN_URL),
         ],
+        T0,
     )
 
     assert address is not None and address.reads == (SUPPLIERS,)

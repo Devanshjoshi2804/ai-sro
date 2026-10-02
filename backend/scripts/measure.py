@@ -350,7 +350,10 @@ async def asking(db: AsyncConnection, tenant: str | None, asked: tuple[str, ...]
             refused += 1
             continue
         planned += 1
-        if all(address_for(one, gestures) is not None for one in answer.plan.lookups):
+        if all(
+            address_for(one, gestures, datetime.now(UTC).timestamp()) is not None
+            for one in answer.plan.lookups
+        ):
             addressed += 1
 
     into.add(

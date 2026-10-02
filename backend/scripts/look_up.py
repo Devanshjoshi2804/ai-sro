@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from datetime import UTC, datetime
 
 from sro.application.context import RequestContext
 from sro.container import build_container
@@ -34,7 +35,7 @@ async def _ask(tenant: str, question: str, *, send: bool) -> int:
         print(f"\n{lookup.how.upper()} {lookup.system} {lookup.target}")
         print(f"   why: {lookup.why}")
         print(f"   cites: {', '.join(lookup.cites)}")
-        address = address_for(lookup, gestures)
+        address = address_for(lookup, gestures, datetime.now(UTC).timestamp())
         if address is None:
             print("   nowhere: nothing here has ever been to that")
             continue

@@ -68,6 +68,7 @@ from sro.domain.chat.asking import (
     waiting_on_mail,
 )
 from sro.domain.chat.automated_mail import is_automated
+from sro.domain.chat.brain_turn import Budget
 from sro.domain.chat.mail_reply import without_the_quote
 from sro.domain.chat.thread import Said, Speaker
 from sro.domain.execution.learned_step import limits_for, too_long
@@ -120,7 +121,15 @@ if (
 
 class MailReader(Protocol):
     async def read(
-        self, ctx: RequestContext, *, text: str, earlier: str, sender: str, subject: str, offer: str
+        self,
+        ctx: RequestContext,
+        *,
+        text: str,
+        earlier: str,
+        sender: str,
+        subject: str,
+        offer: str,
+        budget: Budget | None = None,
     ) -> MailReading | MailAsked | None: ...
 
 
@@ -246,7 +255,9 @@ class FromTheMail:
     def _server(self, ctx: RequestContext) -> str:
         return server_for(ctx.tenant_id.value, self._servers)
 
-    async def execute(self, ctx: RequestContext, *, limit: int = K_LOOK) -> LookedInTheMail:
+    async def execute(
+        self, ctx: RequestContext, *, limit: int = K_LOOK, budget: Budget | None = None
+    ) -> LookedInTheMail:
         asker = asker_or_refuse(self._asker)
         now = datetime.now(tz=UTC)
         async with self._uow as uow:
@@ -273,7 +284,7 @@ class FromTheMail:
             return LookedInTheMail(why=f"the mailbox could not be reached: {gone}")
 
         offered: list[Offered] = []
-        look = _Look()
+        look = _Look(budget=budget)
         reach = _Reach()
         known = _Known(workflows, asker, facts, titles, held, held_by, now, logins)
         tenant = ctx.tenant_id.value
@@ -387,7 +398,7 @@ class FromTheMail:
             # Somebody other than the one we asked is not answering: their words stand alone.
             stranger = bool(asked_of) and asked_of != sender_address(mail.sender)
             live = await self._read_by_the_brain(
-                ctx, message, mail, text, "" if stranger else earlier, known
+                ctx, message, mail, text, "" if stranger else earlier, known, look.budget
             )
             if live is None:
                 logger.info("%s: the brain read a mail that asks for no job", tenant)
@@ -497,6 +508,7 @@ class FromTheMail:
         text: str,
         earlier: str,
         known: _Known,
+        budget: Budget | None,
     ) -> Understood | MailAsked | None:
         chore = chore_named(text, known.facts)
         if chore is not None:
@@ -510,6 +522,7 @@ class FromTheMail:
                 sender=mail.sender,
                 subject=mail.subject,
                 offer=mail_key(message),
+                budget=budget,
             )
         except Unread as stopped:
             stopped.thread, stopped.subject = mail.thread, mail.subject
@@ -1281,6 +1294,7 @@ class _Look:
     theirs: int = 0
     spent: Answer = field(default_factory=Answer)
     asks_nothing: list[str] = field(default_factory=list)
+    budget: Budget | None = None
 
 
 @dataclass(slots=True)

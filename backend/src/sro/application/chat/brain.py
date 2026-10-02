@@ -27,6 +27,7 @@ from sro.application.shared.refusals import OverCap
 from sro.domain.chat.brain_turn import (
     K_HISTORY,
     BrainReply,
+    Budget,
     Origin,
     ToolCall,
     ToolResult,
@@ -111,13 +112,25 @@ class Brain:
         page: str = "",
         offer: str = "",
         dry: bool = False,
+        budget: Budget | None = None,
     ) -> BrainReply:
         steps: list[tuple[ToolCall, ToolResult]] = []
         decisions: list[dict[str, object]] = []
         trouble: list[str] = []
         try:
             reply = await self._turn(
-                ctx, message, history, origin, asking, page, offer, dry, steps, decisions, trouble
+                ctx,
+                message,
+                history,
+                origin,
+                asking,
+                page,
+                offer,
+                dry,
+                steps,
+                decisions,
+                trouble,
+                budget,
             )
         except Exception:
             # Whatever broke is the log's; the operator is told it plainly, and what the turn
@@ -139,6 +152,7 @@ class Brain:
         steps: list[tuple[ToolCall, ToolResult]],
         decisions: list[dict[str, object]],
         trouble: list[str],
+        budget: Budget | None,
     ) -> BrainReply:
         trusted: dict[str, object] = {
             "origin": origin.kind,
@@ -179,12 +193,16 @@ class Brain:
         theirs = [
             one.removeprefix(_OPERATOR) for one in history[-K_HISTORY:] if one.startswith(_OPERATOR)
         ]
+        # A tool that reads on the model too (a mail look) is handed this budget to spend.
+        budget = budget or Budget(self._max_calls, self._max_turn_usd)
         turn = Turn(
-            said="\n".join([message, *theirs, asking]), offer=offer, card=origin.kind != "mail"
+            said="\n".join([message, *theirs, asking]),
+            offer=offer,
+            card=origin.kind != "mail",
+            budget=budget,
         )
-        calls, spent = 0, 0.0
         for _ in range(K_BRAIN_STEPS):
-            if calls >= self._max_calls or 0 <= self._max_turn_usd <= spent:
+            if budget.out:
                 trouble.append("budget")
                 return _stopped(decisions, steps)
             async with self._uow as uow:
@@ -203,10 +221,9 @@ class Brain:
             except (OverCap, AskerUnavailable) as refused:
                 return _cannot(str(refused), decisions, steps, unavailable=True)
             # A fallback is a second call on the same prompt.
-            calls += 2 if answer.fell_back else 1
+            budget.charge(2 if answer.fell_back else 1, answer.cost_usd)
             if answer.fell_back:
                 trouble.append("fell_back")
-            spent += answer.cost_usd
             if answer.data is None:
                 # The model's own error text is the log's, not the operator's.
                 logger.warning("brain: the model did not answer: %s", answer.error)

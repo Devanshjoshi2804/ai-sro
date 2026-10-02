@@ -17,6 +17,25 @@ class Origin:
     subject: str = ""
 
 
+@dataclass(slots=True)
+class Budget:
+    """What one chat message may spend: model calls and dollars (negative: no dollar cap). A
+    tool that makes model calls of its own (a mail look reading each mail) spends this same
+    budget, so the turn's cap is the whole turn's."""
+
+    calls: int
+    usd: float = -1.0
+    spent: float = 0.0
+
+    def charge(self, calls: int, usd: float) -> None:
+        self.calls -= calls
+        self.spent += usd
+
+    @property
+    def out(self) -> bool:
+        return self.calls <= 0 or 0 <= self.usd <= self.spent
+
+
 @dataclass(frozen=True, slots=True)
 class Turn:
     """What a tool may know of the turn it runs in, never from the model: the words the
@@ -27,6 +46,7 @@ class Turn:
     # The words of a standing offer's card count as said: only for the operator who is answering
     # it, never for a mail, whose sender may be anyone.
     card: bool = True
+    budget: Budget | None = None
 
 
 @dataclass(frozen=True, slots=True)

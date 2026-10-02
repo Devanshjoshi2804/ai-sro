@@ -250,7 +250,7 @@ class CheckMail:
         self, ctx: RequestContext, args: Mapping[str, object], turn: Turn = Turn()
     ) -> ToolResult:
         try:
-            looked = await self._look.execute(ctx)
+            looked = await self._look.execute(ctx, budget=turn.budget)
         except (OverCap, AskerUnavailable, DomainError) as stopped:
             return ToolResult(ok=False, error=str(stopped))
         return ToolResult(ok=True, data={"said": _bounded(looked.said()), "read": looked.read})

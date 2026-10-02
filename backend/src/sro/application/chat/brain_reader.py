@@ -16,7 +16,7 @@ from sro.application.chat.brain_tools import _bounded, values_of
 from sro.application.chat.feedback import RecordFeedback
 from sro.application.chat.mailbox import MailAsked, ModelUnavailable, Unread
 from sro.application.context import RequestContext
-from sro.domain.chat.brain_turn import Origin
+from sro.domain.chat.brain_turn import Budget, Origin
 
 _MISSING = "missing: "
 
@@ -44,8 +44,18 @@ class BrainReader:
         self._brain, self._feedback = brain, feedback
 
     async def read(
-        self, ctx: RequestContext, *, text: str, earlier: str, sender: str, subject: str, offer: str
+        self,
+        ctx: RequestContext,
+        *,
+        text: str,
+        earlier: str,
+        sender: str,
+        subject: str,
+        offer: str,
+        budget: Budget | None = None,
     ) -> MailReading | MailAsked | None:
+        if budget is not None and budget.out:
+            raise ModelUnavailable("this message has used what it may spend")
         reply = await self._brain.turn(
             ctx,
             message=text,
@@ -53,6 +63,7 @@ class BrainReader:
             origin=Origin("mail", sender, subject),
             offer=offer,
             dry=True,
+            budget=budget,
         )
         tried = [(call, result) for call, result in reply.steps if call.tool == "start_job"]
         asked = [
@@ -64,6 +75,9 @@ class BrainReader:
         if not tried:
             if question:
                 return MailAsked(_bounded(question))
+            if budget is not None and budget.out and "budget" in reply.trouble:
+                # The turn's budget ran out mid-read: the mail is not "no job", it is unread.
+                raise ModelUnavailable("this message has used what it may spend")
             if reply.failed:
                 # Not "no job": the brain could not read it. The mail is left to be read again.
                 raise (ModelUnavailable if reply.unavailable else Unread)(reply.said)

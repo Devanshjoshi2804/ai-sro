@@ -1796,6 +1796,7 @@ def _seen(looked: Looked, question: str = "") -> dict[str, object]:
         answer=looked.answer,
         read=looked.read,
         question=question,
+        find=looked.lookup.find,
     )
 
 

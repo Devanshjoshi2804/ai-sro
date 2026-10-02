@@ -66,7 +66,7 @@ Code: `answer: Answer | None = None`
 > Losing one malformed lookup out of four still leaves a plan somebody can
 > read; the count is what `unknown_targets` and `uncited` then judge.
 
-## `_shown`, [line 172](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L172): Docstring
+## `_shown`, [line 173](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L173): Docstring
 
 > What the planner is given, grouped by kind.
 >

@@ -20,6 +20,8 @@ class Lookup:
     why: str = ""
     cites: tuple[str, ...] = ()
 
+    find: str = ""
+
 
 @dataclass(frozen=True, slots=True)
 class Asked:

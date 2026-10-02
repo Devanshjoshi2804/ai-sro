@@ -20,6 +20,12 @@ you were given, and its `target` must be one of those keys. Do not invent a
 path that looks like the others -- an endpoint nobody here has seen is a guess
 with a URL in it, and it will be refused.
 
+When the question asks whether a record exists (a code, a name, a number),
+put that exact value in `find` on every lookup that could hold it, and nothing
+else; leave `find` empty for any other question. Never filter on it unless the
+endpoint's own parameters say it filters -- the answer is checked against the
+records that come back.
+
 Only reads. You cannot create, update or delete anything from here, and a
 question that asks you to is a question to decline.
 
@@ -29,7 +35,7 @@ not."""
 
 PLAN_LOOKUP = Prompt(
     name="plan_lookup",
-    version=2,
+    version=3,
     model="gemini-3.8-flash",
     fallback_model="gemini-3.7-flash",
     thinking=None,
@@ -56,10 +62,22 @@ PLAN_LOOKUP = Prompt(
                                 'a string, e.g. {"siteId": "SG"}; "{}" when it takes none'
                             ),
                         },
+                        "find": {
+                            "type": "string",
+                            "description": "the exact value asked about; empty when none",
+                        },
                         "cites": {"type": "array", "items": {"type": "string"}},
                     },
                     "required": ["why", "system", "how", "target", "cites"],
-                    "propertyOrdering": ["why", "system", "how", "target", "params", "cites"],
+                    "propertyOrdering": [
+                        "why",
+                        "system",
+                        "how",
+                        "target",
+                        "params",
+                        "find",
+                        "cites",
+                    ],
                 },
             },
         },

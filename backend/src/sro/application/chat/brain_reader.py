@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from sro.application.chat.brain import Brain
+from sro.application.chat.brain_tools import values_of
 from sro.application.context import RequestContext
 from sro.domain.chat.brain_turn import Origin
 
@@ -41,13 +42,10 @@ class BrainReader:
         tried = [(call, result) for call, result in reply.steps if call.tool == "start_job"]
         if not tried:
             return None
-        call, result = tried[-1]
-        given = call.args.get("values")
-        values = {
-            str(k): str(v).strip()
-            for k, v in (given.items() if isinstance(given, dict) else ())
-            if str(v).strip()
-        }
+        # A dry "would" does not end the turn: the last start that passed its checks is the
+        # reading; only when none passed, the last refusal (it may be a missing-only one).
+        call, result = next(((c, r) for c, r in reversed(tried) if r.ok), tried[-1])
+        values = values_of(call.args) or {}
         job = str(call.args.get("job_id") or "")
         if result.ok:
             return MailReading(job, values, (), True)
@@ -57,7 +55,10 @@ class BrainReader:
 
 def _only_missing(error: str) -> tuple[str, ...]:
     """The refusal named nothing but missing parameters: anything else (a value not the
-    sender's words, a mail-sending job, an unknown job) is not a reading."""
+    sender's words, a mail-sending job, an unknown job) is not a reading.
+
+    ponytail: names are split on ',' because `what_is_wrong` joins them with ', '; a parameter
+    name containing a comma would split wrongly (the reader has no job facts to match against)."""
     parts = [one.strip() for one in error.split(";") if one.strip()]
     if len(parts) != 1 or not parts[0].startswith(_MISSING):
         return ()

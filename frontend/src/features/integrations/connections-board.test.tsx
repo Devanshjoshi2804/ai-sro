@@ -15,6 +15,7 @@ vi.mock("@/features/integrations/api", async (importActual) => ({
 const nango = vi.hoisted(() => ({
   options: [] as unknown[],
   tokens: [] as unknown[],
+  close: vi.fn(),
 }));
 vi.mock("@nangohq/frontend", () => ({
   default: class {
@@ -23,7 +24,7 @@ vi.mock("@nangohq/frontend", () => ({
     }
     openConnectUI(params: unknown) {
       nango.options.push(params);
-      return { close: vi.fn() };
+      return { close: nango.close };
     }
   },
 }));
@@ -40,6 +41,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   nango.options.length = 0;
   nango.tokens.length = 0;
+  nango.close.mockReset();
   session.mockResolvedValue(SESSION);
 });
 
@@ -58,13 +60,36 @@ describe("ConnectionsBoard", () => {
     await waitFor(() => expect(nango.options).toHaveLength(1));
     expect(session).toHaveBeenCalledWith("microsoft");
     expect(nango.tokens[0]).toEqual({ connectSessionToken: "tok" });
-    expect(nango.options[0]).toMatchObject({
+    expect(nango.options[0]).toEqual({
       baseURL: "http://connect.test",
       apiURL: "http://api.test",
+      onEvent: expect.any(Function),
     });
     const busy = screen.getByRole("button", { name: "Connecting Outlook…" });
     expect(busy).toBeDisabled();
     expect(busy).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("status")).toHaveTextContent("Connecting Outlook");
+  });
+
+  it("disables the other rows' Connect buttons while one is busy", async () => {
+    list.mockResolvedValue([OFF, { ...OFF, integration: "google-mail" }]);
+    renderWithQuery(<ConnectionsBoard />);
+    await userEvent.click(await screen.findByRole("button", { name: "Connect Outlook" }));
+    await waitFor(() => expect(nango.options).toHaveLength(1));
+    expect(screen.getByRole("button", { name: "Connect Gmail" })).toBeDisabled();
+    onEvent()({ type: "close" });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Connect Gmail" })).toBeEnabled(),
+    );
+  });
+
+  it("closes the open Connect UI when the page goes away", async () => {
+    list.mockResolvedValue([OFF]);
+    const { unmount } = renderWithQuery(<ConnectionsBoard />);
+    await userEvent.click(await screen.findByRole("button", { name: "Connect Outlook" }));
+    await waitFor(() => expect(nango.options).toHaveLength(1));
+    unmount();
+    expect(nango.close).toHaveBeenCalledTimes(1);
   });
 
   it("refetches on connect and shows Connected with the time", async () => {
@@ -101,23 +126,37 @@ describe("ConnectionsBoard", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/did not connect/i);
   });
 
-  it("shows the problem's title when the session cannot be made", async () => {
+  it("shows the problem's detail when the session cannot be made", async () => {
     list.mockResolvedValue([OFF]);
     session.mockRejectedValue(
-      new ApiError({ type: "x", title: "Connections are not set up", status: 503, detail: "" }),
+      new ApiError({
+        type: "x",
+        title: "Dependency unavailable",
+        status: 503,
+        detail: "Connections are not set up on this server yet.",
+      }),
     );
     renderWithQuery(<ConnectionsBoard />);
     await userEvent.click(await screen.findByRole("button", { name: "Connect Outlook" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Connections are not set up");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Connections are not set up on this server yet.",
+    );
     expect(screen.getByRole("button", { name: "Connect Outlook" })).toBeEnabled();
   });
 
-  it("shows the problem's title when the list fails", async () => {
+  it("shows the problem's detail when the list fails", async () => {
     list.mockRejectedValue(
-      new ApiError({ type: "x", title: "Connections are not set up", status: 503, detail: "" }),
+      new ApiError({
+        type: "x",
+        title: "Dependency unavailable",
+        status: 503,
+        detail: "Connections are not set up on this server yet.",
+      }),
     );
     renderWithQuery(<ConnectionsBoard />);
-    expect(await screen.findByRole("alert")).toHaveTextContent("Connections are not set up");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Connections are not set up on this server yet.",
+    );
   });
 
   it("an empty list is one plain line, not an error", async () => {

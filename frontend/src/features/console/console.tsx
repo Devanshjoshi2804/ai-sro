@@ -13,7 +13,7 @@ import { BatchCard } from "@/features/console/batch-card";
 import { SkillCard } from "@/features/console/skill-card";
 import { RunPassword } from "@/features/workflow/components/password-prompt";
 import { OpenQuestions } from "@/features/knowledge/components/open-questions";
-import { TopBar, BarLink } from "@/features/console/top-bar";
+import { TopBar, MainLinks } from "@/features/console/top-bar";
 import { connectionKeys, listConnections } from "@/features/console/connect-panel";
 import {
   getThread,
@@ -121,17 +121,12 @@ export function Console({ threadId: fromUrl }: { threadId?: string } = {}) {
         overflow: "hidden",
       }}
     >
-      {/* The same four places the rest of the console has. Teaching, the
-          browser on the server and the pages that went with them -- Recordings,
-          Skills, Runs -- are gone: the rig learns from what operators already
-          do in their own browser, and `/skills` had been a 404 for weeks. */}
+      {/* The same places as the rest of the console (`MainLinks`). Teaching,
+          the browser on the server and the pages that went with them --
+          Recordings, Skills, Runs -- are gone: the rig learns from what
+          operators already do in their own browser. */}
       <TopBar>
-        <BarLink href="/console">Threads</BarLink>
-        <BarLink href="/knowledge" also={["/jobs"]}>
-          What we know
-        </BarLink>
-        <BarLink href="/triggers">Triggers</BarLink>
-        <BarLink href="/overview">Overview</BarLink>
+        <MainLinks />
       </TopBar>
 
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>

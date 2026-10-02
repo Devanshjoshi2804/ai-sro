@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Nango from "@nangohq/frontend";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -13,8 +13,9 @@ import { ApiError } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// ApiError's message is the problem's plain sentence, or its title when that is empty.
 const problem = (error: unknown) =>
-  error instanceof ApiError ? error.problem.title : "That did not work";
+  error instanceof ApiError ? error.message : "That did not work";
 
 /** One row per mail account the server can connect, and one button to do it. */
 export function ConnectionsBoard() {
@@ -23,13 +24,16 @@ export function ConnectionsBoard() {
   // The integration whose session is being made or whose popup is open; one at a time.
   const [busy, setBusy] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
+  // The Connect UI is an overlay on document.body; it must not outlive this page.
+  const open = useRef<{ close(): void } | null>(null);
+  useEffect(() => () => open.current?.close(), []);
 
   const connect = async (integration: string) => {
     setBusy(integration);
     setFailure(null);
     try {
       const { token, connect_url, api_url } = await createConnectSession(integration);
-      new Nango({ connectSessionToken: token }).openConnectUI({
+      open.current = new Nango({ connectSessionToken: token }).openConnectUI({
         baseURL: connect_url,
         apiURL: api_url,
         onEvent: (event) => {
@@ -61,6 +65,10 @@ export function ConnectionsBoard() {
           Mail accounts the assistant may read and answer from. Connecting opens a sign-in window.
         </p>
       </header>
+
+      <p role="status" className="sr-only">
+        {busy ? `Connecting ${displayName(busy)}…` : ""}
+      </p>
 
       {message && (
         <p role="alert" className="text-destructive text-sm">

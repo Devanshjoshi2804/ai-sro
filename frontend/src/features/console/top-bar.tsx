@@ -200,3 +200,21 @@ export function BarGroup({ label, children }: { label: string; children: ReactNo
     </div>
   );
 }
+
+/**
+ * The places every page's bar links to, in one list. The console and the
+ * dashboard layout both render this, so the two bars cannot disagree.
+ */
+export function MainLinks() {
+  return (
+    <>
+      <BarLink href="/console">Threads</BarLink>
+      <BarLink href="/knowledge" also={["/jobs"]}>
+        What we know
+      </BarLink>
+      <BarLink href="/triggers">Triggers</BarLink>
+      <BarLink href="/connections">Connections</BarLink>
+      <BarLink href="/overview">Overview</BarLink>
+    </>
+  );
+}

@@ -14,7 +14,7 @@
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { TopBar, BarGroup, BarLink } from "@/features/console/top-bar";
+import { TopBar, BarGroup, BarLink, MainLinks } from "@/features/console/top-bar";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/jobs" }));
 vi.mock("@/lib/api/credential", () => ({
@@ -70,5 +70,21 @@ describe("TopBar", () => {
     vi.mocked(credential.whoAmI).mockReturnValueOnce(null as never);
     render(<TopBar>{many}</TopBar>);
     expect(screen.getByText("—")).toBeInTheDocument();
+  });
+
+  it("MainLinks is the one list both bars render, Connections included", () => {
+    render(
+      <TopBar>
+        <MainLinks />
+      </TopBar>,
+    );
+    const names = screen.getAllByRole("link").map((l) => l.textContent);
+    expect(names.slice(1)).toEqual([
+      "Threads",
+      "What we know",
+      "Triggers",
+      "Connections",
+      "Overview",
+    ]);
   });
 });

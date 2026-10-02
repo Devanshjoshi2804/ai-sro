@@ -46,6 +46,20 @@ def _describes(record: Mapping[str, object]) -> str:
     return values[0] if len(values) == 1 else f"{values[0]} ({values[1]})"
 
 
+def existence(find: str, subject: str, read: Answer | None) -> str:
+    """Yes on a record whose value equals `find`; no only off a whole list; else unsure."""
+    if read is None:
+        return f"I could not tell whether {subject} {find} exists: that read held no records."
+    wanted = find.casefold()
+    for one in read.sample:
+        if any(value.casefold() == wanted for value in one.values()):
+            return f"Yes, {subject} {find} exists: {_describes(one)}."
+    whole = not read.partial and not read.truncated and read.counted == len(read.sample)
+    if not whole:
+        return f"I could not tell whether {subject} {find} exists: only part of the list was read."
+    return f"No, none of the {read.rows} {subject}s is {find}."
+
+
 def as_seen(
     *,
     system: str,
@@ -95,4 +109,4 @@ def as_seen(
     }
 
 
-__all__ = ["K_ANSWER_CHARS", "K_SAMPLE", "as_seen", "subject_of", "trimmed"]
+__all__ = ["K_ANSWER_CHARS", "K_SAMPLE", "as_seen", "existence", "subject_of", "trimmed"]

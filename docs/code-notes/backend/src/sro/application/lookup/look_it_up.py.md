@@ -18,7 +18,7 @@ Code: `if not planned.plan.ready:`
 > proposal below is genuinely for: it says what the knowledge base
 > has and offers to work the screen out once.
 
-## `what_was_found`, [line 41](../../../../../../../backend/src/sro/application/lookup/look_it_up.py#L41): Docstring
+## `what_was_found`, [line 48](../../../../../../../backend/src/sro/application/lookup/look_it_up.py#L48): Docstring
 
 > The sentence above the table, for a surface that draws no table.
 >
@@ -26,7 +26,7 @@ Code: `if not planned.plan.ready:`
 > claiming to summarise them would be this system inventing a number: the
 > table is the answer and this is its label.
 
-## `what_was_found`, [line 45](../../../../../../../backend/src/sro/application/lookup/look_it_up.py#L45): Comment
+## `what_was_found`, [line 52](../../../../../../../backend/src/sro/application/lookup/look_it_up.py#L52): Comment
 
 Code: `if any(ran_out(one.detail) for one in found.looked):`
 
@@ -35,11 +35,14 @@ Code: `if any(ran_out(one.detail) for one in found.looked):`
 > the person reading it can see their own browser and can do something
 > about it.
 
-## `what_was_found`, [line 48](../../../../../../../backend/src/sro/application/lookup/look_it_up.py#L48): Comment
+## `what_was_found`, [line 55](../../../../../../../backend/src/sro/application/lookup/look_it_up.py#L55): Comment
 
-Code: `said = [`
+Code: `said = [_said(one) for one in answered if one.read is not None or one.lookup.find]`
 
-> The reader's own sentence, where it read records.
+> The reader's own sentence, where it read records. Where the lookup carries
+> the value an existence question asked about (`find`), the sentence is
+> `existence`'s instead: yes only on a record equal to it, no only off a whole
+> list, else "could not tell" -- never how many records there were.
 >
 > `Answer.sentence` is deterministic -- counted and named from the payload,
 > never summarised by a model, because "16" has to be 16 -- and it is the

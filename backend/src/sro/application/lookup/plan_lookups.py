@@ -163,6 +163,7 @@ def _read(data: dict[str, object]) -> list[Lookup]:
                 target=target,
                 params=_params(one.get("params")),
                 why=str(one.get("why") or ""),
+                find=str(one.get("find") or "").strip(),
                 cites=tuple(str(c) for c in cites if c) if isinstance(cites, list) else (),
             )
         )

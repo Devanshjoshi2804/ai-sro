@@ -350,7 +350,7 @@ async def test_a_model_that_answered_nothing_usable_is_a_refusal_not_a_plan() ->
     planned = await planner.execute(CTX, question="which suppliers are set up at SG")
 
     assert planned.plan.lookups == ()
-    assert planned.refused == "plan_lookup v2: the answer does not match its schema"
+    assert planned.refused == "plan_lookup v3: the answer does not match its schema"
 
 
 @pytest.mark.parametrize("how", ["post", "delete", "write", ""])
@@ -365,6 +365,14 @@ async def test_the_planner_cannot_express_a_write_however_it_is_asked(how: str) 
     planned = await planner.execute(CTX, question="which suppliers are set up at SG")
 
     assert planned.plan.lookups == ()
+
+
+async def test_the_value_an_existence_question_asks_about_rides_on_the_lookup() -> None:
+    planner, _ = _planner(_said(find=" ZWOYBN "))
+
+    planned = await planner.execute(CTX, question="is there a supplier called ZWOYBN")
+
+    assert planned.plan.lookups[0].find == "ZWOYBN"
 
 
 async def test_a_parameter_the_endpoint_does_not_declare_never_reaches_the_address() -> None:

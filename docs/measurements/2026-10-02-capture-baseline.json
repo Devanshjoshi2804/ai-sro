@@ -9,28 +9,28 @@
       "lines": [
         {
           "label": "steps in class unconfirmed_write",
-          "value": 6,
+          "value": 19,
           "of": 1207,
           "standing": "recorded",
           "note": ""
         },
         {
           "label": "steps in class sign_in",
-          "value": 13,
+          "value": 21,
           "of": 1207,
           "standing": "recorded",
           "note": ""
         },
         {
           "label": "steps in class not_found",
-          "value": 5,
+          "value": 6,
           "of": 1207,
           "standing": "recorded",
           "note": ""
         },
         {
           "label": "steps in class duplicate",
-          "value": 6,
+          "value": 13,
           "of": 1207,
           "standing": "recorded",
           "note": ""
@@ -50,8 +50,50 @@
           "note": ""
         },
         {
+          "label": "steps in class no_browser",
+          "value": 50,
+          "of": 1207,
+          "standing": "recorded",
+          "note": ""
+        },
+        {
+          "label": "steps in class wrong_page",
+          "value": 2,
+          "of": 1207,
+          "standing": "recorded",
+          "note": ""
+        },
+        {
+          "label": "steps in class no_approval",
+          "value": 15,
+          "of": 1207,
+          "standing": "recorded",
+          "note": ""
+        },
+        {
+          "label": "steps in class missing_value",
+          "value": 11,
+          "of": 1207,
+          "standing": "recorded",
+          "note": ""
+        },
+        {
+          "label": "steps in class no_model",
+          "value": 5,
+          "of": 1207,
+          "standing": "recorded",
+          "note": ""
+        },
+        {
+          "label": "steps in class screen_disagrees",
+          "value": 8,
+          "of": 1207,
+          "standing": "recorded",
+          "note": ""
+        },
+        {
           "label": "steps in class other",
-          "value": 121,
+          "value": 1,
           "of": 1207,
           "standing": "recorded",
           "note": ""

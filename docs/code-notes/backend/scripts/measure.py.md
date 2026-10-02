@@ -102,4 +102,9 @@ Code: `asked = (`
 > checked before `sign_in` because a resumed step's reason names the earlier
 > attempt, and that attempt may itself mention a sign-in. "other" is reviewed
 > by a person, never re-bucketed silently. `known_broken` carries only
-> digests, so it is counted per lane, not classed.
+> digests, so it is counted per lane, not classed. Classes beyond the spec's six
+> (`no_browser`, `wrong_page`, `no_approval`, `missing_value`, `no_model`,
+> `screen_disagrees`) exist because the first QA baseline left 80% in "other";
+> each rule's words are reasons seen on QA. `screen_disagrees` is the one rule
+> by who judged (`by == "screen"`), since the screen reader's free text has no
+> fixed words.

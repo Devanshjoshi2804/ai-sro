@@ -33,14 +33,62 @@ CLASSES = (
     "duplicate",
     "timing",
     "wrong_resume",
+    "no_browser",
+    "wrong_page",
+    "no_approval",
+    "missing_value",
+    "no_model",
+    "screen_disagrees",
     "other",
 )
 
+# Each rule cites what the QA baseline (2026-10-03) showed; see the task 1 report.
 _CLASS_WORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("unconfirmed_write", ("nothing confirms it", "outcome was lost", "never confirmed")),
+    (
+        "unconfirmed_write",
+        (
+            "nothing confirms it",
+            "outcome was lost",
+            "never confirmed",
+            "state unknown after a write",
+        ),
+    ),
     ("wrong_resume", ("earlier attempt, never settled", "operator says it was not done")),
-    ("sign_in", ("sign-in", "signed out", "sign in", "password", "still a sign-in page")),
-    ("duplicate", ("already exists", "duplicate", "already there")),
+    (
+        "sign_in",
+        (
+            "sign-in",
+            "signed out",
+            "sign in",
+            "password",
+            "still a sign-in page",
+            "signed-in",
+            "signed in",
+            "signing in",
+            "credential field",
+        ),
+    ),
+    ("duplicate", ("already exists", "duplicate", "already there", "another run of this job")),
+    ("no_approval", ("nobody approved", "waiting for approval")),
+    ("missing_value", ("nobody gave a value", "names nobody", "recipients could not be read")),
+    ("no_model", ("no page or no model", "the model said nothing")),
+    (
+        "no_browser",
+        (
+            "no channel open",
+            "no_tab_for_system",
+            "no tab is open",
+            "did not answer",
+            "failed to fetch",
+            "unreachable:",
+            "is on none",
+            "any page",
+            "at null",
+            "is null",
+            "not loaded",
+        ),
+    ),
+    ("wrong_page", ("the browser is on", "not on the expected page", "not on the step page")),
     (
         "not_found",
         (
@@ -51,19 +99,20 @@ _CLASS_WORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
             "no recorded control",
             "no field",
             "no option",
+            "cannot carry a value",
         ),
     ),
     ("timing", ("did not settle", "timed out", "timeout")),
 )
 
 
-def class_of(verdict: str, reason: str) -> str:
+def class_of(verdict: str, reason: str, by: str = "") -> str:
     if verdict not in ("failed", "unclear"):
         return ""
     said = reason.lower()
-    return next(
-        (name for name, words in _CLASS_WORDS if any(word in said for word in words)), "other"
-    )
+    named = next((name for name, words in _CLASS_WORDS if any(word in said for word in words)), "")
+    # The screen reader's own free-text account of why a step did not land has no fixed words.
+    return named or ("screen_disagrees" if by == "screen" else "other")
 
 
 @dataclass
@@ -298,7 +347,7 @@ async def failure_classes(db: AsyncConnection, tenant: str | None, *, days: int 
     )
     rows = await _rows(
         db,
-        "select s.verdict, s.reason from workflow_run_steps s"
+        "select s.verdict, s.reason, s.verdict_by from workflow_run_steps s"
         " join workflow_runs r on r.id = s.run_id"
         " where r.started_at >= now() - make_interval(days => :days)"
         f" and {MINE.replace('tenant_id', 'r.tenant_id')}",
@@ -306,7 +355,9 @@ async def failure_classes(db: AsyncConnection, tenant: str | None, *, days: int 
         days=days,
     )
     counted: Counter[str] = Counter(
-        named for verdict, reason in rows if (named := class_of(verdict or "", reason or ""))
+        named
+        for verdict, reason, by in rows
+        if (named := class_of(verdict or "", reason or "", by or ""))
     )
     for name in CLASSES:
         into.add(Line(f"steps in class {name}", counted[name], len(rows) or None, "recorded"))

@@ -236,6 +236,43 @@ services:
     command: ["python", "gmail-connector/server.py", "8932"]
 
   # ---------------------------------------------------------------------------
+  # Nango, self-hosted (free tier: OAuth + token refresh + proxy; no
+  # Elasticsearch, no S3). It is how an operator connects a mail account with
+  # one click. Its data is the `nango` database on our Postgres -- created once
+  # by hand (docs/18-deployment.md "Nango") -- never the `sro` one.
+  # Docs: https://nango.dev/docs/guides/platform/self-hosting
+  # Dashboard and API are on their own proxy port (NANGO_BIND, 8089): they are
+  # not served under a sub-path, so `/nango` on the app's origin cannot work.
+  # ---------------------------------------------------------------------------
+  nango-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  nango-server:
+    image: nangohq/nango-server:hosted
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nango-redis:
+        condition: service_started
+    environment:
+      NANGO_DB_HOST: postgres
+      NANGO_DB_PORT: "5432"
+      NANGO_DB_NAME: nango
+      NANGO_DB_USER: ${POSTGRES_USER}
+      NANGO_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      NANGO_ENCRYPTION_KEY: ${NANGO_ENCRYPTION_KEY:?set NANGO_ENCRYPTION_KEY (openssl rand -base64 32); never change it once connections exist}
+      # The OAuth callback is <this>/oauth/callback; register that in the
+      # provider's app (Azure redirect URI).
+      NANGO_SERVER_URL: ${NANGO_PUBLIC_URL:?set NANGO_PUBLIC_URL, e.g. http://10.11.9.25:8089}
+      NANGO_REDIS_URL: redis://nango-redis:6379
+      # Basic auth on the dashboard instead of Nango Cloud's login.
+      FLAG_AUTH_ENABLED: "false"
+      NANGO_DASHBOARD_USERNAME: ${NANGO_DASHBOARD_USERNAME:?set NANGO_DASHBOARD_USERNAME}
+      NANGO_DASHBOARD_PASSWORD: ${NANGO_DASHBOARD_PASSWORD:?set NANGO_DASHBOARD_PASSWORD}
+
+  # ---------------------------------------------------------------------------
   # The schema, before anything serves it. Runs to completion and exits; the
   # API will not start unless it exited 0.
   # ---------------------------------------------------------------------------
@@ -408,6 +445,8 @@ services:
       - ./:/etc/caddy/:ro
     ports:
       - "${PUBLIC_BIND:-0.0.0.0:8088}:8080"
+      # Nango's dashboard and API: a root-served app, so its own port.
+      - "${NANGO_BIND:-0.0.0.0:8089}:8081"
 
 volumes:
   # One Google refresh token per operator, each named by the sha256 of the

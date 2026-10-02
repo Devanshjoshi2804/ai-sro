@@ -202,6 +202,47 @@ Every live QA session on that container is lost when it recreates, same as
 any Steel restart; release it and start over once the new container is
 healthy.
 
+## Nango (mail accounts connected with one click)
+
+Self-hosted Nango (free tier: OAuth, token refresh, proxy; no Elasticsearch or
+S3) runs beside AI-SRO. Its data is the database `nango` on our Postgres and
+never touches `sro`. Reference:
+<https://nango.dev/docs/guides/platform/self-hosting>.
+
+**Not under `/nango`.** The dashboard is served from the root and has no
+sub-path setting, so it gets its own proxy port, 8089 (`NANGO_BIND`), routed by
+`infra/Caddyfile`'s `:8081` site. `NANGO_PUBLIC_URL` is that address, e.g.
+`http://10.11.9.25:8089`; the OAuth callback is `<NANGO_PUBLIC_URL>/oauth/callback`.
+
+One shot, once per Postgres volume (the init script does not run on an
+existing one):
+
+```bash
+docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa \
+  exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "CREATE DATABASE nango"'
+```
+
+Then set `NANGO_ENCRYPTION_KEY` (`openssl rand -base64 32`; never change it
+afterwards), `NANGO_PUBLIC_URL`, `NANGO_DASHBOARD_USERNAME/PASSWORD` in
+`.env.qa` and start it, and reload Caddy to publish the port:
+
+```bash
+docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa \
+  up -d --no-deps nango-redis nango-server
+docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa \
+  up -d --no-deps --force-recreate caddy      # a new published port needs a recreate
+```
+
+Open `NANGO_PUBLIC_URL` in a browser and sign in with the dashboard basic-auth
+credentials. Create the integration `microsoft`: client id and secret from the
+Azure app registration (its redirect URI is the callback above), scopes
+`offline_access Mail.Read Mail.ReadWrite Mail.Send User.Read`. Copy the
+environment secret key (Environment Settings) into `.env.qa` as
+`SRO_NANGO_SECRET_KEY`. `SRO_NANGO_URL` stays `http://nango-server:3003`.
+
+The dashboard is plain HTTP with basic auth on a shared network: reach it over
+the tunnel or restrict `NANGO_BIND` to loopback until TLS exists.
+
 ## Which mail connector a tenant is on
 
 `SRO_MAIL_SERVERS` is a JSON object from tenant id to connector name, e.g.

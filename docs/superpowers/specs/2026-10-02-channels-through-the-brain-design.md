@@ -61,9 +61,8 @@ connector (Gmail | Outlook | Slack ...)  -->  Inbound message {channel, thread, 
 - Admin, once per tenant: register the app (Azure app registration with Mail.Read, Mail.ReadWrite,
   Mail.Send; a Slack app with chat:write, channels:history, im:history), paste its client id and secret
   into Nango.
-- Licence: Nango is under the Elastic License. Self-hosting inside AI-SRO is expected to be fine; GreyOrange
-  legal confirms before paying customers use it. Fallback if not: Activepieces (MIT) or our own OAuth
-  per channel, as Gmail is today.
+- Licence: Nango is under the Elastic License. GreyOrange legal approved self-hosting it inside AI-SRO
+  on 2026-10-02. Fallback if that ever changes: Activepieces (MIT).
 
 ## Outlook mail connector (first new channel)
 
@@ -96,5 +95,5 @@ the brain still never posts on its own: the panel's press posts it).
 ## Open questions for the owner
 
 1. Which Microsoft tenant and mailbox for the QA Outlook test, and who creates the Azure app registration?
-2. Legal confirmation of the Elastic License before customers.
+2. ~~Legal confirmation of the Elastic License~~ -- approved by GreyOrange legal, 2026-10-02.
 3. Slack workspace for the test, later.

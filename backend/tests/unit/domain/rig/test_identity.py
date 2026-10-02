@@ -866,3 +866,32 @@ def test_of_the_jobs_a_proposal_covers_the_one_it_is_most_of_wins() -> None:
     resolution = resolve(part, [big, close])
 
     assert (resolution.kind, resolution.workflow_id) == ("same_job", "wfl_close")
+
+
+def test_the_new_capture_never_moves_an_identity() -> None:
+    from dataclasses import replace
+
+    from sro.domain.observation.gesture import Choice, Effect, Place, Seen, Target
+    from sro.domain.observation.identity import target_identity
+
+    plain = replace(_on(TRANSPORT), action=Action(kind="click", at=1.0, target=Target(name="Save")))
+    assert plain.action.target is not None
+    rich = replace(
+        plain,
+        action=replace(
+            plain.action,
+            place=Place(route="/a", title="T", headings=("H",)),
+            effect=Effect(appeared=(Seen("status", "Saved"),)),
+            choice=Choice("Retail", 2, ("Bulk", "Retail")),
+            target=replace(
+                plain.action.target,
+                label_text="Code",
+                sibling_index=1,
+                sibling_count=2,
+                full_name="Code",
+            ),
+        ),
+    )
+    assert target_identity(rich) == target_identity(plain)
+    assert screen_of(rich) == screen_of(plain)
+    assert shape_key([rich]) == shape_key([plain])

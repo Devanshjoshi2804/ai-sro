@@ -46,6 +46,10 @@ class Target:
     bounds: dict[str, float] = field(default_factory=dict, hash=False)
     attributes: dict[str, object] = field(default_factory=dict, hash=False)
     landmarks: tuple[Landmark, ...] = ()
+    label_text: str | None = None
+    sibling_index: int | None = None
+    sibling_count: int | None = None
+    full_name: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,6 +88,61 @@ class Outline:
 
 
 @dataclass(frozen=True, slots=True)
+class Place:
+    route: str | None = None
+    title: str | None = None
+    headings: tuple[str, ...] = ()
+    tabs: tuple[str, ...] = ()
+    grid: str | None = None
+    landmarks: tuple[str, ...] = ()
+    version: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class Seen:
+    role: str
+    text: str | None = None
+    title: str | None = None
+    buttons: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class FieldChange:
+    label: str
+    change: str
+
+
+@dataclass(frozen=True, slots=True)
+class Effect:
+    appeared: tuple[Seen, ...] = ()
+    vanished: tuple[Seen, ...] = ()
+    route_before: str | None = None
+    route_after: str | None = None
+    fields: tuple[FieldChange, ...] = ()
+    requests_ms: int | None = None
+    mask_ms: int | None = None
+    quiet_ms: int | None = None
+    ended: str | None = None
+    errors: tuple[str, ...] = ()
+    shortcuts: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class Choice:
+    chosen: str | None = None
+    index: int | None = None
+    options: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class CookieSeen:
+    name: str
+    expires_at: float | None = None
+    domain: str | None = None
+    session: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class Action:
     kind: Kind
     at: float
@@ -97,6 +156,9 @@ class Action:
     trusted: bool | None = None
     after: AfterState | None = None
     outlines: tuple[Outline, ...] = ()
+    place: Place | None = None
+    effect: Effect | None = None
+    choice: Choice | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,6 +193,8 @@ class PageMark:
     detail: str | None = None
     tab_id: int | None = None
     opener_tab_id: int | None = None
+    cookies: tuple[CookieSeen, ...] = ()
+    mail_thread: str | None = None
 
 
 @dataclass

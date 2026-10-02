@@ -49,6 +49,10 @@ def _said(raw: object) -> str | None:
     return plain[:K_OUTLINE_TEXT]
 
 
+def said_text(raw: object) -> str | None:
+    return _said(raw)
+
+
 def _items(raw: object) -> list[Mapping[str, object]]:
     return [one for one in raw if isinstance(one, Mapping)] if isinstance(raw, list) else []
 

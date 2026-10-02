@@ -652,6 +652,10 @@ async def test_a_cited_gesture_reaches_the_bridge_whole(
                 "bounds": {},
                 "attributes": {},
                 "landmarks": [],
+                "label_text": None,
+                "sibling_index": None,
+                "sibling_count": None,
+                "full_name": None,
             },
             "modifiers": [],
             "frame_path": None,
@@ -659,6 +663,9 @@ async def test_a_cited_gesture_reaches_the_bridge_whole(
             "trusted": None,
             "after": None,
             "outlines": [],
+            "place": None,
+            "effect": None,
+            "choice": None,
         },
     }
 

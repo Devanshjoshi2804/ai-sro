@@ -65,7 +65,7 @@ Code: `attributes: dict[str, object] = field(default_factory=dict, hash=False)`
 > when `query` alone
 > is ambiguous (§4.1).
 
-## `AfterState`, [line 58](../../../../../../../backend/src/sro/domain/observation/gesture.py#L58): Docstring
+## `AfterState`, [line 62](../../../../../../../backend/src/sro/domain/observation/gesture.py#L62): Docstring
 
 > Pre-created for X4's UI-lane verification, which reads `Action.after` to
 > know what a control should show once a step is done. E5 owns this file and
@@ -76,11 +76,11 @@ Code: `attributes: dict[str, object] = field(default_factory=dict, hash=False)`
 > definitions. X3 pre-created the same type once already and it was deleted
 > as dead (nothing consumed it yet); X4 is the first real consumer.
 
-## `Action`, [line 87](../../../../../../../backend/src/sro/domain/observation/gesture.py#L87): Docstring
+## `Action`, [line 146](../../../../../../../backend/src/sro/domain/observation/gesture.py#L146): Docstring
 
 > The gesture itself: what was done, to what, with what typed.
 
-## `Action`, [line 94](../../../../../../../backend/src/sro/domain/observation/gesture.py#L94): Note on the line above
+## `Action`, [line 153](../../../../../../../backend/src/sro/domain/observation/gesture.py#L153): Note on the line above
 
 Code: `modifiers: tuple[str, ...] = ()`
 
@@ -88,12 +88,12 @@ Code: `modifiers: tuple[str, ...] = ()`
 > captured and this used to drop. A run replaying the gesture needs them to
 > reproduce a modified click or keypress rather than a bare one (§4.1).
 
-## `Call`, [line 112](../../../../../../../backend/src/sro/domain/observation/gesture.py#L112): Docstring
+## `Call`, [line 174](../../../../../../../backend/src/sro/domain/observation/gesture.py#L174): Docstring
 
 > A recorded exchange, the part of it the belts read: never a response
 > body's text beyond what `confirming_read` compares.
 
-## `GestureBatch`, [line 154](../../../../../../../backend/src/sro/domain/observation/gesture.py#L154): Docstring
+## `GestureBatch`, [line 218](../../../../../../../backend/src/sro/domain/observation/gesture.py#L218): Docstring
 
 > What one upload said about itself.
 >
@@ -108,7 +108,7 @@ Code: `modifiers: tuple[str, ...] = ()`
 > separate tables. Both may describe one upload; neither is derived from the
 > other.
 
-## `passed_through`, [line 192](../../../../../../../backend/src/sro/domain/observation/gesture.py#L192): Docstring
+## `passed_through`, [line 256](../../../../../../../backend/src/sro/domain/observation/gesture.py#L256): Docstring
 
 > Whether this gesture ended on a different system from the one it
 > happened on -- the browser moved the operator, the operator did not.
@@ -118,7 +118,7 @@ Code: `modifiers: tuple[str, ...] = ()`
 > `values.worked_in_both` reads it for the same distinction: a browser
 > bouncing through an identity provider is not somebody using two tabs.
 
-## `Call`, [line 115](../../../../../../../backend/src/sro/domain/observation/gesture.py#L115): Comment
+## `Call`, [line 177](../../../../../../../backend/src/sro/domain/observation/gesture.py#L177): Comment
 
 Code: `request_id: str = ""`
 
@@ -126,10 +126,18 @@ Code: `request_id: str = ""`
 > a batch always has one; "" is what a hand-built call has instead of None,
 > which keeps the type a plain str for everything that reads it.
 
-## `Outline`, [line 78](../../../../../../../backend/src/sro/domain/observation/gesture.py#L78): Class
+## `Outline`, [line 82](../../../../../../../backend/src/sro/domain/observation/gesture.py#L82): Class
 
 > The screen a gesture was made on, as labels, roles and the role of each
 > message on it -- never a value, and never what a message said (spec §4.6). Stored inside `gestures.gesture` like every other action
 > field, so it needed no migration. `Action.outlines` holds the screens seen
 > since the frame's previous gesture, the last being this gesture's own;
 > `outline.last_outline` answers for a gesture that carried none.
+
+## `Place`, [line 91](../../../../../../../backend/src/sro/domain/observation/gesture.py#L91): Class
+
+> Richer capture (ADR 016). Every new field on `Target`, `Action` and
+> `PageMark` is optional and defaulted, so a row stored before them loads
+> unchanged. Nothing in identity (`target_identity`, `screen_of`,
+> `shape_key`) reads any of them, and `seen.py` is the only place their text
+> is sanitised.

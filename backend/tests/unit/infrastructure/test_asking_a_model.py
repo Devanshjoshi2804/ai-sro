@@ -229,6 +229,34 @@ async def test_gemini_asker_survives_the_client_raising() -> None:
     assert answer.cost_usd == 0.0
 
 
+class _Coded(Exception):
+    def __init__(self, code: int) -> None:
+        super().__init__(f"{code} from the model")
+        self.code = code
+
+
+@pytest.mark.parametrize(
+    ("code", "outage"),
+    [(400, False), (404, False), (413, False), (401, True), (403, True), (429, True), (503, True)],
+)
+async def test_only_an_outage_is_unreachable_a_rejected_prompt_is_a_failed_read(
+    code: int, outage: bool
+) -> None:
+    """Day-end 3: a 400 is the model refusing this one mail, not the model being away; flagged an
+    outage it was never counted and every look stopped at the same mail."""
+
+    def _raise() -> Any:
+        raise _Coded(code)
+
+    client, _ = _fake_client(_raise)
+
+    answer = await GeminiAsker(client=client).ask(
+        model="gemini-3.8-flash", instructions="i", evidence="e", schema={"type": "object"}
+    )
+
+    assert answer.error and answer.unreachable is outage
+
+
 async def test_a_call_that_never_returned_does_not_claim_to_be_free() -> None:
     """We cannot tell whether it was billed before it failed, so the cost
     figure is not to be trusted -- which is what `unpriced` means."""

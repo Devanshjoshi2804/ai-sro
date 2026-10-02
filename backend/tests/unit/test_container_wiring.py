@@ -586,3 +586,22 @@ def test_the_brain_is_wired_only_for_a_flagged_tenant_with_a_model(uow: FakeUnit
     assert converse()._brain is None
     # No model, no brain: the chain answers (and refuses) as it always did.
     assert converse(model=False, chat_brain_tenants=("acme",))._brain is None
+
+
+def test_every_mail_look_reads_with_the_brain_for_a_flagged_tenant_the_brain_s_own_included(
+    uow: FakeUnitOfWork,
+) -> None:
+    from sro.application.chat.brain_reader import BrainReader
+    from sro.config import Settings
+
+    built = _FakeContainer(uow)
+    built.clock = FakeClock(FROZEN)
+    built.asker = FakeAsker()
+    built.settings = Settings(_env_file=None, mail_brain_tenants=("acme",))
+
+    look = built.from_the_mail()
+    assert look._build is not None and isinstance(look._reading(), BrainReader)
+    inside = built.brain()._tools["check_mail"]._look
+    assert inside._build is not None and inside._reader_tenants == frozenset({"acme"})
+    built.settings = Settings(_env_file=None)
+    assert built.from_the_mail()._build is None

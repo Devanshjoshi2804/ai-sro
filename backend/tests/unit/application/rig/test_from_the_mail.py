@@ -14,6 +14,7 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 import pytest
@@ -228,6 +229,8 @@ def _look(
     start: StartWorkflowRun | None = None,
     durable: FakeDurableExecution | None = None,
     resume: Callable[[RequestContext, str], Awaitable[None]] | None = None,
+    servers: Mapping[str, str] = MappingProxyType({}),
+    **door: Any,
 ) -> FromTheMail:
     return FromTheMail(
         uow,
@@ -239,8 +242,10 @@ def _look(
         ids=FakeIdFactory(),
         cap_usd=cap_usd,
         start=start,
+        servers=servers,
         attempts=RecordAttempt(uow, FakeIdFactory(), FakeClock()),
-        asks=AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()),
+        asks=door.pop("asks", None) or AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()),
+        **door,
     )
 
 
@@ -253,9 +258,10 @@ class _MailWorld:
     poll: LookInTheMailLately
     mailbox: _Mailbox
     reads: _Reads
+    servers: Mapping[str, str] = MappingProxyType({})
 
     def look(self, mailbox: _Mailbox, reads: _Reads) -> FromTheMail:
-        return _look(self.uow, mailbox, reads, start=self.start)
+        return _look(self.uow, mailbox, reads, start=self.start, servers=self.servers)
 
     def polling(self, mailbox: _Mailbox, reads: _Reads) -> LookInTheMailLately:
         return _poll(self.uow, self.look(mailbox, reads), self.start)
@@ -279,6 +285,7 @@ async def mail_world(
     thread: str = "",
     durable: FakeDurableExecution | None = None,
     start_cap_usd: float | None = None,
+    servers: Mapping[str, str] = MappingProxyType({}),
 ) -> _MailWorld:
     """One request mail naming the saved job, read as `sure` with `values`,
     for a tenant that runs on Steel or on the extension, whose operator has a
@@ -306,10 +313,11 @@ async def mail_world(
         steel_tenants=frozenset({f.TENANT.value}) if steel else frozenset(),
         # The wait a mail-started run keeps is read against the wall clock.
         clock=FakeClock(datetime.now(tz=UTC)),
+        servers=servers,
         **({} if start_cap_usd is None else {"cap_usd": start_cap_usd}),
     )
-    look = _look(uow, mailbox, reads, start=start)
-    return _MailWorld(uow, look, durable, start, _poll(uow, look, start), mailbox, reads)
+    look = _look(uow, mailbox, reads, start=start, servers=servers)
+    return _MailWorld(uow, look, durable, start, _poll(uow, look, start), mailbox, reads, servers)
 
 
 async def test_a_sure_mail_with_every_value_starts_the_run_itself() -> None:
@@ -1503,7 +1511,7 @@ async def test_a_mail_this_system_sent_answers_no_question(kind: str) -> None:
     mailbox = _SendsAs(search=_found("m-1"), **{"m-1": ours})
     written = Written("alex@example.com", "Re: who", "vendor@supplier.example", "t-9", "")
     assert await send_the_mail(
-        CTX, uow, mailbox, written, clock=FakeClock(datetime.now(tz=UTC))
+        CTX, uow, mailbox, written, clock=FakeClock(datetime.now(tz=UTC)), servers={}
     ) == ("m-1", "")
     durable = FakeDurableExecution()
 

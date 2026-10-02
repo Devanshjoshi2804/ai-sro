@@ -21,6 +21,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from types import MappingProxyType
 
 import pytest
 
@@ -203,6 +204,7 @@ def _starter(
     durable: FakeDurableExecution | None = None,
     steel_tenants: frozenset[str] = frozenset(),
     clock: FakeClock | None = None,
+    servers: Mapping[str, str] = MappingProxyType({}),
 ) -> StartWorkflowRun:
     return StartWorkflowRun(
         uow,
@@ -215,6 +217,7 @@ def _starter(
         one_time_secrets=OneTimeSecrets(),
         durable=durable,
         steel_tenants=steel_tenants,
+        servers=servers,
     )
 
 
@@ -1337,6 +1340,7 @@ async def test_the_question_says_which_step_the_run_had_reached() -> None:
         approvals=Approvals(),
         one_time_secrets=OneTimeSecrets(),
         ids=FakeIdFactory(),
+        servers={},
     )
     await starter.ask_for_values(_ctx(), run, "Create a Customer Type")
 
@@ -1391,6 +1395,7 @@ async def test_the_question_offers_the_fields_the_page_does_not_ask_for() -> Non
         approvals=Approvals(),
         one_time_secrets=OneTimeSecrets(),
         ids=FakeIdFactory(),
+        servers={},
     )
     await starter.ask_for_values(_ctx(), run, "Create a Customer Type")
 
@@ -1477,6 +1482,7 @@ async def _short_of(
         approvals=Approvals(),
         one_time_secrets=OneTimeSecrets(),
         ids=FakeIdFactory(),
+        servers={},
     )
     return run, starter
 

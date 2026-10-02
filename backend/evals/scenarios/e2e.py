@@ -14,6 +14,7 @@ is taken back through the brain's own undo at the end; what it could not take ba
 from __future__ import annotations
 
 import asyncio
+import itertools
 import json
 import logging
 import sys
@@ -30,14 +31,18 @@ OPERATOR, TENANT = "devansh", "greyorange"
 RUN_WAIT_S, POLL_S = 420, 5
 
 
-def _code() -> str:
-    """A fresh 4-character customer type (the field holds 4), unique enough for one session."""
+_MADE = itertools.count()
+
+
+def _code(lead: str = "Z", width: int = 3) -> str:
+    """A fresh code: `lead` and `width` base-36 characters from the clock and a counter, so
+    two codes made in the same tenth of a second still differ (customer types hold 4)."""
     digits = "0123456789abcdefghijklmnopqrstuvwxyz"
-    n, out = int(time.time() * 10) % (36**3), ""
-    for _ in range(3):
+    n, out = (int(time.time() * 10) + next(_MADE)) % (36**width), ""
+    for _ in range(width):
         n, r = divmod(n, 36)
         out = digits[r] + out
-    return "Z" + out.upper()
+    return lead + out.upper()
 
 
 @dataclass
@@ -213,6 +218,108 @@ async def e6_mail_and_lookup(rig: Rig) -> Result:
     return r
 
 
+async def _undone(rig: Rig, t: dict[str, Any], r: Result, code: str, run_id: str) -> None:
+    undo = await rig.say(t, "undo that", r)
+    r.check(len(undo.runs) == 1, f"undo of {code} starts one run")
+    if undo.runs:
+        r.outcomes[undo.runs[0]] = await rig.finish(undo.runs[0])
+        r.check(r.outcomes[undo.runs[0]] == "held", f"{code} is taken back")
+        if (code, run_id) in rig.created:
+            rig.created.remove((code, run_id))
+
+
+async def e7_two_jobs_fit_then_warehouse(rig: Rig) -> Result:
+    r, code = (
+        Result("E7 'create an equipment type' -> which? -> warehouse -> values -> runs"),
+        _code("ZW", 4),
+    )
+    t = await rig.thread()
+    a = await rig.say(t, "create an equipment type", r)
+    r.check(
+        not a.runs and ("warehouse" in a.reply.lower() and "transport" in a.reply.lower()),
+        "asks which of the two",
+    )
+    b = await rig.say(t, "warehouse", r)
+    r.check(not b.runs, "the kind alone starts nothing")
+    c = await rig.say(
+        t,
+        f"Warehouse Equipment Type {code}, Description e2e warehouse, Voice Code 7, LPN Limit 2",
+        r,
+    )
+    r.check(len(c.runs) == 1, "the values start exactly one run")
+    for run_id in c.runs:
+        r.outcomes[run_id] = await rig.finish(run_id)
+        r.check(
+            r.outcomes[run_id] == "held",
+            f"{code} was created and read back (no delete job: it stays)",
+        )
+    return r
+
+
+async def e8_transport_in_one_sentence(rig: Rig) -> Result:
+    r, code = Result("E8 a transport equipment type in one sentence"), _code("ZT", 4)
+    t = await rig.thread()
+    a = await rig.say(
+        t,
+        f"create transport equipment type {code} with long description e2e transport and short description e2e",
+        r,
+    )
+    r.check(len(a.runs) == 1, "one run")
+    for run_id in a.runs:
+        r.outcomes[run_id] = await rig.finish(run_id)
+        r.check(
+            r.outcomes[run_id] == "held",
+            f"{code} was created and read back (no delete job: it stays)",
+        )
+    return r
+
+
+async def e9_too_long_then_fixed(rig: Rig) -> Result:
+    r, code = Result("E9 a code too long is refused, the fixed one runs, then undone"), _code()
+    t = await rig.thread()
+    a = await rig.say(t, "create customer type ABCDEFG with description e2e too long", r)
+    r.check(not a.runs, "the 7-character code starts nothing")
+    b = await rig.say(t, code, r)
+    r.check(len(b.runs) == 1, "the 4-character code completes it: one run")
+    for run_id in b.runs:
+        rig.created.append((code, run_id))
+        r.outcomes[run_id] = await rig.finish(run_id)
+        r.check(r.outcomes[run_id] == "held", f"{code} was created and read back")
+        await _undone(rig, t, r, code, run_id)
+    return r
+
+
+async def e10_hinglish(rig: Rig) -> Result:
+    r, code = Result("E10 a request in Hinglish"), _code()
+    t = await rig.thread()
+    a = await rig.say(t, f"ek customer type banao {code} description e2e hinglish test ke liye", r)
+    r.check(len(a.runs) == 1, "one run")
+    for run_id in a.runs:
+        rig.created.append((code, run_id))
+        r.outcomes[run_id] = await rig.finish(run_id)
+        r.check(r.outcomes[run_id] == "held", f"{code} was created and read back")
+        await _undone(rig, t, r, code, run_id)
+    return r
+
+
+async def e11_delete_by_name(rig: Rig) -> Result:
+    r, code = Result("E11 create, then 'delete customer type <code>' by name"), _code()
+    t = await rig.thread()
+    a = await rig.say(t, f"create customer type {code} with description e2e delete by name", r)
+    for run_id in a.runs:
+        rig.created.append((code, run_id))
+        r.outcomes[run_id] = await rig.finish(run_id)
+    seen = await rig.say(t, f"is there a customer type called {code}", r)
+    r.check(code in seen.reply, "a lookup finds it while it exists")
+    d = await rig.say(t, f"delete customer type {code}", r)
+    r.check(len(d.runs) == 1, "the delete starts one run")
+    for run_id in d.runs:
+        r.outcomes[run_id] = await rig.finish(run_id)
+        r.check(r.outcomes[run_id] == "held", f"{code} was deleted")
+        rig.created[:] = [one for one in rig.created if one[0] != code]
+    return r
+
+
 SCENARIOS = [
     e1_create_in_one_sentence,
     e2_asks_then_starts,
@@ -220,6 +327,11 @@ SCENARIOS = [
     e4_same_sentence_twice,
     e5_nothing_starts,
     e6_mail_and_lookup,
+    e7_two_jobs_fit_then_warehouse,
+    e8_transport_in_one_sentence,
+    e9_too_long_then_fixed,
+    e10_hinglish,
+    e11_delete_by_name,
 ]
 
 

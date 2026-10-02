@@ -17,7 +17,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/execution/exe
 >   way to review one before allowing it.
 > - A step whose headers cannot be resolved does not go out degraded.
 
-## module, [line 70](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L70): Note on the line above
+## module, [line 71](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L71): Note on the line above
 
 Code: `MAX_RECORDED_BODY_BYTES = 64 * 1024`
 
@@ -29,13 +29,13 @@ Code: `MAX_RECORDED_BODY_BYTES = 64 * 1024`
 > log nobody is going to read. This is the size a person reads, not the size the
 > wire allows.
 
-## module, [line 185](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L185): Note on the line above
+## module, [line 186](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L186): Note on the line above
 
 Code: `_LOOK_AGAIN = 0.4`
 
 > How long to leave a screen that has not caught up yet, between looks.
 
-## module, [line 187](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L187): Note on the line above
+## module, [line 188](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L188): Note on the line above
 
 Code: `NOTHING_ASSERTED = "the step asserts nothing"`
 
@@ -45,7 +45,7 @@ Code: `NOTHING_ASSERTED = "the step asserts nothing"`
 > came out SUCCEEDED -- and everything reading that took it for a step that had
 > been verified. It was performed. Nothing looked.
 
-## module, [line 189](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L189): Note on the line above
+## module, [line 190](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L190): Note on the line above
 
 Code: `SCREEN_SETTLES_WITHIN = 2.0`
 
@@ -53,13 +53,13 @@ Code: `SCREEN_SETTLES_WITHIN = 2.0`
 > short enough that a step which is genuinely wrong is not a wait: what is being
 > waited for is a page reacting to a gesture, not a warehouse deciding anything.
 
-## module, [line 1206](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1206): Note on the line above
+## module, [line 1216](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1216): Note on the line above
 
 Code: `_Iterations = tuple[int, list[dict[str, str]]]`
 
 > Which loop, and what its body is to be run with, one entry per thing.
 
-## `_recordable`, [line 73](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L73): Docstring
+## `_recordable`, [line 74](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L74): Docstring
 
 > The body to keep beside a write, and why it is missing when it is.
 >
@@ -67,12 +67,12 @@ Code: `_Iterations = tuple[int, list[dict[str, str]]]`
 > a truncated body reads exactly like a whole one, and the reviewer this
 > exists for would sign off a write on half of it.
 
-## `NotRunnable`, [line 80](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L80): Docstring
+## `NotRunnable`, [line 81](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L81): Docstring
 
 > The skill cannot be run as asked. Never a partial run: this is raised
 > before anything is sent.
 
-## `refuse_if_breaker_is_open`, [line 84](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L84): Docstring
+## `refuse_if_breaker_is_open`, [line 85](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L85): Docstring
 
 > Whether anything at all may be driven against this system right now.
 >
@@ -81,7 +81,7 @@ Code: `_Iterations = tuple[int, list[dict[str, str]]]`
 > The pursuit did not, and the rung with no demonstration behind it was the one
 > allowed to keep going after the others had been stopped.
 
-## `ensure_runnable`, [line 99](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L99): Docstring
+## `ensure_runnable`, [line 100](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L100): Docstring
 
 > Everything that must hold before anything is sent, given a version
 > that has already been resolved -- checked here rather than folded back
@@ -95,14 +95,14 @@ Code: `_Iterations = tuple[int, list[dict[str, str]]]`
 > that matters -- nothing here has side effects, so raising costs nothing
 > to undo.
 
-## `ExecutionRequest`, [line 119](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L119): Note on the line above
+## `ExecutionRequest`, [line 120](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L120): Note on the line above
 
 Code: `run_id: RunId | None = None`
 
 > Given by the caller when it has to know the id before the run ends --
 > a console streaming the steps as they happen, for instance.
 
-## `ExecutionRequest`, [line 121](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L121): Note on the line above
+## `ExecutionRequest`, [line 122](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L122): Note on the line above
 
 Code: `device_id: DeviceId | None = None`
 
@@ -113,7 +113,7 @@ Code: `device_id: DeviceId | None = None`
 > signed in to. It also means the browser can close, and a run that loses it
 > fails rather than being finished somewhere else.
 
-## `ExecutionRequest`, [line 123](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L123): Note on the line above
+## `ExecutionRequest`, [line 124](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L124): Note on the line above
 
 Code: `medium: Medium = Medium.NETWORK`
 
@@ -123,7 +123,7 @@ Code: `medium: Medium = Medium.NETWORK`
 > the screen state the earlier steps would have produced, so the task is the
 > unit that changes rung, and today a human picks it.
 
-## `ExecutionRequest`, [line 125](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L125): Note on the line above
+## `ExecutionRequest`, [line 126](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L126): Note on the line above
 
 Code: `may_take_focus: bool = False`
 
@@ -134,7 +134,7 @@ Code: `may_take_focus: bool = False`
 > Default no, so a caller that has not thought about it does not take
 > anybody's screen.
 
-## `ExecutionRequest`, [line 127](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L127): Note on the line above
+## `ExecutionRequest`, [line 128](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L128): Note on the line above
 
 Code: `intent: str = ""`
 
@@ -144,18 +144,18 @@ Code: `intent: str = ""`
 > begin with somebody's own words. See ``Run.intent`` for why this is the
 > one place it is kept.
 
-## `Refused`, [line 130](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L130): Docstring
+## `Refused`, [line 131](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L131): Docstring
 
 > A safety limit stopped this before anything was sent.
 >
 > Separate from NotRunnable, which is about the skill: this is about the
 > system's recent behaviour, and the answer is a person rather than a retry.
 
-## `StartRun`, [line 134](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L134): Docstring
+## `StartRun`, [line 135](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L135): Docstring
 
 > Create the run. Nothing has been sent when this returns.
 
-## `ExecuteStep`, [line 192](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L192): Docstring
+## `ExecuteStep`, [line 193](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L193): Docstring
 
 > One step of one run.
 >
@@ -163,7 +163,7 @@ Code: `intent: str = ""`
 > also the unit that must not be retried blindly: the caller knows whether the
 > step it is asking for has already been recorded, because the run says so.
 
-## `FinishRun`, [line 1030](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1030): Docstring
+## `FinishRun`, [line 1038](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1038): Docstring
 
 > Close the run and decide what it says.
 >
@@ -171,14 +171,14 @@ Code: `intent: str = ""`
 > write-back hangs off this and not off the workflow: a run that survives a
 > restart teaches the store the same thing as one that did not.
 
-## `ExecuteSkill`, [line 1073](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1073): Docstring
+## `ExecuteSkill`, [line 1081](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1081): Docstring
 
 > Start, step through, finish. The in-process path.
 >
 > The durable path runs the same three use cases as separate activities, so a
 > run that survives a restart is the same run, not a second implementation.
 
-## `_origin_of`, [line 1126](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1126): Docstring
+## `_origin_of`, [line 1136](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1136): Docstring
 
 > The page a step acts on, as a bare scheme and host.
 >
@@ -201,7 +201,7 @@ Code: `intent: str = ""`
 > version already knows its systems and a connection already knows its host,
 > so nothing here is inferred -- it is the origin the operator authenticated.
 
-## `_origin_of_system`, [line 1141](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1141): Docstring
+## `_origin_of_system`, [line 1151](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1151): Docstring
 
 > The origin of the one system this skill belongs to.
 >
@@ -209,7 +209,7 @@ Code: `intent: str = ""`
 > named no URL cannot be placed by this -- picking either would send half the
 > run to the wrong tab, and the frontmost page is at least honestly a guess.
 
-## `_iterations_of`, [line 1209](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1209): Docstring
+## `_iterations_of`, [line 1219](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1219): Docstring
 
 > The things this loop will act on, read out of the answer that listed them.
 >
@@ -218,7 +218,7 @@ Code: `intent: str = ""`
 > carry, is a system that has changed under a skill -- which is a step that
 > failed saying so, never a run that does something a guessed number of times.
 
-## `_derive`, [line 1235](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1235): Docstring
+## `_derive`, [line 1245](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1245): Docstring
 
 > The values this step's response hands to later ones.
 >
@@ -226,7 +226,7 @@ Code: `intent: str = ""`
 > step that needs it then fails with the parameter's name, which points at the
 > response that was supposed to carry it rather than at the step that broke.
 
-## `_may_be_retried`, [line 1248](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1248): Docstring
+## `_may_be_retried`, [line 1258](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1258): Docstring
 
 > Whether sending this step again is safe, on the evidence of the attempt.
 >
@@ -237,7 +237,7 @@ Code: `intent: str = ""`
 > means the application answered, and an answered POST that is sent again is
 > how one create becomes two.
 
-## `_missing_named`, [line 1278](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1278): Docstring
+## `_missing_named`, [line 1288](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1288): Docstring
 
 > The headers a step said it had no live value for.
 >
@@ -246,7 +246,7 @@ Code: `intent: str = ""`
 > something the record does not show would be repairing a failure nobody can
 > see afterwards.
 
-## `StartRun.check`, [line 140](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L140): Docstring
+## `StartRun.check`, [line 141](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L141): Docstring
 
 > Everything ``execute`` would refuse for, without starting anything.
 >
@@ -257,7 +257,7 @@ Code: `intent: str = ""`
 > created. The console then watched that id forever, which is the one
 > outcome a breaker exists to prevent.
 
-## `ExecuteStep.has_more`, [line 220](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L220): Docstring
+## `ExecuteStep.has_more`, [line 224](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L224): Docstring
 
 > Whether this run has another position to perform.
 >
@@ -265,19 +265,19 @@ Code: `intent: str = ""`
 > body occupies as many positions as the system said there were things,
 > and that number arrives partway through the run.
 
-## `ExecuteStep._heal`, [line 342](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L342): Docstring
+## `ExecuteStep._heal`, [line 346](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L346): Docstring
 
 > Ask the healer whether this failure is one the session explains.
 
-## `ExecuteStep._budget_for`, [line 371](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L371): Docstring
+## `ExecuteStep._budget_for`, [line 375](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L375): Docstring
 
 > One budget per run, so a repair that did not take is not repeated.
 
-## `ExecuteStep._bearer`, [line 374](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L374): Docstring
+## `ExecuteStep._bearer`, [line 378](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L378): Docstring
 
 > An access token for this system, if one has been established.
 
-## `ExecuteStep._ui_for`, [line 384](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L384): Docstring
+## `ExecuteStep._ui_for`, [line 388](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L388): Docstring
 
 > The browser this run is performed in, and the page in it.
 >
@@ -290,11 +290,11 @@ Code: `intent: str = ""`
 > which, the extension can only take the frontmost page, and a run that
 > guesses wrong performs a warehouse task on somebody's email.
 
-## `ExecuteStep._caller_for`, [line 406](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L406): Docstring
+## `ExecuteStep._caller_for`, [line 410](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L410): Docstring
 
 > Whose session the call goes out under. Same rule as the browser.
 
-## `ExecuteStep._perform_in_ui`, [line 413](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L413): Docstring
+## `ExecuteStep._perform_in_ui`, [line 417](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L417): Docstring
 
 > Perform one step of a task that is being run in the browser.
 >
@@ -302,7 +302,7 @@ Code: `intent: str = ""`
 > indistinguishable from a call once it has happened, so a stage that may
 > not write may not click either.
 
-## `ExecuteStep._check_on_screen`, [line 497](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L497): Docstring
+## `ExecuteStep._check_on_screen`, [line 501](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L501): Docstring
 
 > What the screen says, after the gesture that was supposed to change it.
 >
@@ -318,7 +318,7 @@ Code: `intent: str = ""`
 > one this exists to stop. Only a step that is failing pays for the
 > looking; a screen that already says what it should is read once.
 
-## `ExecuteStep._escalate`, [line 522](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L522): Docstring
+## `ExecuteStep._escalate`, [line 526](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L526): Docstring
 
 > Try the next rung, if the policy allows one and the run may act.
 >
@@ -326,7 +326,7 @@ Code: `intent: str = ""`
 > happen; a click on the same screen is a call that did, and a rehearsal
 > that quietly changed a warehouse would be worse than no rehearsal.
 
-## `ExecuteStep._escalate_to_vision`, [line 604](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L604): Docstring
+## `ExecuteStep._escalate_to_vision`, [line 608](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L608): Docstring
 
 > The last rung, if the policy allows it and it is configured.
 >
@@ -335,11 +335,11 @@ Code: `intent: str = ""`
 > that never tried, and only one of them means the deployment is missing
 > a rung.
 
-## `ExecuteStep._rest_of`, [line 904](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L904): Docstring
+## `ExecuteStep._rest_of`, [line 908](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L908): Docstring
 
 > Follow this read's own paging until there is nothing after it.
 
-## `ExecuteStep._perform_with_tool`, [line 930](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L930): Docstring
+## `ExecuteStep._perform_with_tool`, [line 934](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L934): Docstring
 
 > Call the connector this step was mapped onto.
 >
@@ -348,7 +348,7 @@ Code: `intent: str = ""`
 > says as much, and every failure here stops rather than trying a lower
 > rung at a door the connector already answered.
 
-## `FinishRun.execute`, [line 1043](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1043): Docstring
+## `FinishRun.execute`, [line 1051](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1051): Docstring
 
 > End the run, and let the ladder read what happened.
 >
@@ -359,11 +359,11 @@ Code: `intent: str = ""`
 > arguable for a deliberate stop, and the alternative is a fourth verdict,
 > a migration, and a rewrite of promotion. Not yet.
 
-## `ExecuteSkill.execute`, [line 1097](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1097): Docstring
+## `ExecuteSkill.execute`, [line 1107](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1107): Docstring
 
 > Start it and see it through, in one call.
 
-## `ExecuteSkill.begin`, [line 1100](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1100): Docstring
+## `ExecuteSkill.begin`, [line 1110](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1110): Docstring
 
 > Write the row, refuse it here if it is going to be refused.
 >
@@ -372,7 +372,7 @@ Code: `intent: str = ""`
 > so from here, so a caller that means to perform the run detached still
 > gets its answer as a `4xx` rather than in a task nobody is awaiting.
 
-## `ExecuteSkill.resume`, [line 1103](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1103): Docstring
+## `ExecuteSkill.resume`, [line 1113](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1113): Docstring
 
 > Perform a run whose row already exists.
 >
@@ -381,7 +381,7 @@ Code: `intent: str = ""`
 > while it happens, and a console cannot watch a run whose id arrives with
 > the answer.
 
-## `refuse_if_breaker_is_open`, [line 90](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L90): Comment
+## `refuse_if_breaker_is_open`, [line 91](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L91): Comment
 
 Code: `connection = await uow.connections.find_by_system(ctx.tenant_id, system)`
 
@@ -390,7 +390,7 @@ Code: `connection = await uow.connections.find_by_system(ctx.tenant_id, system)`
 > refused until the window ages out, including the one that would show the
 > fault is already fixed.
 
-## `ensure_runnable`, [line 108](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L108): Comment
+## `ensure_runnable`, [line 109](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L109): Comment
 
 Code: `for system in version.systems or (skill.objective_key.target_system,):`
 
@@ -398,7 +398,7 @@ Code: `for system in version.systems or (skill.objective_key.target_system,):`
 > that writes into a second system must be stopped by that system's
 > breaker, and keying alone would hide exactly that.
 
-## `StartRun._may_run`, [line 150](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L150): Comment
+## `StartRun._may_run`, [line 151](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L151): Comment
 
 Code: `if request.device_id is not None:`
 
@@ -413,14 +413,14 @@ Code: `if request.device_id is not None:`
 > awaits between here and the commit, and a read alone loses that race
 > -- demonstrated against real Postgres on the rig's own path.
 
-## `StartRun._may_run`, [line 152](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L152): Comment
+## `StartRun._may_run`, [line 153](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L153): Comment
 
 Code: `if busy is not None and busy != str(request.run_id or ""):`
 
 > `!= request.run_id`: a caller that minted the id and is
 > re-entering its own run is not a second press.
 
-## `StartRun.execute`, [line 163](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L163): Comment
+## `StartRun.execute`, [line 164](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L164): Comment
 
 Code: `id=request.run_id or self._ids.new_run_id(),`
 
@@ -428,20 +428,20 @@ Code: `id=request.run_id or self._ids.new_run_id(),`
 > finishes: a console cannot stream a run whose id only arrives
 > with the last step.
 
-## `ExecuteStep.execute`, [line 229](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L229): Comment
+## `ExecuteStep.execute`, [line 233](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L233): Comment
 
 Code: `connections = await uow.connections.list_for_tenant(ctx.tenant_id)`
 
 > Read here because a step's credentials depend on which system it
 > is calling, and a workflow's steps do not all call the same one.
 
-## `ExecuteStep.execute`, [line 234](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L234): Inline
+## `ExecuteStep.execute`, [line 238](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L238): Inline
 
 Code: `return run.steps[index]`
 
 > already done; never send it twice
 
-## `ExecuteStep.execute`, [line 236](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L236): Comment
+## `ExecuteStep.execute`, [line 240](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L240): Comment
 
 Code: `nxt = next_step(version, run)`
 
@@ -449,7 +449,7 @@ Code: `nxt = next_step(version, run)`
 > thing it is acting on this time round. The two are the same number for
 > every skill without loops, which is every skill taught before them.
 
-## `ExecuteStep.execute`, [line 246](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L246): Comment
+## `ExecuteStep.execute`, [line 250](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L250): Comment
 
 Code: `outcome = await self._perform_with_tool(run, step, values=values)`
 
@@ -459,14 +459,14 @@ Code: `outcome = await self._perform_with_tool(run, step, values=values)`
 > run asked for in the interface still clicks, because that is
 > somebody deliberately watching it happen.
 
-## `ExecuteStep.execute`, [line 269](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L269): Comment
+## `ExecuteStep.execute`, [line 273](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L273): Comment
 
 Code: `produces = tuple(`
 
 > Every value this step hands forward, not the first: one call can
 > return an id and the code the next call needs alongside it.
 
-## `ExecuteStep.execute`, [line 288](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L288): Comment
+## `ExecuteStep.execute`, [line 292](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L292): Comment
 
 Code: `healed = await self._heal(ctx, run, skill, step, outcome, failure)`
 
@@ -475,7 +475,7 @@ Code: `healed = await self._heal(ctx, run, skill, step, outcome, failure)`
 > and let the step speak for itself; anything the healer cannot explain
 > is left exactly as it failed.
 
-## `ExecuteStep.execute`, [line 247](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L247): Comment
+## `ExecuteStep.execute`, [line 294](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L294): Comment
 
 Code: `outcome = replace(`
 
@@ -484,7 +484,7 @@ Code: `outcome = replace(`
 > skill, and this one was turned away at a login page by a system
 > nobody is signed into any more.
 
-## `ExecuteStep.execute`, [line 276](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L276): Comment
+## `ExecuteStep.execute`, [line 300](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L300): Comment
 
 Code: `outcome, derived, failure, iterated = await self._perform(`
 
@@ -497,21 +497,21 @@ Code: `outcome, derived, failure, iterated = await self._perform(`
 > thing the healer exists for, became a hard failure on any skill
 > with an unsupplied optional.
 
-## `ExecuteStep.execute`, [line 260](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L260): Comment
+## `ExecuteStep.execute`, [line 311](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L311): Comment
 
 Code: `outcome = replace(`
 
 > Repaired, and deliberately not retried: this step's write reached
 > the application. Sending it again is how one create becomes two.
 
-## `ExecuteStep._bearer`, [line 381](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L381): Comment
+## `ExecuteStep._bearer`, [line 385](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L385): Comment
 
 Code: `logger.info("no access token for %s: %s", system, refusal)`
 
 > Worth a line, not a failure: the run falls back to the session
 > cookies and says so if those are gone too.
 
-## `ExecuteStep._ui_for`, [line 401](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L401): Comment
+## `ExecuteStep._ui_for`, [line 405](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L405): Comment
 
 Code: `doing=step.intent if step is not None else "",`
 
@@ -519,7 +519,7 @@ Code: `doing=step.intent if step is not None else "",`
 > read by somebody watching their own screen change, and "adding
 > the work area" answers what is happening to them now.
 
-## `ExecuteStep._perform_in_ui`, [line 423](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L423): Comment
+## `ExecuteStep._perform_in_ui`, [line 427](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L427): Comment
 
 Code: `return StepOutcome(`
 
@@ -528,7 +528,7 @@ Code: `return StepOutcome(`
 > an empty keystroke into a required-looking field is how a form
 > ends up with a validation error nobody asked for.
 
-## `ExecuteStep._perform_in_ui`, [line 476](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L476): Comment
+## `ExecuteStep._perform_in_ui`, [line 480](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L480): Comment
 
 Code: `return self._failed(step, None, str(error), medium=Medium.UI, unreachable=True)`
 
@@ -536,7 +536,7 @@ Code: `return self._failed(step, None, str(error), medium=Medium.UI, unreachable
 > on. The driver already sorts those from a control that moved; this
 > carries that distinction onto the run.
 
-## `ExecuteStep._check_on_screen`, [line 502](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L502): Comment
+## `ExecuteStep._check_on_screen`, [line 506](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L506): Comment
 
 Code: `return (), tuple(dict.fromkeys(a.kind.value for a in step.assertions)) or (`
 
@@ -545,14 +545,14 @@ Code: `return (), tuple(dict.fromkeys(a.kind.value for a in step.assertions)) or
 > rung in a browser can see. Silence was returned for both, and
 > silence reads as a passing check to everything downstream.
 
-## `ExecuteStep._escalate`, [line 569](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L569): Comment
+## `ExecuteStep._escalate`, [line 573](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L573): Comment
 
 Code: `return await self._escalate_to_vision(`
 
 > The recorded control is gone. Whether anything above may look at
 > the screen instead is the policy's decision, not this method's.
 
-## `ExecuteStep._escalate_to_vision`, [line 616](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L616): Comment
+## `ExecuteStep._escalate_to_vision`, [line 620](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L620): Comment
 
 Code: `ui = self._ui_for(run, version, step, connections)`
 
@@ -562,7 +562,7 @@ Code: `ui = self._ui_for(run, version, step, connections)`
 > and click on it -- signed in as somebody else, on a page nobody
 > demonstrated. Falling back is the one thing it must not do.
 
-## `ExecuteStep._escalate_to_vision`, [line 632](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L632): Comment
+## `ExecuteStep._escalate_to_vision`, [line 636](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L636): Comment
 
 Code: `failures, unchecked = (`
 
@@ -572,7 +572,7 @@ Code: `failures, unchecked = (`
 > succeeded, and counted towards the version's promotion. Here is where
 > they decide.
 
-## `ExecuteStep._perform`, [line 696](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L696): Comment
+## `ExecuteStep._perform`, [line 700](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L700): Comment
 
 Code: `rendered = dict(values)`
 
@@ -606,14 +606,14 @@ Code: `rendered = dict(values)`
 > or a header is text. And a parameter that *is* the body gets none of
 > it: there is no surrounding string to escape into.
 
-## `ExecuteStep._perform`, [line 699](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L699): Comment
+## `ExecuteStep._perform`, [line 703](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L703): Comment
 
 Code: `if (absent := parameter.absent_value) is not None and not rendered.get(parameter.name):`
 
 > `absent_value is not None` is what `optional` means; asked this
 > way round because the value is wanted as well as the fact.
 
-## `ExecuteStep._perform`, [line 698](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L698): Comment
+## `ExecuteStep._perform`, [line 711](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L711): Comment
 
 Code: `for parameter in parameters:`
 
@@ -625,7 +625,7 @@ Code: `for parameter in parameters:`
 > somewhere it could not see: an earlier response, or the thing a loop
 > is on this time round.
 
-## `ExecuteStep._perform`, [line 716](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L716): Comment
+## `ExecuteStep._perform`, [line 720](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L720): Comment
 
 Code: `producer = next(`
 
@@ -635,7 +635,7 @@ Code: `producer = next(`
 > in -- was recorded as cleanly withheld, and the run it belonged to
 > earned its way up the ladder on the strength of it.
 
-## `ExecuteStep._perform`, [line 667](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L667): Comment
+## `ExecuteStep._perform`, [line 739](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L739): Comment
 
 Code: `return (`
 
@@ -645,7 +645,7 @@ Code: `return (`
 > reporting that as a failed step meant every such skill failed
 > its shadow run and could never earn its way off the rung.
 
-## `ExecuteStep._perform`, [line 759](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L759): Comment
+## `ExecuteStep._perform`, [line 763](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L763): Comment
 
 Code: `calling = system_of(connections, url) or (`
 
@@ -668,14 +668,14 @@ Code: `calling = system_of(connections, url) or (`
 > resolve the *other* system's bearer and referer and send them there,
 > which is the leak this per-call scope exists to close.
 
-## `ExecuteStep._perform`, [line 771](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L771): Comment
+## `ExecuteStep._perform`, [line 775](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L775): Comment
 
 Code: `browser_session=run.device_id is not None,`
 
 > The operator's own browser is the session. Nothing stored here is
 > sent as one, and nothing stored here is required.
 
-## `ExecuteStep._perform`, [line 774](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L774): Comment
+## `ExecuteStep._perform`, [line 778](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L778): Comment
 
 Code: `advice = (`
 
@@ -686,7 +686,7 @@ Code: `advice = (`
 > the operator's. Everything before the semicolon is the record the
 > self-healer reads back, so only the advice changes.
 
-## `ExecuteStep._perform`, [line 791](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L791): Comment
+## `ExecuteStep._perform`, [line 795](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L795): Comment
 
 Code: `detail = f"{run.stage} does not send writes; the request was produced, not sent"`
 
@@ -695,7 +695,7 @@ Code: `detail = f"{run.stage} does not send writes; the request was produced, no
 > reviewer sees whether the skill got the fields right -- it is the
 > only copy there will ever be, since nothing sent it anywhere.
 
-## `ExecuteStep._perform`, [line 814](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L814): Comment
+## `ExecuteStep._perform`, [line 818](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L818): Comment
 
 Code: `sent, oversize = _recordable(body) if mutating else (None, None)`
 
@@ -707,7 +707,7 @@ Code: `sent, oversize = _recordable(body) if mutating else (None, None)`
 > have arrived" is precisely when somebody needs to know what would
 > have arrived. Only a write: a read's body is not what anybody reviews.
 
-## `ExecuteStep._perform`, [line 820](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L820): Comment
+## `ExecuteStep._perform`, [line 824](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L824): Comment
 
 Code: `built_wrong = isinstance(error, MalformedRequest)`
 
@@ -715,7 +715,7 @@ Code: `built_wrong = isinstance(error, MalformedRequest)`
 > flight, so it neither warns about a write that may have landed nor
 > excuses the skill that produced it.
 
-## `ExecuteStep._perform`, [line 841](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L841): Comment
+## `ExecuteStep._perform`, [line 845](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L845): Comment
 
 Code: `answer = read_answer(response.text, url=url)`
 
@@ -724,7 +724,7 @@ Code: `answer = read_answer(response.text, url=url)`
 > the person who asked wants to see, and discarding it left them
 > looking at a status code for that too.
 
-## `ExecuteStep._perform`, [line 843](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L843): Comment
+## `ExecuteStep._perform`, [line 847](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L847): Comment
 
 Code: `answer = await self._rest_of(caller, url, headers, answer)`
 
@@ -732,7 +732,7 @@ Code: `answer = await self._rest_of(caller, url, headers, answer)`
 > not asking for the first page; the paging is the system's own and
 > this walks it in the dialect the demonstration proved.
 
-## `ExecuteStep._perform`, [line 856](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L856): Comment
+## `ExecuteStep._perform`, [line 860](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L860): Comment
 
 Code: `return (self._failed(step, key, found, method=plan.method, url=url), {}, None, None)`
 
@@ -740,7 +740,7 @@ Code: `return (self._failed(step, key, found, method=plan.method, url=url), {}, 
 > are not the shape the demonstration proved. Nothing is done a
 > guessed number of times: the step says what it could not read.
 
-## `ExecuteStep._perform`, [line 680](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L680): Comment
+## `ExecuteStep._perform`, [line 862](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L862): Comment
 
 Code: `return (`
 
@@ -749,7 +749,7 @@ Code: `return (`
 > is the same question: this many writes is a migration, and a
 > migration is somebody's decision.
 
-## `ExecuteStep._perform`, [line 886](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L886): Comment
+## `ExecuteStep._perform`, [line 890](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L890): Comment
 
 Code: `unchecked=() if step.assertions else (NOTHING_ASSERTED,),`
 
@@ -761,14 +761,14 @@ Code: `unchecked=() if step.assertions else (NOTHING_ASSERTED,),`
 > took a claim from it, and a reviewer reading the run saw a
 > step that had been tested.
 
-## `ExecuteStep._rest_of`, [line 916](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L916): Comment
+## `ExecuteStep._rest_of`, [line 920](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L920): Comment
 
 Code: `break`
 
 > What was read is still true. Stopping here reports fewer
 > records than exist, which the count beside them already says.
 
-## `ExecuteStep._perform_with_tool`, [line 957](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L957): Comment
+## `ExecuteStep._perform_with_tool`, [line 961](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L961): Comment
 
 Code: `async with self._uow as uow:`
 
@@ -777,7 +777,7 @@ Code: `async with self._uow as uow:`
 > send may well have landed -- be retried into a second send, which
 > is the thing this exists to prevent.
 
-## `ExecuteStep._perform_with_tool`, [line 976](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L976): Comment
+## `ExecuteStep._perform_with_tool`, [line 980](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L980): Comment
 
 Code: `answered = await self._tools.call(`
 
@@ -787,7 +787,7 @@ Code: `answered = await self._tools.call(`
 > their own mail, so a run performed for one person must not reach
 > another's mailbox.
 
-## `FinishRun.execute`, [line 1056](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1056): Comment
+## `FinishRun.execute`, [line 1064](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1064): Comment
 
 Code: `apply_verdict(skill, run, now)`
 
@@ -797,14 +797,14 @@ Code: `apply_verdict(skill, run, now)`
 > rather than threaded through the return, only because the code
 > below still needs it after the `with` block closes.
 
-## `FinishRun.execute`, [line 1062](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1062): Comment
+## `FinishRun.execute`, [line 1070](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1070): Comment
 
 Code: `await self._learn.execute(`
 
 > After the commit: what the run did is the record, and a failure to
 > write down what was learned must not undo it.
 
-## `FinishRun.execute`, [line 1066](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1066): Comment
+## `FinishRun.execute`, [line 1074](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1074): Comment
 
 Code: `version=version,`
 
@@ -812,7 +812,7 @@ Code: `version=version,`
 > the control is only meaningful beside the one it was taught
 > with, and that lives on the version.
 
-## `FinishRun.execute`, [line 1069](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1069): Comment
+## `FinishRun.execute`, [line 1077](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1077): Comment
 
 Code: `await self._repair.execute(ctx, run=run)`
 
@@ -822,7 +822,7 @@ Code: `await self._repair.execute(ctx, run=run)`
 > version this run was performing is untouched -- another run in
 > flight against it goes on doing exactly what it started doing.
 
-## `ExecuteSkill.resume`, [line 1108](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1108): Comment
+## `ExecuteSkill.resume`, [line 1118](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1118): Comment
 
 Code: `position = 0`
 
@@ -831,7 +831,7 @@ Code: `position = 0`
 > through. The run itself is the record of where this has got to, so it
 > is re-read each time rather than counted here.
 
-## `ExecuteSkill.resume`, [line 1111](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1111): Comment
+## `ExecuteSkill.resume`, [line 1121](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1121): Comment
 
 Code: `if self._stops.asked(run.id.value):`
 
@@ -841,13 +841,13 @@ Code: `if self._stops.asked(run.id.value):`
 > had. The cost is that stopping takes until the current step's
 > deadline, which the console says rather than hides.
 
-## `ExecuteSkill.resume`, [line 1123](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1123): Comment
+## `ExecuteSkill.resume`, [line 1133](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1133): Comment
 
 Code: `self._stops.forget(run.id.value)`
 
 > A run id is never reused, so nothing else would ever clear this.
 
-## `_check_runnable`, [line 1177](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1177): Comment
+## `_check_runnable`, [line 1187](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1187): Comment
 
 Code: `if (`
 
@@ -856,7 +856,7 @@ Code: `if (`
 > a list -- which is both untrue and the kind of prompt that teaches people
 > to click past prompts.
 
-## `_check_runnable`, [line 1185](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1185): Comment
+## `_check_runnable`, [line 1195](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1195): Comment
 
 Code: `if version.loops and request.medium is not Medium.NETWORK:`
 
@@ -865,7 +865,7 @@ Code: `if version.loops and request.medium is not Medium.NETWORK:`
 > once. Refused here rather than discovered at step four, halfway through a
 > job, with the first system already written to.
 
-## `_check_runnable`, [line 1173](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1173): Comment
+## `_check_runnable`, [line 1196](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1196): Comment
 
 Code: `raise NotRunnable(`
 
@@ -873,7 +873,7 @@ Code: `raise NotRunnable(`
 > responses: they click. Refused rather than performed once, which is
 > what a body with no list to iterate would silently become.
 
-## `_check_runnable`, [line 1197](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1197): Comment
+## `_check_runnable`, [line 1207](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1207): Comment
 
 Code: `required = {p.name for p in version.inputs}`
 
@@ -884,7 +884,7 @@ Code: `required = {p.name for p in version.inputs}`
 > same expression here left that rule written in two places, so the next
 > change to it would have been correct in one of them.
 
-## `_check_runnable`, [line 1200](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1200): Comment
+## `_check_runnable`, [line 1210](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1210): Comment
 
 Code: `for parameter in version.parameters:`
 
@@ -894,7 +894,7 @@ Code: `for parameter in version.parameters:`
 > before the first step of a job, rather than at the step that would have
 > sent it -- by which time the steps before it have already written.
 
-## `_derive`, [line 1242](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1242): Comment
+## `_derive`, [line 1252](../../../../../../../backend/src/sro/application/execution/execute_skill.py#L1252): Comment
 
 Code: `bound[parameter.name] = (`
 

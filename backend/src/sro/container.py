@@ -16,6 +16,7 @@ from sro.application.capture.devices import ReadRoster, RestoreDevice, RevokeDev
 from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.ask_the_asker import DraftForTheAsker, SendTheDraft
 from sro.application.chat.brain import Brain
+from sro.application.chat.brain_reader import BrainReader
 from sro.application.chat.brain_tools import brain_tools
 from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.feedback import RecordFeedback
@@ -74,6 +75,9 @@ from sro.application.execution.workflow_runs import (
     StartWorkflowRun,
 )
 from sro.application.induction.understand import UnderstandRecording
+from sro.application.integrations.connect import ConnectSession
+from sro.application.integrations.link import LinkIntegration
+from sro.application.integrations.listing import ListIntegrations
 from sro.application.intent.narrow import NarrowARead
 from sro.application.intent.next_steps import SuggestNext
 from sro.application.intent.plan_task import PlanTask
@@ -190,6 +194,7 @@ from sro.infrastructure.knowledge.embedding import GeminiEmbedder, NoEmbedder
 from sro.infrastructure.knowledge.write_endpoints import load_verified_writes
 from sro.infrastructure.mcp.client import McpServer, McpToolCaller
 from sro.infrastructure.mcp.server import SkillToolServer
+from sro.infrastructure.nango.client import NangoClient
 from sro.infrastructure.steel.client import SteelClient
 from sro.infrastructure.steel.driver import SteelDriver
 from sro.infrastructure.steel.pool import SteelPool
@@ -261,6 +266,13 @@ class Container:
     capture: CaptureController = field(init=False)
 
     driving_runs: AsyncConnection | None = None
+
+    nango: NangoClient | None = None
+
+    async def aclose_clients(self) -> None:
+        await self.driver.aclose()
+        if self.nango is not None:
+            await self.nango.aclose()
 
     def api_lane(self) -> ApiLane:
         return ApiLane(self.session_broker())
@@ -459,7 +471,7 @@ class Container:
         )
 
     def run_lookups(self) -> RunLookups:
-        return RunLookups(self.unit_of_work(), self.session_broker())
+        return RunLookups(self.unit_of_work(), self.session_broker(), self.clock)
 
     def create_trigger(self) -> CreateTrigger:
         return CreateTrigger(
@@ -590,6 +602,24 @@ class Container:
     def establish_token(self) -> EstablishToken:
         return EstablishToken(self.unit_of_work(), self.tokens)
 
+    def connect_session(self) -> ConnectSession:
+        return ConnectSession(
+            self.nango,
+            self.settings.integrations,
+            self.settings.nango_public_connect_url,
+            self.settings.nango_public_url,
+        )
+
+    def list_integrations(self) -> ListIntegrations:
+        return ListIntegrations(
+            self.nango, self.settings.integrations, self.vault, self.settings.connector_signing_key
+        )
+
+    def link_integration(self) -> LinkIntegration:
+        return LinkIntegration(
+            self.nango, self.settings.integrations, self.vault, self.settings.connector_signing_key
+        )
+
     def list_connections(self) -> ListConnections:
         return ListConnections(self.unit_of_work())
 
@@ -706,6 +736,7 @@ class Container:
             self.repair_drift(),
             self.stops,
             self.tools,
+            servers=self.settings.mail_servers,
         )
 
     def start_run(self) -> StartRun:
@@ -755,6 +786,7 @@ class Container:
             self.agents(),
             self.tools,
             self.clock,
+            servers=self.settings.mail_servers,
         )
 
     def finish_run(self) -> FinishRun:
@@ -839,12 +871,19 @@ class Container:
         return AskAboutTheOffer(self.unit_of_work(), self.clock, self.ids, self._drafting_for)
 
     def draft_for_the_asker(self) -> DraftForTheAsker:
-        return DraftForTheAsker(self.unit_of_work(), self.tools, self.clock, self.ids)
+        return DraftForTheAsker(
+            self.unit_of_work(), self.tools, self.clock, self.ids, self.settings.mail_servers
+        )
 
     def send_the_draft(self) -> SendTheDraft:
-        return SendTheDraft(self.unit_of_work(), self.tools, self.clock, self.ids)
+        return SendTheDraft(
+            self.unit_of_work(), self.tools, self.clock, self.ids, self.settings.mail_servers
+        )
 
     def from_the_mail(self) -> FromTheMail:
+        live = frozenset(self.settings.mail_brain_tenants)
+        shadow = frozenset(self.settings.mail_brain_shadow_tenants)
+        wanted = self.asker is not None and bool(live or shadow)
         return FromTheMail(
             self.unit_of_work(),
             self.tools,
@@ -853,12 +892,19 @@ class Container:
             ids=self.ids,
             cap_usd=self.settings.daily_usd_cap,
             answer=self.answer_run(),
-            gather=GatherContext(tools=self.tools, asker=self.asker)
+            gather=GatherContext(self.tools, self.asker, self.settings.mail_servers)
             if self.asker is not None
             else None,
             start=self.start_workflow_run(),
             attempts=self.record_attempt(),
             asks=self.ask_about_the_offer(),
+            # Built on first use: the brain's own mail tool is a FromTheMail too.
+            reader=(lambda: BrainReader(self.brain(), self.record_feedback())) if wanted else None,
+            reader_tenants=live,
+            shadow_tenants=shadow,
+            feedback=self.record_feedback,
+            spawn=self.pursuits.spawn,
+            servers=self.settings.mail_servers,
         )
 
     def look_in_the_mail_lately(self) -> LookInTheMailLately:
@@ -915,7 +961,7 @@ class Container:
             verified_writes=load_verified_writes(),
             vault=self.vault,
             retrieve=self.retrieve_knowledge(),
-            gather=GatherContext(tools=self.tools, asker=self.asker)
+            gather=GatherContext(self.tools, self.asker, self.settings.mail_servers)
             if self.asker is not None
             else None,
             ids=self.ids,
@@ -923,6 +969,7 @@ class Container:
             durable=self.durable,
             steel_tenants=frozenset(self.settings.steel_tenants),
             feedback=self.record_feedback(),
+            servers=self.settings.mail_servers,
         )
 
     def tool_lane(self) -> ToolLane:
@@ -948,10 +995,18 @@ class Container:
                 uow=self.unit_of_work(),
                 tools=self.tools,
                 asker=asker,
+                servers=self.settings.mail_servers,
             )
 
         async def send(mail: Written) -> tuple[str, str]:
-            return await send_the_mail(ctx, self.unit_of_work(), self.tools, mail, clock=self.clock)
+            return await send_the_mail(
+                ctx,
+                self.unit_of_work(),
+                self.tools,
+                mail,
+                clock=self.clock,
+                servers=self.settings.mail_servers,
+            )
 
         return MailHand(write=write, send=send)
 
@@ -1189,6 +1244,11 @@ def build_container(settings: Settings | None = None) -> Container:
         engine=engine,
         lock_engine=lock_engine,
         meter=meter,
+        nango=(
+            NangoClient(settings.nango_url, settings.nango_secret_key.get_secret_value())
+            if settings.nango_url and settings.nango_secret_key
+            else None
+        ),
     )
     container.capture = CaptureSupervisor(
         blobs=container.blobs,

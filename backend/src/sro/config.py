@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import re
 import subprocess
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic.fields import FieldInfo
 from pydantic_settings import (
     BaseSettings,
@@ -89,7 +90,11 @@ class _RetiredModelSettings(PydanticBaseSettingsSource):
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env", env_prefix="SRO_", env_nested_delimiter="__", extra="ignore"
+        env_file=".env",
+        env_prefix="SRO_",
+        env_nested_delimiter="__",
+        extra="ignore",
+        hide_input_in_errors=True,
     )
 
     environment: str = "local"
@@ -127,11 +132,27 @@ class Settings(BaseSettings):
     steel_urls: dict[str, tuple[tuple[str, str], ...]] = Field(default_factory=dict)
     steel_sessions_per_container: int = 20
     steel_tenants: tuple[str, ...] = ()
+    # Tenant id -> the connector its mailbox is on; a tenant not listed has gmail.
+    mail_servers: dict[str, str] = {}
+
+    # Self-hosted Nango (auth + proxy) behind one-click connectors. The public URLs are
+    # what the operator's browser reaches, so the console need not hardcode a host.
+    nango_url: str = ""
+    nango_secret_key: SecretStr | None = None
+    nango_public_connect_url: str = ""
+    nango_public_url: str = ""
+    integrations: tuple[str, ...] = ()
+    # Signs the per-operator bearer an MCP connector accepts; the connector holds the same value.
+    connector_signing_key: SecretStr | None = None
 
     # Tenants the chat brain answers for, and tenants it only reads for (its
     # would-have-done is logged). Off for every tenant until switched on.
     chat_brain_tenants: tuple[str, ...] = ()
     chat_brain_shadow_tenants: tuple[str, ...] = ()
+    # Tenants whose mail the brain reads, and tenants whose mail it only reads alongside the
+    # old matcher (disagreements kept as feedback).
+    mail_brain_tenants: tuple[str, ...] = ()
+    mail_brain_shadow_tenants: tuple[str, ...] = ()
     # One message's share: at most this many model calls (a fallback counts as two) and this
     # many dollars before the turn stops and says so. A negative spend is no limit.
     chat_brain_max_calls: int = 6
@@ -199,6 +220,29 @@ class Settings(BaseSettings):
                 "in sro.domain.prompts. Remove the key; a different model is a prompt change."
             )
         return data
+
+    @field_validator("mail_servers")
+    @classmethod
+    def _a_mail_server_is_a_connector_name(cls, value: dict[str, str]) -> dict[str, str]:
+        for tenant, server in value.items():
+            if not tenant.strip() or not re.fullmatch(r"[a-z0-9_-]+", server):
+                raise ValueError(
+                    f"SRO_MAIL_SERVERS maps a tenant id to a connector name of lowercase "
+                    f"letters, digits, '_' or '-'; got {tenant!r}: {server!r}"
+                )
+        return value
+
+    @field_validator("connector_signing_key", mode="before")
+    @classmethod
+    def _a_connector_signing_key_is_unset_or_strong(cls, value: Any) -> Any:
+        raw = value.get_secret_value() if isinstance(value, SecretStr) else value
+        if not isinstance(raw, str) or not raw.strip():
+            return None  # compose passes "" for an unset variable
+        if len(raw.encode()) < 32:
+            raise ValueError(
+                "SRO_CONNECTOR_SIGNING_KEY must be at least 32 bytes (openssl rand -hex 32)"
+            )
+        return value
 
     @field_validator("otlp_endpoint", mode="before")
     @classmethod

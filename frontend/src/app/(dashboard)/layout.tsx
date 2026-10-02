@@ -1,11 +1,11 @@
-import { TopBar, BarLink } from "@/features/console/top-bar";
+import { TopBar, MainLinks } from "@/features/console/top-bar";
 
 /**
  * Everything that is not the conversation. Same chrome as the console, and the
- * same four places in the same order, so the bar is one navigation rather than
- * two that disagree.
+ * same five places from one list (`MainLinks`), so the bar is one navigation
+ * rather than two that disagree.
  *
- * Four, where there were twelve in four groups. What went, and where its
+ * Five, where there were twelve in four groups. What went, and where its
  * question is answered now:
  *
  * - Jobs is the first half of What we know: what this tenant can do and what it
@@ -25,12 +25,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="bg-background flex min-h-screen flex-col">
       <TopBar>
-        <BarLink href="/console">Threads</BarLink>
-        <BarLink href="/knowledge" also={["/jobs"]}>
-          What we know
-        </BarLink>
-        <BarLink href="/triggers">Triggers</BarLink>
-        <BarLink href="/overview">Overview</BarLink>
+        <MainLinks />
       </TopBar>
       {/* Wider than a reading measure, because these are tables. Prose blocks
           set their own measure. */}

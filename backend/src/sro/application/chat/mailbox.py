@@ -4,6 +4,7 @@ import json
 import logging
 import secrets
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from email.utils import getaddresses, parseaddr
 
@@ -15,6 +16,21 @@ logger = logging.getLogger(__name__)
 
 SERVER = "gmail"
 
+
+def server_for(tenant_id: str, servers: Mapping[str, str]) -> str:
+    """The mail server this tenant's mailbox is on: gmail unless it is set."""
+    return servers.get(tenant_id, SERVER)
+
+
+def mail_server_of(recorded: str, tenant_id: str, servers: Mapping[str, str]) -> str:
+    """A server a skill was recorded on: a mail server is the tenant's own, any other stays."""
+    return (
+        server_for(tenant_id, servers)
+        if recorded in {SERVER, "outlook", *servers.values()}
+        else recorded
+    )
+
+
 K_REMEMBER = timedelta(days=30)
 
 
@@ -25,8 +41,33 @@ class NotSent(Exception):
     code = "not_sent"
 
 
+class Unread(Exception):
+    """The mail could not be read this time: it is released to be read again. `thread` and
+    `subject` say which mail, when the look knows."""
+
+    thread = ""
+    subject = ""
+
+
+class ModelUnavailable(Unread):
+    """The model or its provider could not answer: nothing about the mail, so it is not counted
+    against it."""
+
+
+@dataclass(frozen=True, slots=True)
+class MailAsked:
+    """The brain read a mail and did not start it: what it asked (or why it could not start) is
+    for the operator's ask chat, never mailed to the sender (it is written for the operator)."""
+
+    question: str
+
+
 def mail_key(message: str) -> str:
     return f"mail:{message}"
+
+
+def message_of(key: str) -> str:
+    return key.removeprefix(mail_key(""))
 
 
 K_ELSEWHERE = "a reply its starter's own look has to take"
@@ -50,6 +91,7 @@ async def send_as_this_system(
     arguments: Mapping[str, str],
     *,
     at: datetime,
+    servers: Mapping[str, str],
 ) -> ToolResult:
     marker = secrets.token_hex(16)
     async with uow as unit:
@@ -62,7 +104,7 @@ async def send_as_this_system(
     answered = await tools.call(
         ctx.tenant_id,
         ctx.principal_id,
-        SERVER,
+        server_for(ctx.tenant_id.value, servers),
         "send_message",
         {**arguments, "marker": marker},
     )

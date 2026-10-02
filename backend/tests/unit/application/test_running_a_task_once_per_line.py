@@ -88,7 +88,7 @@ def _lines(*ids: str) -> str:
 
 async def _run(uow: FakeUnitOfWork, http: FakeHttpCaller) -> object:
     return await ExecuteSkill(
-        uow, http, FakeCredentialVault(), FakeClock(), FakeIdFactory()
+        uow, http, FakeCredentialVault(), FakeClock(), FakeIdFactory(), servers={}
     ).execute(
         CTX,
         ExecutionRequest(skill_id=f.skill().id, parameters={}, authorized_by="supervisor"),

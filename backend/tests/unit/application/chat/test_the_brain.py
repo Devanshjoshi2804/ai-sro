@@ -584,3 +584,33 @@ async def test_a_spent_offer_is_not_shown_and_does_not_cover_a_new_request() -> 
 
     assert "open offers" not in str(asker.asked[0]["evidence"])
     assert reply.steps[0][1].data["run_id"] != first.id
+
+
+async def _a_turn_for_mail_m1(acting: _Acting) -> str:
+    brain, asker = _brain(acting, _say("ok"))
+    await brain.turn(
+        CTX, message="hi", history=[], origin=Origin("mail", "a@b.example", "s"), offer="mail:m-1"
+    )
+    return str(asker.asked[0]["evidence"])
+
+
+async def test_a_turn_for_a_mail_does_not_see_the_run_this_mail_made() -> None:
+    acting = await _acting()
+    await _a_card_offers(acting, offer="mail:m-1")
+    first = await _answer_the_card(acting, offer="mail:m-1")
+
+    assert first.id not in await _a_turn_for_mail_m1(acting)
+
+
+async def test_a_turn_for_a_mail_does_not_see_the_offer_this_mail_made() -> None:
+    acting = await _acting()
+    await _a_card_offers(acting, offer="mail:m-1")
+
+    assert "open offers" not in await _a_turn_for_mail_m1(acting)
+
+
+async def test_a_turn_for_a_mail_still_sees_another_mail_s_run_and_offer() -> None:
+    acting = await _acting()
+    await _a_card_offers(acting, offer="mail:m-0")
+
+    assert "open offers" in await _a_turn_for_mail_m1(acting)

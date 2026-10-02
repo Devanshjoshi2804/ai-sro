@@ -41,7 +41,7 @@ make migrate
 make api           # :8000
 make worker        # Temporal worker — skill runs, triggers and the sweeps run HERE, not in the API
 make web           # :3000
-make lint          # ruff + ruff format + mypy --strict + import-linter + eslint
+make lint          # ruff + ruff format + mypy --strict (src, tests, evals, the Outlook connector) + import-linter + eslint
 make test          # unit + integration
 make types         # regenerate frontend API types from backend OpenAPI
 ```

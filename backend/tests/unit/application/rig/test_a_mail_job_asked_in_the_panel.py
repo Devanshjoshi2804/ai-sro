@@ -197,10 +197,11 @@ class _World:
             stops=Stops(),
             approvals=Approvals(),
             one_time_secrets=OneTimeSecrets(),
-            gather=GatherContext(tools=self.mailbox, asker=self.asker),
+            gather=GatherContext(tools=self.mailbox, asker=self.asker, servers={}),
             ids=self.ids,
             durable=self.durable,
             steel_tenants=frozenset(),
+            servers={},
         )
 
     def on_steel(self) -> None:

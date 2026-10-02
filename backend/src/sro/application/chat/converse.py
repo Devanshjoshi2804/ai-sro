@@ -7,7 +7,7 @@ from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
-from sro.application.chat.mailbox import SERVER, mail_key
+from sro.application.chat.mailbox import mail_key
 from sro.application.chat.read_chat import ReadChat
 from sro.application.chat.reading_an_answer import IsItAnAnswer
 from sro.application.chat.understand import Understood
@@ -928,7 +928,7 @@ class Converse:
                 allow_focus=True,
                 watched=job.watched,
                 from_step=job.from_step,
-                conversation=(SERVER, job.mail_thread),
+                conversation=(self._start.mail_server(ctx), job.mail_thread),
                 offer=offer,
                 mail=mail,
                 then=say_it,

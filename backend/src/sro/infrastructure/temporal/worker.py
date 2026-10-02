@@ -200,7 +200,7 @@ async def run() -> None:
         rig_miner.cancel()
         retainer.cancel()
         mailer.cancel()
-        await container.driver.aclose()
+        await container.aclose_clients()
 
 
 def main() -> None:

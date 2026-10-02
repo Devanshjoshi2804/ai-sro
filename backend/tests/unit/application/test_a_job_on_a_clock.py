@@ -143,6 +143,7 @@ def _starter(
         one_time_secrets=OneTimeSecrets(),
         durable=durable,
         steel_tenants=steel_tenants,
+        servers={},
     )
 
 

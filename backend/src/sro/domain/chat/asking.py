@@ -16,8 +16,10 @@ from sro.domain.skill.signing_in import Logins
 
 NEEDS = "needs_values"
 
+BRAIN_ASKS = "brain_asks"
+
 # The decisions that wait on the operator's answer: a missing value, a run's question, the brain's.
-ASKS = frozenset({NEEDS, "run_asks", "brain_asks"})
+ASKS = frozenset({NEEDS, "run_asks", BRAIN_ASKS})
 
 JOB = "job"
 
@@ -890,3 +892,10 @@ def answered(pending: Pending, said: str, logins: Logins = Logins()) -> Pending:
 
 def _plain(name: str) -> str:
     return "".join(letter for letter in name.lower() if letter.isalnum())
+
+
+def still_asking(messages: Sequence[Message], answering: str) -> bool:
+    """The question under `answering` is still open: a missing value nobody supplied."""
+    return asked_under(messages, answering) is not None and (
+        pending_job(messages, answering) is not None
+    )

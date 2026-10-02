@@ -168,7 +168,7 @@ lint: lint-backend lint-frontend lint-extension ## Run every linter
 lint-backend: ## ruff + mypy --strict + import-linter
 	$(BACKEND) uv run ruff check .
 	$(BACKEND) uv run ruff format --check .
-	$(BACKEND) uv run mypy src tests evals
+	$(BACKEND) uv run mypy src tests evals outlook-connector/server.py
 	$(BACKEND) uv run lint-imports
 
 recipe: ## A job's compiled view, for reading (never an import format): make recipe job=wfl_… tenant=acme

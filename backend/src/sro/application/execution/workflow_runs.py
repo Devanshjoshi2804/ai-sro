@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 
 from sro.application.chat.announce import SayWhatHappened
 from sro.application.chat.feedback import RecordFeedback
-from sro.application.chat.mailbox import SERVER
+from sro.application.chat.mailbox import server_for
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.execution.approvals import Approvals
@@ -83,8 +83,8 @@ from sro.domain.skill.shape import resumes_at
 from sro.domain.skill.workflow import MAIN, Workflow, cited_ids, ordered_cites
 
 
-def _on_the_mail(server: str, thread: str) -> dict[str, str]:
-    return {"thread": thread.strip()} if server == SERVER and thread.strip() else {}
+def _on_the_mail(server: str, thread: str, *, ours: str) -> dict[str, str]:
+    return {"thread": thread.strip()} if server == ours and thread.strip() else {}
 
 
 __all__ = [
@@ -141,7 +141,9 @@ class StartWorkflowRun:
         durable: DurableExecution | None = None,
         steel_tenants: frozenset[str] = frozenset(),
         feedback: RecordFeedback | None = None,
+        servers: Mapping[str, str],
     ) -> None:
+        self._servers = servers
         self._uow = uow
         self._feedback = feedback
         self._durable = durable
@@ -159,6 +161,9 @@ class StartWorkflowRun:
         self._stops = stops
         self._approvals = approvals
         self._verified_writes = verified_writes
+
+    def mail_server(self, ctx: RequestContext) -> str:
+        return server_for(ctx.tenant_id.value, self._servers)
 
     def runs_on_steel(self, ctx: RequestContext) -> bool:
         return self._durable is not None and ctx.tenant_id.value in self._steel_tenants
@@ -302,7 +307,8 @@ class StartWorkflowRun:
                 offer=offer.strip() or None,
                 progress=first_progress,
                 pinned=pin(workflow),
-                mail={**_on_the_mail(*conversation), **(mail or {})} or None,
+                mail={**_on_the_mail(*conversation, ours=self.mail_server(ctx)), **(mail or {})}
+                or None,
             )
             await uow.workflow_runs.save(run)
             if then is not None:
@@ -360,6 +366,7 @@ class StartWorkflowRun:
             asker=asker_or_refuse(self._asker),
             clock=self._clock,
             ids=self._ids,
+            servers=self._servers,
         )
 
     async def start_on_steel(self, ctx: RequestContext, run: WorkflowRun) -> bool:
@@ -404,6 +411,7 @@ class StartWorkflowRun:
                     asker=asker,
                     clock=self._clock,
                     ids=self._ids,
+                    servers=self._servers,
                 )
                 return
             async with self._uow as uow:
@@ -636,10 +644,13 @@ class StartWorkflowRun:
                 uow=self._uow,
                 tools=tools,
                 asker=asker,
+                servers=self._servers,
             )
 
         async def send(mail: Written) -> tuple[str, str]:
-            return await send_the_mail(ctx, self._uow, tools, mail, clock=self._clock)
+            return await send_the_mail(
+                ctx, self._uow, tools, mail, clock=self._clock, servers=self._servers
+            )
 
         return MailHand(write=write, send=send)
 

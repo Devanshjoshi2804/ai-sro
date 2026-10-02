@@ -192,7 +192,7 @@ Code: `return Answer(unpriced=True, error=f"{type(problem).__name__}: {problem}"
 > The call may or may not have been billed before it failed, and we
 > cannot tell -- so the cost figure (0.0 here) is not to be trusted.
 
-## `GeminiAsker._asked_once`, [line 137](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L137): Comment
+## `GeminiAsker._asked_once`, [line 139](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L139): Comment
 
 Code: `thought_tokens = getattr(usage, "thoughts_token_count", None) or 0`
 
@@ -204,14 +204,14 @@ Code: `thought_tokens = getattr(usage, "thoughts_token_count", None) or 0`
 > short visible answer can carry thousands of billed tokens the bill
 > showed and we did not.
 
-## `GeminiAsker._asked_once`, [line 140](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L140): Comment
+## `GeminiAsker._asked_once`, [line 142](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L142): Comment
 
 Code: `out_tokens = (raw_out or 0) + thought_tokens`
 
 > Kept apart in the record and added together for the bill: one number
 > says what the model wrote, the other says what it cost.
 
-## `GeminiAsker._asked_once`, [line 145](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L145): Comment
+## `GeminiAsker._asked_once`, [line 147](../../../../../../../backend/src/sro/infrastructure/gemini/asker.py#L147): Comment
 
 Code: `return Answer(`
 

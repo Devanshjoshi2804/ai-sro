@@ -2,15 +2,16 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Mapping
 
 from sro.application.chat.announce import SayWhatHappened
-from sro.application.chat.mailbox import SERVER, NotSent, send_as_this_system
+from sro.application.chat.mailbox import NotSent, send_as_this_system, server_for
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
-from sro.application.ports.tools import ToolCaller, ToolsUnavailable
-from sro.domain.chat.asking import NEEDS, Pending, pending_job
+from sro.application.ports.tools import NotConnected, ToolCaller, ToolResult, ToolsUnavailable
+from sro.domain.chat.asking import NEEDS, Pending, still_asking
 from sro.domain.chat.asking_the_asker import draft_for, worth_asking
 from sro.domain.chat.thread import Message, Speaker, ThreadId
 from sro.domain.execution.mail_job import DRAFTED, SENT
@@ -22,7 +23,15 @@ logger = logging.getLogger(__name__)
 
 
 class DraftForTheAsker:
-    def __init__(self, uow: UnitOfWork, tools: ToolCaller, clock: Clock, ids: IdFactory) -> None:
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        tools: ToolCaller,
+        clock: Clock,
+        ids: IdFactory,
+        servers: Mapping[str, str],
+    ) -> None:
+        self._servers = servers
         self._uow = uow
         self._tools = tools
         self._clock = clock
@@ -115,7 +124,11 @@ class DraftForTheAsker:
     async def _who_asked(self, ctx: RequestContext, thread: str) -> tuple[str, str, str]:
         try:
             answered = await self._tools.call(
-                ctx.tenant_id, ctx.principal_id, SERVER, "get_thread", {"id": thread}
+                ctx.tenant_id,
+                ctx.principal_id,
+                server_for(ctx.tenant_id.value, self._servers),
+                "get_thread",
+                {"id": thread},
             )
         except ToolsUnavailable as gone:
             logger.info("%s: the conversation could not be read: %s", ctx.tenant_id.value, gone)
@@ -143,7 +156,15 @@ def _address(sender: str) -> str:
 
 
 class SendTheDraft:
-    def __init__(self, uow: UnitOfWork, tools: ToolCaller, clock: Clock, ids: IdFactory) -> None:
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        tools: ToolCaller,
+        clock: Clock,
+        ids: IdFactory,
+        servers: Mapping[str, str],
+    ) -> None:
+        self._servers = servers
         self._uow = uow
         self._tools = tools
         self._clock = clock
@@ -159,7 +180,7 @@ class SendTheDraft:
                 logger.info("%s: no draft to send under %s", ctx.tenant_id.value, message_id)
                 return ""
             question = str(draft.get("question") or "")
-            if not question or pending_job(thread.messages, question) is None:
+            if not question or not still_asking(thread.messages, question):
                 logger.info(
                     "%s: the question the draft %s asks was answered",
                     ctx.tenant_id.value,
@@ -186,7 +207,7 @@ class SendTheDraft:
 
         to = str(draft.get("to") or "")
         try:
-            await send_as_this_system(
+            sent = await send_as_this_system(
                 ctx,
                 self._uow,
                 self._tools,
@@ -198,15 +219,34 @@ class SendTheDraft:
                     "in_reply_to": str(draft.get("in_reply_to") or ""),
                 },
                 at=self._clock.now(),
+                servers=self._servers,
             )
         except (ToolsUnavailable, NotSent) as gone:
             logger.warning(
                 "%s: the mail to %s may not have gone: %s", ctx.tenant_id.value, to, gone
             )
+            unknown = isinstance(gone, ToolsUnavailable) and not isinstance(gone, NotConnected)
             await self._say(
                 ctx,
                 thread_id,
-                f"I could not reach the mailbox to write to {to}.",
+                f"The mailbox did not answer, so the mail to {to} may have gone; check Sent "
+                "before sending it again."
+                if unknown
+                else f"I could not reach the mailbox to write to {to}.",
+                run_id,
+                message_id,
+                to,
+                sent=False,
+            )
+            return ""
+        if not _went(sent):
+            detail = "" if sent.text.lstrip().startswith("{") else sent.text.strip()[:200]
+            logger.warning("%s: the mail to %s was not sent: %s", ctx.tenant_id.value, to, detail)
+            await self._say(
+                ctx,
+                thread_id,
+                f"The mailbox could not confirm the mail to {to}{f': {detail}' if detail else ''}. "
+                "It may have gone; check Sent before sending it again.",
                 run_id,
                 message_id,
                 to,
@@ -220,7 +260,7 @@ class SendTheDraft:
             ctx,
             thread_id,
             f"Asked {to}. I will carry on when they reply."
-            if pending_job(thread.messages, question) is not None
+            if still_asking(thread.messages, question)
             else f"Asked {to}, but the question was answered here meanwhile, "
             "so their reply is not needed.",
             run_id,
@@ -274,6 +314,15 @@ class SendTheDraft:
             )
             await uow.threads.save(thread)
             await uow.commit()
+
+
+def _went(sent: ToolResult) -> bool:
+    """The mailbox said it sent the mail: it was not an error and it gave the sent id."""
+    try:
+        said = json.loads(sent.text or "{}")
+    except ValueError:
+        return False
+    return not sent.failed and isinstance(said, dict) and bool(said.get("id"))
 
 
 def _the_draft(messages: object, message_id: str) -> dict[str, object] | None:

@@ -397,7 +397,7 @@ async def test_a_lookup_reads_through_the_account_s_steel_session(world: World) 
     broker, held = await _a_lookup(world, {"accept": "application/json"})
     before = await pages_in(held.session)
 
-    answers = await RunLookups(world.uow, broker).execute(
+    answers = await RunLookups(world.uow, broker, world.clock).execute(
         CTX, plan=Plan(question="q", lookups=(LOOKUP,))
     )
 
@@ -414,7 +414,7 @@ async def test_a_token_the_page_never_sends_is_named_inside_the_lookup_s_budget(
 ) -> None:
     broker, _ = await _a_lookup(world, {"X-CSRF-Token": REDACTED})
 
-    answers = await RunLookups(world.uow, broker).execute(
+    answers = await RunLookups(world.uow, broker, world.clock).execute(
         CTX, plan=Plan(question="q", lookups=(LOOKUP,)), within=3.0
     )
 
@@ -898,6 +898,7 @@ async def test_a_takeover_after_the_operator_s_own_save_sends_only_the_rest(
         one_time_secrets=OneTimeSecrets(),
         durable=FakeDurableExecution(),
         steel_tenants=frozenset({TENANT}),
+        servers={},
     )
     run = await starter.execute(
         CTX,

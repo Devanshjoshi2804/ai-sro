@@ -21,7 +21,7 @@ class ToolLane:
     async def execute(self, step: Step, values: Mapping[str, str], ctx: LaneContext) -> StepResult:
         if not sends_mail(step, ctx.by_id) and by_hand(ctx.workflow, step, ctx.by_id):
             raise NeedsAPerson(
-                f"'{step.says}' changes your mailbox in a way the Gmail tool cannot: do it in "
+                f"'{step.says}' changes your mailbox in a way the mail tool cannot: do it in "
                 "your mailbox, then say whether it was done",
                 kind="step",
             )
@@ -46,5 +46,8 @@ class ToolLane:
         if not sent_id:
             return StepResult("unknown", Lane.TOOL, why)
         return StepResult(
-            "done", Lane.TOOL, f"Gmail took the mail to {written.to}", read={"message": sent_id}
+            "done",
+            Lane.TOOL,
+            f"The mailbox took the mail to {written.to}",
+            read={"message": sent_id},
         )

@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/interface/http/v1/routers/workflow_runs.py`](../../../../../../../../../backend/src/sro/interface/http/v1/routers/workflow_runs.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## `start_workflow_run`, [line 159](../../../../../../../../../backend/src/sro/interface/http/v1/routers/workflow_runs.py#L159): Comment
+## `start_workflow_run`, [line 158](../../../../../../../../../backend/src/sro/interface/http/v1/routers/workflow_runs.py#L158): Comment
 
 Code: `await container.record_attempt().execute(`
 
@@ -11,7 +11,7 @@ Code: `await container.record_attempt().execute(`
 > and `undoes_run` is what makes an undo legible as the press it is rather
 > than as another run of a delete.
 
-## `get_workflow_run`, [line 233](../../../../../../../../../backend/src/sro/interface/http/v1/routers/workflow_runs.py#L233): Comment
+## `get_workflow_run`, [line 232](../../../../../../../../../backend/src/sro/interface/http/v1/routers/workflow_runs.py#L232): Comment
 
 Code: `return WorkflowRunModel.of(`
 
@@ -20,7 +20,7 @@ Code: `return WorkflowRunModel.of(`
 > their evidence, and a response model that went to a repository would be a
 > response model with a session.
 
-## `approve_workflow_step`, [line 385](../../../../../../../../../backend/src/sro/interface/http/v1/routers/workflow_runs.py#L385): Comment
+## `approve_workflow_step`, [line 384](../../../../../../../../../backend/src/sro/interface/http/v1/routers/workflow_runs.py#L384): Comment
 
 Code: `await container.record_attempt().execute(`
 

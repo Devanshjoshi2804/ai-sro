@@ -133,7 +133,7 @@ async def test_a_network_step_says_whether_it_verified_anything(
     version.promote(PromotionStage.ASSISTED, f.at(700), f.OPERATOR)
     await uow.skills.add(skill)
 
-    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory()).execute(
+    await ExecuteSkill(uow, http, vault, FakeClock(), FakeIdFactory(), servers={}).execute(
         CTX,
         ExecutionRequest(skill_id=skill.id, parameters={}, authorized_by="supervisor"),
     )

@@ -313,9 +313,10 @@ async def test_a_look_in_the_mail_and_its_gather_are_billed() -> None:
         mailbox,
         asker,
         answer=AnswerRun(uow, FakeDurableExecution()),
-        gather=GatherContext(tools=mailbox, asker=asker),
+        gather=GatherContext(tools=mailbox, asker=asker, servers={}),
         clock=FakeClock(NOW),
         ids=FakeIdFactory(),
+        servers={},
     )
 
     with about(tenant="acme"):

@@ -8,7 +8,6 @@ from typing import ClassVar, Protocol, runtime_checkable
 from sro.application.chat.candidates import rank_jobs, real_jobs
 from sro.application.chat.feedback import RecordFeedback
 from sro.application.chat.from_the_mail import FromTheMail
-from sro.application.chat.mailbox import SERVER
 from sro.application.chat.open_offers import OpenOffer, standing_offers
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.chat.understand import held_runs
@@ -193,7 +192,13 @@ class RunStatus:
             ctx, workflow_id=None, limit=K_RECENT_RUNS, awaiting=False, mine=True
         )
         wanted = str(args.get("run_id") or "")
-        shown = [one for one in found if not wanted or one.id == wanted]
+        shown = [
+            one
+            for one in found
+            if (not wanted or one.id == wanted)
+            # A run this very message started (under its offer, or `offer:hash`) is not history.
+            and not (turn.offer and (one.offer or "").split(":", 2)[:2] == turn.offer.split(":", 2))
+        ]
         rows = [await self._row(ctx, one) for one in shown]
         if self._feedback is not None:
             # No hook sits where every run's outcome is written; the operator's next look at
@@ -304,7 +309,6 @@ async def _launch(
             values=values,
             live=True,
             allow_focus=True,
-            conversation=(SERVER, ""),
             offer=offer,
             undoes_run=undoes_run,
         )
@@ -440,7 +444,7 @@ class StartJob:
             return ToolResult(
                 ok=False,
                 error="that job sends mail, and mail goes out only when the operator presses "
-                "Send it; tell the operator you cannot send mail from chat",
+                "Send it, so a mail cannot be sent from chat",
                 guard=True,
             )
         fields = (
@@ -454,7 +458,7 @@ class StartJob:
             for name in placeable:
                 if (shown := labelled(normal(name), job.compiled.fields)) is not None:
                     fields[name] = shown
-        said = the_words(turn.said, await self._offers(ctx), job_id)
+        said = the_words(turn.said, await self._offers(ctx) if turn.card else (), job_id)
         wrong = what_is_wrong(values, fields, said, logins, placeable)
         return ToolResult(ok=False, error="; ".join(wrong), guard=True) if wrong else None
 

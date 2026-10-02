@@ -25,6 +25,7 @@ from sro.application.ports.browser import BrowserUnavailable
 from sro.application.ports.dispatch import DispatchFailed
 from sro.application.ports.http import TargetUnreachable
 from sro.application.ports.model import AskerUnavailable
+from sro.application.ports.nango import NangoUnavailable
 from sro.application.ports.schedule import SchedulerUnavailable
 from sro.application.ports.sign_in import SignInFailed
 from sro.application.ports.token import TokenRefused
@@ -50,6 +51,7 @@ _STATUS_BY_ERROR: dict[type[Exception], int] = {
     AskerUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
     SchedulerUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
     TargetUnreachable: status.HTTP_503_SERVICE_UNAVAILABLE,
+    NangoUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
     ToolsUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
     UiUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
     VisionUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -229,6 +231,7 @@ def install_error_handlers(app: FastAPI) -> None:
         AskerUnavailable,
         OverCap,
         TargetUnreachable,
+        NangoUnavailable,
         ToolsUnavailable,
         UiUnavailable,
         VisionUnavailable,

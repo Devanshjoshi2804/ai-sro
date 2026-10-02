@@ -78,3 +78,17 @@
 		reverse_proxy web:3000
 	}
 }
+
+# Nango. The dashboard is served from the root and does not support a
+# sub-path, so it gets its own port rather than a `/nango` route on the app's
+# origin. Published as NANGO_BIND (default 127.0.0.1:8089, loopback only: the
+# dashboard holds the environment secret key and is plain HTTP).
+:8081 {
+	reverse_proxy nango-server:8080
+}
+
+# Nango Connect UI (the one-click popup). Published as NANGO_CONNECT_BIND
+# (default 127.0.0.1:8082).
+:8082 {
+	reverse_proxy nango-server:3009
+}

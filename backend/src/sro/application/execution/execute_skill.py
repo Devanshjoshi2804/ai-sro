@@ -3,12 +3,13 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import datetime
 from urllib.parse import urlsplit
 
 from sro.application.capture.identity import system_named, system_of
+from sro.application.chat.mailbox import mail_server_of
 from sro.application.context import RequestContext
 from sro.application.execution.answer import MAX_ROWS, Answer, merge, read_answer
 from sro.application.execution.headers import client_headers, resolve_headers
@@ -203,7 +204,10 @@ class ExecuteStep:
         tools: ToolCaller | None = None,
         clock: Clock | None = None,
         settles_within: float = SCREEN_SETTLES_WITHIN,
+        *,
+        servers: Mapping[str, str],
     ) -> None:
+        self._servers = servers
         self._uow = uow
         self._tools = tools
         self._clock = clock
@@ -974,7 +978,11 @@ class ExecuteStep:
 
         try:
             answered = await self._tools.call(
-                run.tenant_id, run.requested_by, plan.server, plan.tool, arguments
+                run.tenant_id,
+                run.requested_by,
+                mail_server_of(plan.server, run.tenant_id.value, self._servers),
+                plan.tool,
+                arguments,
             )
         except ToolsUnavailable as gone:
             return self._failed(step, key, str(gone), medium=Medium.TOOL, unreachable=True)
@@ -1085,11 +1093,13 @@ class ExecuteSkill:
         repair: RepairDrift | None = None,
         stops: Stops | None = None,
         tools: ToolCaller | None = None,
+        *,
+        servers: Mapping[str, str],
     ) -> None:
         self._uow = uow
         self._start = StartRun(uow, clock, ids)
         self._step = ExecuteStep(
-            uow, http, vault, ui, vision, agents=agents, tools=tools, clock=clock
+            uow, http, vault, ui, vision, agents=agents, tools=tools, clock=clock, servers=servers
         )
         self._finish = FinishRun(uow, clock, learn, repair)
         self._stops = stops or Stops()

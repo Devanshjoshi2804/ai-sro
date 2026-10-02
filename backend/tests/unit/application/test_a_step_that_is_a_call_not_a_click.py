@@ -85,6 +85,7 @@ async def _run(
         FakeClock(),
         FakeIdFactory(),
         tools=tools,
+        servers={},
     ).execute(
         CTX,
         ExecutionRequest(

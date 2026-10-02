@@ -71,3 +71,6 @@ class Answer:
     error: str | None = None
     dropped: int = 0
     fell_back: bool = False
+    # The transport to the model failed: no answer was ever produced, an outage. Blocked, empty,
+    # invalid or schema-bad output is not one.
+    unreachable: bool = False

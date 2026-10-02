@@ -150,7 +150,7 @@ UNASKED = "never-asked"
 
 
 def _drafter(uow: FakeUnitOfWork, mailbox: _Mailbox) -> DraftForTheAsker:
-    return DraftForTheAsker(uow, mailbox, FakeClock(), FakeIdFactory())
+    return DraftForTheAsker(uow, mailbox, FakeClock(), FakeIdFactory(), servers={})
 
 
 async def test_a_draft_is_put_in_front_of_somebody_and_nothing_is_sent() -> None:
@@ -197,7 +197,7 @@ async def test_the_words_sent_are_the_words_that_were_read() -> None:
     threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
     drafted = threads[0].messages[-1]
 
-    to = await SendTheDraft(uow, mailbox, FakeClock(), FakeIdFactory()).execute(
+    to = await SendTheDraft(uow, mailbox, FakeClock(), FakeIdFactory(), servers={}).execute(
         CTX, threads[0].id, drafted.id
     )
 
@@ -221,7 +221,7 @@ async def test_one_mail_per_run_however_many_presses() -> None:
     await _drafter(uow, mailbox).execute(CTX, _pending(), question=question, run_id="run_1")
     threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
     drafted = threads[0].messages[-1]
-    sender = SendTheDraft(uow, mailbox, FakeClock(), FakeIdFactory())
+    sender = SendTheDraft(uow, mailbox, FakeClock(), FakeIdFactory(), servers={})
 
     assert await sender.execute(CTX, threads[0].id, drafted.id) == "tanisha@example.com"
     assert await sender.execute(CTX, threads[0].id, drafted.id) == ""
@@ -322,7 +322,7 @@ async def test_a_mailbox_that_could_not_be_reached_keeps_the_claim() -> None:
     mailbox.unavailable = True
 
     assert (
-        await SendTheDraft(uow, mailbox, FakeClock(), FakeIdFactory()).execute(
+        await SendTheDraft(uow, mailbox, FakeClock(), FakeIdFactory(), servers={}).execute(
             CTX, threads[0].id, drafted.id
         )
         == ""
@@ -341,7 +341,7 @@ async def test_a_press_on_one_draft_does_not_send_another() -> None:
     threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
     drafted = threads[0].messages[-1]
 
-    nothing = await SendTheDraft(uow, mailbox, FakeClock(), FakeIdFactory()).execute(
+    nothing = await SendTheDraft(uow, mailbox, FakeClock(), FakeIdFactory(), servers={}).execute(
         CTX, threads[0].id, "msg_that_is_not_the_draft"
     )
 
@@ -387,7 +387,7 @@ async def test_one_draft_per_request_before_a_run_exists() -> None:
 async def test_a_second_refusal_on_one_mail_is_drafted_once_the_first_is_answered() -> None:
     uow, mailbox = FakeUnitOfWork(), _Mailbox()
     clock, ids = FakeClock(), FakeIdFactory()
-    drafter = DraftForTheAsker(uow, mailbox, clock, ids)
+    drafter = DraftForTheAsker(uow, mailbox, clock, ids, servers={})
     asked = AskAboutTheOffer(uow, clock, ids)
     await asked.execute(CTX, _pending(mail_thread=THREAD), mail_thread=THREAD)
     assert await drafter.execute(CTX, _pending(), question=UNASKED, thread=THREAD) is True
@@ -422,7 +422,7 @@ async def test_one_mail_per_draft_when_no_run_stands_behind_it() -> None:
     await _drafter(uow, mailbox).execute(CTX, _pending(), question=question, thread=THREAD)
     threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
     drafted = threads[0].messages[-1]
-    sender = SendTheDraft(uow, mailbox, FakeClock(), FakeIdFactory())
+    sender = SendTheDraft(uow, mailbox, FakeClock(), FakeIdFactory(), servers={})
 
     assert await sender.execute(CTX, threads[0].id, drafted.id) == "tanisha@example.com"
     assert await sender.execute(CTX, threads[0].id, drafted.id) == ""
@@ -440,7 +440,7 @@ async def test_a_draft_is_sent_only_by_the_operator_it_was_drafted_for() -> None
     await _drafter(uow, mailbox).execute(CTX, _pending(), question=question, thread=THREAD)
     threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
     drafted = threads[0].messages[-1]
-    sender = SendTheDraft(uow, mailbox, FakeClock(), FakeIdFactory())
+    sender = SendTheDraft(uow, mailbox, FakeClock(), FakeIdFactory(), servers={})
     colleague = replace(CTX, principal_id=PrincipalId("someone-else"))
 
     with pytest.raises(Conflict):
@@ -473,7 +473,7 @@ async def test_the_mail_this_system_sent_is_never_read_as_a_request() -> None:
     threads = await uow.threads.list_for_tenant(f.TENANT, opened_by=PrincipalId("devansh"), limit=1)
     drafted = threads[0].messages[-1]
 
-    await SendTheDraft(uow, mailbox, FakeClock(), FakeIdFactory()).execute(
+    await SendTheDraft(uow, mailbox, FakeClock(), FakeIdFactory(), servers={}).execute(
         CTX, threads[0].id, drafted.id
     )
 

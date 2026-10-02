@@ -460,16 +460,34 @@ def _send(token: str, arguments: dict[str, Any]) -> str:
         mail["In-Reply-To"] = answering
         mail["References"] = answering
     raw = base64.urlsafe_b64encode(mail.as_bytes()).decode()
-    answer = httpx.post(
-        f"{GMAIL}/messages/send",
-        json={"raw": raw, **({"threadId": within} if within else {})},
-        headers={"Authorization": f"Bearer {token}"},
-        timeout=30.0,
-    )
+    may_have_gone = "the mail may have gone: check Sent before retrying"
+    try:
+        answer = httpx.post(
+            f"{GMAIL}/messages/send",
+            json={"raw": raw, **({"threadId": within} if within else {})},
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=30.0,
+        )
+    except httpx.HTTPError as failed:
+        # The request may have reached Gmail before the line dropped or timed out.
+        raise RuntimeError(
+            f"Gmail did not confirm the send ({type(failed).__name__}); {may_have_gone}"
+        ) from None
+    if answer.status_code >= 500:
+        raise RuntimeError(
+            f"Gmail did not confirm the send ({answer.status_code}); {may_have_gone}"
+        )
     if answer.status_code >= 400:
         raise RuntimeError(f"Gmail refused the send ({answer.status_code}): {answer.text[:200]}")
+    try:
+        sent_id = str(answer.json().get("id", ""))
+    except (ValueError, AttributeError):
+        # A 2xx: the mail left, only its answer cannot be read.
+        raise RuntimeError(
+            f"Gmail's answer to the send could not be read; {may_have_gone}"
+        ) from None
     print(f"  → sent to {len(getaddresses([str(arguments.get('to', ''))]))} recipient(s)")
-    return json.dumps({"status": "sent", "id": answer.json().get("id", "")})
+    return json.dumps({"status": "sent", "id": sent_id})
 
 
 class Connector(BaseHTTPRequestHandler):

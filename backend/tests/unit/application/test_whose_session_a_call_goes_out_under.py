@@ -158,6 +158,7 @@ async def _run(
         FakeClock(),
         FakeIdFactory(),
         agents=FakeAgentDrivers(http=http) if device else None,
+        servers={},
     ).execute(CTX, _request(device=device))
 
 
@@ -211,7 +212,9 @@ async def test_the_other_system_s_token_is_not_sent_to_this_one() -> None:
     tokens = _Tokens(**{WMS: "offline-token-for-the-warehouse"})
 
     run = await StartRun(uow, FakeClock(), FakeIdFactory()).execute(CTX, _request())
-    step = ExecuteStep(uow, http, vault, tokens=tokens, agents=FakeAgentDrivers(http=http))
+    step = ExecuteStep(
+        uow, http, vault, tokens=tokens, agents=FakeAgentDrivers(http=http), servers={}
+    )
     for index in range(2):
         await step.execute(CTX, run_id=run.id, index=index)
 

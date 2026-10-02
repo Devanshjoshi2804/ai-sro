@@ -50,6 +50,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-sro}
+      # init-db.sh creates Nango's own role and database from these.
+      NANGO_DB_USER: ${NANGO_DB_USER:?set NANGO_DB_USER}
+      NANGO_DB_PASSWORD: ${NANGO_DB_PASSWORD:?set NANGO_DB_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
@@ -234,6 +237,97 @@ services:
     volumes:
       - gmail-grants:/app/.gmail-grants
     command: ["python", "gmail-connector/server.py", "8932"]
+    # The image's own HEALTHCHECK curls the API's port (8000), which this process
+    # does not serve: it reported `unhealthy` from its first second. The connector
+    # answers POST only, so the check is that its own port accepts a connection.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8932), 2)"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Outlook, as the same kind of connector: it answers the Gmail connector's five
+  # tools, with the same shapes, from Microsoft Graph through Nango's proxy.
+  #
+  # It holds no Microsoft token and no grants: a bearer is signed by the backend
+  # (SRO_CONNECTOR_SIGNING_KEY, the same value here), and whose mailbox it reads is
+  # the healthy Nango connection of that operator, asked for by tag. A disconnect
+  # in Nango ends access within a minute though the bearer stays in the vault.
+  # No published port, like the Gmail one.
+  # ---------------------------------------------------------------------------
+  #
+  # Behind the `outlook` profile: the Nango secret key is only readable from Nango's
+  # dashboard once Nango is up, so this cannot start with the rest. Both keys are
+  # `:-` here (a `:?` would fail `config` for every service, Nango included); the
+  # connector refuses to start without them (check_config) and says why.
+  # Order: up nango-server, read its secret key, set both keys, then
+  # `docker compose --profile outlook up -d outlook-connector`.
+  outlook-connector:
+    profiles: ["outlook"]
+    image: ${BACKEND_IMAGE:?set BACKEND_IMAGE, e.g. ai-sro-backend:8b27470}
+    restart: unless-stopped
+    environment:
+      NANGO_URL: ${SRO_NANGO_URL:-http://nango-server:8080}
+      NANGO_SECRET_KEY: ${SRO_NANGO_SECRET_KEY:-}
+      CONNECTOR_SIGNING_KEY: ${SRO_CONNECTOR_SIGNING_KEY:-}
+      OUTLOOK_CONNECTOR_HOST: 0.0.0.0
+    command: ["python", "outlook-connector/server.py", "8934"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8934), 2)"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Nango, self-hosted (free tier: OAuth + token refresh + proxy; no
+  # Elasticsearch, no S3). It is how an operator connects a mail account with
+  # one click. Its data is the `nango` database on our Postgres, owned by its own
+  # `nango` role (init-db.sh on a fresh volume; by hand on an existing one,
+  # docs/18-deployment.md "Nango") -- never the `sro` one.
+  # Docs: https://nango.dev/docs/guides/platform/self-hosting
+  # Dashboard and API are on their own proxy port (NANGO_BIND, 8089) and the
+  # Connect UI on another (NANGO_CONNECT_BIND, 8082): the dashboard is not
+  # served under a sub-path, so `/nango` on the app's origin cannot work. Both
+  # bind to loopback unless the env file says otherwise.
+  # ---------------------------------------------------------------------------
+  nango-redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+
+  nango-server:
+    # Pinned, not the moving `hosted` tag: an upgrade is a deliberate edit here
+    # (docs/18-deployment.md "Upgrading Nango").
+    image: nangohq/nango-server:hosted-0.71.11
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nango-redis:
+        condition: service_started
+    environment:
+      NANGO_DB_HOST: postgres
+      NANGO_DB_PORT: "5432"
+      NANGO_DB_NAME: nango
+      NANGO_DB_USER: ${NANGO_DB_USER:?set NANGO_DB_USER}
+      NANGO_DB_PASSWORD: ${NANGO_DB_PASSWORD:?set NANGO_DB_PASSWORD}
+      NANGO_ENCRYPTION_KEY: ${NANGO_ENCRYPTION_KEY:?set NANGO_ENCRYPTION_KEY (openssl rand -base64 32); never change it once connections exist}
+      # The OAuth callback is <this>/oauth/callback; register that in the
+      # provider's app (Azure redirect URI).
+      NANGO_SERVER_URL: ${NANGO_PUBLIC_URL:?set NANGO_PUBLIC_URL, e.g. http://localhost:8089}
+      NANGO_PUBLIC_SERVER_URL: ${NANGO_PUBLIC_URL}
+      # Connect UI, the one-click popup the console opens. Served by the same
+      # container on 3009; the browser reaches it at NANGO_PUBLIC_CONNECT_URL.
+      FLAG_SERVE_CONNECT_UI: "true"
+      NANGO_CONNECT_UI_PORT: "3009"
+      NANGO_PUBLIC_CONNECT_URL: ${NANGO_PUBLIC_CONNECT_URL:?set NANGO_PUBLIC_CONNECT_URL, e.g. http://localhost:8082}
+      NANGO_REDIS_URL: redis://nango-redis:6379
+      # Basic auth on the dashboard instead of Nango Cloud's login.
+      FLAG_AUTH_ENABLED: "false"
+      NANGO_DASHBOARD_USERNAME: ${NANGO_DASHBOARD_USERNAME:?set NANGO_DASHBOARD_USERNAME}
+      NANGO_DASHBOARD_PASSWORD: ${NANGO_DASHBOARD_PASSWORD:?set NANGO_DASHBOARD_PASSWORD}
 
   # ---------------------------------------------------------------------------
   # The schema, before anything serves it. Runs to completion and exits; the
@@ -267,10 +361,21 @@ services:
       # '["greyorange"]'. Empty until rollout step 2: every tenant stays on the
       # extension. The api and the worker read the same list.
       SRO_STEEL_TENANTS: ${SRO_STEEL_TENANTS:-[]}
+      # Tenant id -> the mail connector its mailbox is on, as a JSON object, e.g.
+      # '{"acme": "outlook"}'. A tenant not listed has gmail.
+      SRO_MAIL_SERVERS: ${SRO_MAIL_SERVERS:-{}}
       # Tenants the chat brain answers for, and tenants it only shadows (logs
       # what it would have done); JSON lists. Empty: every tenant keeps the old chat.
       SRO_CHAT_BRAIN_TENANTS: ${SRO_CHAT_BRAIN_TENANTS:-[]}
       SRO_CHAT_BRAIN_SHADOW_TENANTS: ${SRO_CHAT_BRAIN_SHADOW_TENANTS:-[]}
+      SRO_MAIL_BRAIN_TENANTS: ${SRO_MAIL_BRAIN_TENANTS:-[]}
+      SRO_MAIL_BRAIN_SHADOW_TENANTS: ${SRO_MAIL_BRAIN_SHADOW_TENANTS:-[]}
+      SRO_NANGO_URL: ${SRO_NANGO_URL:-}
+      SRO_NANGO_SECRET_KEY: ${SRO_NANGO_SECRET_KEY:-}
+      SRO_NANGO_PUBLIC_URL: ${NANGO_PUBLIC_URL:-}
+      SRO_NANGO_PUBLIC_CONNECT_URL: ${NANGO_PUBLIC_CONNECT_URL:-}
+      SRO_INTEGRATIONS: ${SRO_INTEGRATIONS:-[]}
+      SRO_CONNECTOR_SIGNING_KEY: ${SRO_CONNECTOR_SIGNING_KEY:-}
       SRO_TEMPORAL_ADDRESS: temporal:7233
       SRO_OTLP_ENDPOINT: http://otel-collector:4318
       # Signs this deployment's credentials. Unset, every authenticated
@@ -403,6 +508,9 @@ services:
       - ./:/etc/caddy/:ro
     ports:
       - "${PUBLIC_BIND:-0.0.0.0:8088}:8080"
+      # Nango's dashboard and API: a root-served app, so its own port.
+      - "${NANGO_BIND:-127.0.0.1:8089}:8081"
+      - "${NANGO_CONNECT_BIND:-127.0.0.1:8082}:8082"
 
 volumes:
   # One Google refresh token per operator, each named by the sha256 of the

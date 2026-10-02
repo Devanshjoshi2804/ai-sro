@@ -12,16 +12,16 @@ from datetime import UTC, datetime
 from sro.application.chat.announce import SayWhatHappened
 from sro.application.chat.mailbox import (
     K_REMEMBER,
-    SERVER,
     NotSent,
     is_ours,
     send_as_this_system,
+    server_for,
 )
 from sro.application.context import RequestContext
 from sro.application.ports.model import Asker
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
-from sro.application.ports.tools import ToolCaller, ToolsUnavailable
+from sro.application.ports.tools import NotConnected, ToolCaller, ToolsUnavailable
 from sro.application.shared.asking import ask
 from sro.domain.chat.asking import said_yes, the_request
 from sro.domain.chat.thread import Speaker
@@ -97,9 +97,10 @@ async def write_the_mail(
     tools: ToolCaller,
     asker: Asker,
     shown: Mapping[str, str] | None = None,
+    servers: Mapping[str, str],
 ) -> Written | str:
-    conversation = await _conversation(ctx, tools, thread) if thread else []
-    allowed = await _allowed(ctx, uow, tools, workflow, by_id)
+    conversation = await _conversation(ctx, tools, thread, servers) if thread else []
+    allowed = await _allowed(ctx, uow, tools, workflow, by_id, servers)
     data = (
         shown
         if shown is not None
@@ -202,6 +203,7 @@ async def _allowed(
     tools: ToolCaller,
     workflow: Workflow,
     by_id: Mapping[str, Gesture],
+    servers: Mapping[str, str],
 ) -> Allowed:
     to: set[str] = set()
     bcc: set[str] = set()
@@ -216,10 +218,13 @@ async def _allowed(
             tools,
             f"in:sent after:{math.floor(clicked - K_SEND_WINDOW_S)} "
             f"before:{math.ceil(clicked + K_SEND_WINDOW_S)}",
+            servers,
         )
         seen.update(named=bool(named), looked=not named)
         since = datetime.fromtimestamp(clicked, UTC) - K_REMEMBER
-        read = [one for thread in threads for one in await _conversation(ctx, tools, thread)]
+        read = [
+            one for thread in threads for one in await _conversation(ctx, tools, thread, servers)
+        ]
         sent = [
             one
             for one in read
@@ -268,17 +273,25 @@ async def _mail_jobs(
     return [job for job in known if is_mail_only(job, by_id)], by_id
 
 
-async def _mails_found(ctx: RequestContext, tools: ToolCaller, words: str) -> tuple[str, ...]:
+async def _mails_found(
+    ctx: RequestContext, tools: ToolCaller, words: str, servers: Mapping[str, str]
+) -> tuple[str, ...]:
     found = await _answer(
-        ctx, tools, "search_threads", {"query": words, "limit": str(K_SENT_THREADS)}
+        ctx, tools, "search_threads", {"query": words, "limit": str(K_SENT_THREADS)}, servers
     )
     rows = found.get("messages")
     threads = [
-        str((await _answer(ctx, tools, "get_message", {"id": row["id"]})).get("thread_id") or "")
+        str(
+            (await _answer(ctx, tools, "get_message", {"id": row["id"]}, servers)).get("thread_id")
+            or ""
+        )
         for row in (rows if isinstance(rows, list) else ())
         if isinstance(row, dict) and isinstance(row.get("id"), str)
     ]
     return tuple(dict.fromkeys(one for one in threads if one))
+
+
+MAY_HAVE_GONE = "the mailbox did not answer, so the mail may have gone; check Sent before retrying"
 
 
 def _seconds(value: object) -> float:
@@ -286,7 +299,13 @@ def _seconds(value: object) -> float:
 
 
 async def send_the_mail(
-    ctx: RequestContext, uow: UnitOfWork, tools: ToolCaller, mail: Written, *, clock: Clock
+    ctx: RequestContext,
+    uow: UnitOfWork,
+    tools: ToolCaller,
+    mail: Written,
+    *,
+    clock: Clock,
+    servers: Mapping[str, str],
 ) -> tuple[str, str]:
     try:
         answered = await send_as_this_system(
@@ -302,16 +321,25 @@ async def send_the_mail(
                 "in_reply_to": mail.in_reply_to,
             },
             at=clock.now(),
+            servers=servers,
         )
-    except (ToolsUnavailable, NotSent) as gone:
+    except (NotConnected, NotSent) as gone:
         return "", f"the mailbox could not be reached, so nothing was sent: {gone}"
+    except ToolsUnavailable as gone:
+        # No answer: the connector may have carried on and sent it, and a Retry would send it twice.
+        return "", f"{MAY_HAVE_GONE}: {gone}"
     try:
         said = json.loads(answered.text or "{}")
     except ValueError:
         said = {}
     sent_id = str(said.get("id") or "") if isinstance(said, dict) else ""
     if not sent_id:
-        return "", f"Gmail did not say the mail went: {answered.text[:200]}"
+        # Any failure at or after the send request may have gone: a Retry would send it twice.
+        return (
+            "",
+            "The mailbox did not confirm the mail, so it may have gone; "
+            f"check Sent before retrying: {answered.text[:200]}",
+        )
     if mail.named:
         by = {"address": ", ".join(mail.named), "by": ctx.principal_id.value}
         await keep_the_named(ctx, uow, mail.job, by, at=clock.now())
@@ -339,6 +367,7 @@ async def draft_the_mail_job(
     clock: Clock,
     ids: IdFactory,
     shown: Mapping[str, str] | None = None,
+    servers: Mapping[str, str],
 ) -> WorkflowRun:
     waiting = read_wait(run.awaiting) if run.awaiting else None
     thread = waiting.thread if waiting and workflow.id != SEND_A_MAIL else ""
@@ -355,6 +384,7 @@ async def draft_the_mail_job(
         tools=tools,
         asker=asker,
         shown=shown,
+        servers=servers,
     )
     if isinstance(written, Unaddressed):
         return await _ask(ctx, uow, run, "recipient", written, clock=clock, ids=ids)
@@ -378,15 +408,15 @@ async def draft_the_mail_job(
             ctx, uow, run, MAIL_BODY, written, f"{written}. {WHAT_IT_SAYS}", clock=clock, ids=ids
         )
 
-    sent_id, why = await send_the_mail(ctx, uow, tools, written, clock=clock)
+    sent_id, why = await send_the_mail(ctx, uow, tools, written, clock=clock, servers=servers)
     run.steps.append(
         RunStep(
             order=len(run.steps),
             of_step=0,
             says="Send the mail",
-            verdict="held" if sent_id else "failed",
+            verdict="held" if sent_id else "unclear" if "may have gone" in why else "failed",
             verdict_by="status" if sent_id else "none",
-            reason=f"Gmail took the mail to {written.to} (id {sent_id})" if sent_id else why,
+            reason=f"The mailbox took the mail to {written.to} (id {sent_id})" if sent_id else why,
             made={"message": sent_id} if sent_id else {},
         )
     )
@@ -407,17 +437,27 @@ async def draft_the_mail_job(
 
 
 async def _conversation(
-    ctx: RequestContext, tools: ToolCaller, thread: str
+    ctx: RequestContext, tools: ToolCaller, thread: str, servers: Mapping[str, str]
 ) -> list[dict[str, object]]:
-    rows = (await _answer(ctx, tools, "get_thread", {"id": thread})).get("messages")
+    rows = (await _answer(ctx, tools, "get_thread", {"id": thread}, servers)).get("messages")
     return [one for one in rows if isinstance(one, dict)] if isinstance(rows, list) else []
 
 
 async def _answer(
-    ctx: RequestContext, tools: ToolCaller, tool: str, arguments: Mapping[str, str]
+    ctx: RequestContext,
+    tools: ToolCaller,
+    tool: str,
+    arguments: Mapping[str, str],
+    servers: Mapping[str, str],
 ) -> dict[str, object]:
     try:
-        answered = await tools.call(ctx.tenant_id, ctx.principal_id, SERVER, tool, arguments)
+        answered = await tools.call(
+            ctx.tenant_id,
+            ctx.principal_id,
+            server_for(ctx.tenant_id.value, servers),
+            tool,
+            arguments,
+        )
     except ToolsUnavailable as gone:
         logger.info("%s: the mailbox could not answer %s: %s", ctx.tenant_id.value, tool, gone)
         return {}
@@ -439,6 +479,7 @@ async def redraft_the_mail_job(
     asker: Asker,
     clock: Clock,
     ids: IdFactory,
+    servers: Mapping[str, str],
 ) -> WorkflowRun:
     progress = Progress.of(run.progress)
     asking = progress.asking
@@ -460,11 +501,13 @@ async def redraft_the_mail_job(
         return run
     run.progress = progress.as_json()
     if which:
-        found = await _mails_found(ctx, tools, said)
+        found = await _mails_found(ctx, tools, said, servers)
         if len(found) != 1:
             asked = f"{len(found)} mail(s) in your mailbox matched those words. {WHICH_ONE}"
             return await _ask(ctx, uow, run, WHICH_MAIL, asked, clock=clock, ids=ids)
-        run.awaiting = as_said(waiting_on(SERVER, found[0], now=clock.now()))
+        run.awaiting = as_said(
+            waiting_on(server_for(ctx.tenant_id.value, servers), found[0], now=clock.now())
+        )
     return await draft_the_mail_job(
         ctx,
         run,
@@ -476,6 +519,7 @@ async def redraft_the_mail_job(
         clock=clock,
         ids=ids,
         shown=shown,
+        servers=servers,
     )
 
 

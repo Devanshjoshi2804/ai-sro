@@ -29,6 +29,7 @@ from sro.interface.http.v1.routers import (
     devices,
     health,
     inbound,
+    integrations,
     knowledge,
     lookups,
     observations,
@@ -138,7 +139,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         finally:
             await container.capture.stop_all()
             await container.sign_ins.close()
-            await container.driver.aclose()
+            await container.aclose_clients()
             if container.driving_runs is not None:
                 await container.driving_runs.close()
                 container.driving_runs = None
@@ -254,6 +255,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(agents.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(confirmations.router, prefix="/v1", responses=PROBLEMS)
+    app.include_router(integrations.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(inbound.router, prefix="/v1", responses=PROBLEMS)
     app.include_router(agent_channel.router, prefix="/v1")
     app.include_router(analytics.router, prefix="/v1", responses=PROBLEMS)

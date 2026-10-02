@@ -166,6 +166,7 @@ async def _write(mailbox: _Mailbox, to: str = TO) -> Written | str:
         uow=FakeUnitOfWork(),
         tools=mailbox,
         asker=FakeAsker(Answer(data={"to": to, "subject": "Hi", "body": "Hi there.", "cited": []})),
+        servers={},
     )
 
 

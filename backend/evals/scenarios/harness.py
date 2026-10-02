@@ -53,6 +53,7 @@ from typing import Any, cast
 from evals.model import _at
 from evals.suites.chat import _FIELDS, _JOBS, _Day, _job, _Nowhere
 from sro.application.chat.brain import K_BRAIN_STEPS, Brain
+from sro.application.chat.brain_reader import BrainReader
 from sro.application.chat.brain_tools import (
     AskOperator,
     CheckMail,
@@ -68,6 +69,7 @@ from sro.application.chat.brain_tools import (
     values_of,
     what_is_wrong,
 )
+from sro.application.chat.mailbox import MailAsked
 from sro.application.chat.open_offers import OpenOffer
 from sro.application.context import RequestContext
 from sro.application.execution.workflow_runs import GetWorkflowRun, StartWorkflowRun
@@ -484,6 +486,41 @@ async def _answer_offer(
     return f"Started {offer.title}."
 
 
+async def _read_as_mail(
+    brain: Brain,
+    ctx: RequestContext,
+    spec: Mapping[str, Any],
+    said: str,
+    key: str,
+    world: World,
+    one: Played,
+) -> None:
+    """The mail door's read: the real `BrainReader` over this world, which starts nothing. What
+    it read is shown as the turn: a question it would send back, or the run it would start."""
+    got = await BrainReader(brain).read(
+        ctx,
+        text=said,
+        earlier="\n".join(str(h).removeprefix("operator: ") for h in spec.get("history") or ()),
+        sender=str(spec.get("sender") or ""),
+        subject=str(spec.get("subject") or "a request"),
+        offer=f"mail:{key}",
+    )
+    if isinstance(got, MailAsked):
+        one.reply, one.questions = got.question, [got.question]
+    elif got is None:
+        one.reply = "reads as no request"
+    else:
+        title = world.title_of(got.workflow_id)
+        one.reply = f"reads as {title} {got.values}" + (
+            f", missing {got.missing}" if got.missing else ""
+        )
+        if got.missing:
+            one.questions = [one.reply]
+        else:
+            run = f"run_read{len(world.launches) + 1}"
+            world.launches.append(Launch(title, got.workflow_id, dict(got.values), run, "start"))
+
+
 async def play(scenario: Mapping[str, Any], asker: Asker, *, tenant: str = "eval") -> list[Played]:
     """One thread: the scenario's turns in order, history and the open question carried as
     `converse` carries them. A turn that broke says so in `error`."""
@@ -521,6 +558,10 @@ async def play(scenario: Mapping[str, Any], asker: Asker, *, tenant: str = "eval
             try:
                 if offer is not None and (said_yes(said) or let_go(said)):
                     one.reply = await _answer_offer(world, ctx, offer, said, key)
+                elif spec.get("reader"):
+                    await asyncio.wait_for(
+                        _read_as_mail(brain, ctx, spec, said, key, world, one), K_TURN_S
+                    )
                 else:
                     reply = await asyncio.wait_for(
                         brain.turn(

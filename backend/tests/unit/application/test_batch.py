@@ -33,7 +33,9 @@ async def _skill(uow: FakeUnitOfWork) -> None:
 
 
 def _batch(uow: FakeUnitOfWork, http: FakeHttpCaller) -> RunBatch:
-    return RunBatch(ExecuteSkill(uow, http, FakeCredentialVault(), FakeClock(), FakeIdFactory()))
+    return RunBatch(
+        ExecuteSkill(uow, http, FakeCredentialVault(), FakeClock(), FakeIdFactory(), servers={})
+    )
 
 
 async def test_each_item_is_its_own_run_with_its_own_record() -> None:

@@ -86,7 +86,7 @@ async def _run(
     # Nothing to wait for by default: a test that asserts a screen never
     # caught up should not spend the settling window doing it.
     step = ExecuteStep(
-        uow, FakeHttpCaller(), FakeCredentialVault(), ui, settles_within=settles_within
+        uow, FakeHttpCaller(), FakeCredentialVault(), ui, settles_within=settles_within, servers={}
     )
     return await step.execute(CTX, run_id=run.id, index=0)  # type: ignore[return-value]
 
@@ -211,7 +211,7 @@ async def test_what_a_model_clicked_is_checked_against_the_screen_too() -> None:
         CTX,
         ExecutionRequest(skill_id=f.skill().id, parameters={}, authorized_by="supervisor"),
     )
-    step = ExecuteStep(uow, http, FakeCredentialVault(), ui, vision, settles_within=0.0)
+    step = ExecuteStep(uow, http, FakeCredentialVault(), ui, vision, settles_within=0.0, servers={})
     outcome = await step.execute(CTX, run_id=run.id, index=0)
 
     assert outcome.medium is Medium.VISION

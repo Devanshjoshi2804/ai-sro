@@ -159,6 +159,40 @@ async def test_history_and_the_open_question_carry_from_one_turn_to_the_next() -
 
 
 @pytest.mark.asyncio
+async def test_a_reader_scenario_goes_through_the_mail_reader_and_starts_nothing() -> None:
+    mail = {"origin": "mail", "sender": "a@x.com", "subject": "Hi", "reader": True}
+    asked = await play(
+        _case(say("create customer type SRT2 for us"), **mail),
+        FakeAsker(_call("ask_operator", question="What description?"), _say("ok")),
+    )
+    assert asked[0].questions == ["What description?"] and asked[0].reply == "What description?"
+    assert not asked[0].launches
+
+    said = "create customer type SRT9 with description nine"
+    complete = await play(
+        _case(say(said), **mail),
+        FakeAsker(
+            Answer(
+                data={
+                    "action": "call",
+                    "tool": "start_job",
+                    "args": json.dumps({"job_id": World().id_of(CREATE), "values": SRT9}),
+                }
+            ),
+            _say("ok"),
+        ),
+    )
+    assert [one["values"] for one in complete[0].launches] == [SRT9], "what it would start"
+    assert not complete[0].questions and complete[0].reply.startswith(
+        "reads as Create a Customer Type"
+    )
+
+    nothing = await play(_case(say("hello"), **mail), FakeAsker(_say("not a request")))
+    assert nothing[0].reply == "reads as no request" and not nothing[0].launches
+    assert not nothing[0].questions
+
+
+@pytest.mark.asyncio
 async def test_a_mail_scenario_is_a_mail_turn_and_a_yes_answers_the_open_offer() -> None:
     asker = FakeAsker(_say("ok"))
     await play(_case(say("hello"), origin="mail", sender="a@x.com", subject="Hi"), asker)
@@ -299,7 +333,7 @@ async def test_the_report_lists_failures_skips_e2e_and_shows_flaky_under_repeat(
 def test_every_scenario_is_well_formed() -> None:
     expect = {"starts", "job", "values", "tools", "never", "asks", "says_any", "says_none", "soft"}
     keys = {"runs", "offers", "asking", "mail", "lookup", "jobs", "origin", "sender", "subject"}
-    keys |= {"mail_down", "history", "stale_days"}
+    keys |= {"mail_down", "history", "stale_days", "reader"}
     assert len({one["id"] for one in SCENARIOS}) == len(SCENARIOS)
     for one in SCENARIOS:
         assert one["turns"] and set(one["world"]) <= keys, one["id"]

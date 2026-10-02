@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping
 
+from sro.application.chat.mailbox import message_of
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
@@ -19,6 +20,7 @@ from sro.domain.chat.feedback import (
     GUARD_REFUSAL,
     RUN_FAILED,
     UNDO,
+    UNREADABLE,
     Feedback,
     brain_category,
     chain_category,
@@ -94,6 +96,53 @@ class RecordFeedback:
             if theirs != brain["category"]:
                 other = {"category": theirs, "reply": said_of(chain.text) if chain else ""}
                 await self._keep(ctx, DISAGREEMENT, thread_id, operator, brain, other)
+
+    async def mail_budget(self, ctx: RequestContext, offer: str, trouble: tuple[str, ...]) -> None:
+        """The brain's reading of a mail ran out of steps or budget (`offer` is the mail's key)."""
+        try:
+            await self._add(
+                ctx,
+                BUDGET,
+                "",
+                message_of(offer),
+                "",
+                {"mode": "mail"},
+                {"trouble": list(trouble)},
+            )
+        except Exception:
+            logger.exception("feedback (%s) could not be kept", BUDGET)
+
+    async def mail_unreadable(self, ctx: RequestContext, message_id: str, why: str) -> None:
+        """A mail the brain could not read in several looks: dropped, so it blocks nothing."""
+        try:
+            await self._add(
+                ctx, UNREADABLE, "", message_id, "", {"mode": "mail"}, {"why": kept(why)}
+            )
+        except Exception:
+            logger.exception("feedback (%s) could not be kept", UNREADABLE)
+
+    async def mail_disagreement(
+        self,
+        ctx: RequestContext,
+        message_id: str,
+        said: str,
+        *,
+        chain: Mapping[str, object] | None,
+        brain: Mapping[str, object] | None,
+    ) -> None:
+        """A mail the matcher and the brain (shadow) read differently."""
+        try:
+            await self._add(
+                ctx,
+                DISAGREEMENT,
+                "",
+                message_id,
+                said,
+                {"mode": "shadow", "read": kept(brain)},
+                {"read": kept(chain)},
+            )
+        except Exception:
+            logger.exception("feedback (%s) could not be kept", DISAGREEMENT)
 
     async def undone(self, ctx: RequestContext, run: WorkflowRun, by: WorkflowRun) -> None:
         """The operator took back `run`: a signal when the brain had started it."""

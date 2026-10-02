@@ -528,6 +528,7 @@ class TestWorkflowRuns:
             stops=Stops(),
             approvals=Approvals(),
             one_time_secrets=OneTimeSecrets(),
+            servers={},
         )
         await starter._settle_the_wait(
             RequestContext(tenant_id=TENANT, principal_id=PrincipalId("operator")), run

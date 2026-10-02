@@ -6,6 +6,7 @@ import time
 from collections.abc import Mapping, Sequence
 from types import MappingProxyType
 
+from sro.application.chat.mailbox import server_for
 from sro.application.context import RequestContext
 from sro.application.ports.model import Asker
 from sro.application.ports.tools import ToolCaller, ToolsUnavailable
@@ -23,11 +24,10 @@ from sro.domain.execution.gathering import (
 from sro.domain.prompts.gather import GATHER
 from sro.domain.shared.prices import Answer
 
-SERVER = "gmail"
-
 
 class GatherContext:
-    def __init__(self, tools: ToolCaller, asker: Asker) -> None:
+    def __init__(self, tools: ToolCaller, asker: Asker, servers: Mapping[str, str]) -> None:
+        self._servers = servers
         self._tools = tools
         self._asker = asker
 
@@ -164,7 +164,11 @@ class GatherContext:
     ) -> tuple[str, str]:
         try:
             answered = await self._tools.call(
-                ctx.tenant_id, ctx.principal_id, SERVER, tool, dict(arguments)
+                ctx.tenant_id,
+                ctx.principal_id,
+                server_for(ctx.tenant_id.value, self._servers),
+                tool,
+                dict(arguments),
             )
         except ToolsUnavailable as gone:
             return asked, f"the mailbox could not be reached: {gone}"

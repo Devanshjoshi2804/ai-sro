@@ -34,19 +34,19 @@ Comments and docstrings moved out of [`backend/src/sro/application/execution/gat
 > the port's, not this module's -- it takes the tenant and the principal and
 > passes them down.
 
-## module, [line 26](../../../../../../../backend/src/sro/application/execution/gather.py#L26): Note on the line above
+## `GatherContext._ask_the_mailbox`, [line 169](../../../../../../../backend/src/sro/application/execution/gather.py#L169): Note on the line above
 
-Code: `SERVER = "gmail"`
+Code: `server_for(ctx.tenant_id.value, self._servers),`
 
-> The connector this looks in. One, named, rather than every connector a
+> The connector this looks in: the tenant's one mail server, named, rather than every connector a
 > deployment has: a gather that tried them all would be reading systems nobody
 > asked it to read.
 
-## `GatherContext`, [line 29](../../../../../../../backend/src/sro/application/execution/gather.py#L29): Docstring
+## `GatherContext`, [line 28](../../../../../../../backend/src/sro/application/execution/gather.py#L28): Docstring
 
 > Find a job's values in the mailbox, or say which ones are missing.
 
-## `_values_in`, [line 174](../../../../../../../backend/src/sro/application/execution/gather.py#L174): Docstring
+## `_values_in`, [line 178](../../../../../../../backend/src/sro/application/execution/gather.py#L178): Docstring
 
 > The model's reported values, as far as they are the right shape.
 >
@@ -54,7 +54,7 @@ Code: `SERVER = "gmail"`
 > two must not lose the good one, and a value with no message behind it is
 > dropped by `keep` a moment later anyway.
 
-## `_ran_out`, [line 194](../../../../../../../backend/src/sro/application/execution/gather.py#L194): Docstring
+## `_ran_out`, [line 198](../../../../../../../backend/src/sro/application/execution/gather.py#L198): Docstring
 
 > What happened when the clock beat the mailbox.
 >
@@ -62,11 +62,11 @@ Code: `SERVER = "gmail"`
 > value nobody found is to ask a person, and that is the same move it makes
 > for a mailbox that genuinely does not hold one.
 
-## `_sentence`, [line 199](../../../../../../../backend/src/sro/application/execution/gather.py#L199): Docstring
+## `_sentence`, [line 203](../../../../../../../backend/src/sro/application/execution/gather.py#L203): Docstring
 
 > What happened, for a person reading the run rather than the code.
 
-## `_also`, [line 207](../../../../../../../backend/src/sro/application/execution/gather.py#L207): Docstring
+## `_also`, [line 211](../../../../../../../backend/src/sro/application/execution/gather.py#L211): Docstring
 
 > The bill so far. Kept because a loop that can ask six times is a loop
 > somebody will want the cost of.

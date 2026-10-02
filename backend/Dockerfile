@@ -47,6 +47,7 @@ COPY alembic.ini ./
 # here for the same reason.
 COPY scripts ./scripts
 COPY gmail-connector ./gmail-connector
+COPY outlook-connector ./outlook-connector
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --extra gcp
 
@@ -93,6 +94,9 @@ COPY --from=page --chown=sro:sro page-code.js /app/page-code/page-code.js
 # The Gmail connector, served as its own process from this same image: one
 # image, one revision, no second thing to keep in step.
 COPY --from=build --chown=sro:sro /app/gmail-connector ./gmail-connector
+# The Outlook one, the same way: it imports the bearer check and the Nango client
+# from this image's own package, so it cannot drift from the backend that signs.
+COPY --from=build --chown=sro:sro /app/outlook-connector ./outlook-connector
 
 ARG REVISION=unknown
 ENV PATH="/app/.venv/bin:$PATH" \

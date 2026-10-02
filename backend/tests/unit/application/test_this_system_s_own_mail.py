@@ -68,7 +68,9 @@ async def test_the_claim_is_made_before_the_mail_is_sent() -> None:
     uow = FakeUnitOfWork()
     mailbox = _Mailbox(uow)
 
-    answered = await send_as_this_system(CTX, uow, mailbox, {"to": "a@x.example"}, at=NOW)
+    answered = await send_as_this_system(
+        CTX, uow, mailbox, {"to": "a@x.example"}, at=NOW, servers={}
+    )
 
     assert json.loads(answered.text)["id"] == "gm-7"
     assert mailbox.claimed_first == [True]
@@ -114,14 +116,14 @@ async def test_no_claim_no_send(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(uow.tool_calls, "remember", refused)
     with pytest.raises(NotSent):
-        await send_as_this_system(CTX, uow, mailbox, {"to": "a@x.example"}, at=NOW)
+        await send_as_this_system(CTX, uow, mailbox, {"to": "a@x.example"}, at=NOW, servers={})
 
     async def broken(*_: object, **__: object) -> bool:
         raise RuntimeError("the ledger is down")
 
     monkeypatch.setattr(uow.tool_calls, "remember", broken)
     with pytest.raises(RuntimeError):
-        await send_as_this_system(CTX, uow, mailbox, {"to": "a@x.example"}, at=NOW)
+        await send_as_this_system(CTX, uow, mailbox, {"to": "a@x.example"}, at=NOW, servers={})
 
     assert mailbox.sent == []
 
@@ -141,7 +143,9 @@ async def test_a_sent_mail_is_not_turned_into_an_error_by_its_id_claim(
         return await remember(tenant_id, key, **kwargs)
 
     monkeypatch.setattr(uow.tool_calls, "remember", only_the_marker)
-    answered = await send_as_this_system(CTX, uow, mailbox, {"to": "a@x.example"}, at=NOW)
+    answered = await send_as_this_system(
+        CTX, uow, mailbox, {"to": "a@x.example"}, at=NOW, servers={}
+    )
 
     assert json.loads(answered.text)["id"] == "gm-7" and len(mailbox.sent) == 1
     assert await is_ours(uow, CTX, {"marker": mailbox.sent[0]["marker"]}, since=NOW)

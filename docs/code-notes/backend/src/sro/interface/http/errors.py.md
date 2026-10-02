@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/interface/http/errors.py`](../../../../../../../backend/src/sro/interface/http/errors.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## module, [line 46](../../../../../../../backend/src/sro/interface/http/errors.py#L46): Comment
+## module, [line 47](../../../../../../../backend/src/sro/interface/http/errors.py#L47): Comment
 
 Code: `DomainError: status.HTTP_422_UNPROCESSABLE_CONTENT,`
 
@@ -11,7 +11,7 @@ Code: `DomainError: status.HTTP_422_UNPROCESSABLE_CONTENT,`
 > behind it answered 500 with the right sentence in it, which tells an
 > operator to report an outage and a developer to look in the wrong place.
 
-## module, [line 50](../../../../../../../backend/src/sro/interface/http/errors.py#L50): Comment
+## module, [line 51](../../../../../../../backend/src/sro/interface/http/errors.py#L51): Comment
 
 Code: `AskerUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,`
 
@@ -19,7 +19,7 @@ Code: `AskerUnavailable: status.HTTP_503_SERVICE_UNAVAILABLE,`
 > request was fine and the deployment has no model to answer it with.
 > Without its own entry the MRO walk finds nothing and it is a 500.
 
-## module, [line 52](../../../../../../../backend/src/sro/interface/http/errors.py#L52): Comment
+## module, [line 53](../../../../../../../backend/src/sro/interface/http/errors.py#L53): Comment
 
 Code: `TargetUnreachable: status.HTTP_503_SERVICE_UNAVAILABLE,`
 
@@ -32,7 +32,7 @@ Code: `TargetUnreachable: status.HTTP_503_SERVICE_UNAVAILABLE,`
 > /v1/skills/{id}/batch`. Safety by review does not survive the next call
 > site; these five lines make it safe by default instead.
 
-## module, [line 56](../../../../../../../backend/src/sro/interface/http/errors.py#L56): Comment
+## module, [line 58](../../../../../../../backend/src/sro/interface/http/errors.py#L58): Comment
 
 Code: `DispatchFailed: status.HTTP_409_CONFLICT,`
 
@@ -44,7 +44,7 @@ Code: `DispatchFailed: status.HTTP_409_CONFLICT,`
 > `text/plain` -- on the one door whose whole job is a person authorising
 > an unattended write.
 
-## module, [line 59](../../../../../../../backend/src/sro/interface/http/errors.py#L59): Comment
+## module, [line 61](../../../../../../../backend/src/sro/interface/http/errors.py#L61): Comment
 
 Code: `NotRunnable: status.HTTP_409_CONFLICT,`
 
@@ -52,21 +52,21 @@ Code: `NotRunnable: status.HTTP_409_CONFLICT,`
 > a tripped circuit breaker reached the operator as a 500 -- "internal
 > error" for the one outcome the system was most deliberate about.
 
-## module, [line 61](../../../../../../../backend/src/sro/interface/http/errors.py#L61): Comment
+## module, [line 63](../../../../../../../backend/src/sro/interface/http/errors.py#L63): Comment
 
 Code: `ObservationRefused: status.HTTP_409_CONFLICT,`
 
 > Not 403: the credential was fine and the request was well formed. The
 > deployment has not agreed to store this, and that is state, not identity.
 
-## module, [line 63](../../../../../../../backend/src/sro/interface/http/errors.py#L63): Comment
+## module, [line 65](../../../../../../../backend/src/sro/interface/http/errors.py#L65): Comment
 
 Code: `InboundRefused: status.HTTP_404_NOT_FOUND,`
 
 > Vague on purpose: an unauthenticated caller with a wrong id and one with
 > a wrong token must not be able to tell which they got wrong.
 
-## module, [line 65](../../../../../../../backend/src/sro/interface/http/errors.py#L65): Comment
+## module, [line 67](../../../../../../../backend/src/sro/interface/http/errors.py#L67): Comment
 
 Code: `SignInFailed: status.HTTP_409_CONFLICT,`
 
@@ -74,7 +74,7 @@ Code: `SignInFailed: status.HTTP_409_CONFLICT,`
 > request's shape: a stale password, a second factor, a changed page. All
 > of them are resolved by a human signing in once.
 
-## module, [line 66](../../../../../../../backend/src/sro/interface/http/errors.py#L66): Comment
+## module, [line 68](../../../../../../../backend/src/sro/interface/http/errors.py#L68): Comment
 
 Code: `TokenRefused: status.HTTP_409_CONFLICT,`
 
@@ -82,7 +82,7 @@ Code: `TokenRefused: status.HTTP_409_CONFLICT,`
 > and "invalid_grant" want different people to do different things, and a
 > 500 tells neither of them anything.
 
-## module, [line 67](../../../../../../../backend/src/sro/interface/http/errors.py#L67): Comment
+## module, [line 69](../../../../../../../backend/src/sro/interface/http/errors.py#L69): Comment
 
 Code: `NotYours: status.HTTP_403_FORBIDDEN,`
 
@@ -90,7 +90,7 @@ Code: `NotYours: status.HTTP_403_FORBIDDEN,`
 > one person who saw what it produced. That is an identity mismatch, not a
 > missing resource or a conflicting state.
 
-## module, [line 68](../../../../../../../backend/src/sro/interface/http/errors.py#L68): Comment
+## module, [line 70](../../../../../../../backend/src/sro/interface/http/errors.py#L70): Comment
 
 Code: `NotDrivingThisRun: status.HTTP_403_FORBIDDEN,`
 
@@ -102,7 +102,7 @@ Code: `NotDrivingThisRun: status.HTTP_403_FORBIDDEN,`
 > class above, which is a plain `Exception` and had to be listed by name
 > before its 403 could fire at all.
 
-## module, [line 69](../../../../../../../backend/src/sro/interface/http/errors.py#L69): Comment
+## module, [line 71](../../../../../../../backend/src/sro/interface/http/errors.py#L71): Comment
 
 Code: `OfferRefused: status.HTTP_400_BAD_REQUEST,`
 
@@ -111,7 +111,7 @@ Code: `OfferRefused: status.HTTP_400_BAD_REQUEST,`
 > malformed body gets, because the body parsed and its shape was right --
 > what it named was not there.
 
-## module, [line 70](../../../../../../../backend/src/sro/interface/http/errors.py#L70): Comment
+## module, [line 72](../../../../../../../backend/src/sro/interface/http/errors.py#L72): Comment
 
 Code: `RunRefused: status.HTTP_400_BAD_REQUEST,`
 
@@ -119,7 +119,7 @@ Code: `RunRefused: status.HTTP_400_BAD_REQUEST,`
 > this job, or a declared parameter with no value, is a bad request about a
 > body that parsed. Not a `DomainError`, so without this it is a 500.
 
-## module, [line 71](../../../../../../../backend/src/sro/interface/http/errors.py#L71): Comment
+## module, [line 73](../../../../../../../backend/src/sro/interface/http/errors.py#L73): Comment
 
 Code: `OverCap: status.HTTP_429_TOO_MANY_REQUESTS,`
 
@@ -127,7 +127,7 @@ Code: `OverCap: status.HTTP_429_TOO_MANY_REQUESTS,`
 > tomorrow or under a larger cap. 429 is the one status that means
 > "later, not never".
 
-## module, [line 93](../../../../../../../backend/src/sro/interface/http/errors.py#L93): Comment
+## module, [line 95](../../../../../../../backend/src/sro/interface/http/errors.py#L95): Comment
 
 Code: `status.HTTP_413_CONTENT_TOO_LARGE: "content_too_large",`
 
@@ -136,7 +136,7 @@ Code: `status.HTTP_413_CONTENT_TOO_LARGE: "content_too_large",`
 > "Error" -- the locator that promises a page nobody can write, removed from
 > this file once already.
 
-## module, [line 94](../../../../../../../backend/src/sro/interface/http/errors.py#L94): Comment
+## module, [line 96](../../../../../../../backend/src/sro/interface/http/errors.py#L96): Comment
 
 Code: `status.HTTP_429_TOO_MANY_REQUESTS: "too_many_requests",`
 
@@ -144,14 +144,14 @@ Code: `status.HTTP_429_TOO_MANY_REQUESTS: "too_many_requests",`
 > bare 429 any future rate limiter raises: a hole in this table is how
 > `problem.type` was `undefined` for every 401.
 
-## `_status_for`, [line 101](../../../../../../../backend/src/sro/interface/http/errors.py#L101): Comment
+## `_status_for`, [line 103](../../../../../../../backend/src/sro/interface/http/errors.py#L103): Comment
 
 Code: `for klass in type(exc).__mro__:`
 
 > Walk the MRO so a new subclass of an already-mapped error inherits its
 > status rather than silently becoming a 500.
 
-## `_problem`, [line 157](../../../../../../../backend/src/sro/interface/http/errors.py#L157): Comment
+## `_problem`, [line 159](../../../../../../../backend/src/sro/interface/http/errors.py#L159): Comment
 
 Code: `"type": _problem_type(exc),`
 
@@ -170,14 +170,14 @@ Code: `"type": _problem_type(exc),`
 > error type somebody adds and forgets, and it should tell them
 > nothing rather than tell them a lie.
 
-## `install_error_handlers`, [line 227](../../../../../../../backend/src/sro/interface/http/errors.py#L227): Comment
+## `install_error_handlers`, [line 229](../../../../../../../backend/src/sro/interface/http/errors.py#L229): Comment
 
 Code: `SignInFailed,`
 
 > Not a DomainError, so it needs saying: without this a failed login is
 > a 500 and the operator is told nothing they can act on.
 
-## `install_error_handlers`, [line 229](../../../../../../../backend/src/sro/interface/http/errors.py#L229): Comment
+## `install_error_handlers`, [line 231](../../../../../../../backend/src/sro/interface/http/errors.py#L231): Comment
 
 Code: `AskerUnavailable,`
 
@@ -185,7 +185,7 @@ Code: `AskerUnavailable,`
 > without these two a route with no model answers 500, and a tenant
 > at its cap is told the server broke.
 
-## `install_error_handlers`, [line 231](../../../../../../../backend/src/sro/interface/http/errors.py#L231): Comment
+## `install_error_handlers`, [line 233](../../../../../../../backend/src/sro/interface/http/errors.py#L233): Comment
 
 Code: `TargetUnreachable,`
 
@@ -195,14 +195,14 @@ Code: `TargetUnreachable,`
 > a 500; two doors answered one for the life of this codebase because
 > only one half was ever written.
 
-## `install_error_handlers`, [line 236](../../../../../../../backend/src/sro/interface/http/errors.py#L236): Comment
+## `install_error_handlers`, [line 239](../../../../../../../backend/src/sro/interface/http/errors.py#L239): Comment
 
 Code: `RunRefused,`
 
 > Neither is `OfferRefused`, which is a `DomainError` and is reached by
 > the line above. This one is not, so it needs saying by name.
 
-## `install_error_handlers`, [line 237](../../../../../../../backend/src/sro/interface/http/errors.py#L237): Comment
+## `install_error_handlers`, [line 240](../../../../../../../backend/src/sro/interface/http/errors.py#L240): Comment
 
 Code: `NotYours,`
 

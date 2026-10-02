@@ -202,6 +202,172 @@ Every live QA session on that container is lost when it recreates, same as
 any Steel restart; release it and start over once the new container is
 healthy.
 
+## Nango (mail accounts connected with one click)
+
+Self-hosted Nango (free tier: OAuth, token refresh, proxy; no Elasticsearch or
+S3) runs beside AI-SRO. Its data is the database `nango` on our Postgres,
+owned by its own role `nango`; it never touches `sro`. Reference:
+<https://nango.dev/docs/guides/platform/self-hosting>.
+
+**Not under `/nango`.** The dashboard is served from the root and has no
+sub-path setting, so it gets its own proxy port, 8089 (`NANGO_BIND`), and the
+Connect UI (the popup the console opens) gets 8082 (`NANGO_CONNECT_BIND`), both
+routed by `infra/Caddyfile`. **Both bind to loopback by default**: the
+dashboard holds the environment secret key and every connected mailbox's
+grant, over plain HTTP, on a shared box. Reach them by SSH tunnel:
+
+```bash
+ssh -L 8089:127.0.0.1:8089 -L 8082:127.0.0.1:8082 <user>@10.11.9.25
+```
+
+Use `0.0.0.0:<port>` in the env file only once TLS and a hostname exist.
+
+**Before pulling this change on the box**, edit `.env.qa`: the new
+`NANGO_*` variables are required, so every `docker compose` command fails until
+they are set. Add `NANGO_DB_USER=nango`, `NANGO_DB_PASSWORD`,
+`NANGO_ENCRYPTION_KEY` (`openssl rand -base64 32`; never change it
+afterwards), `NANGO_PUBLIC_URL`, `NANGO_PUBLIC_CONNECT_URL`,
+`NANGO_DASHBOARD_USERNAME` and `NANGO_DASHBOARD_PASSWORD`.
+
+**The redirect URI.** The OAuth redirect happens in the operator's browser,
+and Nango's callback is `<NANGO_PUBLIC_URL>/oauth/callback`. Pick one:
+
+- Tunnel: `NANGO_PUBLIC_URL=http://localhost:8089` and
+  `NANGO_PUBLIC_CONNECT_URL=http://localhost:8082`. Register
+  `http://localhost:8089/oauth/callback` in the Azure app. Check in the Azure
+  portal that it accepts an `http://localhost` redirect URI before relying on
+  this.
+- Once TLS and a hostname exist: `NANGO_PUBLIC_URL=https://nango.<host>`, a
+  matching https Connect URL, and register `https://nango.<host>/oauth/callback`.
+
+Register this redirect URI in the Azure app: `<NANGO_PUBLIC_URL>/oauth/callback`
+with the value you set. A plain `http://10.11.9.25:8089/...` address will not
+do (Azure takes http redirect URIs for localhost only; check in the portal).
+
+**What the backend needs.** Set these in the env file (the deploy compose passes
+them to the api container):
+
+- `SRO_NANGO_URL`: where the backend reaches Nango inside the compose network,
+  `http://nango-server:8080`.
+- `SRO_NANGO_SECRET_KEY`: the environment secret key from the Nango dashboard
+  (Environment Settings). Leave it blank until Nango is up. A wrong key shows
+  "Connections are misconfigured on this server" and the api log says 401.
+- The popup addresses the console is handed are `NANGO_PUBLIC_URL` and
+  `NANGO_PUBLIC_CONNECT_URL` (set above). The compose file derives the backend's
+  `SRO_NANGO_PUBLIC_URL` and `SRO_NANGO_PUBLIC_CONNECT_URL` from them: setting the
+  `SRO_` names in the env file does nothing.
+- `SRO_INTEGRATIONS`: the integrations the Connections page offers, as a JSON
+  list of Nango integration ids, for example `["microsoft"]`. Each id must also
+  exist in Nango.
+- `SRO_CONNECTOR_SIGNING_KEY` (`openssl rand -hex 32`): signs the per-operator key
+  stored when an operator connects an account; the mail connector verifies it with
+  the same value. At least 32 bytes, or the server refuses to start. Unset or
+  blank, linking answers 503 and nothing counts as connected. Changing it makes
+  every stored key stale until each operator presses Connect again. A Nango
+  disconnect revokes the connector's access: the connector must still find a
+  healthy Nango connection, the stored key alone is not authority.
+
+**Recreate after changing any of these.** The api and the worker read their
+settings when they start, and a plain `restart` keeps the environment they were
+created with. After setting or changing `SRO_NANGO_SECRET_KEY`,
+`SRO_CONNECTOR_SIGNING_KEY`, `SRO_INTEGRATIONS`, `SRO_MCP_SERVERS`,
+`SRO_MAIL_SERVERS` or the `SRO_MAIL_BRAIN_*` lists, run
+`docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa up -d --no-deps api worker`
+(the connector, after its two keys: `--profile outlook up -d outlook-connector`).
+
+**Console SDK call.** The browser loads the popup from the Connect URL and the
+popup calls the server URL, so the console passes both:
+`nango.openConnectUI({ baseURL: <NANGO_PUBLIC_CONNECT_URL>, apiURL: <NANGO_PUBLIC_URL> })`
+(<https://nango.dev/docs/reference/frontend/frontend-sdk>).
+
+**Database.** A fresh Postgres volume creates the `nango` role and database
+from `infra/init-db.sh`. On the existing QA volume (the init script does not
+run on an existing one), once. Export the variables in your shell and pass them
+into the running container, so Postgres is not recreated:
+
+```bash
+set -a; . infra/.env.qa; set +a
+docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa \
+  exec -T -e NANGO_DB_USER -e NANGO_DB_PASSWORD postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  -v nu="$NANGO_DB_USER" -v np="$NANGO_DB_PASSWORD"' <<'SQL'
+CREATE ROLE :"nu" LOGIN PASSWORD :'np';
+CREATE DATABASE nango OWNER :"nu";
+SQL
+```
+
+Then start it, and recreate Caddy to publish the new ports:
+
+```bash
+docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa \
+  up -d --no-deps nango-redis nango-server
+docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa \
+  up -d --no-deps --force-recreate caddy      # a new published port needs a recreate
+```
+
+Open the dashboard through the tunnel (`http://localhost:8089`) and sign in
+with the basic-auth credentials. Create the integration with the unique key `microsoft` (the key is what
+`SRO_INTEGRATIONS` and the connector use; the connector calls `/v1.0/me/...`
+through Nango's proxy, so pick the Nango provider for Outlook / Microsoft Graph,
+whose API base is `https://graph.microsoft.com`): client id
+and secret from the Azure app registration, scopes
+`offline_access Mail.Read Mail.ReadWrite Mail.Send User.Read`. Copy the
+environment secret key (Environment Settings) into `.env.qa` as
+`SRO_NANGO_SECRET_KEY`. `SRO_NANGO_URL` stays `http://nango-server:8080`.
+
+**Upgrading Nango.** The image is pinned (`nangohq/nango-server:hosted-<version>`,
+tags on Docker Hub, versions on <https://github.com/NangoHQ/nango/releases>)
+and so is Redis. To upgrade, edit the tag in `infra/docker-compose.deploy.yml`,
+read the release notes, and `up -d --no-deps nango-server`.
+
+## Outlook
+
+`outlook-connector` is the Gmail connector's twin: the same five tools and the
+same answers, read from Microsoft Graph through Nango's proxy. It holds no
+Microsoft token. It is behind the `outlook` compose profile, because the Nango
+secret key it needs can only be read from Nango's dashboard once Nango is up.
+Order: boot `nango-server`; read the secret key from its dashboard; set
+`SRO_NANGO_SECRET_KEY` and `SRO_CONNECTOR_SIGNING_KEY` (the connector reads the
+same value as `CONNECTOR_SIGNING_KEY`; under 32 bytes it will not start and says
+so); `docker compose --profile outlook up -d outlook-connector`; then add
+`outlook=http://outlook-connector:8934/mcp` to `SRO_MCP_SERVERS` (see
+`infra/.env.deploy.example`) and recreate `api` and `worker` (above). Neither key is required for any other service.
+
+- **Who may call:** the signed bearer the backend writes when an operator presses
+  Connect on Outlook. No grants file, no volume.
+- **Whose mailbox:** the newest healthy Nango connection tagged with that
+  operator. It is remembered for a minute; a disconnect in Nango ends access
+  within that minute and the call gets the same "no grant" answer a bad bearer
+  gets.
+- **Queries:** the Gmail query is translated. Dates, folders (`in:sent`),
+  `is:unread` and `has:attachment` become `$filter` (and `$orderby` when the filter has a date bound). Words, `from:`,
+  `to:`, `subject:` become `$search` (KQL), and Graph refuses `$filter` and
+  `$orderby` beside it, so a search's date window and unread state are applied to
+  the page that came back. A phrase searches as all of its words. `-in:chats` is
+  dropped; mail in Deleted Items and Junk is never returned unless `in:anywhere`.
+- **Sending:** a mail is made as a draft carrying the `X-SRO-Marker` header (Graph
+  sets custom headers only at creation), then sent; `send_message` answers the
+  draft's id. Every Graph call asks for immutable ids
+  (`Prefer: IdType="ImmutableId"`), so that id is the Sent Items copy's id and no
+  folder move changes it. A reply is a `createReply` draft of the mail whose
+  Message-Id is `in_reply_to`, else the newest of `thread_id`. Not verified against
+  a live mailbox: that `createReply` keeps `message.internetMessageHeaders`.
+- **Health:** the container's check is a TCP connect to 8934 (the Gmail one, 8932).
+  Before this, both inherited the image's check on the API's port 8000 and were
+  `unhealthy` from the start.
+
+## Which mail connector a tenant is on
+
+`SRO_MAIL_SERVERS` is a JSON object from tenant id to connector name, e.g.
+`'{"acme": "outlook"}'`; a tenant not listed is on `gmail`. A name is lowercase
+letters, digits, `_` or `-`, and anything else stops the settings load.
+Recreate `api` and `worker` after changing it.
+
+Switch a tenant only when none of its runs is waiting on a mail. A run records
+the server its mail is on (`awaiting.server`) when it starts, so one already
+waiting when the setting changes keeps looking for its answer on the old server
+and is never matched to a reply on the new one. Let those runs finish or stop
+them first.
+
 ## Five things that are quiet when wrong
 
 1. **`SRO_API_URL` and `SRO_CONSOLE_URL` default to localhost.** They are not

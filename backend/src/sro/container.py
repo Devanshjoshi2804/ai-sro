@@ -165,7 +165,7 @@ from sro.application.trigger.create_trigger import CreateTrigger
 from sro.application.trigger.fire_trigger import FireTrigger
 from sro.application.trigger.read_triggers import DeleteTrigger, ReadTriggers, SetTriggerEnabled
 from sro.application.trigger.receive_inbound import ReceiveInbound
-from sro.config import Settings, get_settings
+from sro.config import Settings, get_settings, mcp_server_entries
 from sro.domain.chat.asking import Pending
 from sro.domain.observation.gesture import Gesture
 from sro.domain.prompts.sight import SIGHT, SIGHT_ESCALATED
@@ -1265,12 +1265,4 @@ def build_container(settings: Settings | None = None) -> Container:
 
 
 def _servers(configured: str) -> tuple[McpServer, ...]:
-    found: list[McpServer] = []
-    for entry in configured.split(","):
-        name, sep, rest = entry.strip().partition("=")
-        if not sep or not name.strip() or not rest.strip():
-            continue
-        url, _, _dropped = rest.partition("#")
-        if url.strip():
-            found.append(McpServer(name=name.strip(), url=url.strip()))
-    return tuple(found)
+    return tuple(McpServer(name=name, url=url) for name, url in mcp_server_entries(configured))

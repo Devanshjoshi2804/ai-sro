@@ -317,6 +317,7 @@ async def test_a_mailbox_that_is_not_connected_still_says_nothing_was_sent() -> 
 
     (step,) = done.steps
     assert step.verdict == "failed" and "nothing was sent" in step.reason
+    assert "reconnect" in step.reason.lower() and "check Sent" not in step.reason
 
 
 async def test_what_the_job_does_reaches_the_model_only_inside_a_fence() -> None:

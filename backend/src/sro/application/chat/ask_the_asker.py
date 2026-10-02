@@ -221,18 +221,33 @@ class SendTheDraft:
                 at=self._clock.now(),
                 servers=self._servers,
             )
-        except (ToolsUnavailable, NotSent) as gone:
-            logger.warning(
-                "%s: the mail to %s may not have gone: %s", ctx.tenant_id.value, to, gone
-            )
-            unknown = isinstance(gone, ToolsUnavailable) and not isinstance(gone, NotConnected)
+        except (NotConnected, NotSent) as gone:
+            # Definitely nothing went: the claim is given back so Send it works again.
+            logger.warning("%s: the mail to %s was not sent: %s", ctx.tenant_id.value, to, gone)
+            await self._unclaim(ctx, message_id, run_id)
             await self._say(
                 ctx,
                 thread_id,
-                f"The mailbox did not answer, so the mail to {to} may have gone; check Sent "
-                "before sending it again."
-                if unknown
-                else f"I could not reach the mailbox to write to {to}.",
+                f"Nothing was sent to {to}: the mailbox is not connected. Reconnect it, then "
+                "press Send it again."
+                if isinstance(gone, NotConnected)
+                else f"Nothing was sent to {to}: it could not be prepared. Press Send it again.",
+                run_id,
+                message_id,
+                to,
+                sent=False,
+                retry=True,
+            )
+            return ""
+        except ToolsUnavailable as gone:
+            logger.warning(
+                "%s: the mail to %s may not have gone: %s", ctx.tenant_id.value, to, gone
+            )
+            await self._say(
+                ctx,
+                thread_id,
+                f"The mailbox did not answer, so the mail to {to} may have gone; check Sent, "
+                "and if it is not there, send it from your mailbox.",
                 run_id,
                 message_id,
                 to,
@@ -246,7 +261,7 @@ class SendTheDraft:
                 ctx,
                 thread_id,
                 f"The mailbox could not confirm the mail to {to}{f': {detail}' if detail else ''}. "
-                "It may have gone; check Sent before sending it again.",
+                "It may have gone; check Sent, and if it is not there, send it from your mailbox.",
                 run_id,
                 message_id,
                 to,
@@ -284,6 +299,15 @@ class SendTheDraft:
             at=self._clock.now(),
         )
 
+    async def _unclaim(self, ctx: RequestContext, message_id: str, run_id: str) -> None:
+        async with self._uow as uow:
+            await uow.tool_calls.forget(ctx.tenant_id, f"draft:{message_id}")
+            run = await uow.workflow_runs.get(ctx.tenant_id, run_id) if run_id else None
+            if run is not None and run.asked_the_asker:
+                run.asked_the_asker = False
+                await uow.workflow_runs.save(run)
+            await uow.commit()
+
     async def _say(
         self,
         ctx: RequestContext,
@@ -294,6 +318,7 @@ class SendTheDraft:
         to: str = "",
         *,
         sent: bool,
+        retry: bool = False,
     ) -> None:
         async with self._uow as uow:
             thread = await uow.threads.get(ctx.tenant_id, thread_id)
@@ -309,6 +334,7 @@ class SendTheDraft:
                         "draft_id": draft_id,
                         "to": to,
                         "sent": sent,
+                        **({"retry": True} if retry else {}),
                     },
                 )
             )

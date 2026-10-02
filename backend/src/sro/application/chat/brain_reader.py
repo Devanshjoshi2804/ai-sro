@@ -4,8 +4,8 @@ A dry turn: `start_job` runs only its checks. The last start the brain tried is 
 reading -- its job and values when the checks passed (sure), or its job, values and
 the required parameters it lacked when the only refusal was what was missing. When the
 brain asked a question instead (`ask_operator`), or the start was refused for something the
-sender can put right, the reader answers `MailAsked`: the question goes back the way a missing
-value does (the ask chat and a drafted reply, sent only on the operator's press)."""
+sender can put right, the reader answers `MailAsked`: the operator's ask chat, never the sender
+(a missing value is a reading, and the sender is asked by the draft built from the job's labels)."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from sro.application.chat.brain import Brain
 from sro.application.chat.brain_tools import _bounded, values_of
 from sro.application.chat.feedback import RecordFeedback
-from sro.application.chat.mailbox import MailAsked, Unread
+from sro.application.chat.mailbox import MailAsked, ModelUnavailable, Unread
 from sro.application.context import RequestContext
 from sro.domain.chat.brain_turn import Origin
 
@@ -27,6 +27,7 @@ _ABOUT_THE_MAIL = (
     "this job can't set",
     "is a secret",
     "is not in what was said",
+    "values is an object",
 )
 
 
@@ -65,7 +66,7 @@ class BrainReader:
                 return MailAsked(_bounded(question))
             if reply.failed:
                 # Not "no job": the brain could not read it. The mail is left to be read again.
-                raise Unread(reply.said)
+                raise (ModelUnavailable if reply.unavailable else Unread)(reply.said)
             if reply.trouble and self._feedback is not None:
                 # Out of steps or budget with no start is no job (and remembered as such: a mail
                 # that does this every time must not be read again at every look).

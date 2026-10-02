@@ -146,6 +146,17 @@ class AskAboutTheOffer:
         logger.info("%s: a request asks for %s, which cannot run", ctx.tenant_id.value, workflow_id)
         return said
 
+    async def could_not_read(self, ctx: RequestContext, *, about: str, mail_thread: str) -> None:
+        await SayWhatHappened(self._uow, self._clock, self._ids).execute(
+            ctx,
+            for_operator=PrincipalId(ctx.principal_id.value),
+            text=f"{about + ' — ' if about.strip() else ''}I could not read this mail, so I have "
+            "left it. Open it in the mailbox to see what it asks.",
+            speaker=Speaker.ASSISTANT,
+            about=mail_thread,
+            decision={"kind": Said.NOTE, "mail_thread": mail_thread},
+        )
+
     async def brain_asks(
         self,
         ctx: RequestContext,
@@ -156,10 +167,10 @@ class AskAboutTheOffer:
         offer: str = "",
         mail: Mapping[str, str] | None = None,
     ) -> str:
-        """The brain's own question about a mail: put in the ask chat as it asked it, and drafted
-        as a reply to the sender (it is mailed only when the operator presses Send it)."""
+        """The brain's own question about a mail, put in the ask chat as it asked it. It is written
+        for the operator, so it is never drafted to whoever sent the mail."""
         asked = f"{about} — {question}" if about.strip() else question
-        said = await SayWhatHappened(self._uow, self._clock, self._ids).execute(
+        await SayWhatHappened(self._uow, self._clock, self._ids).execute(
             ctx,
             for_operator=PrincipalId(ctx.principal_id.value),
             text=asked,
@@ -174,18 +185,6 @@ class AskAboutTheOffer:
                 **({"mail": dict(mail)} if mail else {}),
             },
         )
-        if self._drafts is not None and mail_thread.strip():
-            try:
-                await self._drafts(
-                    ctx,
-                    Pending(
-                        "", about or "your request", {}, (), mail_thread=mail_thread, ask=question
-                    ),
-                    mail_thread,
-                    said,
-                )
-            except Exception:
-                logger.exception("a mail to whoever asked could not be drafted")
         logger.info("%s: the brain asks about a mail in the conversation", ctx.tenant_id.value)
         return asked
 

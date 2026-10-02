@@ -6,9 +6,11 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.brain_reader import MailReading
 from sro.application.chat.feedback import RecordFeedback
-from sro.application.chat.mailbox import Unread
+from sro.application.chat.mailbox import ModelUnavailable, Unread
+from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from tests import factories as f
 from tests.unit.application.rig.test_from_the_mail import (
@@ -70,6 +72,49 @@ async def test_a_mail_that_fails_three_looks_is_dropped_with_a_row_and_later_mai
     reader.read_of.clear()
     await door.execute(CTX)
     assert "mail:m-1" not in reader.read_of, "a dropped mail is not read again"
+
+
+class _ModelDown:
+    async def read(self, ctx: RequestContext, *, offer: str, **_: object) -> MailReading | None:
+        raise ModelUnavailable("the model is down")
+
+
+async def test_a_model_outage_never_drops_a_mail_however_long_it_lasts() -> None:
+    uow = await _held()
+    box = _Mailbox(search=_found("m-1"), **{"m-1": _mail("please create GPX")})
+    door = _look(
+        uow,
+        box,
+        _Reads(),
+        reader=lambda: _ModelDown(),
+        reader_tenants=LIVE,
+        feedback=lambda: RecordFeedback(uow, FakeIdFactory(), FakeClock()),
+    )
+
+    for _ in range(5):
+        assert (await door.execute(CTX)).stopped
+    assert uow.chat_feedback.rows == []
+
+
+async def test_a_dropped_mail_leaves_a_note_in_its_own_ask_chat() -> None:
+    uow = await _held()
+    box = _Mailbox(search=_found("m-1"), **{"m-1": _mail("please create GPX", "t-1")})
+    door = _look(
+        uow,
+        box,
+        _Reads(),
+        reader=lambda: _Picky(),
+        reader_tenants=LIVE,
+        asks=AskAboutTheOffer(uow, FakeClock(), FakeIdFactory(), None),
+        feedback=lambda: RecordFeedback(uow, FakeIdFactory(), FakeClock()),
+    )
+
+    for _ in range(3):
+        await door.execute(CTX)
+
+    found = await ReadThreads(uow).asking(CTX, "t-1")
+    assert found is not None
+    assert "could not read this mail" in found.messages[-1].text
 
 
 class _Overlapping:

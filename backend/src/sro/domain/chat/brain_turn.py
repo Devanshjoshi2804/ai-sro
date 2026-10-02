@@ -24,6 +24,9 @@ class Turn:
 
     said: str = ""
     offer: str = ""
+    # The words of a standing offer's card count as said: only for the operator who is answering
+    # it, never for a mail, whose sender may be anyone.
+    card: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,6 +68,9 @@ class BrainReply:
     # The model could not answer at all (down, over the cap, or the turn broke): `said` is the
     # apology, not a reading of anything.
     failed: bool = False
+    # ...and it was the model or its provider that could not (down, over the cap, no answer), not
+    # anything about what it was asked.
+    unavailable: bool = False
 
 
 def _args_of(raw: object) -> dict[str, object] | None:

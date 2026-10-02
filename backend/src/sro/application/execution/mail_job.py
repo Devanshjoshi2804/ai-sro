@@ -409,7 +409,7 @@ async def draft_the_mail_job(
             order=len(run.steps),
             of_step=0,
             says="Send the mail",
-            verdict="held" if sent_id else "unclear" if MAY_HAVE_GONE in why else "failed",
+            verdict="held" if sent_id else "unclear" if "may have gone" in why else "failed",
             verdict_by="status" if sent_id else "none",
             reason=f"The mailbox took the mail to {written.to} (id {sent_id})" if sent_id else why,
             made={"message": sent_id} if sent_id else {},

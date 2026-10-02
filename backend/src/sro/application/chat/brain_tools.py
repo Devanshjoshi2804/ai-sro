@@ -458,7 +458,7 @@ class StartJob:
             for name in placeable:
                 if (shown := labelled(normal(name), job.compiled.fields)) is not None:
                     fields[name] = shown
-        said = the_words(turn.said, await self._offers(ctx), job_id)
+        said = the_words(turn.said, await self._offers(ctx) if turn.card else (), job_id)
         wrong = what_is_wrong(values, fields, said, logins, placeable)
         return ToolResult(ok=False, error="; ".join(wrong), guard=True) if wrong else None
 

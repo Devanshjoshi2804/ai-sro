@@ -19,6 +19,7 @@ from sro.application.chat.mailbox import (
     K_REMEMBER,
     K_TAKEN,
     MailAsked,
+    ModelUnavailable,
     Unread,
     elsewhere_key,
     is_ours,
@@ -292,8 +293,10 @@ class FromTheMail:
                 continue
             except (OverCap, ToolsUnavailable, Unread) as stopped:
                 await self._release(ctx, message)
-                if isinstance(stopped, Unread) and await self._given_up_on(
-                    ctx, message, str(stopped), now=now
+                if (
+                    isinstance(stopped, Unread)
+                    and not isinstance(stopped, ModelUnavailable)
+                    and await self._given_up_on(ctx, message, stopped, now=now)
                 ):
                     # A mail that cannot be read must not hold the inbox for ever.
                     await self._keep(ctx, message, now=now)
@@ -382,7 +385,7 @@ class FromTheMail:
         text = whole or said
         if self._build is not None and tenant in self._reader_tenants:
             # Somebody other than the one we asked is not answering: their words stand alone.
-            stranger = asked is None and bool(asked_of) and asked_of != sender_address(mail.sender)
+            stranger = bool(asked_of) and asked_of != sender_address(mail.sender)
             live = await self._read_by_the_brain(
                 ctx, message, mail, text, "" if stranger else earlier, known
             )
@@ -408,7 +411,7 @@ class FromTheMail:
             )
             look.spent = _also(look.spent, got.answer)
             if got.answer.data is None:
-                raise Unread(got.answer.error or "the model gave no reading")
+                raise ModelUnavailable(got.answer.error or "the model gave no reading")
             if self._build is not None and tenant in self._shadow_tenants:
                 self._compare(ctx, message, mail, got, earlier)
         async with self._uow as uow:
@@ -497,14 +500,18 @@ class FromTheMail:
         if chore is not None:
             # Signing in is the session broker's work, whoever reads the mail.
             return Understood(chore.workflow.id, Answer(data={}), cannot_run=[K_A_CHORE])
-        reading = await self._reading().read(
-            ctx,
-            text=mail.typed,
-            earlier=earlier,
-            sender=mail.sender,
-            subject=mail.subject,
-            offer=mail_key(message),
-        )
+        try:
+            reading = await self._reading().read(
+                ctx,
+                text=mail.typed,
+                earlier=earlier,
+                sender=mail.sender,
+                subject=mail.subject,
+                offer=mail_key(message),
+            )
+        except Unread as stopped:
+            stopped.thread, stopped.subject = mail.thread, mail.subject
+            raise
         return (
             reading if reading is None or isinstance(reading, MailAsked) else _as_reading(reading)
         )
@@ -1204,7 +1211,7 @@ class FromTheMail:
             await uow.commit()
 
     async def _given_up_on(
-        self, ctx: RequestContext, message: str, why: str, *, now: datetime
+        self, ctx: RequestContext, message: str, stopped: Unread, *, now: datetime
     ) -> bool:
         """Count a look this mail could not be read in; the K_UNREAD-th is the last, and leaves a
         feedback row. (One key a look: remembering a key is the only atomic count there is.)"""
@@ -1222,7 +1229,14 @@ class FromTheMail:
                         return False
                     break
         if self._feedback is not None:
-            await self._feedback().mail_unreadable(ctx, message, why)
+            await self._feedback().mail_unreadable(ctx, message, str(stopped))
+        if self._asks is not None:
+            try:
+                await self._asks.could_not_read(
+                    ctx, about=stopped.subject, mail_thread=stopped.thread
+                )
+            except Exception:
+                logger.exception("the note about an unreadable mail could not be written")
         logger.warning(
             "%s: %s could not be read in %d looks, so it is dropped",
             ctx.tenant_id.value,

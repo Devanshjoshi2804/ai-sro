@@ -10,7 +10,7 @@ from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
-from sro.application.ports.tools import NotConnected, ToolCaller, ToolsUnavailable
+from sro.application.ports.tools import NotConnected, ToolCaller, ToolResult, ToolsUnavailable
 from sro.domain.chat.asking import NEEDS, Pending, still_asking
 from sro.domain.chat.asking_the_asker import draft_for, worth_asking
 from sro.domain.chat.thread import Message, Speaker, ThreadId
@@ -207,7 +207,7 @@ class SendTheDraft:
 
         to = str(draft.get("to") or "")
         try:
-            await send_as_this_system(
+            sent = await send_as_this_system(
                 ctx,
                 self._uow,
                 self._tools,
@@ -233,6 +233,24 @@ class SendTheDraft:
                 "before sending it again."
                 if unknown
                 else f"I could not reach the mailbox to write to {to}.",
+                run_id,
+                message_id,
+                to,
+                sent=False,
+            )
+            return ""
+        if not _went(sent):
+            detail = "" if sent.text.lstrip().startswith("{") else sent.text.strip()[:200]
+            logger.warning("%s: the mail to %s was not sent: %s", ctx.tenant_id.value, to, detail)
+            await self._say(
+                ctx,
+                thread_id,
+                f"The mailbox could not send the mail to {to}{f': {detail}' if detail else ''}. "
+                + (
+                    "It may have gone; check Sent before sending it again."
+                    if "may have gone" in detail
+                    else "Nothing was sent, so you can send it again."
+                ),
                 run_id,
                 message_id,
                 to,
@@ -300,6 +318,15 @@ class SendTheDraft:
             )
             await uow.threads.save(thread)
             await uow.commit()
+
+
+def _went(sent: ToolResult) -> bool:
+    """The mailbox said it sent the mail: it was not an error and it gave the sent id."""
+    try:
+        said = json.loads(sent.text or "{}")
+    except ValueError:
+        return False
+    return not sent.failed and isinstance(said, dict) and bool(said.get("id"))
 
 
 def _the_draft(messages: object, message_id: str) -> dict[str, object] | None:

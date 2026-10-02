@@ -8,12 +8,6 @@ K_RE = "Re: "
 def draft_for(pending: Pending, *, about: str = "", signed: str = "") -> tuple[str, str]:
     subject = f"{K_RE}{about}" if about.strip() else f"{pending.title} — one thing missing"
 
-    if pending.ask:
-        lines = [pending.ask, "", "Reply to this mail and I will carry on from here."]
-        if signed.strip():
-            lines += ["", f"Sent for {signed.strip()} by AI-SRO."]
-        return subject[:K_SUBJECT], "\n".join(lines)
-
     wanted = pending.asking_for
     holds = pending.limits.get(wanted)
     lines = [
@@ -61,7 +55,7 @@ K_SUBJECT = 200
 
 
 def worth_asking(pending: Pending) -> bool:
-    return bool(pending.ask or (pending.missing and pending.workflow_id))
+    return bool(pending.missing and pending.workflow_id)
 
 
 __all__ = ["draft_for", "worth_asking"]

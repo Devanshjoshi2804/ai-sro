@@ -51,11 +51,19 @@ READ_ONLY = frozenset({"find_jobs", "run_status"})
 
 
 def _cannot(
-    why: str, decisions: list[dict[str, object]], steps: list[tuple[ToolCall, ToolResult]]
+    why: str,
+    decisions: list[dict[str, object]],
+    steps: list[tuple[ToolCall, ToolResult]],
+    *,
+    unavailable: bool = False,
 ) -> BrainReply:
     # What the turn already did stays on the record: a run it started is still a run.
     return BrainReply(
-        f"I can't answer right now: {why}.", tuple(decisions), tuple(steps), failed=True
+        f"I can't answer right now: {why}.",
+        tuple(decisions),
+        tuple(steps),
+        failed=True,
+        unavailable=unavailable,
     )
 
 
@@ -171,7 +179,9 @@ class Brain:
         theirs = [
             one.removeprefix(_OPERATOR) for one in history[-K_HISTORY:] if one.startswith(_OPERATOR)
         ]
-        turn = Turn(said="\n".join([message, *theirs, asking]), offer=offer)
+        turn = Turn(
+            said="\n".join([message, *theirs, asking]), offer=offer, card=origin.kind != "mail"
+        )
         calls, spent = 0, 0.0
         for _ in range(K_BRAIN_STEPS):
             if calls >= self._max_calls or 0 <= self._max_turn_usd <= spent:
@@ -182,7 +192,7 @@ class Brain:
                     uow, ctx.tenant_id, now=self._clock.now(), cap_usd=self._cap_usd
                 )
             if why is not None:
-                return _cannot(why, decisions, steps)
+                return _cannot(why, decisions, steps, unavailable=True)
             try:
                 answer = await ask(
                     self._asker,
@@ -191,7 +201,7 @@ class Brain:
                     untrusted={**untrusted, "results": "\n".join(results)},
                 )
             except (OverCap, AskerUnavailable) as refused:
-                return _cannot(str(refused), decisions, steps)
+                return _cannot(str(refused), decisions, steps, unavailable=True)
             # A fallback is a second call on the same prompt.
             calls += 2 if answer.fell_back else 1
             if answer.fell_back:
@@ -200,7 +210,7 @@ class Brain:
             if answer.data is None:
                 # The model's own error text is the log's, not the operator's.
                 logger.warning("brain: the model did not answer: %s", answer.error)
-                return _cannot("the model did not answer", decisions, steps)
+                return _cannot("the model did not answer", decisions, steps, unavailable=True)
             step = step_of(answer.data)
             if step.say is not None:
                 return BrainReply(step.say, tuple(decisions), tuple(steps))

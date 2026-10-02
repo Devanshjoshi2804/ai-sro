@@ -42,13 +42,22 @@ class NotSent(Exception):
 
 
 class Unread(Exception):
-    """The mail could not be read this time: it is released to be read again."""
+    """The mail could not be read this time: it is released to be read again. `thread` and
+    `subject` say which mail, when the look knows."""
+
+    thread = ""
+    subject = ""
+
+
+class ModelUnavailable(Unread):
+    """The model or its provider could not answer: nothing about the mail, so it is not counted
+    against it."""
 
 
 @dataclass(frozen=True, slots=True)
 class MailAsked:
-    """The brain read a mail and did not start it: what it asked (or why it could not start) goes
-    back to whoever sent the mail, in the ask chat and a drafted reply."""
+    """The brain read a mail and did not start it: what it asked (or why it could not start) is
+    for the operator's ask chat, never mailed to the sender (it is written for the operator)."""
 
     question: str
 

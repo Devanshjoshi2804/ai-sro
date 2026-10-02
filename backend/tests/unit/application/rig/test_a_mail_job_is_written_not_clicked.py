@@ -295,6 +295,23 @@ async def test_a_send_that_timed_out_may_have_gone_and_is_never_retried_by_itsel
     assert "nothing was sent" not in step.reason
 
 
+class _SaysItMayHaveGone(_Mailbox):
+    async def call(self, *call: Any) -> ToolResult:
+        if call[3] == "send_message":
+            return ToolResult(
+                text="Outlook took too long; the mail may have gone: check Sent before retrying",
+                failed=True,
+            )
+        return await super().call(*call)
+
+
+async def test_a_connector_that_says_the_mail_may_have_gone_is_unclear_not_failed() -> None:
+    done = await _sent_through(_SaysItMayHaveGone())
+
+    (step,) = done.steps
+    assert step.verdict == "unclear", "a Retry would send it twice"
+
+
 async def test_a_mailbox_that_is_not_connected_still_says_nothing_was_sent() -> None:
     done = await _sent_through(_TimesOut(NotConnected("devansh has not connected outlook")))
 

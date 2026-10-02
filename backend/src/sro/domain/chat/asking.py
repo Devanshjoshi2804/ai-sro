@@ -106,9 +106,6 @@ class Pending:
 
     offer: str = ""
 
-    # The brain's own question, when no job or missing value is known: it is asked as it is.
-    ask: str = ""
-
     @property
     def asking_for(self) -> str:
         return self.missing[0] if self.missing else ""
@@ -898,10 +895,7 @@ def _plain(name: str) -> str:
 
 
 def still_asking(messages: Sequence[Message], answering: str) -> bool:
-    """The question under `answering` is still open: a missing value nobody supplied, or the
-    brain's own question."""
-    asked = asked_under(messages, answering)
-    return asked is not None and (
-        (asked.decision or {}).get("kind") == BRAIN_ASKS
-        or pending_job(messages, answering) is not None
+    """The question under `answering` is still open: a missing value nobody supplied."""
+    return asked_under(messages, answering) is not None and (
+        pending_job(messages, answering) is not None
     )

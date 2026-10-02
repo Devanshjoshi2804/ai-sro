@@ -10,13 +10,19 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from pathlib import Path
 
 import httpx
 import pytest
+from cryptography.fernet import Fernet
 from pydantic import SecretStr
 
+from sro.application.ports.vault import VaultUnavailable
 from sro.config import Settings
+from sro.domain.execution.connector_bearer import sign_bearer, verify_bearer
+from sro.domain.execution.secrets import connector_key
 from sro.infrastructure.nango.client import NangoClient
+from sro.infrastructure.vault.file_vault import FileCredentialVault
 from sro.interface.http.app import create_app
 from sro.interface.http.deps import get_container
 from tests.unit.fakes import FakeUnitOfWork
@@ -27,15 +33,21 @@ Handler = Callable[[httpx.Request], httpx.Response]
 
 
 def _container(
-    handler: Handler | None, integrations: tuple[str, ...] = ("microsoft",)
+    handler: Handler | None,
+    integrations: tuple[str, ...] = ("microsoft",),
+    signing_key: str | None = None,
+    linked: bool = True,
 ) -> _FakeContainer:
     container = _FakeContainer(FakeUnitOfWork())
+    if linked:  # the operators these tests are about already pressed Link
+        container.vault.secrets[connector_key("acme", "outlook", "lena")] = "bearer"
     container.settings = Settings(
         nango_url="http://nango:8080",
         nango_secret_key=SecretStr(SECRET),
         integrations=integrations,
         nango_public_connect_url="https://connect.example",
         nango_public_url="https://nango.example",
+        connector_signing_key=SecretStr(signing_key) if signing_key else None,
     )
     container.nango = (
         NangoClient(
@@ -289,3 +301,134 @@ async def test_the_proxy_carries_the_connection_headers_and_the_secret_only_to_n
     assert sent.headers["Connection-Id"] == "c1"
     assert sent.headers["Provider-Config-Key"] == "microsoft"
     assert sent.headers["Authorization"] == f"Bearer {SECRET}"
+
+
+KEY = "signing-key-do-not-leak"
+LENA = connector_key("acme", "outlook", "lena")
+
+
+def _real_vault(container: _FakeContainer, tmp_path: Path) -> FileCredentialVault:
+    vault = FileCredentialVault(path=tmp_path / "vault", key=Fernet.generate_key().decode())
+    container.vault = vault
+    return vault
+
+
+async def test_linking_keeps_a_bearer_only_the_connector_can_verify(tmp_path: Path) -> None:
+    container = _container(_nango([], {"acme:lena": [_conn("c1")]}), signing_key=KEY, linked=False)
+    vault = _real_vault(container, tmp_path)
+    async with _client(container) as http:
+        before = (await http.get("/v1/integrations")).json()[0]["connected"]
+        got = await http.post("/v1/integrations/microsoft/link")
+        after = (await http.get("/v1/integrations")).json()[0]["connected"]
+        again = await http.post("/v1/integrations/microsoft/link")
+
+    kept = await vault.get(LENA)
+    assert (before, after) == (False, True)
+    assert got.status_code == again.status_code == 200
+    assert got.json() == {
+        "integration": "microsoft",
+        "connected": True,
+        "connected_at": "2026-10-01T09:00:00Z",
+    }
+    assert kept is not None
+    assert verify_bearer(KEY, "outlook", kept) == ("acme", "lena")
+    assert verify_bearer(KEY, "gmail", kept) is None
+    assert verify_bearer("another-key", "outlook", kept) is None
+    assert await vault.get(LENA) == kept  # a second press changes nothing
+    assert kept not in got.text + again.text
+    assert KEY not in got.text + again.text + kept
+
+
+async def test_linking_without_a_healthy_connection_is_a_409_and_stores_nothing(
+    tmp_path: Path,
+) -> None:
+    broken = _conn("c1", errors=[{"type": "auth", "log_id": "l"}])
+    for found in ([], [broken], [_conn("c2", "slack")]):
+        container = _container(_nango([], {"acme:lena": found}), signing_key=KEY, linked=False)
+        vault = _real_vault(container, tmp_path)
+        async with _client(container) as http:
+            got = await http.post("/v1/integrations/microsoft/link")
+
+        assert got.status_code == 409
+        assert got.json()["detail"] == "Connect Outlook first"
+        assert await vault.get(LENA) is None
+
+
+async def test_one_operator_cannot_link_another_operators_connection(tmp_path: Path) -> None:
+    container = _container(_nango([], {"acme:bob": [_conn("c")]}), signing_key=KEY, linked=False)
+    vault = _real_vault(container, tmp_path)
+    async with _client(container) as http:
+        got = await http.post("/v1/integrations/microsoft/link")
+
+    assert got.status_code == 409
+    assert await vault.get(connector_key("acme", "outlook", "bob")) is None
+
+
+async def test_without_a_signing_key_link_is_a_plain_503() -> None:
+    async with _client(_container(_nango([], {"acme:lena": [_conn("c")]}))) as http:
+        got = await http.post("/v1/integrations/microsoft/link")
+
+    assert got.status_code == 503
+    assert "not set up" in got.json()["detail"]
+
+
+async def test_an_integration_without_a_connector_is_a_409() -> None:
+    container = _container(_nango([], {}), integrations=("slack",), signing_key=KEY)
+    async with _client(container) as http:
+        got = await http.post("/v1/integrations/slack/link")
+        other = await http.post("/v1/integrations/microsoft/link")
+
+    assert got.status_code == other.status_code == 409
+
+
+async def test_a_vault_that_is_down_never_leaks_the_bearer_or_key(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    class _Down:
+        async def store(self, key: str, value: str) -> None:
+            raise VaultUnavailable("down")
+
+        async def get(self, key: str) -> str | None:
+            raise VaultUnavailable("down")
+
+        async def delete(self, key: str) -> None:
+            raise VaultUnavailable("down")
+
+    container = _container(_nango([], {"acme:lena": [_conn("c")]}), signing_key=KEY)
+    container.vault = _Down()
+    with caplog.at_level("DEBUG"):
+        async with _client(container) as http:
+            got = await http.post("/v1/integrations/microsoft/link")
+
+    mac = sign_bearer(KEY, "outlook", "acme", "lena").rpartition(".")[2]
+    assert got.status_code >= 500
+    assert KEY not in got.text + caplog.text
+    assert mac not in got.text + caplog.text
+
+
+async def test_a_half_linked_account_shows_not_connected(tmp_path: Path) -> None:
+    container = _container(_nango([], {"acme:lena": [_conn("c")]}), linked=False)
+    _real_vault(container, tmp_path)
+    async with _client(container) as http:
+        got = await http.get("/v1/integrations")
+
+    assert got.json()[0]["connected"] is False
+    assert got.json()[0]["connected_at"] == "2026-10-01T09:00:00Z"
+
+
+def test_a_bearer_is_refused_unless_the_mac_matches_for_that_server_and_person() -> None:
+    bearer = sign_bearer(KEY, "outlook", "acme", "lena")
+    assert bearer.startswith("acme:lena.")
+    assert verify_bearer(KEY, "outlook", bearer) == ("acme", "lena")
+    mac = bearer.rpartition(".")[2]
+    for forged in (
+        f"acme:bob.{mac}",
+        f"other:lena.{mac}",
+        f"acme:lena.{mac[:-1]}0",
+        "acme:lena",
+        "acme.lena",
+        ".",
+        "",
+        f"a:b:c.{mac}",
+    ):
+        assert verify_bearer(KEY, "outlook", forged) is None

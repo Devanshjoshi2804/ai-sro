@@ -332,6 +332,7 @@ services:
       SRO_NANGO_PUBLIC_URL: ${NANGO_PUBLIC_URL:-}
       SRO_NANGO_PUBLIC_CONNECT_URL: ${NANGO_PUBLIC_CONNECT_URL:-}
       SRO_INTEGRATIONS: ${SRO_INTEGRATIONS:-[]}
+      SRO_CONNECTOR_SIGNING_KEY: ${SRO_CONNECTOR_SIGNING_KEY:-}
       SRO_TEMPORAL_ADDRESS: temporal:7233
       SRO_OTLP_ENDPOINT: http://otel-collector:4318
       # Signs this deployment's credentials. Unset, every authenticated

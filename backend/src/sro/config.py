@@ -138,6 +138,8 @@ class Settings(BaseSettings):
     nango_public_connect_url: str = ""
     nango_public_url: str = ""
     integrations: tuple[str, ...] = ()
+    # Signs the per-operator bearer an MCP connector accepts; the connector holds the same value.
+    connector_signing_key: SecretStr | None = None
 
     # Tenants the chat brain answers for, and tenants it only reads for (its
     # would-have-done is logged). Off for every tenant until switched on.

@@ -10,6 +10,7 @@ vi.mock("@/features/integrations/api", async (importActual) => ({
   ...(await importActual<typeof integrationApi>()),
   listIntegrations: vi.fn(),
   createConnectSession: vi.fn(),
+  linkIntegration: vi.fn(),
 }));
 
 const nango = vi.hoisted(() => ({
@@ -31,6 +32,7 @@ vi.mock("@nangohq/frontend", () => ({
 
 const list = vi.mocked(integrationApi.listIntegrations);
 const session = vi.mocked(integrationApi.createConnectSession);
+const link = vi.mocked(integrationApi.linkIntegration);
 const SESSION = { token: "tok", connect_url: "http://connect.test", api_url: "http://api.test" };
 const OFF = { integration: "microsoft", connected: false, connected_at: null };
 
@@ -43,6 +45,7 @@ beforeEach(() => {
   nango.tokens.length = 0;
   nango.close.mockReset();
   session.mockResolvedValue(SESSION);
+  link.mockResolvedValue({ integration: "microsoft", connected: true, connected_at: null });
 });
 
 describe("ConnectionsBoard", () => {
@@ -102,7 +105,27 @@ describe("ConnectionsBoard", () => {
     ]);
     onEvent()({ type: "connect" });
     expect(await screen.findByText(/Outlook — Connected/)).toBeInTheDocument();
+    expect(link).toHaveBeenCalledWith("microsoft");
     expect(screen.queryByRole("button", { name: "Connect Outlook" })).not.toBeInTheDocument();
+  });
+
+  it("a link that fails shows the problem sentence and still refetches", async () => {
+    list.mockResolvedValue([OFF]);
+    link.mockRejectedValue(
+      new ApiError({
+        type: "x",
+        title: "Conflict",
+        status: 409,
+        detail: "Connect Outlook first",
+      }),
+    );
+    renderWithQuery(<ConnectionsBoard />);
+    await userEvent.click(await screen.findByRole("button", { name: "Connect Outlook" }));
+    await waitFor(() => expect(nango.options).toHaveLength(1));
+    onEvent()({ type: "connect" });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Connect Outlook first");
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("button", { name: "Connect Outlook" })).toBeEnabled();
   });
 
   it("close only ends the busy state", async () => {

@@ -76,6 +76,7 @@ from sro.application.execution.workflow_runs import (
 )
 from sro.application.induction.understand import UnderstandRecording
 from sro.application.integrations.connect import ConnectSession
+from sro.application.integrations.link import LinkIntegration
 from sro.application.integrations.listing import ListIntegrations
 from sro.application.intent.narrow import NarrowARead
 from sro.application.intent.next_steps import SuggestNext
@@ -607,7 +608,12 @@ class Container:
         )
 
     def list_integrations(self) -> ListIntegrations:
-        return ListIntegrations(self.nango, self.settings.integrations)
+        return ListIntegrations(self.nango, self.settings.integrations, self.vault)
+
+    def link_integration(self) -> LinkIntegration:
+        return LinkIntegration(
+            self.nango, self.settings.integrations, self.vault, self.settings.connector_signing_key
+        )
 
     def list_connections(self) -> ListConnections:
         return ListConnections(self.unit_of_work())

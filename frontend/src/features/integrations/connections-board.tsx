@@ -7,6 +7,7 @@ import {
   createConnectSession,
   displayName,
   integrationKeys,
+  linkIntegration,
   listIntegrations,
 } from "@/features/integrations/api";
 import { ApiError } from "@/lib/api/client";
@@ -38,8 +39,11 @@ export function ConnectionsBoard() {
         apiURL: api_url,
         onEvent: (event) => {
           if (event.type === "connect") {
-            void queryClient.invalidateQueries({ queryKey: integrationKeys.all });
-            setBusy(null);
+            // Nango has the account; link tells the mail connector, then the list is true.
+            void linkIntegration(integration)
+              .catch((error: unknown) => setFailure(problem(error)))
+              .then(() => queryClient.invalidateQueries({ queryKey: integrationKeys.all }))
+              .finally(() => setBusy(null));
           } else if (event.type === "close") {
             setBusy(null);
           } else if (event.type === "error") {

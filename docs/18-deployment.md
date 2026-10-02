@@ -258,6 +258,9 @@ them to the api container):
 - `SRO_INTEGRATIONS`: the integrations the Connections page offers, as a JSON
   list of Nango integration ids, for example `["microsoft"]`. Each id must also
   exist in Nango.
+- `SRO_CONNECTOR_SIGNING_KEY` (`openssl rand -hex 32`): signs the per-operator key
+  stored when an operator connects an account; the mail connector verifies it with
+  the same value. Unset, linking answers 503.
 
 **Console SDK call.** The browser loads the popup from the Connect URL and the
 popup calls the server URL, so the console passes both:

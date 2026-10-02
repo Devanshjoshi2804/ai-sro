@@ -40,3 +40,14 @@ async def list_integrations(container: ContainerDep, ctx: ContextDep) -> list[In
         )
         for one in found
     ]
+
+
+@router.post("/{integration}/link")
+async def link_integration(
+    integration: str, container: ContainerDep, ctx: ContextDep
+) -> IntegrationModel:
+    """Lets the mail connector act for this operator once their account is connected."""
+    one = await container.link_integration().execute(ctx, integration=integration)
+    return IntegrationModel(
+        integration=one.integration, connected=one.connected, connected_at=one.connected_at
+    )

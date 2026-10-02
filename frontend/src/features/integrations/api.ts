@@ -10,6 +10,9 @@ export const listIntegrations = () => api.get<Integration[]>("/v1/integrations")
 export const createConnectSession = (integration: string) =>
   api.post<ConnectSession>("/v1/integrations/connect-session", { integration });
 
+export const linkIntegration = (integration: string) =>
+  api.post<Integration>(`/v1/integrations/${integration}/link`);
+
 const NAMES: Record<string, string> = {
   microsoft: "Outlook",
   slack: "Slack",

@@ -49,6 +49,7 @@ K_REQUESTS_KEPT = 200
 K_ALIVE_RESERVE_S = 0.25
 K_APPEAR_S = 15
 K_APPEAR_POLL_S = 0.25
+_CONTEXT_DESTROYED = "Execution context was destroyed"
 _NOT_DRAWN_YET = frozenset({"control_not_found", "frame_not_found"})
 _BROWSER_OWNS = frozenset({"cookie", "host", "origin", "referer", "content-length", "connection"})
 _SEND = """async (c) => {
@@ -589,12 +590,25 @@ class SteelDriver:
             )
             return PageAnswer(ok=False, detail=detail, error_kind=kind)
         self._log(page).acted = frame
-        got = await self._call(
-            session,
-            target_id,
-            page,
-            lambda: frame.evaluate("p => globalThis.sroPage.act(p)", dict(payload)),
-        )
+        tab = self._tabs.get(page)
+        loads = tab.loads if tab is not None else 0
+
+        async def acted() -> Any:
+            try:
+                return await frame.evaluate("p => globalThis.sroPage.act(p)", dict(payload))
+            except PlaywrightError as why:
+                # the action itself navigated the page: it is done, so wait for the new page
+                if (
+                    tab is None
+                    or _CONTEXT_DESTROYED not in str(why)
+                    or (tab.loads == loads and tab.settled.is_set())
+                ):
+                    raise
+                async with asyncio.timeout(K_ACTION_TIMEOUT_S):
+                    await tab.settled.wait()
+                return {"ok": True}
+
+        got = await self._call(session, target_id, page, acted)
         error, state = got.get("error") or {}, got.get("state")
         return PageAnswer(
             ok=bool(got.get("ok")),

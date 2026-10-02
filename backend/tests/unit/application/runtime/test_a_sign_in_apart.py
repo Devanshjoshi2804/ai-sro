@@ -13,7 +13,14 @@ from collections.abc import Mapping
 import pytest
 
 from sro.application.connection.refusals import ForgetsRefusalOnWrite
-from sro.application.runtime.broker import K_FAILURE, SessionBroker, SigningIn, SignIns
+from sro.application.ports.page import PageGone
+from sro.application.runtime.broker import (
+    K_FAILURE,
+    SessionBroker,
+    SigningIn,
+    SignIns,
+    SignInStalled,
+)
 from sro.application.runtime.step import Held, LaneContext, NeedsAPerson
 from sro.domain.execution.account import LeaseState
 from sro.domain.execution.lanes import StepResult
@@ -237,3 +244,132 @@ async def test_a_new_password_clears_the_failure_at_once() -> None:
     held = await _apart(broker, "lookup_2", patience_s=60.0)
 
     assert held.lease.state is LeaseState.READY
+
+
+async def test_every_ask_that_joined_a_sign_in_that_failed_hears_why() -> None:
+    """Review 2 #1: the first asker used to take the kept failure, and the second was told the
+    session was gone."""
+    uow, driver, vault = await _signing_world(password=WRONG)
+    driver.refuses = True
+    lane = _SlowSignIn(driver)
+    broker = _broker(uow, driver, vault, lane)
+    both = asyncio.gather(
+        _apart(broker, "lookup_1", patience_s=60.0),
+        _apart(broker, "lookup_2", patience_s=60.0),
+        return_exceptions=True,
+    )
+    await lane.started.wait()
+
+    lane.gate.set()
+    heard = await both
+
+    assert [type(one) for one in heard] == [NeedsAPerson, NeedsAPerson]
+    assert all("password refused" in str(one) for one in heard)
+
+
+class _LosesTheLease(SigningLane):
+    async def execute(self, step: Step, values: Mapping[str, str], ctx: LaneContext) -> StepResult:
+        raise PageGone("the lease was lost while it was signing in")
+
+
+async def test_a_re_sign_in_that_dies_of_anything_leaves_no_ready_lease() -> None:
+    """Review 2 #2: R-L2 says every exit, not the two that were listed."""
+    uow, driver, vault = await _signing_world()
+    broker = _broker(uow, driver, vault)
+    held = await broker.acquire(CTX, LENA, APP, holder="run_1")
+    driver.expire_session()
+    broker._ui = _LosesTheLease(driver)
+
+    with pytest.raises(PageGone):
+        await broker.reauth(CTX, held, APP, park=False)
+
+    assert LeaseState.READY not in _states(uow)
+
+
+async def test_a_run_never_hears_a_failure_kept_from_a_chat_sign_in() -> None:
+    """Review 2 #6: the kept failure is for the chat ask that comes next; a run's own acquire
+    signs in and reports its own. A timeout names the bound it hit, not the turn's."""
+    uow, driver, vault = await _signing_world()
+    lane = _SlowSignIn(driver)
+    broker = _broker(uow, driver, vault, lane)
+
+    with pytest.raises(SignInStalled, match=r"took longer than 0 s"):
+        await broker.acquire(
+            CTX, LENA, APP, holder="lookup_1", park=False, patience_s=60.0, apart_s=0.05
+        )
+    lane.gate.set()
+    held = await broker.acquire(CTX, LENA, APP, holder="run_1")
+
+    assert held.lease.state is LeaseState.READY
+
+
+async def test_a_chat_sign_in_runs_on_a_unit_of_work_of_its_own() -> None:
+    """Review 2 #4: one depth-counted session per broker is not safe for two tasks."""
+    uow, driver, vault = await _signing_world()
+    handed: list[FakeUnitOfWork] = []
+
+    def own() -> FakeUnitOfWork:
+        handed.append(uow)
+        return uow
+
+    broker = SessionBroker(
+        uow,
+        FakeBrowserPool({STEEL: 1}),
+        driver,
+        FakeAccountLocks(),
+        vault,
+        FakeClock(),
+        ui=SigningLane(driver),
+        close_s=0.05,
+        uows=own,
+    )
+
+    await _apart(broker, "lookup_1", patience_s=60.0)
+
+    assert len(handed) == 1
+
+
+async def test_a_lookup_s_re_sign_in_runs_apart_and_a_turn_that_stops_waiting_breaks_nothing() -> (
+    None
+):
+    """Review 2 #5: the lease is shared per account; a chat turn's cancel must not break the
+    tab a run is working on."""
+    uow, driver, vault = await _signing_world()
+    lane = _SlowSignIn(driver)
+    lane.gate.set()
+    broker = _broker(uow, driver, vault, lane)
+    held = await broker.acquire(CTX, LENA, APP, holder="run_1")
+    driver.expire_session()
+    lane.gate.clear()
+    lane.started.clear()
+
+    with pytest.raises(SigningIn):
+        await broker.reauth_apart(CTX, held, APP, patience_s=0.0, apart_s=30.0)
+    await lane.started.wait()
+    assert _states(uow) == [LeaseState.READY]
+    lane.gate.set()
+    await broker.signings.settled()
+
+    assert _states(uow) == [LeaseState.READY] and lane.sign_ins == 2
+    assert not await broker.signed_out(CTX, held)
+
+
+async def test_shutdown_does_not_wait_for_a_sign_in_that_will_not_stop() -> None:
+    """Review 2 #7."""
+    signings, started, never = SignIns(), asyncio.Event(), asyncio.Event()
+
+    async def stubborn() -> None:
+        started.set()
+        try:
+            await never.wait()
+        except asyncio.CancelledError:
+            await never.wait()
+
+    task = signings.join_or_start("lena", stubborn, FakeClock().now)
+    await started.wait()
+
+    await signings.close(within=0.01)
+
+    assert not task.done()
+    task.cancel()
+    await asyncio.gather(task, return_exceptions=True)

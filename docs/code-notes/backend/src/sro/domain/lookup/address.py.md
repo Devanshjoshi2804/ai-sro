@@ -83,7 +83,7 @@ Code: `page: str = ""`
 
 ## `_call_address`, [line 56](../../../../../../../backend/src/sro/domain/lookup/address.py#L56): Note
 
-Code: `key=lambda one: (-len(_narrowing(one[1].url, lookup.params)), one[1].started_at or 0.0),`
+Code: `key=lambda one: (-len(_narrowing(one[1].url, lookup)), one[1].started_at or 0.0),`
 
 > "Newest" is among the reads with the fewest things narrowing them. A recorded GET
 > may be an operator's search (`query=[{"property":"code","value":"X"}]`), and a list
@@ -106,7 +106,7 @@ Code: `key=lambda one: (-len(_narrowing(one[1].url, lookup.params)), one[1].star
 > differently by the two sides, so the comparison is over the part they
 > agree on.
 
-## `_route_name`, [line 107](../../../../../../../backend/src/sro/domain/lookup/address.py#L107): Docstring
+## `_route_name`, [line 113](../../../../../../../backend/src/sro/domain/lookup/address.py#L113): Docstring
 
 > A route as the screen it names, however either side spells it.
 >
@@ -116,7 +116,7 @@ Code: `key=lambda one: (-len(_narrowing(one[1].url, lookup.params)), one[1].star
 > the menu are the catalogue's, and the trailing separators are the
 > application's own padding for parameters the screen was opened without.
 
-## `_with_params`, [line 112](../../../../../../../backend/src/sro/domain/lookup/address.py#L112): Docstring
+## `_with_params`, [line 118](../../../../../../../backend/src/sro/domain/lookup/address.py#L118): Docstring
 
 > The recorded url, asking the question that was planned.
 >

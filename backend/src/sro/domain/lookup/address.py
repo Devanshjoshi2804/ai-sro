@@ -53,7 +53,7 @@ def _call_address(lookup: Lookup, gestures: list[Gesture]) -> Address | None:
         return None
     gesture, call = max(
         worked,
-        key=lambda one: (-len(_narrowing(one[1].url, lookup.params)), one[1].started_at or 0.0),
+        key=lambda one: (-len(_narrowing(one[1].url, lookup)), one[1].started_at or 0.0),
     )
     struck_out = [name for name, value in call.request_headers.items() if REDACTED in value]
     return Address(
@@ -63,7 +63,7 @@ def _call_address(lookup: Lookup, gestures: list[Gesture]) -> Address | None:
         struck=tuple(n for n in struck_out if n.lower() not in LIVE_FETCHABLE_HEADERS),
         seen_at=call.started_at,
         page=gesture.page_url or gesture.url or "",
-        narrowed=_narrowing(call.url, lookup.params),
+        narrowed=_narrowing(call.url, lookup),
     )
 
 
@@ -96,11 +96,17 @@ def _screen_address(lookup: Lookup, gestures: list[Gesture]) -> Address | None:
     )
 
 
-def _narrowing(url: str, asked: dict[str, str]) -> tuple[str, ...]:
+def _narrowing(url: str, lookup: Lookup) -> tuple[str, ...]:
+    """What the replayed read filters by besides the key asked for: a param the planner named
+    is that search only when its value carries the key (status=ACTIVE reads a subset)."""
+    key = lookup.find.casefold() if lookup.find else None
     return tuple(
         name
-        for name, value in parse_qsl(urlsplit(url).query, keep_blank_values=True)
-        if name not in asked and value.strip() not in K_EMPTY
+        for name, value in parse_qsl(
+            urlsplit(_with_params(url, lookup.params)).query, keep_blank_values=True
+        )
+        if value.strip() not in K_EMPTY
+        and not (name in lookup.params and key and key in value.casefold())
     )
 
 

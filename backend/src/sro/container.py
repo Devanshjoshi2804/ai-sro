@@ -290,6 +290,7 @@ class Container:
             ui=self.ui_lane(),
             once=self.one_time_secrets,
             signings=self.sign_ins,
+            uows=self.unit_of_work,
         )
 
     def step_executor(self) -> StepExecutor:

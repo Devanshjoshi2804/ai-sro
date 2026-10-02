@@ -196,7 +196,7 @@ Code: `raise SignedOut(f"{page} is still a sign-in page")`
 > form in the tab. A photograph of it would answer the question with a login
 > screen, so it is a named gap instead.
 
-## `RunLookups._send`, [line 189](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L189): Comment
+## `RunLookups._send`, [line 197](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L197): Comment
 
 Code: `needs = needs_of(dict.fromkeys((*address.live_headers, *address.struck), REDACTED))`
 
@@ -213,7 +213,7 @@ Code: `needs = needs_of(dict.fromkeys((*address.live_headers, *address.struck), 
 > (`session_headers`): a recorded `x-user-id` is the operator's, never this
 > account's.
 
-## `_looked`, [line 229](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L229): Comment
+## `_looked`, [line 237](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L237): Comment
 
 Code: `if isinstance(body, str) and (read := read_answer(body, url=address.url))`
 
@@ -227,7 +227,7 @@ Code: `if isinstance(body, str) and (read := read_answer(body, url=address.url))
 > recorded read with nothing narrowing it, and it does not strip a recorded
 > parameter itself: a scope such as `siteId` stripped reads another list entirely.
 
-## `RunLookups._send`, [line 204](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L204): Note
+## `RunLookups._send`, [line 212](../../../../../../../backend/src/sro/application/lookup/run_lookups.py#L212): Note
 
 Code: `return await self._broker.send(ctx, held, "GET", address.url, headers=headers)`
 

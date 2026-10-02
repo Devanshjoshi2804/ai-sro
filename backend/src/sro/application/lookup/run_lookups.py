@@ -145,7 +145,7 @@ class RunLookups:
                     )
                 return _looked(lookup, address, {"status": got.status_code, "body": got.text})
             if await self._broker.signed_out(ctx, held):
-                await self._broker.reauth(ctx, held, page, park=False)
+                await self._reauth(ctx, held, page, budget)
             if address.reads:
                 await self._broker.load(
                     ctx, held, address.url, address.reads, deadline_s=min(K_PAINT_S, _left(budget))
@@ -166,12 +166,20 @@ class RunLookups:
         finally:
             await self._broker.release(ctx, held)
 
+    async def _reauth(
+        self, ctx: RequestContext, held: Held, page: str, budget: asyncio.Timeout
+    ) -> None:
+        await self._broker.reauth_apart(
+            ctx, held, page, patience_s=_left(budget), apart_s=K_DEADLINE_S
+        )
+        await self._broker.go_to(ctx, held, page)  # this tab was left on the signed-out page
+
     async def _get(
         self, ctx: RequestContext, held: Held, address: Address, page: str, budget: asyncio.Timeout
     ) -> HttpResponse:
         got = await self._send(ctx, held, address, budget, fresh=False)
         if _sign_in_wanted(got, address.url):
-            await self._broker.reauth(ctx, held, page, park=False)
+            await self._reauth(ctx, held, page, budget)
             got = await self._send(ctx, held, address, budget, fresh=True)
             if _signed_out(got, address.url):
                 raise SignedOut(f"{page} is still a sign-in page")

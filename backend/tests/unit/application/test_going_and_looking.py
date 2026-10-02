@@ -672,12 +672,57 @@ def test_a_read_that_only_ever_carried_a_search_is_marked_narrowed() -> None:
 
 
 def test_a_filter_the_lookup_names_is_not_a_narrowing_it_did_not_ask_for() -> None:
-    lookup = Lookup(system="blue_yonder", how="call", target=GRID, params={"code": "ZWOYBN"})
+    lookup = Lookup(
+        system="blue_yonder", how="call", target=GRID, find="ZWOYBN", params={"code": "ZWOYBN"}
+    )
 
     address = address_for(lookup, [_gesture(_call(path=GRID, query="code=OLD"))])
 
     assert address is not None and address.narrowed == ()
     assert "code=ZWOYBN" in address.url
+
+
+@pytest.mark.parametrize(
+    ("recorded", "params", "narrowed"),
+    [
+        ("status=ALL", {"status": "ACTIVE"}, ("status",)),
+        ("query=[]", {"status": "ACTIVE"}, ("status",)),
+        ("query=[]", {"status": "ZW1"}, ()),
+        ("query=[]", {"code": "zw1"}, ()),
+        ("query=[]", {"query": '[{"property":"code","value":"ZW1"}]'}, ()),
+        ("query=[]", {"query": '[{"property":"site","value":"SG"}]'}, ("query",)),
+        ("query=[]", {"code": "ZW1", "status": "ACTIVE"}, ("status",)),
+    ],
+)
+def test_a_named_param_is_no_narrowing_only_when_it_carries_the_key_asked_for(
+    recorded: str, params: dict[str, str], narrowed: tuple[str, ...]
+) -> None:
+    """Review 2 #3: status=ACTIVE with find=ZW1 reads only active records; 'none is ZW1' off it
+    while an inactive ZW1 exists invites the duplicate. Only a value that holds the key is the
+    asked-for search itself."""
+    lookup = Lookup(system="blue_yonder", how="call", target=GRID, find="ZW1", params=params)
+
+    address = address_for(lookup, [_gesture(_call(path=GRID, query=recorded))])
+
+    assert address is not None and address.narrowed == narrowed
+
+
+async def test_a_read_filtered_by_a_param_the_planner_named_never_says_no() -> None:
+    lookup = Lookup(
+        system="blue_yonder",
+        how="call",
+        target=GRID,
+        find="ZW1",
+        params={"status": "ACTIVE"},
+        cites=(GRID,),
+    )
+    world = await lookup_world(_gesture(_call(path=GRID, query="query=[]")))
+    world.http.answer(200, WHOLE)
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(lookup,)))
+
+    said = what_was_found(answers)
+    assert not said.startswith("No") and "could not tell" in said
 
 
 async def test_a_list_read_through_a_recorded_search_never_says_no() -> None:

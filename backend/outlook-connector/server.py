@@ -30,7 +30,7 @@ from collections import OrderedDict
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from email.utils import format_datetime, formataddr, getaddresses
+from email.utils import format_datetime, getaddresses
 from html.parser import HTMLParser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Lock
@@ -285,8 +285,12 @@ def _one(recipient: object) -> str:
     if not isinstance(mail, dict):
         return ""
     name, address = str(mail.get("name") or ""), str(mail.get("address") or "")
-    # formataddr quotes "Last, First", which a bare `Last, First <a@b>` would split in two.
-    return formataddr((name, address)) if address else name
+    # As the Gmail connector's decoded header reads: never RFC 2047 encoded, the name quoted
+    # only when it holds a character a header parser would split on, the address left bare.
+    name = " ".join(name.replace("\r", " ").replace("\n", " ").split())
+    if re.search(r'[()<>@,:;.\\"\[\]]', name):
+        name = '"' + name.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    return f"{name} <{address}>" if name and address else address or name
 
 
 def _many(recipients: object) -> str:
@@ -453,7 +457,7 @@ def _kql(tokens: list[str]) -> str:
 
     def close() -> None:
         start = opens.pop()
-        while len(out) > start + 1 and out[-1] in ("OR", "NOT"):
+        while len(out) > start + 1 and out[-1] in ("OR", "NOT", "AND"):
             out.pop()
         if len(out) == start + 1:  # nothing inside: no group, and no NOT in front of it
             out.pop()

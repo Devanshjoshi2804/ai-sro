@@ -11,11 +11,13 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 import json
+import random
 import re
 import sys
 import threading
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
+from email.utils import getaddresses, parseaddr
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from types import ModuleType
@@ -894,6 +896,8 @@ def _search_of(outlook: ModuleType, nango: FakeNango, query: str) -> str:
         ("invoice NOT paid", "invoice AND NOT paid"),
         ("NOT paid", "NOT paid"),
         ("invoice NOT", "invoice"),
+        ("(refund NOT)", "(refund)"),
+        ("invoice (paid NOT)", "invoice AND (paid)"),
         ("a OR OR b", "a OR b"),
         ("a AND OR b", "a OR b"),
         ("(a OR b) c", "(a OR b) AND c"),
@@ -917,6 +921,75 @@ def test_two_operators_are_never_written_in_a_row(outlook: ModuleType) -> None:
         said = outlook._kql(outlook.translate(asked, NOW).clauses)
         assert not re.search(r"\b(AND|OR|NOT) (AND|OR)\b", said), (asked, said)
         assert said.count("(") == said.count(")"), (asked, said)
+
+
+def _parses_as_kql(text: str) -> bool:
+    """A tiny KQL grammar: expr := term ((AND|OR)? term)*, term := NOT term | ( expr ) | word."""
+    toks = re.findall(r'\(|\)|"[^"]*"|[^\s()]+', text)
+    at = 0
+
+    def term() -> bool:
+        nonlocal at
+        if at >= len(toks):
+            return False
+        t = toks[at]
+        if t == "NOT":
+            at += 1
+            return term()
+        if t == "(":
+            at += 1
+            if not expr() or at >= len(toks) or toks[at] != ")":
+                return False
+            at += 1
+            return True
+        if t in (")", "AND", "OR"):
+            return False
+        at += 1
+        return True
+
+    def expr() -> bool:
+        nonlocal at
+        if not term():
+            return False
+        while at < len(toks) and toks[at] != ")":
+            if toks[at] in ("AND", "OR"):
+                at += 1
+            if not term():
+                return False
+        return True
+
+    return not toks or (expr() and at == len(toks))
+
+
+def test_random_operator_soup_always_becomes_parseable_kql(outlook: ModuleType) -> None:
+    rng = random.Random(7)  # noqa: S311 - a seeded test generator, not a secret
+    pieces = ["refund", "invoice", "AND", "OR", "NOT", "(", ")", "-", "from:x", "subject:(a b)"]
+    for _ in range(5000):
+        asked = " ".join(rng.choice(pieces) for _ in range(rng.randint(1, 9)))
+        said = outlook._kql(outlook.translate(asked, NOW).clauses)
+        assert _parses_as_kql(said), (asked, said)
+
+
+def test_a_mailbox_reads_as_the_decoded_header_would(outlook: ModuleType) -> None:
+    def one(name: str, address: str) -> str:
+        return str(outlook._one({"emailAddress": {"name": name, "address": address}}))
+
+    assert one("Jörg Müller", "jm@x.test") == "Jörg Müller <jm@x.test>"
+    assert one("Doe, John", "jd@x.test") == '"Doe, John" <jd@x.test>'
+    assert one('Say "hi" \\', "q@x.test") == '"Say \\"hi\\" \\\\" <q@x.test>'
+    assert one("Ann\r\nB", "a@x.test") == "Ann B <a@x.test>"
+    assert one("", "k@x.test") == "k@x.test"
+    for name, address in [
+        ("Jörg Müller", "jm@x.test"),
+        ("Doe, John", "jd@x.test"),
+        ('Say "hi"', "q@x.test"),
+        ("日本語", "ü@b.test"),
+        ("Ann\r\nB", "a@x.test"),
+    ]:
+        said = one(name, address)
+        assert parseaddr(said)[1] == address, said
+        assert [a for _, a in getaddresses([said])] == [address], said
+    one("", "/O=ORG/CN=RECIPIENTS/CN=jd")  # an X500 address does not raise
 
 
 def test_a_filter_with_no_date_bound_has_no_orderby_and_no_sentinel_date(

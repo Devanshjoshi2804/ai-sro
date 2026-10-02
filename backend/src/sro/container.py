@@ -75,6 +75,8 @@ from sro.application.execution.workflow_runs import (
     StartWorkflowRun,
 )
 from sro.application.induction.understand import UnderstandRecording
+from sro.application.integrations.connect import ConnectSession
+from sro.application.integrations.listing import ListIntegrations
 from sro.application.intent.narrow import NarrowARead
 from sro.application.intent.next_steps import SuggestNext
 from sro.application.intent.plan_task import PlanTask
@@ -191,6 +193,7 @@ from sro.infrastructure.knowledge.embedding import GeminiEmbedder, NoEmbedder
 from sro.infrastructure.knowledge.write_endpoints import load_verified_writes
 from sro.infrastructure.mcp.client import McpServer, McpToolCaller
 from sro.infrastructure.mcp.server import SkillToolServer
+from sro.infrastructure.nango.client import NangoClient
 from sro.infrastructure.steel.client import SteelClient
 from sro.infrastructure.steel.driver import SteelDriver
 from sro.infrastructure.steel.pool import SteelPool
@@ -261,6 +264,8 @@ class Container:
     capture: CaptureController = field(init=False)
 
     driving_runs: AsyncConnection | None = None
+
+    nango: NangoClient | None = None
 
     def api_lane(self) -> ApiLane:
         return ApiLane(self.session_broker())
@@ -587,6 +592,17 @@ class Container:
 
     def establish_token(self) -> EstablishToken:
         return EstablishToken(self.unit_of_work(), self.tokens)
+
+    def connect_session(self) -> ConnectSession:
+        return ConnectSession(
+            self.nango,
+            self.settings.integrations,
+            self.settings.nango_public_connect_url,
+            self.settings.nango_public_url,
+        )
+
+    def list_integrations(self) -> ListIntegrations:
+        return ListIntegrations(self.nango, self.settings.integrations)
 
     def list_connections(self) -> ListConnections:
         return ListConnections(self.unit_of_work())
@@ -1208,6 +1224,11 @@ def build_container(settings: Settings | None = None) -> Container:
         engine=engine,
         lock_engine=lock_engine,
         meter=meter,
+        nango=(
+            NangoClient(settings.nango_url, settings.nango_secret_key.get_secret_value())
+            if settings.nango_url and settings.nango_secret_key
+            else None
+        ),
     )
     container.capture = CaptureSupervisor(
         blobs=container.blobs,

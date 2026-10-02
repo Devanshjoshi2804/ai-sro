@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic.fields import FieldInfo
 from pydantic_settings import (
     BaseSettings,
@@ -130,6 +130,14 @@ class Settings(BaseSettings):
     steel_tenants: tuple[str, ...] = ()
     # Tenant id -> the connector its mailbox is on; a tenant not listed has gmail.
     mail_servers: dict[str, str] = {}
+
+    # Self-hosted Nango (auth + proxy) behind one-click connectors. The public URLs are
+    # what the operator's browser reaches, so the console need not hardcode a host.
+    nango_url: str = ""
+    nango_secret_key: SecretStr | None = None
+    nango_public_connect_url: str = ""
+    nango_public_url: str = ""
+    integrations: tuple[str, ...] = ()
 
     # Tenants the chat brain answers for, and tenants it only reads for (its
     # would-have-done is logged). Off for every tenant until switched on.

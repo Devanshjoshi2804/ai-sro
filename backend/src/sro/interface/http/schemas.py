@@ -111,6 +111,22 @@ class ConnectionModel(BaseModel):
     last_error: str | None
 
 
+class ConnectSessionRequest(BaseModel):
+    integration: str
+
+
+class ConnectSessionModel(BaseModel):
+    token: str
+    connect_url: str
+    api_url: str
+
+
+class IntegrationModel(BaseModel):
+    integration: str
+    connected: bool
+    connected_at: datetime | None
+
+
 class CredentialsRequest(BaseModel):
     """Entered once, by a human, and never read back out.
 

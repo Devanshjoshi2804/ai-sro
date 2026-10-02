@@ -252,9 +252,10 @@ them to the api container):
 - `SRO_NANGO_SECRET_KEY`: the environment secret key from the Nango dashboard
   (Environment Settings). Leave it blank until Nango is up. A wrong key shows
   "Connections are misconfigured on this server" and the api log says 401.
-- `SRO_NANGO_PUBLIC_URL` and `SRO_NANGO_PUBLIC_CONNECT_URL`: the same two
-  addresses as `NANGO_PUBLIC_URL` and `NANGO_PUBLIC_CONNECT_URL`, which the
-  console hands to the popup.
+- The popup addresses the console is handed are `NANGO_PUBLIC_URL` and
+  `NANGO_PUBLIC_CONNECT_URL` (set above). The compose file derives the backend's
+  `SRO_NANGO_PUBLIC_URL` and `SRO_NANGO_PUBLIC_CONNECT_URL` from them: setting the
+  `SRO_` names in the env file does nothing.
 - `SRO_INTEGRATIONS`: the integrations the Connections page offers, as a JSON
   list of Nango integration ids, for example `["microsoft"]`. Each id must also
   exist in Nango.
@@ -265,6 +266,14 @@ them to the api container):
   every stored key stale until each operator presses Connect again. A Nango
   disconnect revokes the connector's access: the connector must still find a
   healthy Nango connection, the stored key alone is not authority.
+
+**Recreate after changing any of these.** The api and the worker read their
+settings when they start, and a plain `restart` keeps the environment they were
+created with. After setting or changing `SRO_NANGO_SECRET_KEY`,
+`SRO_CONNECTOR_SIGNING_KEY`, `SRO_INTEGRATIONS`, `SRO_MCP_SERVERS`,
+`SRO_MAIL_SERVERS` or the `SRO_MAIL_BRAIN_*` lists, run
+`docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa up -d --no-deps api worker`
+(the connector, after its two keys: `--profile outlook up -d outlook-connector`).
 
 **Console SDK call.** The browser loads the popup from the Connect URL and the
 popup calls the server URL, so the console passes both:
@@ -296,7 +305,10 @@ docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa \
 ```
 
 Open the dashboard through the tunnel (`http://localhost:8089`) and sign in
-with the basic-auth credentials. Create the integration `microsoft`: client id
+with the basic-auth credentials. Create the integration with the unique key `microsoft` (the key is what
+`SRO_INTEGRATIONS` and the connector use; the connector calls `/v1.0/me/...`
+through Nango's proxy, so pick the Nango provider for Outlook / Microsoft Graph,
+whose API base is `https://graph.microsoft.com`): client id
 and secret from the Azure app registration, scopes
 `offline_access Mail.Read Mail.ReadWrite Mail.Send User.Read`. Copy the
 environment secret key (Environment Settings) into `.env.qa` as
@@ -318,7 +330,7 @@ Order: boot `nango-server`; read the secret key from its dashboard; set
 same value as `CONNECTOR_SIGNING_KEY`; under 32 bytes it will not start and says
 so); `docker compose --profile outlook up -d outlook-connector`; then add
 `outlook=http://outlook-connector:8934/mcp` to `SRO_MCP_SERVERS` (see
-`infra/.env.deploy.example`). Neither key is required for any other service.
+`infra/.env.deploy.example`) and recreate `api` and `worker` (above). Neither key is required for any other service.
 
 - **Who may call:** the signed bearer the backend writes when an operator presses
   Connect on Outlook. No grants file, no volume.
@@ -348,6 +360,7 @@ so); `docker compose --profile outlook up -d outlook-connector`; then add
 `SRO_MAIL_SERVERS` is a JSON object from tenant id to connector name, e.g.
 `'{"acme": "outlook"}'`; a tenant not listed is on `gmail`. A name is lowercase
 letters, digits, `_` or `-`, and anything else stops the settings load.
+Recreate `api` and `worker` after changing it.
 
 Switch a tenant only when none of its runs is waiting on a mail. A run records
 the server its mail is on (`awaiting.server`) when it starts, so one already

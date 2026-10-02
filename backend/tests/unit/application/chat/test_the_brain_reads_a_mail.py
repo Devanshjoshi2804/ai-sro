@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from sro.application.chat.brain_reader import BrainReader, MailReading
+from sro.application.chat.mailbox import MailAsked
 from sro.domain.shared.prices import Answer
 from tests.unit.application.chat.brain_support import CTX
 from tests.unit.application.chat.test_brain_tools import GIVEN, _Acting, _acting
@@ -61,7 +62,7 @@ async def test_an_injection_mail_reads_as_nothing() -> None:
 
 async def _read(
     acting: _Acting, text: str, *answers: Answer, earlier: str = ""
-) -> MailReading | None:
+) -> MailReading | MailAsked | None:
     return await _reader(acting, *answers).read(
         CTX, text=text, earlier=earlier, sender="p@acme.example", subject="", offer="mail:mx"
     )
@@ -146,3 +147,40 @@ async def test_a_turn_that_hit_its_steps_with_no_start_is_no_job_and_is_recorded
     assert got is None
     (row,) = uow.chat_feedback.rows
     assert row.kind == "budget" and row.message_id == "m9"
+
+
+async def test_a_question_the_brain_asks_is_the_reading_not_no_request() -> None:
+    acting = await _acting()
+    got = await _read(
+        acting,
+        "create customer type SR11",
+        _call("find_jobs"),
+        _call("ask_operator", question="What should the description be?"),
+        _say("asked"),
+    )
+    assert got == MailAsked("What should the description be?")
+    assert acting.started == []
+
+
+async def test_a_missing_only_refusal_stays_a_reading_even_if_the_brain_then_asks() -> None:
+    acting = await _acting()
+    got = await _read(
+        acting,
+        "create customer type SR11",
+        _call("start_job", job_id=JOB, values={"Customer Type": "SR11"}),
+        _call("ask_operator", question="What should the description be?"),
+        _say("asked"),
+    )
+    assert got == MailReading(JOB, {"Customer Type": "SR11"}, ("Customer Type Description",), True)
+
+
+async def test_a_limit_refusal_is_asked_with_the_refusal_sentence() -> None:
+    acting = await _acting()
+    values = {"Customer Type": "SROT1", "Customer Type Description": "new"}
+    got = await _read(
+        acting,
+        "create customer type SROT1 with the description new",
+        _call("start_job", job_id=JOB, values=values),
+        _say("refused"),
+    )
+    assert isinstance(got, MailAsked) and "longer than 4" in got.question

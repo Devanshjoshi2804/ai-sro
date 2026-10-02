@@ -899,7 +899,7 @@ class Container:
             reader=(lambda: BrainReader(self.brain(), self.record_feedback())) if wanted else None,
             reader_tenants=live,
             shadow_tenants=shadow,
-            feedback=self.record_feedback(),
+            feedback=self.record_feedback,
             spawn=self.pursuits.spawn,
             servers=self.settings.mail_servers,
         )

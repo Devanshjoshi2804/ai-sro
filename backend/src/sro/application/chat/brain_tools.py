@@ -192,7 +192,13 @@ class RunStatus:
             ctx, workflow_id=None, limit=K_RECENT_RUNS, awaiting=False, mine=True
         )
         wanted = str(args.get("run_id") or "")
-        shown = [one for one in found if not wanted or one.id == wanted]
+        shown = [
+            one
+            for one in found
+            if (not wanted or one.id == wanted)
+            # A run this very message started (under its offer, or `offer:hash`) is not history.
+            and not (turn.offer and (one.offer or "").split(":", 2)[:2] == turn.offer.split(":", 2))
+        ]
         rows = [await self._row(ctx, one) for one in shown]
         if self._feedback is not None:
             # No hook sits where every run's outcome is written; the operator's next look at

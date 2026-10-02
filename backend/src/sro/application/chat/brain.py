@@ -147,10 +147,15 @@ class Brain:
         if origin.kind == "mail":
             untrusted |= {"mail from": origin.sender, "mail subject": origin.subject}
         if (status := self._tools.get("run_status")) is not None:
-            # Run values can come from a mail, so the runs are data like the rest.
-            runs = await status.run(ctx, {})
+            # Run values can come from a mail, so the runs are data like the rest. What this very
+            # message (a mail the old reader just started) made is not history to it.
+            runs = await status.run(ctx, {}, Turn(offer=offer))
             untrusted["recent runs"] = json.dumps(runs.data, ensure_ascii=False, default=str)
-        if offers := open_ones(await standing_offers(self._uow, ctx, self._clock.now())):
+        if offers := [
+            one
+            for one in open_ones(await standing_offers(self._uow, ctx, self._clock.now()))
+            if not offer or one.id != offer
+        ]:
             # Their values can come from a mail, so they are data like the rest.
             untrusted["open offers"] = json.dumps(
                 [

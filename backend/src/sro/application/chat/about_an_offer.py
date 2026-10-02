@@ -10,6 +10,7 @@ from sro.application.execution.declared import declared_limits, names_of, screen
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
 from sro.domain.chat.asking import (
+    BRAIN_ASKS,
     JOB,
     NEEDS,
     Pending,
@@ -144,6 +145,49 @@ class AskAboutTheOffer:
         )
         logger.info("%s: a request asks for %s, which cannot run", ctx.tenant_id.value, workflow_id)
         return said
+
+    async def brain_asks(
+        self,
+        ctx: RequestContext,
+        question: str,
+        *,
+        about: str = "",
+        mail_thread: str = "",
+        offer: str = "",
+        mail: Mapping[str, str] | None = None,
+    ) -> str:
+        """The brain's own question about a mail: put in the ask chat as it asked it, and drafted
+        as a reply to the sender (it is mailed only when the operator presses Send it)."""
+        asked = f"{about} — {question}" if about.strip() else question
+        said = await SayWhatHappened(self._uow, self._clock, self._ids).execute(
+            ctx,
+            for_operator=PrincipalId(ctx.principal_id.value),
+            text=asked,
+            speaker=Speaker.ASSISTANT,
+            about=mail_thread,
+            decision={
+                "kind": BRAIN_ASKS,
+                "question": question,
+                "workflow_id": "",
+                "mail_thread": mail_thread,
+                **({"offer": offer} if offer else {}),
+                **({"mail": dict(mail)} if mail else {}),
+            },
+        )
+        if self._drafts is not None and mail_thread.strip():
+            try:
+                await self._drafts(
+                    ctx,
+                    Pending(
+                        "", about or "your request", {}, (), mail_thread=mail_thread, ask=question
+                    ),
+                    mail_thread,
+                    said,
+                )
+            except Exception:
+                logger.exception("a mail to whoever asked could not be drafted")
+        logger.info("%s: the brain asks about a mail in the conversation", ctx.tenant_id.value)
+        return asked
 
     async def execute(
         self,

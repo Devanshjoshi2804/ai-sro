@@ -298,7 +298,7 @@ async def _shadow(reading: MailReading | None) -> tuple[Any, _Reader]:
         reads,
         reader=_to(reader),
         shadow_tenants=LIVE,
-        feedback=RecordFeedback(uow, FakeIdFactory(), FakeClock()),
+        feedback=lambda: RecordFeedback(uow, FakeIdFactory(), FakeClock()),
         spawn=spawned.append,
     )
     looked = await door.execute(CTX)
@@ -337,7 +337,7 @@ async def test_a_shadow_reader_that_raises_never_breaks_the_look() -> None:
         _Reads(_reading(JOB)),
         reader=_to(_Boom()),
         shadow_tenants=LIVE,
-        feedback=RecordFeedback(uow, FakeIdFactory(), FakeClock()),
+        feedback=lambda: RecordFeedback(uow, FakeIdFactory(), FakeClock()),
         spawn=spawned.append,
     )
     assert (await door.execute(CTX)).offered

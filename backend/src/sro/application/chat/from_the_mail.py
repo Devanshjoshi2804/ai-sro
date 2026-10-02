@@ -18,6 +18,7 @@ from sro.application.chat.mailbox import (
     K_ELSEWHERE,
     K_REMEMBER,
     K_TAKEN,
+    MailAsked,
     Unread,
     elsewhere_key,
     is_ours,
@@ -87,6 +88,9 @@ K_LOOK = 8
 
 K_LOOK_PAGES = 10
 
+# A mail the model could not read this many looks in a row is given up on.
+K_UNREAD = 3
+
 K_LEASE = timedelta(minutes=15)
 
 K_READ_TOOL = "read a mail for what it asks"
@@ -116,7 +120,7 @@ if (
 class MailReader(Protocol):
     async def read(
         self, ctx: RequestContext, *, text: str, earlier: str, sender: str, subject: str, offer: str
-    ) -> MailReading | None: ...
+    ) -> MailReading | MailAsked | None: ...
 
 
 logger = logging.getLogger(__name__)
@@ -166,6 +170,9 @@ class Offered:
 
     operator: str = ""
 
+    # The brain's question about this mail: nothing else of the offer is known.
+    question: str = ""
+
     @property
     def named(self) -> str:
         return self.offer or mail_key(self.message)
@@ -214,7 +221,7 @@ class FromTheMail:
         reader: Callable[[], MailReader] | None = None,
         reader_tenants: frozenset[str] = frozenset(),
         shadow_tenants: frozenset[str] = frozenset(),
-        feedback: RecordFeedback | None = None,
+        feedback: Callable[[], RecordFeedback] | None = None,
         spawn: Spawn | None = None,
         servers: Mapping[str, str],
     ) -> None:
@@ -285,6 +292,12 @@ class FromTheMail:
                 continue
             except (OverCap, ToolsUnavailable, Unread) as stopped:
                 await self._release(ctx, message)
+                if isinstance(stopped, Unread) and await self._given_up_on(
+                    ctx, message, str(stopped), now=now
+                ):
+                    # A mail that cannot be read must not hold the inbox for ever.
+                    await self._keep(ctx, message, now=now)
+                    continue
                 logger.info("%s: the look stopped at %s -- %s", tenant, message, stopped)
                 return LookedInTheMail(
                     offered=tuple(offered),
@@ -368,11 +381,26 @@ class FromTheMail:
         whole, earlier = await self._conversation(ctx, thread, message) if thread else ("", "")
         text = whole or said
         if self._build is not None and tenant in self._reader_tenants:
-            live = await self._read_by_the_brain(ctx, message, mail, text, earlier, known)
+            # Somebody other than the one we asked is not answering: their words stand alone.
+            stranger = asked is None and bool(asked_of) and asked_of != sender_address(mail.sender)
+            live = await self._read_by_the_brain(
+                ctx, message, mail, text, "" if stranger else earlier, known
+            )
             if live is None:
                 logger.info("%s: the brain read a mail that asks for no job", tenant)
                 look.asks_nothing.append(subject)
                 return None
+            if isinstance(live, MailAsked):
+                return Offered(
+                    message=message,
+                    workflow_id="",
+                    title=subject.strip() or "a mail",
+                    question=live.question,
+                    thread=thread,
+                    subject=subject,
+                    sender=mail.sender,
+                    arrived=mail.arrived,
+                )
             got = live
         else:
             got = await read_request(
@@ -464,7 +492,7 @@ class FromTheMail:
         text: str,
         earlier: str,
         known: _Known,
-    ) -> Understood | None:
+    ) -> Understood | MailAsked | None:
         chore = chore_named(text, known.facts)
         if chore is not None:
             # Signing in is the session broker's work, whoever reads the mail.
@@ -477,20 +505,24 @@ class FromTheMail:
             subject=mail.subject,
             offer=mail_key(message),
         )
-        return _as_reading(reading) if reading is not None else None
+        return (
+            reading if reading is None or isinstance(reading, MailAsked) else _as_reading(reading)
+        )
 
     def _compare(
         self, ctx: RequestContext, message: str, mail: _Mail, got: Understood, whole: str
     ) -> None:
         """Off the request path: what the brain would have read, kept as feedback when it
         differs from what the matcher read. Never raises into the look."""
-        if self._spawn is None or self._feedback is None:
+        build, recorder = self._build, self._feedback
+        if self._spawn is None or recorder is None or build is None:
             return
-        reader, feedback = self._reading(), self._feedback
 
         async def compare() -> None:
+            # Each compare is its own unit of work: a shared Brain, session or recorder would
+            # run two comparisons (or a live read beside them) on one connection.
             try:
-                reading = await reader.read(
+                reading = await build().read(
                     ctx,
                     text=mail.typed,
                     earlier=whole,
@@ -498,9 +530,15 @@ class FromTheMail:
                     subject=mail.subject,
                     offer=mail_key(message),
                 )
-                theirs = _shape(reading.workflow_id, reading.values) if reading else None
+                theirs = (
+                    {"asks": reading.question}
+                    if isinstance(reading, MailAsked)
+                    else _shape(reading.workflow_id, reading.values)
+                    if reading
+                    else None
+                )
                 if theirs != _shape(got.workflow_id, got.values):
-                    await feedback.mail_disagreement(
+                    await recorder().mail_disagreement(
                         ctx,
                         message,
                         mail.typed,
@@ -515,6 +553,16 @@ class FromTheMail:
     async def _settle(
         self, ctx: RequestContext, one: Offered, workflows: Sequence[Workflow]
     ) -> Offered:
+        if one.question and self._asks is not None:
+            await self._asks.brain_asks(
+                ctx,
+                one.question,
+                about=one.subject,
+                mail_thread=one.thread,
+                offer=one.named,
+                mail=_envelope(one),
+            )
+            return replace(one, asked=True)
         (one,) = await self._what_will_not_fit(ctx, [one], workflows)
         if one.too_long:
             logger.info(
@@ -1154,6 +1202,34 @@ class FromTheMail:
             )
             await uow.tool_calls.forget(ctx.tenant_id, _reading_key(message))
             await uow.commit()
+
+    async def _given_up_on(
+        self, ctx: RequestContext, message: str, why: str, *, now: datetime
+    ) -> bool:
+        """Count a look this mail could not be read in; the K_UNREAD-th is the last, and leaves a
+        feedback row. (One key a look: remembering a key is the only atomic count there is.)"""
+        async with self._uow as uow:
+            for n in range(1, K_UNREAD + 1):
+                if await uow.tool_calls.remember(
+                    ctx.tenant_id,
+                    f"unread:{message}:{n}",
+                    tool=K_READ_TOOL,
+                    at=now,
+                    stale_after=K_REMEMBER,
+                ):
+                    await uow.commit()
+                    if n < K_UNREAD:
+                        return False
+                    break
+        if self._feedback is not None:
+            await self._feedback().mail_unreadable(ctx, message, why)
+        logger.warning(
+            "%s: %s could not be read in %d looks, so it is dropped",
+            ctx.tenant_id.value,
+            message,
+            K_UNREAD,
+        )
+        return True
 
     async def _release(self, ctx: RequestContext, message: str) -> None:
         async with self._uow as uow:

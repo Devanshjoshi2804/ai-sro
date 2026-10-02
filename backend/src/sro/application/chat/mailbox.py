@@ -4,6 +4,7 @@ import json
 import logging
 import secrets
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from email.utils import getaddresses, parseaddr
 
@@ -42,6 +43,14 @@ class NotSent(Exception):
 
 class Unread(Exception):
     """The mail could not be read this time: it is released to be read again."""
+
+
+@dataclass(frozen=True, slots=True)
+class MailAsked:
+    """The brain read a mail and did not start it: what it asked (or why it could not start) goes
+    back to whoever sent the mail, in the ask chat and a drafted reply."""
+
+    question: str
 
 
 def mail_key(message: str) -> str:

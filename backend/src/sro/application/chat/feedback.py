@@ -20,6 +20,7 @@ from sro.domain.chat.feedback import (
     GUARD_REFUSAL,
     RUN_FAILED,
     UNDO,
+    UNREADABLE,
     Feedback,
     brain_category,
     chain_category,
@@ -110,6 +111,15 @@ class RecordFeedback:
             )
         except Exception:
             logger.exception("feedback (%s) could not be kept", BUDGET)
+
+    async def mail_unreadable(self, ctx: RequestContext, message_id: str, why: str) -> None:
+        """A mail the brain could not read in several looks: dropped, so it blocks nothing."""
+        try:
+            await self._add(
+                ctx, UNREADABLE, "", message_id, "", {"mode": "mail"}, {"why": kept(why)}
+            )
+        except Exception:
+            logger.exception("feedback (%s) could not be kept", UNREADABLE)
 
     async def mail_disagreement(
         self,

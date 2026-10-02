@@ -10,8 +10,8 @@ from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.ports.system import Clock, IdFactory
-from sro.application.ports.tools import ToolCaller, ToolsUnavailable
-from sro.domain.chat.asking import NEEDS, Pending, pending_job
+from sro.application.ports.tools import NotConnected, ToolCaller, ToolsUnavailable
+from sro.domain.chat.asking import NEEDS, Pending, still_asking
 from sro.domain.chat.asking_the_asker import draft_for, worth_asking
 from sro.domain.chat.thread import Message, Speaker, ThreadId
 from sro.domain.execution.mail_job import DRAFTED, SENT
@@ -180,7 +180,7 @@ class SendTheDraft:
                 logger.info("%s: no draft to send under %s", ctx.tenant_id.value, message_id)
                 return ""
             question = str(draft.get("question") or "")
-            if not question or pending_job(thread.messages, question) is None:
+            if not question or not still_asking(thread.messages, question):
                 logger.info(
                     "%s: the question the draft %s asks was answered",
                     ctx.tenant_id.value,
@@ -225,10 +225,14 @@ class SendTheDraft:
             logger.warning(
                 "%s: the mail to %s may not have gone: %s", ctx.tenant_id.value, to, gone
             )
+            unknown = isinstance(gone, ToolsUnavailable) and not isinstance(gone, NotConnected)
             await self._say(
                 ctx,
                 thread_id,
-                f"I could not reach the mailbox to write to {to}.",
+                f"The mailbox did not answer, so the mail to {to} may have gone; check Sent "
+                "before sending it again."
+                if unknown
+                else f"I could not reach the mailbox to write to {to}.",
                 run_id,
                 message_id,
                 to,
@@ -242,7 +246,7 @@ class SendTheDraft:
             ctx,
             thread_id,
             f"Asked {to}. I will carry on when they reply."
-            if pending_job(thread.messages, question) is not None
+            if still_asking(thread.messages, question)
             else f"Asked {to}, but the question was answered here meanwhile, "
             "so their reply is not needed.",
             run_id,

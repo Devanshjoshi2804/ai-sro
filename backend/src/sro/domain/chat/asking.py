@@ -16,8 +16,10 @@ from sro.domain.skill.signing_in import Logins
 
 NEEDS = "needs_values"
 
+BRAIN_ASKS = "brain_asks"
+
 # The decisions that wait on the operator's answer: a missing value, a run's question, the brain's.
-ASKS = frozenset({NEEDS, "run_asks", "brain_asks"})
+ASKS = frozenset({NEEDS, "run_asks", BRAIN_ASKS})
 
 JOB = "job"
 
@@ -103,6 +105,9 @@ class Pending:
     known: Candidate | None = None
 
     offer: str = ""
+
+    # The brain's own question, when no job or missing value is known: it is asked as it is.
+    ask: str = ""
 
     @property
     def asking_for(self) -> str:
@@ -890,3 +895,13 @@ def answered(pending: Pending, said: str, logins: Logins = Logins()) -> Pending:
 
 def _plain(name: str) -> str:
     return "".join(letter for letter in name.lower() if letter.isalnum())
+
+
+def still_asking(messages: Sequence[Message], answering: str) -> bool:
+    """The question under `answering` is still open: a missing value nobody supplied, or the
+    brain's own question."""
+    asked = asked_under(messages, answering)
+    return asked is not None and (
+        (asked.decision or {}).get("kind") == BRAIN_ASKS
+        or pending_job(messages, answering) is not None
+    )

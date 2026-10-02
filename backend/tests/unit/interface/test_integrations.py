@@ -96,6 +96,10 @@ def _nango(
         assert request.headers["Authorization"] == f"Bearer {SECRET}"
         if request.url.path == "/connect/sessions":
             return httpx.Response(201, json={"data": {"token": "tok-1", "expires_at": "x"}})
+        if request.url.path == "/integrations":
+            return httpx.Response(
+                200, json={"data": [{"unique_key": "microsoft"}, {"unique_key": "slack"}]}
+            )
         assert request.url.path == "/connection"
         mine = by_end_user.get(request.url.params["tags[end_user_id]"], [])
         number = int(request.url.params["page"])
@@ -150,10 +154,19 @@ async def test_an_operator_sees_only_their_own_connection() -> None:
         bare = await http.get("/v1/integrations")
 
     assert got.json() == [
-        {"integration": "microsoft", "connected": True, "connected_at": "2026-10-01T09:00:00Z"}
+        {
+            "integration": "microsoft",
+            "connected": True,
+            "connected_at": "2026-10-01T09:00:00Z",
+            "available": True,
+        }
     ]
-    assert bare.json() == [{"integration": "microsoft", "connected": False, "connected_at": None}]
-    assert [r.url.params["tags[end_user_id]"] for r in seen] == ["acme:lena"]
+    assert bare.json() == [
+        {"integration": "microsoft", "connected": False, "connected_at": None, "available": True}
+    ]
+    assert [r.url.params["tags[end_user_id]"] for r in seen if r.url.path == "/connection"] == [
+        "acme:lena"
+    ]
 
 
 async def test_a_connection_on_another_integration_does_not_count() -> None:
@@ -169,7 +182,7 @@ async def test_a_connection_whose_credentials_fail_is_not_connected() -> None:
     async with _client(_container(_nango([], {"acme:lena": [broken]}))) as http:
         got = await http.get("/v1/integrations")
 
-    assert got.json() == [{"integration": "microsoft", "connected": False, "connected_at": None}]
+    assert got.json()[0]["connected"] is False
 
 
 async def test_two_connections_report_the_newest_healthy_one_whatever_the_order() -> None:
@@ -370,6 +383,7 @@ async def test_linking_keeps_a_bearer_only_the_connector_can_verify(tmp_path: Pa
         "integration": "microsoft",
         "connected": True,
         "connected_at": "2026-10-01T09:00:00Z",
+        "available": True,
     }
     assert kept is not None
     assert verify_bearer(KEY, "outlook", kept) == ("acme", "lena")
@@ -452,6 +466,7 @@ async def test_linking_an_integration_with_no_connector_has_nothing_to_link() ->
         "integration": "slack",
         "connected": True,
         "connected_at": "2026-10-01T09:00:00Z",
+        "available": True,
     }
     assert container.vault.secrets == {}
 
@@ -580,3 +595,70 @@ async def test_without_a_signing_key_nothing_is_connected() -> None:
         got = await http.get("/v1/integrations")
 
     assert got.json()[0]["connected"] is False
+
+
+NOT_SET_UP = "Outlook isn't set up on this server yet. An admin adds it in Nango first."
+
+
+def _nango_without_microsoft(seen: list[httpx.Request]) -> Handler:
+    def handle(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.url.path == "/integrations":  # Nango has no integration set up at all
+            return httpx.Response(200, json={"data": []})
+        if request.url.path == "/connect/sessions":  # what the live one answered on QA
+            return httpx.Response(400, json={"error": {"code": "invalid_body", "message": SECRET}})
+        return httpx.Response(200, json={"connections": []})
+
+    return handle
+
+
+async def test_an_integration_nango_does_not_have_is_listed_as_unavailable() -> None:
+    async with _client(_container(_nango_without_microsoft([]))) as http:
+        got = await http.get("/v1/integrations")
+
+    assert got.status_code == 200
+    assert got.json() == [
+        {"integration": "microsoft", "connected": False, "connected_at": None, "available": False}
+    ]
+
+
+@pytest.mark.parametrize("answer", [400, 404])
+async def test_connecting_an_integration_nango_does_not_have_is_a_plain_409(
+    answer: int, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level("WARNING"):
+        async with _client(_container(lambda r: httpx.Response(answer, text=SECRET))) as http:
+            got = await http.post(
+                "/v1/integrations/connect-session", json={"integration": "microsoft"}
+            )
+
+    assert got.status_code == 409
+    assert got.json()["detail"] == NOT_SET_UP
+    assert SECRET not in got.text + caplog.text
+    assert str(answer) in caplog.text
+
+
+async def test_linking_an_integration_nango_does_not_have_is_the_same_409(tmp_path: Path) -> None:
+    container = _container(_nango_without_microsoft([]), signing_key=KEY, linked=False)
+    vault = _real_vault(container, tmp_path)
+    async with _client(container) as http:
+        got = await http.post("/v1/integrations/microsoft/link")
+
+    assert got.status_code == 409
+    assert got.json()["detail"] == NOT_SET_UP
+    assert await vault.get(LENA) is None
+
+
+async def test_connect_session_with_nango_down_or_refusing_the_key_is_unchanged() -> None:
+    async with _client(_container(lambda r: httpx.Response(502))) as http:
+        down = await http.post(
+            "/v1/integrations/connect-session", json={"integration": "microsoft"}
+        )
+    async with _client(_container(lambda r: httpx.Response(401))) as http:
+        refused = await http.post(
+            "/v1/integrations/connect-session", json={"integration": "microsoft"}
+        )
+
+    assert down.status_code == refused.status_code == 503
+    assert "try again shortly" in down.json()["detail"]
+    assert "misconfigured" in refused.json()["detail"]

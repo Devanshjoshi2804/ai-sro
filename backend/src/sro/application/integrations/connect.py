@@ -5,7 +5,8 @@ from dataclasses import dataclass
 
 from sro.application.context import RequestContext
 from sro.application.integrations.end_user import end_user_id
-from sro.application.ports.nango import Nango, NangoUnavailable
+from sro.application.integrations.servers import not_set_up
+from sro.application.ports.nango import Nango, NangoIntegrationMissing, NangoUnavailable
 from sro.domain.shared.errors import Conflict
 
 NOT_SET_UP = "Connections are not set up on this server yet"
@@ -36,7 +37,10 @@ class ConnectSession:
             raise Conflict(f"{integration!r} is not an integration this server offers")
         if self._nango is None:
             raise NangoUnavailable(NOT_SET_UP)
-        token = await self._nango.create_connect_session(
-            end_user_id(ctx), ctx.principal_id.value, ctx.tenant_id.value, [integration]
-        )
+        try:
+            token = await self._nango.create_connect_session(
+                end_user_id(ctx), ctx.principal_id.value, ctx.tenant_id.value, [integration]
+            )
+        except NangoIntegrationMissing:
+            raise Conflict(not_set_up(integration)) from None
         return ConnectGrant(token, self._connect_url, self._api_url)

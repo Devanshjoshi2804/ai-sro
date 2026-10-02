@@ -22,6 +22,14 @@ class Nango(Protocol):
 
     async def connections(self, end_user_id: str) -> list[NangoConnection]: ...
 
+    async def integrations(self) -> set[str]:
+        """The unique keys of the integrations set up in Nango."""
+        ...
+
 
 class NangoUnavailable(Exception):
     code = "connections_unavailable"
+
+
+class NangoIntegrationMissing(Exception):
+    """Nango has no such integration: retrying never helps, an admin must add it."""

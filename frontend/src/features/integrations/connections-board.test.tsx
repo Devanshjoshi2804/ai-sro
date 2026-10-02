@@ -34,7 +34,7 @@ const list = vi.mocked(integrationApi.listIntegrations);
 const session = vi.mocked(integrationApi.createConnectSession);
 const link = vi.mocked(integrationApi.linkIntegration);
 const SESSION = { token: "tok", connect_url: "http://connect.test", api_url: "http://api.test" };
-const OFF = { integration: "microsoft", connected: false, connected_at: null };
+const OFF = { integration: "microsoft", connected: false, connected_at: null, available: true };
 
 type Handler = (event: { type: string }) => void;
 const onEvent = () => (nango.options.at(-1) as { onEvent: Handler }).onEvent;
@@ -45,7 +45,12 @@ beforeEach(() => {
   nango.tokens.length = 0;
   nango.close.mockReset();
   session.mockResolvedValue(SESSION);
-  link.mockResolvedValue({ integration: "microsoft", connected: true, connected_at: null });
+  link.mockResolvedValue({
+    integration: "microsoft",
+    connected: true,
+    connected_at: null,
+    available: true,
+  });
 });
 
 describe("ConnectionsBoard", () => {
@@ -54,6 +59,16 @@ describe("ConnectionsBoard", () => {
     renderWithQuery(<ConnectionsBoard />);
     expect(await screen.findByText(/Outlook — not connected/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Connect Outlook" })).toBeEnabled();
+  });
+
+  it("reads an integration Nango does not have as not set up, disabled, with no error", async () => {
+    list.mockResolvedValue([{ ...OFF, available: false }]);
+    renderWithQuery(<ConnectionsBoard />);
+    expect(await screen.findByText("Outlook — not set up on this server yet")).toBeInTheDocument();
+    const button = screen.getByRole("button", { name: "Connect Outlook" });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription("Outlook — not set up on this server yet");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("opens the Connect UI with the session's own URLs", async () => {
@@ -101,7 +116,12 @@ describe("ConnectionsBoard", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Connect Outlook" }));
     await waitFor(() => expect(nango.options).toHaveLength(1));
     list.mockResolvedValue([
-      { integration: "microsoft", connected: true, connected_at: "2026-10-02T09:30:00Z" },
+      {
+        integration: "microsoft",
+        connected: true,
+        connected_at: "2026-10-02T09:30:00Z",
+        available: true,
+      },
     ]);
     onEvent()({ type: "connect" });
     expect(await screen.findByText(/Outlook — Connected/)).toBeInTheDocument();

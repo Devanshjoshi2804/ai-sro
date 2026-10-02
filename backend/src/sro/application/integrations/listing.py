@@ -21,6 +21,7 @@ class IntegrationStatus:
     integration: str
     connected: bool
     connected_at: datetime | None
+    available: bool = True  # false: configured here, but Nango has no such integration
 
 
 class ListIntegrations:
@@ -47,8 +48,11 @@ class ListIntegrations:
                 made[one.integration] = max(
                     one.created_at, made.get(one.integration, one.created_at)
                 )
+        there = await self._nango.integrations()
         return [
-            IntegrationStatus(name, name in made and await self._linked(ctx, name), made.get(name))
+            IntegrationStatus(
+                name, name in made and await self._linked(ctx, name), made.get(name), name in there
+            )
             for name in self._integrations
         ]
 

@@ -165,6 +165,13 @@ class StartWorkflowRun:
     def mail_server(self, ctx: RequestContext) -> str:
         return server_for(ctx.tenant_id.value, self._servers)
 
+    def _on_the_mail(
+        self, ctx: RequestContext, conversation: tuple[str, str], mail: Mapping[str, str] | None
+    ) -> dict[str, str] | None:
+        ours = self.mail_server(ctx)
+        envelope = {**_on_the_mail(*conversation, ours=ours), **(mail or {})}
+        return {**envelope, "server": ours} if envelope.get("thread") else envelope or None
+
     def runs_on_steel(self, ctx: RequestContext) -> bool:
         return self._durable is not None and ctx.tenant_id.value in self._steel_tenants
 
@@ -307,8 +314,7 @@ class StartWorkflowRun:
                 offer=offer.strip() or None,
                 progress=first_progress,
                 pinned=pin(workflow),
-                mail={**_on_the_mail(*conversation, ours=self.mail_server(ctx)), **(mail or {})}
-                or None,
+                mail=self._on_the_mail(ctx, conversation, mail),
             )
             await uow.workflow_runs.save(run)
             if then is not None:
@@ -509,6 +515,7 @@ class StartWorkflowRun:
         owner = RequestContext(ctx.tenant_id, operator)
         envelope = dict(run.mail or {})
         mail_thread = envelope.pop("thread", "")
+        envelope.pop("server", None)
         async with self._uow as uow:
             named = await uow.threads.naming(ctx.tenant_id, opened_by=operator, run_id=run.id)
         thread = named or await ReadThreads(self._uow).current(owner)

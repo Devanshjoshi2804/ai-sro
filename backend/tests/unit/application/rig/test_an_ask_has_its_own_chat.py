@@ -183,7 +183,7 @@ async def test_the_run_an_answer_starts_keeps_its_mail() -> None:
     (run_id,) = await world.runs()
     run = await world.uow.workflow_runs.get(f.TENANT, run_id)
     assert run is not None
-    assert run.mail == {"thread": THREAD, **ENVELOPE}
+    assert run.mail == {"thread": THREAD, "server": "gmail", **ENVELOPE}
 
 
 async def test_a_draft_whose_question_was_answered_is_never_sent() -> None:
@@ -297,7 +297,7 @@ async def test_a_run_that_came_up_short_asks_in_the_chat_of_its_mail() -> None:
     resumed = [one for one in await world.runs() if one != run_id]
     assert resumed, "the answer started nothing"
     again = await world.uow.workflow_runs.get(f.TENANT, resumed[0])
-    assert again is not None and again.mail == {"thread": THREAD, **ENVELOPE}
+    assert again is not None and again.mail == {"thread": THREAD, "server": "gmail", **ENVELOPE}
 
 
 async def test_a_run_with_no_mail_asks_in_a_chat_of_its_own() -> None:

@@ -57,4 +57,4 @@ class LinkIntegration:
             await self._vault.store(
                 connector_key(ctx.tenant_id.value, server, ctx.principal_id.value), bearer
             )
-        return IntegrationStatus(integration, True, max(one.created_at for one in healthy))
+        return IntegrationStatus(integration, True, True, max(one.created_at for one in healthy))

@@ -88,6 +88,18 @@ class _RetiredModelSettings(PydanticBaseSettingsSource):
         return {_RETIRED: found} if found else {}
 
 
+def mcp_server_entries(configured: str) -> tuple[tuple[str, str], ...]:
+    """`name=url` entries of SRO_MCP_SERVERS, comma-separated; an entry with no name or no url
+    (or a url that is only a `#` note) is no connector."""
+    found: list[tuple[str, str]] = []
+    for entry in configured.split(","):
+        name, sep, rest = entry.strip().partition("=")
+        url, _, _dropped = rest.partition("#")
+        if sep and name.strip() and url.strip():
+            found.append((name.strip(), url.strip()))
+    return tuple(found)
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -231,6 +243,18 @@ class Settings(BaseSettings):
                     f"letters, digits, '_' or '-'; got {tenant!r}: {server!r}"
                 )
         return value
+
+    @model_validator(mode="after")
+    def _a_mail_server_is_a_configured_connector(self) -> Settings:
+        named = {name for name, _ in mcp_server_entries(self.mcp_servers)}
+        for tenant, server in self.mail_servers.items():
+            if server not in named:
+                raise ValueError(
+                    f"SRO_MAIL_SERVERS puts {tenant!r} on {server!r}, which no entry of "
+                    f"SRO_MCP_SERVERS names (it has {sorted(named) or 'none'}); every send and "
+                    "look of that tenant would fail"
+                )
+        return self
 
     @field_validator("connector_signing_key", mode="before")
     @classmethod

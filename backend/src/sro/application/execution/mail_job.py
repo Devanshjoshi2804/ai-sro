@@ -323,7 +323,9 @@ async def send_the_mail(
             at=clock.now(),
             servers=servers,
         )
-    except (NotConnected, NotSent) as gone:
+    except NotConnected as gone:
+        return "", f"the mailbox could not be reached, so nothing was sent; reconnect it: {gone}"
+    except NotSent as gone:
         return "", f"the mailbox could not be reached, so nothing was sent: {gone}"
     except ToolsUnavailable as gone:
         # No answer: the connector may have carried on and sent it, and a Retry would send it twice.

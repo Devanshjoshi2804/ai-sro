@@ -34,12 +34,14 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/about_an
 > against the same pending state, so there is one set of rules about what an
 > answer means rather than two.
 
-## module, [line 27](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L27): Note on the line above
+## module, [line 28](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L28): Note on the line above
 
-Code: `DraftsForTheAsker = Callable[[RequestContext, Pending, str], Awaitable[bool]]`
+Code: `DraftsForTheAsker = Callable[[RequestContext, Pending, str, str], Awaitable[bool]]`
 
 > Write a mail to whoever sent the request, for a job stopping short of a
-> value. A callable rather than the use case, so the drafter can be bound to this
+> value. The last two strings are the mail thread and the id of the question
+> the draft is written for (the draft later asks only while that question
+> stands). A callable rather than the use case, so the drafter can be bound to this
 > request's own tenant and operator.
 
 ## `AskAboutTheOffer`, [line 31](../../../../../../../backend/src/sro/application/chat/about_an_offer.py#L31): Docstring

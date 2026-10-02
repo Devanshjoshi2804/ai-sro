@@ -1199,9 +1199,9 @@ Code: `Index("ix_workflow_runs_tenant_device", "tenant_id", "device_id", "outcom
 > One browser, one hand -- two runs driving the same window interleave
 > their clicks into a form neither of them can then read back.
 
-## `WorkflowRunRow`, [line 652](../../../../../../../backend/src/sro/infrastructure/db/models.py#L652): Comment
+## `WorkflowRunRow`, [line 670](../../../../../../../backend/src/sro/infrastructure/db/models.py#L670): Comment
 
-Code: `Index(`
+Code: `"uq_workflow_runs_one_running_per_device",`
 
 > And the rule the index above can only report on. Reading "is this
 > browser busy" and then claiming it is two statements with awaits
@@ -1211,9 +1211,9 @@ Code: `Index(`
 > would need; it turns out one worker needs it too, because async does
 > not give one request at a time.
 
-## `WorkflowRunRow`, [line 668](../../../../../../../backend/src/sro/infrastructure/db/models.py#L668): Comment
+## `WorkflowRunRow`, [line 677](../../../../../../../backend/src/sro/infrastructure/db/models.py#L677): Comment
 
-Code: `Index(`
+Code: `"ix_workflow_runs_awaiting",`
 
 > "Is any run of this tenant waiting to hear back on this thread", and
 > that is the only question asked of it -- once per arriving mail, on

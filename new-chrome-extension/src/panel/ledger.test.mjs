@@ -1833,6 +1833,57 @@ test("a mail that has gone is not offered again", () => {
   assert.equal(item.dataset.answered, "sent");
 });
 
+const aDraftThen = (sent) => [
+  ASKED,
+  {
+    id: "m-draft",
+    speaker: "system",
+    text: "This is what I would send.",
+    said_at: "2026-09-18T13:00:00Z",
+    decision: {
+      kind: "mail_draft",
+      run_id: "run_1",
+      to: "tanisha@example.com",
+      subject: "Re: it",
+      body: "the words",
+    },
+  },
+  {
+    id: "m-sent",
+    speaker: "system",
+    text: "A mail was tried.",
+    said_at: "2026-09-18T13:01:00Z",
+    decision: { kind: "mail_sent", run_id: "run_1", draft_id: "m-draft", ...sent },
+  },
+];
+
+test("a mail that definitely did not go keeps its Send it", () => {
+  // Day-end D-7: the mailbox was not connected, nothing was sent, and the backend
+  // gave the claim back -- so the operator reconnects and presses again, instead
+  // of writing the mail by hand.
+  const item = messages(
+    ledger(
+      { id: "thr-1", messages: aDraftThen({ sent: false, retry: true }) },
+      {},
+      { onPress: () => {} },
+    ),
+  )[1];
+
+  assert.ok(labelled(item, /Send it/), "the draft lost its Send it");
+});
+
+test("a mail that may have gone is not offered again", () => {
+  const item = messages(
+    ledger(
+      { id: "thr-1", messages: aDraftThen({ sent: false }) },
+      {},
+      { onPress: () => {} },
+    ),
+  )[1];
+
+  assert.equal(labelled(item, /Send it/), undefined);
+});
+
 test("a lookup's answer is a count and a table, not a wall of JSON", () => {
   // Measured on the deployment 2026-09-21. Asked "is there a customer type
   // called KKYT", the conversation carried the SCREEN WALK -- "Nobody has

@@ -34,7 +34,15 @@ const list = vi.mocked(integrationApi.listIntegrations);
 const session = vi.mocked(integrationApi.createConnectSession);
 const link = vi.mocked(integrationApi.linkIntegration);
 const SESSION = { token: "tok", connect_url: "http://connect.test", api_url: "http://api.test" };
-const OFF = { integration: "microsoft", connected: false, connected_at: null, available: true };
+const OFF = {
+  integration: "microsoft",
+  connected: false,
+  linked: false,
+  connected_at: null,
+  available: true,
+};
+// Nango has the account but the connector holds no bearer for it (a link that never finished).
+const HALF = { ...OFF, connected: true, connected_at: "2026-10-02T09:30:00Z" };
 
 type Handler = (event: { type: string }) => void;
 const onEvent = () => (nango.options.at(-1) as { onEvent: Handler }).onEvent;
@@ -48,6 +56,7 @@ beforeEach(() => {
   link.mockResolvedValue({
     integration: "microsoft",
     connected: true,
+    linked: true,
     connected_at: null,
     available: true,
   });
@@ -119,6 +128,7 @@ describe("ConnectionsBoard", () => {
       {
         integration: "microsoft",
         connected: true,
+        linked: true,
         connected_at: "2026-10-02T09:30:00Z",
         available: true,
       },
@@ -127,6 +137,35 @@ describe("ConnectionsBoard", () => {
     expect(await screen.findByText(/Outlook — Connected/)).toBeInTheDocument();
     expect(link).toHaveBeenCalledWith("microsoft");
     expect(screen.queryByRole("button", { name: "Connect Outlook" })).not.toBeInTheDocument();
+  });
+
+  it("offers Finish linking, never a second Connect, to an account Nango already has", async () => {
+    list.mockResolvedValueOnce([HALF]);
+    renderWithQuery(<ConnectionsBoard />);
+    expect(await screen.findByText(/Outlook — connected, not linked yet/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Connect Outlook" })).not.toBeInTheDocument();
+    list.mockResolvedValue([{ ...HALF, linked: true }]);
+    await userEvent.click(screen.getByRole("button", { name: "Finish linking Outlook" }));
+    expect(await screen.findByText(/Outlook — Connected/)).toBeInTheDocument();
+    expect(link).toHaveBeenCalledWith("microsoft");
+    expect(session).not.toHaveBeenCalled();
+    expect(nango.options).toHaveLength(0);
+  });
+
+  it("a Finish linking that fails shows the problem sentence and keeps the button", async () => {
+    list.mockResolvedValue([HALF]);
+    link.mockRejectedValue(
+      new ApiError({
+        type: "x",
+        title: "Dependency unavailable",
+        status: 503,
+        detail: "Linking a mail account is not set up on this server yet",
+      }),
+    );
+    renderWithQuery(<ConnectionsBoard />);
+    await userEvent.click(await screen.findByRole("button", { name: "Finish linking Outlook" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("not set up on this server yet");
+    expect(screen.getByRole("button", { name: "Finish linking Outlook" })).toBeEnabled();
   });
 
   it("a link that fails shows the problem sentence and still refetches", async () => {

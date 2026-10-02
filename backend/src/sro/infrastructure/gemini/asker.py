@@ -48,6 +48,11 @@ def _worth_retrying(problem: Exception) -> bool:
     return isinstance(code, int) and 500 <= code < 600
 
 
+def _an_outage(problem: Exception) -> bool:
+    code = getattr(problem, "code", None)
+    return not isinstance(code, int) or code >= 500 or code in (401, 403, 429)
+
+
 class GeminiAsker:
     def __init__(self, *, client: Any) -> None:
         self._client = client
@@ -130,7 +135,9 @@ class GeminiAsker:
                     await asyncio.sleep(K_BACKOFF_S * (attempt + 1))
         if problem is not None or response is None:
             return Answer(
-                unpriced=True, error=f"{type(problem).__name__}: {problem}", unreachable=True
+                unpriced=True,
+                error=f"{type(problem).__name__}: {problem}",
+                unreachable=problem is None or _an_outage(problem),
             )
 
         usage = getattr(response, "usage_metadata", None)

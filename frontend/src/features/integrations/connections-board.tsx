@@ -29,6 +29,16 @@ export function ConnectionsBoard() {
   const open = useRef<{ close(): void } | null>(null);
   useEffect(() => () => open.current?.close(), []);
 
+  // Nango has the account; link tells the mail connector, then the list is true.
+  const finish = (integration: string) => {
+    setBusy(integration);
+    setFailure(null);
+    return linkIntegration(integration)
+      .catch((error: unknown) => setFailure(problem(error)))
+      .then(() => queryClient.invalidateQueries({ queryKey: integrationKeys.all }))
+      .finally(() => setBusy(null));
+  };
+
   const connect = async (integration: string) => {
     setBusy(integration);
     setFailure(null);
@@ -39,11 +49,7 @@ export function ConnectionsBoard() {
         apiURL: api_url,
         onEvent: (event) => {
           if (event.type === "connect") {
-            // Nango has the account; link tells the mail connector, then the list is true.
-            void linkIntegration(integration)
-              .catch((error: unknown) => setFailure(problem(error)))
-              .then(() => queryClient.invalidateQueries({ queryKey: integrationKeys.all }))
-              .finally(() => setBusy(null));
+            void finish(integration);
           } else if (event.type === "close") {
             setBusy(null);
           } else if (event.type === "error") {
@@ -95,6 +101,9 @@ export function ConnectionsBoard() {
                 <span id={`note-${item.integration}`}>
                   {!item.available ? (
                     `${name} — not set up on this server yet`
+                  ) : item.connected && !item.linked ? (
+                    // Nango has it; only the link is missing. Connect again would make a second one.
+                    `${name} — connected, not linked yet`
                   ) : item.connected ? (
                     <>
                       {name} — Connected
@@ -112,6 +121,16 @@ export function ConnectionsBoard() {
                     `${name} — not connected`
                   )}
                 </span>
+                {item.connected && !item.linked && (
+                  <Button
+                    type="button"
+                    disabled={busy !== null}
+                    aria-busy={busy === item.integration}
+                    onClick={() => void finish(item.integration)}
+                  >
+                    {busy === item.integration ? `Linking ${name}…` : `Finish linking ${name}`}
+                  </Button>
+                )}
                 {!item.connected && (
                   <Button
                     type="button"

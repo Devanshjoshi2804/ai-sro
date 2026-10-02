@@ -157,12 +157,19 @@ async def test_an_operator_sees_only_their_own_connection() -> None:
         {
             "integration": "microsoft",
             "connected": True,
+            "linked": True,
             "connected_at": "2026-10-01T09:00:00Z",
             "available": True,
         }
     ]
     assert bare.json() == [
-        {"integration": "microsoft", "connected": False, "connected_at": None, "available": True}
+        {
+            "integration": "microsoft",
+            "connected": False,
+            "linked": False,
+            "connected_at": None,
+            "available": True,
+        }
     ]
     assert [r.url.params["tags[end_user_id]"] for r in seen if r.url.path == "/connection"] == [
         "acme:lena"
@@ -371,17 +378,20 @@ async def test_linking_keeps_a_bearer_only_the_connector_can_verify(tmp_path: Pa
     container = _container(_nango([], {"acme:lena": [_conn("c1")]}), signing_key=KEY, linked=False)
     vault = _real_vault(container, tmp_path)
     async with _client(container) as http:
-        before = (await http.get("/v1/integrations")).json()[0]["connected"]
+        before = (await http.get("/v1/integrations")).json()[0]
         got = await http.post("/v1/integrations/microsoft/link")
-        after = (await http.get("/v1/integrations")).json()[0]["connected"]
+        after = (await http.get("/v1/integrations")).json()[0]
         again = await http.post("/v1/integrations/microsoft/link")
 
     kept = await vault.get(LENA)
-    assert (before, after) == (False, True)
+    # Day-end D-5: Nango has the account either way; only the link differs.
+    assert (before["connected"], before["linked"]) == (True, False)
+    assert (after["connected"], after["linked"]) == (True, True)
     assert got.status_code == again.status_code == 200
     assert got.json() == {
         "integration": "microsoft",
         "connected": True,
+        "linked": True,
         "connected_at": "2026-10-01T09:00:00Z",
         "available": True,
     }
@@ -465,6 +475,7 @@ async def test_linking_an_integration_with_no_connector_has_nothing_to_link() ->
     assert got.json() == {
         "integration": "slack",
         "connected": True,
+        "linked": True,
         "connected_at": "2026-10-01T09:00:00Z",
         "available": True,
     }
@@ -490,13 +501,14 @@ async def test_a_vault_that_is_down_never_leaks_the_bearer_or_key(
     assert mac not in got.text + caplog.text
 
 
-async def test_a_half_linked_account_shows_not_connected(tmp_path: Path) -> None:
+async def test_a_half_linked_account_is_connected_but_not_linked(tmp_path: Path) -> None:
     container = _container(_nango([], {"acme:lena": [_conn("c")]}), linked=False)
     _real_vault(container, tmp_path)
     async with _client(container) as http:
         got = await http.get("/v1/integrations")
 
-    assert got.json()[0]["connected"] is False
+    # Day-end D-5: Nango has it, so it is not "not connected": Connect would make a second one.
+    assert (got.json()[0]["connected"], got.json()[0]["linked"]) == (True, False)
     assert got.json()[0]["connected_at"] == "2026-10-01T09:00:00Z"
 
 
@@ -560,17 +572,17 @@ async def test_a_bearer_signed_with_another_key_is_not_connected_and_link_repair
     vault = _real_vault(container, tmp_path)
     async with _client(container) as http:
         await http.post("/v1/integrations/microsoft/link")
-        before = (await http.get("/v1/integrations")).json()[0]["connected"]
+        before = (await http.get("/v1/integrations")).json()[0]["linked"]
     container.settings = container.settings.model_copy(
         update={"connector_signing_key": SecretStr(KEY)}
     )
     async with _client(container) as http:
-        stale = (await http.get("/v1/integrations")).json()[0]["connected"]
+        stale = (await http.get("/v1/integrations")).json()[0]
         await http.post("/v1/integrations/microsoft/link")
-        repaired = (await http.get("/v1/integrations")).json()[0]["connected"]
+        repaired = (await http.get("/v1/integrations")).json()[0]["linked"]
 
     kept = await vault.get(LENA)
-    assert (before, stale, repaired) == (True, False, True)
+    assert (before, stale["connected"], stale["linked"], repaired) == (True, True, False, True)
     assert kept is not None
     assert verify_bearer(KEY, "outlook", kept) == ("acme", "lena")
 
@@ -585,7 +597,7 @@ async def test_a_stored_bearer_for_someone_else_or_garbage_is_not_connected() ->
         container.vault.secrets[LENA] = held
         async with _client(container) as http:
             got = await http.get("/v1/integrations")
-        assert got.json()[0]["connected"] is False
+        assert (got.json()[0]["connected"], got.json()[0]["linked"]) == (True, False)
 
 
 async def test_without_a_signing_key_nothing_is_connected() -> None:
@@ -594,7 +606,7 @@ async def test_without_a_signing_key_nothing_is_connected() -> None:
     async with _client(container) as http:
         got = await http.get("/v1/integrations")
 
-    assert got.json()[0]["connected"] is False
+    assert (got.json()[0]["connected"], got.json()[0]["linked"]) == (True, False)
 
 
 NOT_SET_UP = "Outlook isn't set up on this server yet. An admin adds it in Nango first."
@@ -618,7 +630,13 @@ async def test_an_integration_nango_does_not_have_is_listed_as_unavailable() -> 
 
     assert got.status_code == 200
     assert got.json() == [
-        {"integration": "microsoft", "connected": False, "connected_at": None, "available": False}
+        {
+            "integration": "microsoft",
+            "connected": False,
+            "linked": False,
+            "connected_at": None,
+            "available": False,
+        }
     ]
 
 

@@ -271,9 +271,9 @@ async def test_a_password_refused_on_a_re_sign_in_leaves_no_ready_lease() -> Non
     driver.refuses = True
 
     with pytest.raises(NeedsAPerson):
-        await broker.reauth(CTX, held, APP, park=False)
+        await broker.reauth(CTX, held, APP)
 
-    assert [lease.state for lease in uow.browser_sessions.leases.values()] == [LeaseState.BROKEN]
+    assert [lease.state for lease in uow.browser_sessions.leases.values()] == [LeaseState.WAITING]
 
 
 async def _asked_for_a_code(

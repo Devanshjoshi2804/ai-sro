@@ -22,6 +22,9 @@ CALL_TIMEOUT = 30.0
 
 PROTOCOL = "2025-06-18"
 
+# What the Outlook connector answers before any Graph call when the caller has no grant.
+K_NO_GRANT = -32001
+
 
 @dataclass(frozen=True, slots=True)
 class McpServer:
@@ -102,7 +105,7 @@ class McpToolCaller(ToolCaller):
     ) -> dict[str, object]:
         known = self._servers.get(server)
         if known is None:
-            raise ToolsUnavailable(f"no connector called {server} is configured")
+            raise NotConnected(f"no connector called {server} is configured on this deployment")
 
         headers = {
             "Content-Type": "application/json",
@@ -130,6 +133,8 @@ class McpToolCaller(ToolCaller):
         if "error" in body:
             error = body["error"]
             detail = error.get("message") if isinstance(error, dict) else str(error)
+            if isinstance(error, dict) and error.get("code") == K_NO_GRANT:
+                raise NotConnected(f"{server} has no grant for {principal_id.value}: reconnect it")
             raise ToolsUnavailable(f"{server} refused: {detail}")
         result = body.get("result")
         return result if isinstance(result, dict) else {}

@@ -40,12 +40,12 @@ Code: `PROTOCOL = "2025-06-18"`
 > Named rather than inlined because it is the one thing in the handshake a server
 > may refuse over, and a refusal that names a version is one somebody can act on.
 
-## `McpServer`, [line 27](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L27): Docstring
+## `McpServer`, [line 30](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L30): Docstring
 
 > Where a connector is. Deliberately no credential on it -- see the module
 > docstring: a bearer here is a bearer every tenant shares.
 
-## `McpToolCaller`, [line 32](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L32): Docstring
+## `McpToolCaller`, [line 35](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L35): Docstring
 
 > Streamable-HTTP MCP, spoken directly.
 >
@@ -54,7 +54,7 @@ Code: `PROTOCOL = "2025-06-18"`
 > the next. Two JSON-RPC requests over `httpx` is the whole of what that
 > needs, and it fails in ways this code can report rather than in the SDK's.
 
-## `_argument_names`, [line 171](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L171): Docstring
+## `_argument_names`, [line 176](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L176): Docstring
 
 > What this tool takes, for a person choosing what to map onto it.
 >
@@ -62,14 +62,14 @@ Code: `PROTOCOL = "2025-06-18"`
 > declares no properties still offers the tool, and a mapping screen that
 > hid it would be hiding a working connector over a missing description.
 
-## `_payload`, [line 178](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L178): Docstring
+## `_payload`, [line 183](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L183): Docstring
 
 > The JSON-RPC envelope, whether it arrived as JSON or as one SSE event.
 >
 > Streamable HTTP may answer either, and which one is the server's choice
 > rather than ours.
 
-## `_text_of`, [line 198](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L198): Docstring
+## `_text_of`, [line 203](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L203): Docstring
 
 > What the tool said, as the text an assertion is checked against.
 >
@@ -77,7 +77,7 @@ Code: `PROTOCOL = "2025-06-18"`
 > rest are left out: an assertion reads a document, and an image in the
 > middle of one is not part of the document.
 
-## `McpToolCaller._bearer`, [line 43](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L43): Docstring
+## `McpToolCaller._bearer`, [line 46](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L46): Docstring
 
 > This OPERATOR's grant for this connector, or a refusal naming both.
 >
@@ -92,7 +92,7 @@ Code: `PROTOCOL = "2025-06-18"`
 > reached without a tenant's grant is a connector reached on somebody
 > else's behalf.
 
-## `McpToolCaller._greet`, [line 137](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L137): Docstring
+## `McpToolCaller._greet`, [line 142](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L142): Docstring
 
 > Open a session, and the header that carries it.
 >
@@ -110,7 +110,7 @@ Code: `PROTOCOL = "2025-06-18"`
 > its own and says why in its own words -- reporting the handshake
 > instead would name the wrong request.
 
-## `McpToolCaller._bearer`, [line 48](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L48): Comment
+## `McpToolCaller._bearer`, [line 51](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L51): Comment
 
 Code: `key = connector_key(tenant_id.value, server, principal_id.value)`
 
@@ -119,7 +119,7 @@ Code: `key = connector_key(tenant_id.value, server, principal_id.value)`
 > `devansh.j` and `devansh_j` would otherwise be one key -- which is
 > one operator reading another's mail.
 
-## `McpToolCaller._bearer`, [line 52](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L52): Comment
+## `McpToolCaller._bearer`, [line 55](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L55): Comment
 
 Code: `raise ToolsUnavailable(f"the vault holding {server}'s grant is unreachable") from down`
 
@@ -127,7 +127,7 @@ Code: `raise ToolsUnavailable(f"the vault holding {server}'s grant is unreachabl
 > apart: one is a console saying "connect Gmail", the other is a
 > deployment problem no operator can act on.
 
-## `McpToolCaller.call`, [line 89](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L89): Comment
+## `McpToolCaller.call`, [line 92](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L92): Comment
 
 Code: `return ToolResult(`
 
@@ -136,9 +136,19 @@ Code: `return ToolResult(`
 > "it refused" and "there was nothing to ask" differently and both
 > arriving as an exception would collapse them.
 
-## `McpToolCaller._greet`, [line 162](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L162): Comment
+## `McpToolCaller._greet`, [line 167](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L167): Comment
 
 Code: `with contextlib.suppress(httpx.HTTPError):`
 
 > The spec's third step. A server may hold `tools/list` until it
 > arrives, and one that does not is unbothered by receiving it.
+
+## `McpToolCaller._rpc`, [line 108](../../../../../../../backend/src/sro/infrastructure/mcp/client.py#L108): Comment
+
+Code: `raise NotConnected(f"no connector called {server} is configured on this deployment")`
+
+> A connector nothing here configures, and one that answers JSON-RPC error -32001 (the
+> Outlook connector's no-grant, sent before any Graph call), both sent nothing. They are
+> `NotConnected`, so a send says "nothing was sent; reconnect" instead of "may have gone; check
+> Sent", and a mail look reads the mailbox as not connected. Any other error stays
+> `ToolsUnavailable`: for those the connector may have carried on.

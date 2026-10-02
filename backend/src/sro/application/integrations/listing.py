@@ -19,7 +19,8 @@ from sro.domain.execution.secrets import connector_key
 @dataclass(frozen=True, slots=True)
 class IntegrationStatus:
     integration: str
-    connected: bool
+    connected: bool  # Nango holds a healthy connection for this operator
+    linked: bool  # and the connector holds a bearer it accepts: nothing more to do
     connected_at: datetime | None
     available: bool = True  # false: configured here, but Nango has no such integration
 
@@ -51,7 +52,11 @@ class ListIntegrations:
         there = await self._nango.integrations()
         return [
             IntegrationStatus(
-                name, name in made and await self._linked(ctx, name), made.get(name), name in there
+                name,
+                name in made,
+                name in made and await self._linked(ctx, name),
+                made.get(name),
+                name in there,
             )
             for name in self._integrations
         ]

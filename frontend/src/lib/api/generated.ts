@@ -3071,6 +3071,8 @@ export interface components {
             integration: string;
             /** Connected */
             connected: boolean;
+            /** Linked */
+            linked: boolean;
             /** Connected At */
             connected_at: string | null;
             /** Available */

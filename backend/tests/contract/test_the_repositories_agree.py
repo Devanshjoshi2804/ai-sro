@@ -2251,6 +2251,22 @@ def _lease(lease_id: str, **over: Any) -> Lease:
 
 
 class TestLeases:
+    async def test_a_lease_is_taken_again_and_again_on_one_connection(
+        self, store: UnitOfWork
+    ) -> None:
+        # Postgres plans a prepared statement generically after five runs; a partial
+        # index named by BOUND parameters cannot be inferred from a generic plan, and
+        # every Steel run on QA failed "no unique or exclusion constraint matching the
+        # ON CONFLICT specification" once the worker had leased five times.
+        async with store as work:
+            for n in range(9):
+                taken = await work.browser_sessions.lease(TENANT, _lease(f"lse_{n}"))
+                assert taken.id == f"lse_{n}"
+                await work.browser_sessions.settle(
+                    TENANT, f"lse_{n}", state=LeaseState.BROKEN, until=_when(9)
+                )
+            await work.commit()
+
     async def test_a_beat_on_a_waiting_lease_never_moves_its_deadline(
         self, store: UnitOfWork
     ) -> None:

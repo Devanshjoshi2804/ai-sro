@@ -730,7 +730,12 @@ class SqlBrowserSessionRepository(BrowserSessionRepository):
             )
             .on_conflict_do_nothing(
                 index_elements=["tenant_id", "account_key"],
-                index_where=BrowserSessionRow.state.in_(_LIVE_STATES),
+                # Literal, not bound: Postgres plans a prepared statement generically
+                # after five runs, and a generic plan cannot infer a partial index from
+                # parameters -- every Steel run then failed to take a browser.
+                index_where=text(
+                    "state IN (" + ", ".join(f"'{state}'" for state in _LIVE_STATES) + ")"
+                ),
             )
         )
         current = await self.current_lease(tenant_id, lease.account)

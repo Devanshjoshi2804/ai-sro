@@ -51,7 +51,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/db/reposit
 > it with `or ""` and hand back an account with an empty username, which
 > the previous version of this function did.
 
-## `SqlBrowserSessionRepository.expire`, [line 787](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L787): Note
+## `SqlBrowserSessionRepository.expire`, [line 792](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L792): Note
 
 > `expires_at <= now` is in the `WHERE`, not just in the sweeper's earlier
 > `expired(now=...)` read -- a compare-and-set, so a `beat` that lands
@@ -65,7 +65,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/db/reposit
 > database for both, so both writers use the one clock. The tests inject
 > `now` on purpose and would need to change first.
 
-## `SqlBrowserSessionRepository.settle`, [line 757](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L757): Note
+## `SqlBrowserSessionRepository.settle`, [line 762](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L762): Note
 
 > `state IN (_LIVE_STATES)` is in the `WHERE`, so a settle can neither
 > revive a lease `expire` already moved to `expired` nor race ahead of one
@@ -113,12 +113,12 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/db/reposit
 > says so; it used to be `InvariantViolation`, which reads as a caller's own
 > mistake and answers 422, when the honest answer is "try again", 409.
 
-## `SqlToolCallRepository`, [line 1151](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1151): Docstring
+## `SqlToolCallRepository`, [line 1156](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1156): Docstring
 
 > The claim is the insert. Two writers racing for one key both try it, the
 > primary key refuses one of them, and that refusal is the answer.
 
-## `SqlUnitOfWork`, [line 1259](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1259): Docstring
+## `SqlUnitOfWork`, [line 1264](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1264): Docstring
 
 > One session per block. The session opens on entry, not on construction,
 > so a unit of work can be built once and used per request.
@@ -142,7 +142,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/db/reposit
 > commits, as it did before; an exception inside a nested block rolls the
 > whole thing back at the outermost exit rather than half of it.
 
-## `SqlToolCallRepository.forget`, [line 1183](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1183): Docstring
+## `SqlToolCallRepository.forget`, [line 1188](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1188): Docstring
 
 > Delete the claim. Tenant-scoped, unlike the session sweep next door:
 > this is somebody's run giving back its own key, not crash recovery.
@@ -250,7 +250,7 @@ Code: `await self._session.flush()`
 > browser to somebody, and "who owns this" has to be settled before
 > they get it, not after the request has already done its work.
 
-## `SqlDeviceRepository.add`, [line 887](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L887): Comment
+## `SqlDeviceRepository.add`, [line 892](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L892): Comment
 
 Code: `await self._session.flush()`
 
@@ -259,7 +259,7 @@ Code: `await self._session.flush()`
 > let the second one 500 instead of finding the first via
 > `registered_as` the way RegisterDevice's own idempotency assumes.
 
-## `SqlDeviceRepository.since`, [line 919](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L919): Comment
+## `SqlDeviceRepository.since`, [line 924](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L924): Comment
 
 Code: `at = when(since)`
 
@@ -272,7 +272,7 @@ Code: `at = when(since)`
 > tenant's browsers by id. That is a leak rather than a rule, and it
 > does not travel.
 
-## `SqlDeviceRepository.since`, [line 926](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L926): Comment
+## `SqlDeviceRepository.since`, [line 931](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L931): Comment
 
 Code: `.order_by(AgentDeviceRow.registered_at.desc(), AgentDeviceRow.id.desc())`
 
@@ -285,7 +285,7 @@ Code: `.order_by(AgentDeviceRow.registered_at.desc(), AgentDeviceRow.id.desc())`
 > them two ways and a reader diffing the two saw a change nobody
 > made.
 
-## `SqlDeviceRepository.revoke`, [line 932](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L932): Comment
+## `SqlDeviceRepository.revoke`, [line 937](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L937): Comment
 
 Code: `row = await self._row(tenant_id, device_id, lock=True)`
 
@@ -301,7 +301,7 @@ Code: `row = await self._row(tenant_id, device_id, lock=True)`
 > and the second overwrites the instant the first recorded -- which is
 > precisely what this promises cannot happen.
 
-## `SqlDeviceRepository.revoke`, [line 934](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L934): Comment
+## `SqlDeviceRepository.revoke`, [line 939](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L939): Comment
 
 Code: `return False`
 
@@ -309,7 +309,7 @@ Code: `return False`
 > instant the authority ended -- that instant is what an audit of
 > what this browser was allowed to do is read against.
 
-## `SqlDeviceRepository.revoke`, [line 935](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L935): Comment
+## `SqlDeviceRepository.revoke`, [line 940](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L940): Comment
 
 Code: `row.revoked_at = when(at)`
 
@@ -317,7 +317,7 @@ Code: `row.revoked_at = when(at)`
 > local instant beside the aware ones reads as a revocation hours before
 > the browser registered.
 
-## `SqlDeviceRepository.restore`, [line 939](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L939): Comment
+## `SqlDeviceRepository.restore`, [line 944](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L944): Comment
 
 Code: `row = await self._row(tenant_id, device_id, lock=True)`
 
@@ -331,14 +331,14 @@ Code: `row = await self._row(tenant_id, device_id, lock=True)`
 > revoking never blanked it, and the extension is still holding the one
 > it was minted with.
 
-## `SqlDeviceRepository._row`, [line 953](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L953): Comment
+## `SqlDeviceRepository._row`, [line 958](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L958): Comment
 
 Code: `query = query.with_for_update()`
 
 > FOR UPDATE, and only where a caller is about to write what it
 > read. Every other read here is a read.
 
-## `SqlObservationRepository.add`, [line 967](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L967): Comment
+## `SqlObservationRepository.add`, [line 972](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L972): Comment
 
 Code: `await self._session.flush()`
 
@@ -346,14 +346,14 @@ Code: `await self._session.flush()`
 > whether this upload is a retry has to be settled before the
 > response says how many events were kept.
 
-## `SqlObservationRepository.between`, [line 988](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L988): Comment
+## `SqlObservationRepository.between`, [line 993](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L993): Comment
 
 Code: `query = select(ObservationBatchRow).where(`
 
 > Overlap, not containment: a batch that began before the window and
 > ended inside it holds events the window asked for.
 
-## `SqlCandidateRepository.add`, [line 1040](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1040): Comment
+## `SqlCandidateRepository.add`, [line 1045](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1045): Comment
 
 Code: `await self._session.flush()`
 
@@ -362,14 +362,14 @@ Code: `await self._session.flush()`
 > collision fails on its own row rather than rolling back every
 > candidate the rest of that mining pass already found.
 
-## `SqlCandidateRepository.list_for_tenant`, [line 1068](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1068): Comment
+## `SqlCandidateRepository.list_for_tenant`, [line 1073](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1073): Comment
 
 Code: `query = query.where(TaskCandidateRow.host == host.lower())`
 
 > Stored lowercased by the segmenter, so the caller's spelling of a
 > hostname does not decide whether their own tasks come back.
 
-## `SqlToolCallRepository.remember`, [line 1164](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1164): Comment
+## `SqlToolCallRepository.remember`, [line 1169](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1169): Comment
 
 Code: `insert = pg_insert(ToolCallRow).values(`
 
@@ -383,7 +383,7 @@ Code: `insert = pg_insert(ToolCallRow).values(`
 > statement, because a read-then-decide here is the race this class
 > exists to lose.
 
-## `SqlToolCallRepository.remember`, [line 1179](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1179): Comment
+## `SqlToolCallRepository.remember`, [line 1184](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1184): Comment
 
 Code: `).returning(ToolCallRow.idempotency_key)`
 
@@ -391,14 +391,14 @@ Code: `).returning(ToolCallRow.idempotency_key)`
 > driver's, and asking the statement to return the key it wrote
 > answers the same question in one shape everywhere.
 
-## `SqlUnitOfWork.__aexit__`, [line 1300](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1300): Comment
+## `SqlUnitOfWork.__aexit__`, [line 1305](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1305): Comment
 
 Code: `await session.rollback()`
 
 > At every depth: an inner block that raised must not leave its
 > half-written rows for the outer block to commit.
 
-## `SqlUnitOfWork.commit`, [line 1312](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1312): Comment
+## `SqlUnitOfWork.commit`, [line 1317](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1317): Comment
 
 Code: `await self._require_session().rollback()`
 
@@ -408,7 +408,7 @@ Code: `await self._require_session().rollback()`
 > because it is one: the caller decides whether to redo the work
 > against what is there now or to leave it to whoever comes next.
 
-## `_job_live`, [line 1251](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1251): Note
+## `_job_live`, [line 1256](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1256): Note
 
 > A trigger on a retired job is never chosen: `find` (how a schedule fires)
 > and `list_for_tenant` (how watches and arrivals are picked) both leave it
@@ -417,7 +417,7 @@ Code: `await self._require_session().rollback()`
 > review M-4, 2026-09-24). `get` still returns it by id, so switching it
 > off or deleting it still works.
 
-## `SqlBrowserSessionRepository.pinned_container`, [line 837](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L837): Note
+## `SqlBrowserSessionRepository.pinned_container`, [line 842](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L842): Note
 
 > The container of the account's most recent lease in any state -- an
 > expired or broken lease still says where the account lives, which is what
@@ -425,7 +425,7 @@ Code: `await self._require_session().rollback()`
 > lease; an index on `(tenant_id, account_key, opened_at)` is the upgrade if
 > lease rows pile up.
 
-## `SqlBrowserSessionRepository.beat`, [line 800](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L800): Note
+## `SqlBrowserSessionRepository.beat`, [line 805](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L805): Note
 
 > A beat extends a lease to `K_LEASE_TTL` from now, and it never moves the
 > deadline of a WAITING lease at all (`CASE WHEN state = 'waiting'`): that
@@ -435,7 +435,7 @@ Code: `await self._require_session().rollback()`
 > window out, which would otherwise hold the account hostage for as long as
 > any sibling run keeps beating.
 
-## `SqlBrowserSessionRepository.beat`, [line 815](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L815): Note
+## `SqlBrowserSessionRepository.beat`, [line 820](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L820): Note
 
 Code: `(BrowserSessionRow.state == LeaseState.WAITING.value, BrowserSessionRow.holder),`
 
@@ -456,7 +456,7 @@ Code: `query = query.with_for_update()`
 > Plain reads do not lock: a caller holding its unit of work across a model
 > call would otherwise block every writer of that thread for the call.
 
-## `SqlToolCallRepository.held`, [line 1199](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1199): Note
+## `SqlToolCallRepository.held`, [line 1204](../../../../../../../backend/src/sro/infrastructure/db/repositories.py#L1204): Note
 
 Code: `ToolCallRow.claimed_at >= since,`
 

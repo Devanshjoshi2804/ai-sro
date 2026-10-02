@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from base64 import b64encode
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from uuid import uuid4
 
 from sro.application.connection.check_session import is_login
@@ -42,6 +42,8 @@ K_AFTER_HEADERS_S = 1.0
 
 K_PAINT_S = 8.0
 
+K_UNANSWERED = K_AUTH_REFUSED | {0}
+
 
 @dataclass(frozen=True, slots=True)
 class Looked:
@@ -77,6 +79,7 @@ class RunLookups:
         async with self._uow as uow:
             gestures = list(await uow.gestures.gestures_for(ctx.tenant_id))
         looked: list[Looked] = []
+        until = asyncio.get_running_loop().time() + within
         for lookup in plan.lookups:
             address = address_for(lookup, gestures)
             if address is None:
@@ -87,7 +90,9 @@ class RunLookups:
                 )
                 continue
             try:
-                async with asyncio.timeout(within) as budget:
+                if asyncio.get_running_loop().time() >= until:
+                    raise TimeoutError
+                async with asyncio.timeout_at(until) as budget:
                     looked.append(await self._one(ctx, lookup, address, budget))
             except TimeoutError:
                 looked.append(
@@ -119,14 +124,13 @@ class RunLookups:
         account = await self._broker.account_for(ctx, page)
         # A cold sign-in outlasts a chat turn. It runs on the broker's own task, so this turn
         # gives up on waiting for it (with a second left to read) and the next ask finds it done.
-        patience = (budget.when() or 0.0) - asyncio.get_running_loop().time() - K_AFTER_HEADERS_S
         held = await self._broker.acquire(
             ctx,
             account,
             page,
             holder=f"lookup-{uuid4().hex}",
             park=False,
-            patience_s=max(0.0, patience),
+            patience_s=_left(budget),
             apart_s=K_DEADLINE_S,
         )
         try:
@@ -143,7 +147,9 @@ class RunLookups:
             if await self._broker.signed_out(ctx, held):
                 await self._broker.reauth(ctx, held, page, park=False)
             if address.reads:
-                await self._broker.load(ctx, held, address.url, address.reads, deadline_s=K_PAINT_S)
+                await self._broker.load(
+                    ctx, held, address.url, address.reads, deadline_s=min(K_PAINT_S, _left(budget))
+                )
             if await self._broker.signed_out(ctx, held):
                 raise SignedOut(f"{page} is still a sign-in page")
             shot = await self._broker.screenshot(ctx, held)
@@ -167,7 +173,7 @@ class RunLookups:
         if _sign_in_wanted(got, address.url):
             await self._broker.reauth(ctx, held, page, park=False)
             got = await self._send(ctx, held, address, budget, fresh=True)
-            if _sign_in_wanted(got, address.url):
+            if _signed_out(got, address.url):
                 raise SignedOut(f"{page} is still a sign-in page")
         return got
 
@@ -181,7 +187,6 @@ class RunLookups:
         fresh: bool,
     ) -> HttpResponse:
         needs = needs_of(dict.fromkeys((*address.live_headers, *address.struck), REDACTED))
-        left = (budget.when() or 0.0) - asyncio.get_running_loop().time() - K_AFTER_HEADERS_S
         headers = await session_headers(
             self._broker,
             ctx,
@@ -190,7 +195,7 @@ class RunLookups:
             address.headers,
             fresh=fresh,
             needs=needs,
-            wait_s=max(0.0, left),
+            wait_s=_left(budget),
         )
         carried = {name.lower() for name in headers}
         missing = [name for name in needs if name not in carried]
@@ -199,10 +204,17 @@ class RunLookups:
         return await self._broker.send(ctx, held, "GET", address.url, headers=headers)
 
 
+def _left(budget: asyncio.Timeout) -> float:
+    left = (budget.when() or 0.0) - asyncio.get_running_loop().time() - K_AFTER_HEADERS_S
+    return max(0.0, left)
+
+
+def _signed_out(got: HttpResponse, url: str) -> bool:
+    return is_login(got.status_code, got.headers.get("location"), url, got.text)
+
+
 def _sign_in_wanted(got: HttpResponse, url: str) -> bool:
-    return got.status_code in K_AUTH_REFUSED or is_login(
-        got.status_code, got.headers.get("location"), url, got.text
-    )
+    return got.status_code in K_UNANSWERED or _signed_out(got, url)
 
 
 def _looked(lookup: Lookup, address: Address, result: Mapping[str, object]) -> Looked:
@@ -212,5 +224,9 @@ def _looked(lookup: Lookup, address: Address, result: Mapping[str, object]) -> L
         ok=True,
         url=address.url,
         answer=result,
-        read=read_answer(body, url=address.url) if isinstance(body, str) else None,
+        read=(
+            replace(read, narrowed_by=address.narrowed)
+            if isinstance(body, str) and (read := read_answer(body, url=address.url))
+            else None
+        ),
     )

@@ -42,6 +42,7 @@ from sro.domain.shared.errors import DomainError, InvariantViolation
 from sro.domain.shared.hosts import origin_of
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.skill.signing_in import (
+    PageSignals,
     a_sign_in_page,
     asks_for_a_code,
     recorded_login,
@@ -54,6 +55,7 @@ logger = logging.getLogger(__name__)
 K_CLOSE_S = 5.0
 K_HEADERS_WAIT_S = 20.0
 K_CODE_WAIT = timedelta(minutes=10)
+K_FAILURE = timedelta(minutes=10)
 
 
 def _needs_its_password(account: Account, why: str) -> NeedsAPerson:
@@ -82,23 +84,31 @@ class SignIns:
 
     def __init__(self) -> None:
         self._running: dict[str, asyncio.Task[None]] = {}
-        self._failed: dict[str, Exception] = {}
+        self._failed: dict[str, tuple[Exception, datetime]] = {}
 
-    def failure(self, key: str) -> Exception | None:
-        return self._failed.pop(key, None)
+    def failure(self, key: str, now: datetime) -> Exception | None:
+        why, at = self._failed.pop(key, (None, now))
+        return why if now - at < K_FAILURE else None
 
-    def join_or_start(self, key: str, run: Callable[[], Awaitable[None]]) -> asyncio.Task[None]:
+    def forget(self, vault_key: str) -> None:
+        self._failed.pop(vault_key.rpartition("/")[0], None)
+
+    def join_or_start(
+        self, key: str, run: Callable[[], Awaitable[None]], now: Callable[[], datetime]
+    ) -> asyncio.Task[None]:
         task = self._running.get(key)
         if task is None:
-            task = self._running[key] = asyncio.create_task(self._keep(key, run))
+            task = self._running[key] = asyncio.create_task(self._keep(key, run, now))
         return task
 
-    async def _keep(self, key: str, run: Callable[[], Awaitable[None]]) -> None:
+    async def _keep(
+        self, key: str, run: Callable[[], Awaitable[None]], now: Callable[[], datetime]
+    ) -> None:
         try:
             await run()
         except Exception as why:  # kept, and raised to whoever asks next
             logger.info("%s: the sign-in apart failed: %r", key, why)
-            self._failed[key] = why
+            self._failed[key] = (why, now())
         finally:
             del self._running[key]
 
@@ -153,7 +163,7 @@ class SessionBroker:
         `apart_s`, shared by every ask, kept going when this one gives up) and this waits at
         most that long for it, then raises `SigningIn`; the next ask finds the lease ready.
         """
-        if (failed := self.signings.failure(account.key)) is not None:
+        if (failed := self.signings.failure(account.key, self._clock.now())) is not None:
             raise failed
         held = await self._attached(ctx, account, start_url, holder, park)
         if held is not None:
@@ -162,12 +172,14 @@ class SessionBroker:
             async with self._locks.hold(account):
                 return await self._ready(ctx, account, start_url, holder=holder, park=park)
         task = self.signings.join_or_start(
-            account.key, lambda: self._sign_in_apart(ctx, account, start_url, apart_s)
+            account.key,
+            lambda: self._sign_in_apart(ctx, account, start_url, apart_s),
+            self._clock.now,
         )
         done, _ = await asyncio.wait({task}, timeout=patience_s)
         if not done:
             raise SigningIn(f"signing in to {origin_of(start_url)}")
-        if (failed := self.signings.failure(account.key)) is not None:
+        if (failed := self.signings.failure(account.key, self._clock.now())) is not None:
             raise failed
         held = await self._attached(ctx, account, start_url, holder, park)
         if held is None:
@@ -315,16 +327,16 @@ class SessionBroker:
             if a_sign_in_page(await self._driver.signals(held.session, held.target_id)):
                 try:
                     await self._sign_in(ctx, held, start_url, park=park)
+                except WaitingForAPerson:
+                    raise
                 except NeedsAPerson as asked:
                     if park and asked.kind == "password":
                         await self._park(ctx, held.lease, "password")
+                    else:
+                        await self._broken(ctx, held.lease)
                     raise
                 except (asyncio.CancelledError, TimeoutError):
-                    # Stopped half way, the page is a sign-in page and the lease says READY.
-                    try:
-                        await self._settle(ctx, held.lease, LeaseState.BROKEN)
-                    finally:
-                        await self._close(held.lease)
+                    await self._broken(ctx, held.lease)
                     raise
                 await self._save_state(held.lease, held.session)
                 await self._driver.forget_calls(held.session, held.target_id)
@@ -475,19 +487,8 @@ class SessionBroker:
             held = await self._signed_in(ctx, lease, start_url, park=park)
         except WaitingForAPerson:
             raise
-        except NeedsAPerson:
-            kept = False
-            try:
-                kept = await self._settle(ctx, lease, LeaseState.READY)
-            finally:
-                if not kept:
-                    await self._close(lease)
-            raise
         except BaseException:
-            try:
-                await self._settle(ctx, lease, LeaseState.BROKEN)
-            finally:
-                await self._close(lease)
+            await self._broken(ctx, lease)
             raise
         settled = False
         try:
@@ -498,6 +499,12 @@ class SessionBroker:
         if not settled:
             raise PageGone(f"lease {lease.id} was lost while it was signing in")
         return replace(held, lease=replace(lease, state=LeaseState.READY))
+
+    async def _broken(self, ctx: RequestContext, lease: Lease) -> None:
+        try:
+            await self._settle(ctx, lease, LeaseState.BROKEN)
+        finally:
+            await self._close(lease)
 
     async def _signed_in(
         self, ctx: RequestContext, lease: Lease, start_url: str, *, park: bool
@@ -575,17 +582,22 @@ class SessionBroker:
         # A chain types one value that is no secret: the username. Mining makes
         # a typed value a parameter, so it is given here, as this account's own.
         given = {name: account.username for step in chain for name in step.parameters}
+        stopped: str | None = None
+        after: PageSignals | None = None
         for step in chain:
             result = await self._ui.execute(step, given, lane)
             if result.verdict == "failed":
-                if not a_sign_in_page(await self._driver.signals(held.session, held.target_id)):
-                    break
-                raise NeedsAPerson(
-                    f"signing in to {account.origin} stopped at '{step.says}': {result.reason}",
+                stopped = (
+                    f"signing in to {account.origin} stopped at '{step.says}': {result.reason}"
                 )
+                after = await self._driver.signals(held.session, held.target_id)
+                if a_sign_in_page(after):
+                    raise NeedsAPerson(stopped)
+                break
             if not await self.beat(ctx, held.lease.id, holder=held.lease.holder):
                 raise PageGone(f"lease {held.lease.id} was lost while it was signing in")
-        after = await self._driver.signals(held.session, held.target_id)
+        if after is None:
+            after = await self._driver.signals(held.session, held.target_id)
         if asks_for_a_code(after):
             await self._wait_for_a_person(ctx, held, park=park)
         if a_sign_in_page(after):
@@ -597,6 +609,10 @@ class SessionBroker:
             )
             raise _needs_its_password(account, "had its password refused")
         await self._driver.goto(held.session, held.target_id, start_url)
+        if stopped is not None and a_sign_in_page(
+            await self._driver.signals(held.session, held.target_id)
+        ):
+            raise NeedsAPerson(stopped)
         await asked.clear(key)
 
     async def _wait_for_a_person(self, ctx: RequestContext, held: Held, *, park: bool) -> None:

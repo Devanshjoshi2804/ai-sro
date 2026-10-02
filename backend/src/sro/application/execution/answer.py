@@ -44,6 +44,8 @@ class Answer:
     """Every record read, whole -- `sample` is cut for display, and "is it in
     there" is not a question to ask of a cut."""
 
+    narrowed_by: tuple[str, ...] = ()
+
     @property
     def counted(self) -> int | None:
         if self.total is not None:

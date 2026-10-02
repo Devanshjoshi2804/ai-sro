@@ -66,7 +66,7 @@ Code: `answer: Answer | None = None`
 > Losing one malformed lookup out of four still leaves a plan somebody can
 > read; the count is what `unknown_targets` and `uncited` then judge.
 
-## `_shown`, [line 173](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L173): Docstring
+## `_shown`, [line 188](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L188): Docstring
 
 > What the planner is given, grouped by kind.
 >
@@ -109,13 +109,16 @@ Code: `return Planned(`
 > of its systems answers a narrower question than the one asked,
 > and says nothing about having done so.
 
-## `_shown`, screens: why a screen lists what it `loads`
+## `_shown`, [line 204](../../../../../../../backend/src/sro/application/lookup/plan_lookups.py#L204): Note
 
-> QA 2026-10-02: "is there a warehouse equipment type called ZWOYBN" was planned as a
+Code: `lines.append(f"      loads: {', '.join(loaded)}")`
+
+> Why a screen lists what it `loads`. QA 2026-10-02: "is there a warehouse equipment type called ZWOYBN" was planned as a
 > SCREEN. The catalogue's screen entry names the resources it loads (`resources`:
 > workZones, workAreas, warehouseEquipmentAccesses, equipmentTypes, codes) and the
 > Warehouse Equipment Type grid IS a GET on `equipmentTypes`, but the planner saw the
 > screen by title only and the endpoint under another title, so nothing joined them.
 > The join is `screen.resources` against `endpoint.resource`, over what was retrieved
-> only (a citation must name something it was shown). The prompt (v4) says a screen's
-> photograph holds no records.
+> only (a citation must name something it was shown), and only endpoints of the
+> screen's own system: resources are joined by name, and another system's `codes` is
+> not this screen's. The prompt (v4) says a screen's photograph holds no records.

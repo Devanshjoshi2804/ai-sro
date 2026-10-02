@@ -87,7 +87,7 @@ Code: `K_SAMPLE = 200`
 > One record, named the way `answer.py` names one: the ranked fields, best
 > first, so this is what a person would call it.
 
-## `as_seen`, [line 85](../../../../../../../backend/src/sro/application/lookup/answer.py#L85): Docstring
+## `as_seen`, [line 90](../../../../../../../backend/src/sro/application/lookup/answer.py#L90): Docstring
 
 > One answer, as every surface draws it.
 >
@@ -103,7 +103,7 @@ Code: `return re.sub(r"ies$", "y", words) if words.endswith("ies") else words.re
 > is the one place English needs this and the rest of the system names an
 > entity in the singular everywhere.
 
-## `as_seen`, [line 115](../../../../../../../backend/src/sro/application/lookup/answer.py#L115): Comment
+## `as_seen`, [line 120](../../../../../../../backend/src/sro/application/lookup/answer.py#L120): Comment
 
 Code: `matched = [dict(one) for one in named(question, every, subject)] if question else []`
 
@@ -112,7 +112,7 @@ Code: `matched = [dict(one) for one in named(question, every, subject)] if quest
 > console would have worked it out again, and a rule with a copy per
 > surface drifts on all of them.
 
-## `as_seen`, [line 117](../../../../../../../backend/src/sro/application/lookup/answer.py#L117): Comment
+## `as_seen`, [line 122](../../../../../../../backend/src/sro/application/lookup/answer.py#L122): Comment
 
 Code: `rest = [one for one in every if one not in shown][: max(0, K_SAMPLE - len(shown))]`
 
@@ -125,28 +125,28 @@ Code: `rest = [one for one in every if one not in shown][: max(0, K_SAMPLE - len
 > `K_SAMPLE`, so an answer costs the same on the wire whether it named
 > something or not.
 
-## `as_seen`, [line 121](../../../../../../../backend/src/sro/application/lookup/answer.py#L121): Comment
+## `as_seen`, [line 126](../../../../../../../backend/src/sro/application/lookup/answer.py#L126): Comment
 
 Code: `"truncated": read.truncated or len(every) > K_SAMPLE,`
 
 > The reader's own word for it, so a page nobody can size is never
 > reported as a total. See `Answer.counted`.
 
-## `as_seen`, [line 127](../../../../../../../backend/src/sro/application/lookup/answer.py#L127): Comment
+## `as_seen`, [line 133](../../../../../../../backend/src/sro/application/lookup/answer.py#L133): Comment
 
 Code: `"sentence": (`
 
 > The answer to what was ASKED where something was, and the
 > collection's own count where nothing was.
 
-## `as_seen`, [line 136](../../../../../../../backend/src/sro/application/lookup/answer.py#L136): Comment
+## `as_seen`, [line 142](../../../../../../../backend/src/sro/application/lookup/answer.py#L142): Comment
 
 Code: `"rest": [dict(one) for one in rest] if matched else [],`
 
 > Everything the question did NOT name. Empty where it named
 > nothing, because then `records` is already all of them.
 
-## `as_seen`, [line 137](../../../../../../../backend/src/sro/application/lookup/answer.py#L137): Comment
+## `as_seen`, [line 143](../../../../../../../backend/src/sro/application/lookup/answer.py#L143): Comment
 
 Code: `"matched": len(matched),`
 

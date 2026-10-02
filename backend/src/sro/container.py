@@ -1129,8 +1129,10 @@ def build_container(settings: Settings | None = None) -> Container:
         connect_args={"timeout": K_LOCK_CONNECT_TIMEOUT_S},
     )
 
+    sign_ins = SignIns()
     container = Container(
         settings=settings,
+        sign_ins=sign_ins,
         clock=clock,
         ids=UuidFactory(),
         blobs=MinioBlobStore(
@@ -1154,7 +1156,9 @@ def build_container(settings: Settings | None = None) -> Container:
         interpreter=_build_interpreter(settings, meter),
         asker=_build_asker(settings, meter),
         intent_parser=_build_intent_parser(settings, meter),
-        vault=(built_vault := ForgetsRefusalOnWrite(_build_vault(settings))),
+        vault=(
+            built_vault := ForgetsRefusalOnWrite(_build_vault(settings), on_written=sign_ins.forget)
+        ),
         http=HttpxCaller(),
         tools=McpToolCaller(_servers(settings.mcp_servers), vault=built_vault),
         ui=PlaywrightUiDriver(settings.ui_debugger_url),

@@ -12,7 +12,8 @@ from collections.abc import Mapping
 
 import pytest
 
-from sro.application.runtime.broker import SessionBroker, SigningIn
+from sro.application.connection.refusals import ForgetsRefusalOnWrite
+from sro.application.runtime.broker import K_FAILURE, SessionBroker, SigningIn, SignIns
 from sro.application.runtime.step import Held, LaneContext, NeedsAPerson
 from sro.domain.execution.account import LeaseState
 from sro.domain.execution.lanes import StepResult
@@ -21,11 +22,19 @@ from tests.unit.application.runtime.test_the_broker import (
     APP,
     CTX,
     LENA,
+    PASSWORD,
+    STEEL,
     WRONG,
     _broker,
     _signing_world,
 )
-from tests.unit.fakes import FakePageDriver, FakeUnitOfWork
+from tests.unit.fakes import (
+    FakeAccountLocks,
+    FakeBrowserPool,
+    FakeClock,
+    FakePageDriver,
+    FakeUnitOfWork,
+)
 from tests.unit.runtime_support import SigningLane
 
 
@@ -166,3 +175,65 @@ async def test_a_re_sign_in_cancelled_mid_way_does_not_leave_the_signed_out_leas
         await asking
 
     assert LeaseState.READY not in _states(uow)
+
+
+async def _failed_apart(
+    clock: FakeClock,
+) -> tuple[SessionBroker, ForgetsRefusalOnWrite, _SlowSignIn, FakePageDriver]:
+    uow, driver, vault = await _signing_world(password=WRONG)
+    driver.refuses = True
+    lane, signings = _SlowSignIn(driver), SignIns()
+    vault_seen = ForgetsRefusalOnWrite(vault, on_written=signings.forget)
+    broker = SessionBroker(
+        uow,
+        FakeBrowserPool({STEEL: 1}),
+        driver,
+        FakeAccountLocks(),
+        vault_seen,
+        clock,
+        ui=lane,
+        close_s=0.05,
+        signings=signings,
+    )
+    with pytest.raises(SigningIn):
+        await _apart(broker, "lookup_1")
+    lane.gate.set()
+    await broker.signings.settled()
+    return broker, vault_seen, lane, driver
+
+
+async def test_a_sign_in_failure_nobody_asked_about_expires_after_ten_minutes() -> None:
+    """R-L3: a refusal heard a day later is not news, and must not hide a sign-in that
+    would work now."""
+    clock = FakeClock()
+    clock = FakeClock()
+    broker, _, lane, _ = await _failed_apart(clock)
+    clock.advance(int(K_FAILURE.total_seconds()) + 1)
+
+    with pytest.raises(NeedsAPerson, match="no usable password"):
+        await _apart(broker, "lookup_2", patience_s=60.0)
+
+    assert lane.sign_ins == 1, "no second chain ran: a new sign-in began and met the latch"
+
+
+async def test_a_failure_still_fresh_is_heard_once_by_the_next_ask() -> None:
+    clock = FakeClock()
+    broker, _, lane, _ = await _failed_apart(clock)
+    clock.advance(int(K_FAILURE.total_seconds()) - 1)
+
+    with pytest.raises(NeedsAPerson, match="password refused"):
+        await _apart(broker, "lookup_2", patience_s=60.0)
+
+    assert lane.sign_ins == 1
+
+
+async def test_a_new_password_clears_the_failure_at_once() -> None:
+    """R-L3: the person fixed what failed; the next ask signs in rather than hearing the
+    old refusal."""
+    broker, vault, _, driver = await _failed_apart(FakeClock())
+    driver.refuses = False
+
+    await vault.store(LENA.vault_key("password"), PASSWORD)
+    held = await _apart(broker, "lookup_2", patience_s=60.0)
+
+    assert held.lease.state is LeaseState.READY

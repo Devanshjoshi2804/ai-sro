@@ -40,11 +40,12 @@ def _entry(
     title: str = "",
     body: dict[str, object] | None = None,
     superseded_by: str | None = None,
+    system: str = WMS,
 ) -> KnowledgeEntry:
     return KnowledgeEntry(
-        id=KnowledgeId(f"kn_{abs(hash(key + kind.value)) % 10**8}"),
+        id=KnowledgeId(f"kn_{abs(hash(key + kind.value + system)) % 10**8}"),
         tenant_id=f.TENANT,
-        system=WMS,
+        system=system,
         kind=kind,
         key=key,
         title=title or key,
@@ -333,6 +334,38 @@ async def test_a_screen_is_shown_with_the_endpoints_it_loads_so_a_call_can_be_ch
     shown = str(asker.asked[0]["evidence"])
     on_the_screen = shown.split(route)[1].split("ENDPOINT")[0]
     assert f"loads: {grid}" in on_the_screen and "/data/WM/wm/codes" not in on_the_screen
+
+
+async def test_a_screen_is_shown_only_the_endpoints_of_its_own_system() -> None:
+    """Review 1 #8: resources are joined by NAME, so another system's `codes` was listed
+    under this system's screen -- and an unhashable resource in a body crashed the join."""
+    grid = "/data/WM/wm/equipmentTypes"
+    route = "#wm.config/wm.config.equipment.equipment.warehouseequipmenttype////"
+    planner, asker = _planner(
+        _said(target=grid, params="{}", cites=[grid, route]),
+        [
+            _entry(grid, EntryKind.ENDPOINT, body={"resource": "equipmentTypes"}),
+            _entry(
+                "/api/v2/equipmentTypes",
+                EntryKind.ENDPOINT,
+                body={"resource": "equipmentTypes"},
+                system="other_system",
+            ),
+            _entry("/api/odd", EntryKind.ENDPOINT, body={"resource": ["equipmentTypes"]}),
+            _entry(
+                route,
+                EntryKind.SCREEN,
+                title="Warehouse Equipment Type",
+                body={"resources": ["equipmentTypes"]},
+            ),
+        ],
+    )
+
+    await planner.execute(CTX, question="is there a warehouse equipment type called ZWOYBN")
+
+    shown = str(asker.asked[0]["evidence"])
+    on_the_screen = shown.split(route)[1].split("ENDPOINT")[0]
+    assert f"loads: {grid}" in on_the_screen and "/api/" not in on_the_screen
 
 
 async def test_nothing_known_plans_nothing_rather_than_improvising() -> None:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -9,6 +10,8 @@ from sro.domain.lookup.plan import Lookup
 from sro.domain.observation.gesture import Gesture
 from sro.domain.observation.trim import path_shape
 from sro.domain.shared.hosts import REDACTED, headers_without_markers
+
+K_EMPTY = ("", "[]", "{}", "null")
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,6 +27,8 @@ class Address:
     page: str = ""
 
     reads: tuple[str, ...] = ()
+
+    narrowed: tuple[str, ...] = ()
 
 
 def address_for(lookup: Lookup, gestures: Iterable[Gesture]) -> Address | None:
@@ -46,7 +51,10 @@ def _call_address(lookup: Lookup, gestures: list[Gesture]) -> Address | None:
     ]
     if not worked:
         return None
-    gesture, call = max(worked, key=lambda one: one[1].started_at or 0.0)
+    gesture, call = max(
+        worked,
+        key=lambda one: (-len(_narrowing(one[1].url, lookup.params)), one[1].started_at or 0.0),
+    )
     struck_out = [name for name, value in call.request_headers.items() if REDACTED in value]
     return Address(
         url=_with_params(call.url, lookup.params),
@@ -55,6 +63,7 @@ def _call_address(lookup: Lookup, gestures: list[Gesture]) -> Address | None:
         struck=tuple(n for n in struck_out if n.lower() not in LIVE_FETCHABLE_HEADERS),
         seen_at=call.started_at,
         page=gesture.page_url or gesture.url or "",
+        narrowed=_narrowing(call.url, lookup.params),
     )
 
 
@@ -70,15 +79,29 @@ def _screen_address(lookup: Lookup, gestures: list[Gesture]) -> Address | None:
     if not on_it:
         return None
     seen = max(on_it, key=lambda gesture: gesture.at)
-    reads = dict.fromkeys(
-        path_shape(call.url)
-        for call in seen.requests
-        if call.method.upper() == "GET"
-        and call.status is not None
-        and 200 <= call.status < 300
-        and not call.failure_reason
+    made = Counter(
+        shape
+        for gesture in on_it
+        for shape in dict.fromkeys(
+            path_shape(call.url)
+            for call in gesture.requests
+            if call.method.upper() == "GET"
+            and call.status is not None
+            and 200 <= call.status < 300
+            and not call.failure_reason
+        )
     )
-    return Address(url=seen.url or "", seen_at=seen.at, reads=tuple(reads))
+    return Address(
+        url=seen.url or "", seen_at=seen.at, reads=tuple(shape for shape, _ in made.most_common())
+    )
+
+
+def _narrowing(url: str, asked: dict[str, str]) -> tuple[str, ...]:
+    return tuple(
+        name
+        for name, value in parse_qsl(urlsplit(url).query, keep_blank_values=True)
+        if name not in asked and value.strip() not in K_EMPTY
+    )
 
 
 def _route_name(route: str) -> str:

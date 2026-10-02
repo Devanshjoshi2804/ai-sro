@@ -228,6 +228,7 @@ def _look(
     start: StartWorkflowRun | None = None,
     durable: FakeDurableExecution | None = None,
     resume: Callable[[RequestContext, str], Awaitable[None]] | None = None,
+    **door: Any,
 ) -> FromTheMail:
     return FromTheMail(
         uow,
@@ -240,7 +241,8 @@ def _look(
         cap_usd=cap_usd,
         start=start,
         attempts=RecordAttempt(uow, FakeIdFactory(), FakeClock()),
-        asks=AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()),
+        asks=door.pop("asks", None) or AskAboutTheOffer(uow, FakeClock(), FakeIdFactory()),
+        **door,
     )
 
 

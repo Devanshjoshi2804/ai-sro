@@ -95,6 +95,29 @@ class RecordFeedback:
                 other = {"category": theirs, "reply": said_of(chain.text) if chain else ""}
                 await self._keep(ctx, DISAGREEMENT, thread_id, operator, brain, other)
 
+    async def mail_disagreement(
+        self,
+        ctx: RequestContext,
+        message_id: str,
+        said: str,
+        *,
+        chain: Mapping[str, object] | None,
+        brain: Mapping[str, object] | None,
+    ) -> None:
+        """A mail the matcher and the brain (shadow) read differently."""
+        try:
+            await self._add(
+                ctx,
+                DISAGREEMENT,
+                "",
+                message_id,
+                said,
+                {"mode": "shadow", "read": brain},
+                {"read": chain},
+            )
+        except Exception:
+            logger.exception("feedback (%s) could not be kept", DISAGREEMENT)
+
     async def undone(self, ctx: RequestContext, run: WorkflowRun, by: WorkflowRun) -> None:
         """The operator took back `run`: a signal when the brain had started it."""
         await self._of_a_run(

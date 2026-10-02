@@ -8,10 +8,12 @@ from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
 from types import MappingProxyType
+from typing import TYPE_CHECKING, Protocol
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.announce import SayWhatHappened
 from sro.application.chat.candidates import candidate_of
+from sro.application.chat.feedback import RecordFeedback
 from sro.application.chat.mailbox import (
     K_ELSEWHERE,
     K_REMEMBER,
@@ -23,7 +25,13 @@ from sro.application.chat.mailbox import (
     sent_to_others,
 )
 from sro.application.chat.read_threads import ReadThreads
-from sro.application.chat.understand import held_runs, offer_check, read_request, understand
+from sro.application.chat.understand import (
+    Understood,
+    held_runs,
+    offer_check,
+    read_request,
+    understand,
+)
 from sro.application.connection.sign_in import logins_of
 from sro.application.context import RequestContext
 from sro.application.execution.declared import (
@@ -94,6 +102,19 @@ K_BECAUSE = 400
 K_RECENT = "newer_than:2d -in:chats"
 
 K_TEXT = 2000
+
+
+if (
+    TYPE_CHECKING
+):  # the brain's tools hold this class, so the brain's reader cannot be imported here
+    from sro.application.chat.brain_reader import MailReading
+    from sro.application.chat.brain_tools import Spawn
+
+
+class MailReader(Protocol):
+    async def read(
+        self, ctx: RequestContext, *, text: str, earlier: str, sender: str, subject: str, offer: str
+    ) -> MailReading | None: ...
 
 
 logger = logging.getLogger(__name__)
@@ -188,7 +209,14 @@ class FromTheMail:
         start: StartWorkflowRun | None = None,
         attempts: RecordAttempt | None = None,
         asks: AskAboutTheOffer | None = None,
+        reader: MailReader | None = None,
+        reader_tenants: frozenset[str] = frozenset(),
+        shadow_tenants: frozenset[str] = frozenset(),
+        feedback: RecordFeedback | None = None,
+        spawn: Spawn | None = None,
     ) -> None:
+        self._reader, self._reader_tenants = reader, reader_tenants
+        self._shadow_tenants, self._feedback, self._spawn = shadow_tenants, feedback, spawn
         self._uow = uow
         self._asks = asks
         self._start = start
@@ -330,10 +358,29 @@ class FromTheMail:
             )
         whole, earlier = await self._conversation(ctx, thread, message) if thread else ("", "")
         text = whole or said
-        got = await read_request(text, known.facts, asker, held=known.held_by, logins=known.logins)
-        look.spent = _also(look.spent, got.answer)
-        if got.answer.data is None:
-            raise Unread(got.answer.error or "the model gave no reading")
+        if self._reader is not None and tenant in self._reader_tenants:
+            reading = await self._reader.read(
+                ctx,
+                text=mail.typed,
+                earlier=whole,
+                sender=mail.sender,
+                subject=mail.subject,
+                offer=mail_key(message),
+            )
+            if reading is None:
+                logger.info("%s: the brain read a mail that asks for no job", tenant)
+                look.asks_nothing.append(subject)
+                return None
+            got = _as_reading(reading)
+        else:
+            got = await read_request(
+                text, known.facts, asker, held=known.held_by, logins=known.logins
+            )
+            look.spent = _also(look.spent, got.answer)
+            if got.answer.data is None:
+                raise Unread(got.answer.error or "the model gave no reading")
+            if self._reader is not None and tenant in self._shadow_tenants:
+                self._compare(ctx, message, mail, got, whole)
         async with self._uow as uow:
             got = await offer_check(uow, ctx.tenant_id, got, known.facts, now=known.now)
         if got.workflow_id is None:
@@ -396,6 +443,39 @@ class FromTheMail:
                 for value in one.values()
             ),
         )
+
+    def _compare(
+        self, ctx: RequestContext, message: str, mail: _Mail, got: Understood, whole: str
+    ) -> None:
+        """Off the request path: what the brain would have read, kept as feedback when it
+        differs from what the matcher read. Never raises into the look."""
+        if self._spawn is None or self._feedback is None or self._reader is None:
+            return
+        reader, feedback = self._reader, self._feedback
+
+        async def compare() -> None:
+            try:
+                reading = await reader.read(
+                    ctx,
+                    text=mail.typed,
+                    earlier=whole,
+                    sender=mail.sender,
+                    subject=mail.subject,
+                    offer=mail_key(message),
+                )
+                theirs = _shape(reading.workflow_id, reading.values) if reading else None
+                if theirs != _shape(got.workflow_id, got.values):
+                    await feedback.mail_disagreement(
+                        ctx,
+                        message,
+                        mail.typed,
+                        chain=_shape(got.workflow_id, got.values),
+                        brain=theirs,
+                    )
+            except Exception:
+                logger.exception("the brain's reading of a mail could not be compared")
+
+        self._spawn(compare())
 
     async def _settle(
         self, ctx: RequestContext, one: Offered, workflows: Sequence[Workflow]
@@ -1177,6 +1257,21 @@ def _sentence(offered: Sequence[Offered], read: int, unsure: int = 0, theirs: in
     if not offered:
         return f"read {read}, and none of them asks for a job this tenant holds"
     return "offered " + ", ".join(one.title for one in offered)
+
+
+def _as_reading(reading: MailReading) -> Understood:
+    """A brain's reading as the matcher's result, so everything after the seam is one path."""
+    return Understood(
+        reading.workflow_id,
+        Answer(data={}),
+        values=dict(reading.values),
+        missing=list(reading.missing),
+        sure=reading.sure,
+    )
+
+
+def _shape(workflow_id: str | None, values: Mapping[str, str]) -> dict[str, object] | None:
+    return None if workflow_id is None else {"job": workflow_id, "values": sorted(values.items())}
 
 
 def _also(running: Answer, answer: Answer) -> Answer:

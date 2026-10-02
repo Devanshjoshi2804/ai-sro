@@ -16,6 +16,7 @@ from sro.application.capture.devices import ReadRoster, RestoreDevice, RevokeDev
 from sro.application.chat.about_an_offer import AskAboutTheOffer
 from sro.application.chat.ask_the_asker import DraftForTheAsker, SendTheDraft
 from sro.application.chat.brain import Brain
+from sro.application.chat.brain_reader import BrainReader
 from sro.application.chat.brain_tools import brain_tools
 from sro.application.chat.converse import Converse, StartThread
 from sro.application.chat.feedback import RecordFeedback
@@ -820,7 +821,7 @@ class Container:
                 runs=self.list_workflow_runs(),
                 run=self.get_workflow_run(),
                 threads=self.read_threads(),
-                look_mail=self.from_the_mail(),
+                look_mail=self.from_the_mail(with_the_brain=False),
                 look_up=LookItUp(self.plan_lookups(), self.run_lookups()),
                 start=self.start_workflow_run(),
                 plan=self.plan_task(),
@@ -841,7 +842,11 @@ class Container:
     def send_the_draft(self) -> SendTheDraft:
         return SendTheDraft(self.unit_of_work(), self.tools, self.clock, self.ids)
 
-    def from_the_mail(self) -> FromTheMail:
+    def from_the_mail(self, *, with_the_brain: bool = True) -> FromTheMail:
+        # The brain's own mail tool reads with the matcher: the brain asking itself would recurse.
+        live = frozenset(self.settings.mail_brain_tenants)
+        shadow = frozenset(self.settings.mail_brain_shadow_tenants)
+        wanted = with_the_brain and self.asker is not None and bool(live or shadow)
         return FromTheMail(
             self.unit_of_work(),
             self.tools,
@@ -856,6 +861,11 @@ class Container:
             start=self.start_workflow_run(),
             attempts=self.record_attempt(),
             asks=self.ask_about_the_offer(),
+            reader=BrainReader(self.brain()) if wanted else None,
+            reader_tenants=live,
+            shadow_tenants=shadow,
+            feedback=self.record_feedback(),
+            spawn=self.pursuits.spawn,
         )
 
     def look_in_the_mail_lately(self) -> LookInTheMailLately:

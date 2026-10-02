@@ -156,7 +156,7 @@ class FindJobs:
 _STATE = {
     "held": "finished: its changes were read back and confirmed",
     "stopped": "stopped",
-    "refused": "refused by the system",
+    "refused": "not created: the system refused it",
     "aborted": "aborted",
     "failed": "did not finish",
 }
@@ -198,17 +198,22 @@ class RunStatus:
         if self._feedback is not None:
             # No hook sits where every run's outcome is written; the operator's next look at
             # their runs is the least invasive place to notice that a run the brain started failed.
-            for run, row in zip(shown, rows, strict=True):
-                await self._feedback.failed(ctx, run, str(row["stopped_because"]))
+            for run in shown:
+                await self._feedback.failed(ctx, run, _stopped(run))
         return ToolResult(ok=True, data={"runs": rows})
 
     async def _row(self, ctx: RequestContext, run: WorkflowRun) -> dict[str, object]:
+        # A refused write made nothing: its reason (even "already exists", of a voice code) is
+        # said inside the state, so it cannot be read as the record being there.
+        refused, why = run.outcome == "refused", _stopped(run)
         return {
             "id": run.id,
             "job": run.pinned.title if run.pinned else run.workflow_id,
             "values": {k: v for k, v in run.values.items() if not is_secret_field(k)},
-            "state": _STATE.get(run.outcome, run.outcome),
-            "stopped_because": _stopped(run),
+            "state": f"{_STATE['refused']} ({why})"
+            if refused and why
+            else _STATE.get(run.outcome, run.outcome),
+            "stopped_because": "" if refused else why,
             "from_mail": bool(run.mail),
             "question": await self._question(ctx, run),
         }

@@ -372,6 +372,22 @@ CASES = [
     # a question about a system is a look-up
     _case("what is the voice code for AITE4?", ["lookup"], runs=[_AITE4]),
     _case("which LPN limit does warehouse equipment type WET1 have?", ["lookup"]),
+    # an existence question is answered by a lookup, never from a refused run's reason. The suite
+    # scores tools only and its dry lookup never fails, so "the reply must not claim it exists"
+    # is not expressible here; this case pins that the model looks rather than answers.
+    _case(
+        "is there a warehouse equipment type called ZWOYBN?",
+        ["lookup"],
+        runs=[
+            _run(
+                "run_zwoybn",
+                WAREHOUSE,
+                {"Warehouse Equipment Type": "ZWOYBN", "Voice Code": "7"},
+                "not created: the system refused it (the system refused it: Record already "
+                "exists. Voice Code 7 is already used)",
+            )
+        ],
+    ),
     # a value nobody gave is asked for, never made up
     _case(
         "make me a customer type",

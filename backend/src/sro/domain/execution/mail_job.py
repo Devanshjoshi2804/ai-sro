@@ -81,6 +81,10 @@ DRAFTED = "mail_draft"
 
 SENT: Final = "mail_sent"
 
+# Definitely nothing went. A kind of its own, not `mail_sent` with a flag: an extension
+# built before this marks a draft done on `mail_sent` alone, and must keep Send it.
+NOT_SENT: Final = "mail_not_sent"
+
 WHICH_MAIL: Final = "which_mail"
 
 DRAFT_QUESTIONS: Final = ("recipient", MAIL_BODY, WHICH_MAIL)

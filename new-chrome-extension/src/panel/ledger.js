@@ -566,9 +566,7 @@ export function alreadyAnswered(messages) {
     // itself where there is not. A card asks before any run exists, so keyed
     // only on the run this claimed nothing, and `Send it` stayed live under a
     // mail already sitting in somebody's inbox.
-    // `retry`: the backend says nothing went (the mailbox was not connected) and has
-    // given the claim back, so the draft keeps its Send it.
-    if (decision?.kind === "mail_sent" && !decision.retry) {
+    if (decision?.kind === "mail_sent") {
       if (decision.run_id) done.set(decision.run_id, "sent");
       if (decision.draft_id) done.set(decision.draft_id, "sent");
     }

@@ -14,7 +14,7 @@ from sro.application.ports.tools import NotConnected, ToolCaller, ToolResult, To
 from sro.domain.chat.asking import NEEDS, Pending, still_asking
 from sro.domain.chat.asking_the_asker import draft_for, worth_asking
 from sro.domain.chat.thread import Message, Speaker, ThreadId
-from sro.domain.execution.mail_job import DRAFTED, SENT
+from sro.domain.execution.mail_job import DRAFTED, NOT_SENT, SENT
 from sro.domain.execution.waiting import read_wait
 from sro.domain.shared.errors import Conflict
 from sro.domain.shared.identifiers import PrincipalId
@@ -111,7 +111,7 @@ class DraftForTheAsker:
         thread = await ReadThreads(self._uow).asking(owner, conversation)
         if thread is None:
             return False
-        asking = (NEEDS, DRAFTED, SENT)
+        asking = (NEEDS, DRAFTED, SENT, NOT_SENT)
         drafted = False
         for message in thread.messages:
             decision = message.decision if isinstance(message.decision, dict) else {}
@@ -236,7 +236,7 @@ class SendTheDraft:
                 message_id,
                 to,
                 sent=False,
-                retry=True,
+                kind=NOT_SENT,
             )
             return ""
         except ToolsUnavailable as gone:
@@ -318,7 +318,7 @@ class SendTheDraft:
         to: str = "",
         *,
         sent: bool,
-        retry: bool = False,
+        kind: str = SENT,
     ) -> None:
         async with self._uow as uow:
             thread = await uow.threads.get(ctx.tenant_id, thread_id)
@@ -329,12 +329,11 @@ class SendTheDraft:
                     text=text,
                     said_at=self._clock.now(),
                     decision={
-                        "kind": SENT,
+                        "kind": kind,
                         "run_id": run_id,
                         "draft_id": draft_id,
                         "to": to,
                         "sent": sent,
-                        **({"retry": True} if retry else {}),
                     },
                 )
             )

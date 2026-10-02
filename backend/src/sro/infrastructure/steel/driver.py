@@ -566,6 +566,11 @@ class SteelDriver:
             return picked, ""
         return (None, "frame_ambiguous") if holding else (page.main_frame, "")
 
+    @staticmethod
+    async def _loaded(tab: _Tab) -> None:
+        async with asyncio.timeout(K_ACTION_TIMEOUT_S):
+            await tab.settled.wait()
+
     async def act(
         self, session: SessionRef, target_id: str, payload: Mapping[str, object]
     ) -> PageAnswer:
@@ -581,6 +586,11 @@ class SteelDriver:
         self, session: SessionRef, target_id: str, payload: Mapping[str, object]
     ) -> PageAnswer:
         page = await self._page(session, target_id)
+        tab = self._tabs.get(page)
+        if tab is not None:
+            # A page still loading from the step before is waited out first, so a context lost
+            # below can only be this action's own navigation.
+            await self._call(session, target_id, page, lambda: self._loaded(tab))
         frame, kind = await self._frame(page, payload)
         if frame is None:
             detail = (
@@ -590,7 +600,6 @@ class SteelDriver:
             )
             return PageAnswer(ok=False, detail=detail, error_kind=kind)
         self._log(page).acted = frame
-        tab = self._tabs.get(page)
         loads = tab.loads if tab is not None else 0
 
         async def acted() -> Any:
@@ -604,8 +613,10 @@ class SteelDriver:
                     or (tab.loads == loads and tab.settled.is_set())
                 ):
                     raise
-                async with asyncio.timeout(K_ACTION_TIMEOUT_S):
-                    await tab.settled.wait()
+                await self._loaded(tab)
+                # What the page said before it went is lost with it: no pin, no repaired flag.
+                # Not reporting "repaired" is deliberate: it would turn every navigating
+                # sign-in click into a step parked on a person, which is the bug fixed here.
                 return {"ok": True}
 
         got = await self._call(session, target_id, page, acted)

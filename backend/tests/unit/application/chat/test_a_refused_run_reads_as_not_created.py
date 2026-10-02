@@ -16,7 +16,7 @@ from tests.unit.runtime_support import CTX
 
 async def _rows(world: Any) -> list[dict[str, Any]]:
     result = await RunStatus(ListWorkflowRuns(world.uow), ReadThreads(world.uow)).run(CTX, {})
-    return list(result.data["runs"])
+    return list(result.data["runs"])  # type: ignore[call-overload]
 
 
 async def test_a_run_the_lane_refused_reads_as_not_created_through_the_real_step_path() -> None:

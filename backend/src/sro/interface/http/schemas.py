@@ -2454,6 +2454,7 @@ class LookedModel(BaseModel):
             answer=looked.answer,
             read=looked.read,
             question=question,
+            find=looked.lookup.find,
         )
         answer = dict(looked.answer)
         return cls(

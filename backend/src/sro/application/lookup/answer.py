@@ -46,18 +46,40 @@ def _describes(record: Mapping[str, object]) -> str:
     return values[0] if len(values) == 1 else f"{values[0]} ({values[1]})"
 
 
+def _hits(find: str, read: Answer | None) -> list[tuple[int, str]]:
+    """(record, column) for every full record holding a value equal to `find`."""
+    wanted = find.strip().casefold()
+    found: list[tuple[int, str]] = []
+    for at, record in enumerate(read.records if read else ()):
+        column = next((key for key, value in record.items() if value.casefold() == wanted), None)
+        if column is not None:
+            found.append((at, column))
+    return found
+
+
+def _whole(read: Answer) -> bool:
+    return not read.partial and read.counted == len(read.records)
+
+
 def existence(find: str, subject: str, read: Answer | None) -> str:
     """Yes on a record whose value equals `find`; no only off a whole list; else unsure."""
-    if read is None:
-        return f"I could not tell whether {subject} {find} exists: that read held no records."
-    wanted = find.casefold()
-    for one in read.sample:
-        if any(value.casefold() == wanted for value in one.values()):
-            return f"Yes, {subject} {find} exists: {_describes(one)}."
-    whole = not read.partial and not read.truncated and read.counted == len(read.sample)
-    if not whole:
+    return existence_across(find, [(subject, read)])
+
+
+def existence_across(find: str, reads: Sequence[tuple[str, Answer | None]]) -> str:
+    """One verdict over every read that could hold `find` (a failed one is a None)."""
+    for subject, read in reads:
+        if read is not None and (hit := next(iter(_hits(find, read)), None)):
+            at, column = hit
+            shown = _describes(read.sample[at]) if at < len(read.sample) else find
+            return f"Yes, {subject} {find} exists ({column}): {shown}."
+    subject = reads[0][0]
+    if any(read is None for _, read in reads):
+        return f"I could not tell whether {subject} {find} exists: a read held no records."
+    if not all(read is not None and _whole(read) for _, read in reads):
         return f"I could not tell whether {subject} {find} exists: only part of the list was read."
-    return f"No, none of the {read.rows} {subject}s is {find}."
+    count = sum(len(read.records) for _, read in reads if read is not None)
+    return f"No, none of the {count} {subject} records is {find}."
 
 
 def as_seen(
@@ -69,6 +91,7 @@ def as_seen(
     answer: Mapping[str, object],
     read: Answer | None = None,
     question: str = "",
+    find: str = "",
 ) -> dict[str, object]:
     status = answer.get("status")
     seen: dict[str, object] = {
@@ -85,7 +108,11 @@ def as_seen(
 
     subject = subject_of(target) or "record"
     every = [dict(one) for one in read.sample]
-    matched = [dict(one) for one in named(question, every, subject)] if question else []
+    matched: list[dict[str, object]]
+    if find:
+        matched = [dict(every[at]) for at, _ in _hits(find, read) if at < len(every)]
+    else:
+        matched = [dict(one) for one in named(question, every, subject)] if question else []
     shown = matched or every
     rest = [one for one in every if one not in shown][: max(0, K_SAMPLE - len(shown))]
     return {
@@ -98,7 +125,11 @@ def as_seen(
             "partial": read.partial,
             "subject": subject,
             "sentence": (
-                _found(subject, matched, read.counted) if matched else read.sentence(subject)
+                existence(find, subject, read)
+                if find
+                else _found(subject, matched, read.counted)
+                if matched
+                else read.sentence(subject)
             ),
             "columns": list(read.columns),
             "records": [dict(one) for one in shown[:K_SAMPLE]],

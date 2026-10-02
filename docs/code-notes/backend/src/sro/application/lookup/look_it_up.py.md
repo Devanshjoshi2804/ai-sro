@@ -18,7 +18,7 @@ Code: `if not planned.plan.ready:`
 > proposal below is genuinely for: it says what the knowledge base
 > has and offers to work the screen out once.
 
-## `what_was_found`, [line 48](../../../../../../../backend/src/sro/application/lookup/look_it_up.py#L48): Docstring
+## `what_was_found`, [line 60](../../../../../../../backend/src/sro/application/lookup/look_it_up.py#L60): Docstring
 
 > The sentence above the table, for a surface that draws no table.
 >
@@ -26,7 +26,7 @@ Code: `if not planned.plan.ready:`
 > claiming to summarise them would be this system inventing a number: the
 > table is the answer and this is its label.
 
-## `what_was_found`, [line 52](../../../../../../../backend/src/sro/application/lookup/look_it_up.py#L52): Comment
+## `what_was_found`, [line 64](../../../../../../../backend/src/sro/application/lookup/look_it_up.py#L64): Comment
 
 Code: `if any(ran_out(one.detail) for one in found.looked):`
 
@@ -35,14 +35,15 @@ Code: `if any(ran_out(one.detail) for one in found.looked):`
 > the person reading it can see their own browser and can do something
 > about it.
 
-## `what_was_found`, [line 55](../../../../../../../backend/src/sro/application/lookup/look_it_up.py#L55): Comment
+## `what_was_found`, [line 67](../../../../../../../backend/src/sro/application/lookup/look_it_up.py#L67): Comment
 
-Code: `said = [_said(one) for one in answered if one.read is not None or one.lookup.find]`
+Code: `said = [_said(one) for one in answered if one.read is not None and not one.lookup.find]`
 
 > The reader's own sentence, where it read records. Where the lookup carries
-> the value an existence question asked about (`find`), the sentence is
-> `existence`'s instead: yes only on a record equal to it, no only off a whole
-> list, else "could not tell" -- never how many records there were.
+> the value an existence question asked about (`find`), the verdict is
+> `existence_across`'s, one per value over every lookup that could hold it,
+> a failed one included: yes if any read holds an equal record, no only if
+> every one was whole and lacked it, else "could not tell".
 >
 > `Answer.sentence` is deterministic -- counted and named from the payload,
 > never summarised by a model, because "16" has to be 16 -- and it is the

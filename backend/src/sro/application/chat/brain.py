@@ -210,7 +210,9 @@ class Brain:
             if answer.data is None:
                 # The model's own error text is the log's, not the operator's.
                 logger.warning("brain: the model did not answer: %s", answer.error)
-                return _cannot("the model did not answer", decisions, steps, unavailable=True)
+                return _cannot(
+                    "the model did not answer", decisions, steps, unavailable=answer.unreachable
+                )
             step = step_of(answer.data)
             if step.say is not None:
                 return BrainReply(step.say, tuple(decisions), tuple(steps))

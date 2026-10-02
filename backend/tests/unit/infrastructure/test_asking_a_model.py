@@ -151,7 +151,7 @@ async def test_gemini_asker_reports_a_blocked_response_as_an_error() -> None:
     )
 
     assert answer.data is None
-    assert answer.error
+    assert answer.error and not answer.unreachable
     assert answer.in_tokens == 10
 
 
@@ -166,7 +166,7 @@ async def test_gemini_asker_reports_non_json_text_as_an_error() -> None:
     )
 
     assert answer.data is None
-    assert answer.error
+    assert answer.error and not answer.unreachable
     assert answer.in_tokens == 10
     assert answer.out_tokens == 5
 
@@ -224,7 +224,7 @@ async def test_gemini_asker_survives_the_client_raising() -> None:
     )
 
     assert answer.data is None
-    assert answer.error
+    assert answer.error and answer.unreachable
     assert answer.in_tokens == 0
     assert answer.cost_usd == 0.0
 

@@ -867,3 +867,26 @@ async def test_why_a_demonstrated_send_granted_nobody_is_logged_in_counts(
 
     assert logged in caplog.text
     assert "@" not in caplog.text
+
+
+class _Answers(_Mailbox):
+    def __init__(self, text: str, *, failed: bool) -> None:
+        super().__init__()
+        self._reply = ToolResult(text=text, failed=failed)
+
+    async def call(self, *call: Any) -> ToolResult:
+        return self._reply if call[3] == "send_message" else await super().call(*call)
+
+
+@pytest.mark.parametrize(
+    ("text", "failed"),
+    [("Outlook refused the send (502)", True), ("{}", False), ("not json at all", False)],
+)
+async def test_a_send_the_mailbox_did_not_confirm_is_unclear_never_failed(
+    text: str, failed: bool
+) -> None:
+    done = await _sent_through(_Answers(text, failed=failed))
+
+    (step,) = done.steps
+    assert step.verdict == "unclear", "a Retry would send it twice"
+    assert "may have gone" in step.reason and "check Sent before retrying" in step.reason

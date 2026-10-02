@@ -334,7 +334,12 @@ async def send_the_mail(
         said = {}
     sent_id = str(said.get("id") or "") if isinstance(said, dict) else ""
     if not sent_id:
-        return "", f"The mailbox did not say the mail went: {answered.text[:200]}"
+        # Any failure at or after the send request may have gone: a Retry would send it twice.
+        return (
+            "",
+            "The mailbox did not confirm the mail, so it may have gone; "
+            f"check Sent before retrying: {answered.text[:200]}",
+        )
     if mail.named:
         by = {"address": ", ".join(mail.named), "by": ctx.principal_id.value}
         await keep_the_named(ctx, uow, mail.job, by, at=clock.now())

@@ -513,6 +513,7 @@ async def test_no_job_that_sends_mail_can_be_started_from_chat() -> None:
     for job_id in ("mail_send", "mail_reply", "mail_forward"):
         sent = await acting.job.run(CTX, {"job_id": job_id, "values": {"To": "bob@corp.com"}}, said)
         assert not sent.ok and "Send it" in sent.error
+        assert "tell the operator" not in sent.error
     unknown = await acting.job.run(CTX, {"job_id": "mail_nope", "values": {}}, said)
 
     assert not unknown.ok and acting.start.tried == 0 and acting.started == []

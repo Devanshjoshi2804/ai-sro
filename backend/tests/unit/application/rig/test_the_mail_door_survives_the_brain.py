@@ -167,3 +167,35 @@ async def test_two_overlapping_shadow_compares_are_separate_units_of_work() -> N
     assert len(recorders) == 2 and recorders[0] is not recorders[1], "one recorder a compare"
     assert sorted(arrived) == ["mail:m-1", "mail:m-2"]
     assert len(uow.chat_feedback.rows) == 2
+
+
+async def test_a_mail_the_model_blocks_is_dropped_at_the_third_look_with_a_note_and_a_row() -> None:
+    from sro.application.chat.brain_reader import BrainReader
+    from sro.domain.shared.prices import Answer
+    from tests.unit.application.chat.test_brain_tools import _acting
+    from tests.unit.application.chat.test_the_brain import _brain
+
+    class _Blocks:
+        async def ask(self, **_: object) -> Answer:
+            return Answer(data=None, error="the model returned no candidates")
+
+    uow = await _held()
+    box = _Mailbox(search=_found("m-1"), **{"m-1": _mail("please create GPX", "t-1")})
+    brain, _ = _brain(await _acting(), asker=_Blocks())
+    door = _look(
+        uow,
+        box,
+        _Reads(),
+        reader=lambda: BrainReader(brain),
+        reader_tenants=LIVE,
+        asks=AskAboutTheOffer(uow, FakeClock(), FakeIdFactory(), None),
+        feedback=lambda: RecordFeedback(uow, FakeIdFactory(), FakeClock()),
+    )
+
+    looks = [await door.execute(CTX) for _ in range(3)]
+
+    assert looks[0].stopped and looks[1].stopped and looks[2].stopped == ""
+    (row,) = uow.chat_feedback.rows
+    assert row.kind == "mail_unreadable" and row.message_id == "m-1"
+    found = await ReadThreads(uow).asking(CTX, "t-1")
+    assert found is not None and "could not read this mail" in found.messages[-1].text

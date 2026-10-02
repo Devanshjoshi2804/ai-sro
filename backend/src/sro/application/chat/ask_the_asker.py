@@ -245,12 +245,8 @@ class SendTheDraft:
             await self._say(
                 ctx,
                 thread_id,
-                f"The mailbox could not send the mail to {to}{f': {detail}' if detail else ''}. "
-                + (
-                    "It may have gone; check Sent before sending it again."
-                    if "may have gone" in detail
-                    else "Nothing was sent, so you can send it again."
-                ),
+                f"The mailbox could not confirm the mail to {to}{f': {detail}' if detail else ''}. "
+                "It may have gone; check Sent before sending it again.",
                 run_id,
                 message_id,
                 to,

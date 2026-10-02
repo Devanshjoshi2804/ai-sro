@@ -82,6 +82,7 @@ class FakeNango:
         ]
         self.routes: dict[tuple[str, str], Callable[[dict[str, str], Any], Any]] = {}
         self.status = 200
+        self.statuses: dict[str, int] = {}  # a status for one Graph path
 
     def on(self, method: str, path: str, answer: Any) -> None:
         self.routes[(method, path)] = answer if callable(answer) else (lambda _p, _b: answer)
@@ -119,6 +120,8 @@ class FakeNango:
         graph = path.removeprefix("/proxy")
         if self.status >= 400:
             return httpx.Response(self.status, json={"error": {"message": "nope"}})
+        if graph in self.statuses:
+            return httpx.Response(self.statuses[graph], json={"error": {"message": "gateway"}})
         found = self.routes.get((request.method, graph))
         if found is None:
             return httpx.Response(404, json={"error": {"message": f"no route {graph}"}})
@@ -1204,3 +1207,84 @@ def test_an_unexpected_error_is_logged_by_type_only(
     shown = got["result"]["content"][0]["text"] + capsys.readouterr().out
     assert "KeyError" in shown
     assert "secret-mail-body" not in shown and "nango-secret" not in shown
+
+
+def _send_raises(nango: FakeNango, failure: Exception) -> None:
+    def raises(_p: dict[str, str], _b: Any) -> Any:
+        raise failure
+
+    nango.on("POST", "/v1.0/me/messages", {"id": "AAMk-imm-1"})
+    nango.on("POST", "/v1.0/me/messages/AAMk-imm-1/send", raises)
+
+
+@pytest.mark.parametrize("status", [502, 503, 504])
+def test_a_send_that_errors_after_the_request_says_it_may_have_gone(
+    outlook: ModuleType, nango: FakeNango, status: int
+) -> None:
+    """Graph can take the send and still answer 5xx; a Retry would mail the sender twice."""
+    _drafts(nango)
+    nango.statuses["/v1.0/me/messages/AAMk-imm-1/send"] = status
+
+    with pytest.raises(RuntimeError, match="may have gone: check Sent before retrying"):
+        asyncio.run(
+            outlook.run_tool("acme", "sam", "send_message", {"to": "a@x.test", "body": "x"})
+        )
+
+
+def test_a_send_that_times_out_in_the_transport_says_it_may_have_gone(
+    outlook: ModuleType, nango: FakeNango
+) -> None:
+    _send_raises(nango, httpx.ReadTimeout("read timed out"))
+
+    with pytest.raises(RuntimeError, match="may have gone: check Sent before retrying"):
+        asyncio.run(
+            outlook.run_tool("acme", "sam", "send_message", {"to": "a@x.test", "body": "x"})
+        )
+
+
+def test_a_draft_refused_before_the_send_does_not_say_it_may_have_gone(
+    outlook: ModuleType, nango: FakeNango
+) -> None:
+    nango.status = 403
+
+    with pytest.raises(RuntimeError) as raised:
+        asyncio.run(
+            outlook.run_tool("acme", "sam", "send_message", {"to": "a@x.test", "body": "x"})
+        )
+
+    assert "may have gone" not in str(raised.value)
+
+
+def _gmail_send_with(monkeypatch: pytest.MonkeyPatch, post: Any) -> str:
+    gmail = _load("gmail_connector_for_sends", "gmail-connector")
+    monkeypatch.setattr(gmail.httpx, "post", post)
+    return gmail._send("tok", {"to": "a@x.test", "body": "x"})
+
+
+def _answers(response: httpx.Response) -> Any:
+    return lambda *_a, **_k: response
+
+
+@pytest.mark.parametrize(
+    "post",
+    [
+        _answers(httpx.Response(503, text="backend error")),
+        _answers(httpx.Response(200, text="<html>not json</html>")),
+        pytest.param(
+            lambda *_a, **_k: (_ for _ in ()).throw(httpx.ReadTimeout("read timed out")),
+            id="timeout",
+        ),
+    ],
+)
+def test_a_gmail_send_that_fails_at_or_after_the_request_says_it_may_have_gone(
+    monkeypatch: pytest.MonkeyPatch, post: Any
+) -> None:
+    with pytest.raises(RuntimeError, match="may have gone: check Sent before retrying"):
+        _gmail_send_with(monkeypatch, post)
+
+
+def test_a_gmail_send_refused_with_a_4xx_did_not_go(monkeypatch: pytest.MonkeyPatch) -> None:
+    with pytest.raises(RuntimeError) as raised:
+        _gmail_send_with(monkeypatch, _answers(httpx.Response(403, text="forbidden")))
+
+    assert "may have gone" not in str(raised.value)

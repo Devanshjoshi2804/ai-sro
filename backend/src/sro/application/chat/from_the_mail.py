@@ -411,7 +411,9 @@ class FromTheMail:
             )
             look.spent = _also(look.spent, got.answer)
             if got.answer.data is None:
-                raise ModelUnavailable(got.answer.error or "the model gave no reading")
+                raise (ModelUnavailable if got.answer.unreachable else Unread)(
+                    got.answer.error or "the model gave no reading"
+                )
             if self._build is not None and tenant in self._shadow_tenants:
                 self._compare(ctx, message, mail, got, earlier)
         async with self._uow as uow:

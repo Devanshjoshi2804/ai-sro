@@ -129,7 +129,9 @@ class GeminiAsker:
                     )
                     await asyncio.sleep(K_BACKOFF_S * (attempt + 1))
         if problem is not None or response is None:
-            return Answer(unpriced=True, error=f"{type(problem).__name__}: {problem}")
+            return Answer(
+                unpriced=True, error=f"{type(problem).__name__}: {problem}", unreachable=True
+            )
 
         usage = getattr(response, "usage_metadata", None)
         raw_in = getattr(usage, "prompt_token_count", None)

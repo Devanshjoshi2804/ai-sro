@@ -444,7 +444,7 @@ class StartJob:
             return ToolResult(
                 ok=False,
                 error="that job sends mail, and mail goes out only when the operator presses "
-                "Send it; tell the operator you cannot send mail from chat",
+                "Send it, so a mail cannot be sent from chat",
                 guard=True,
             )
         fields = (

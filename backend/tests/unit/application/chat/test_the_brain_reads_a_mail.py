@@ -184,3 +184,24 @@ async def test_a_limit_refusal_is_asked_with_the_refusal_sentence() -> None:
         _say("refused"),
     )
     assert isinstance(got, MailAsked) and "longer than 4" in got.question
+
+
+async def test_blocked_or_schema_bad_output_is_a_counted_unread_not_an_outage() -> None:
+    import pytest
+
+    from sro.application.chat.mailbox import ModelUnavailable, Unread
+
+    acting = await _acting()
+    with pytest.raises(Unread) as raised:
+        await _read(acting, SAID, Answer(data=None, error="the answer was blocked"))
+    assert not isinstance(raised.value, ModelUnavailable)
+
+
+async def test_a_model_that_could_not_be_reached_is_an_outage() -> None:
+    import pytest
+
+    from sro.application.chat.mailbox import ModelUnavailable
+
+    acting = await _acting()
+    with pytest.raises(ModelUnavailable):
+        await _read(acting, SAID, Answer(data=None, error="ConnectError", unreachable=True))

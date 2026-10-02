@@ -765,6 +765,13 @@ async def _send(graph: Graph, arguments: Mapping[str, Any]) -> str:
             "Outlook did not confirm the send in time; the mail may have gone: "
             "check Sent before retrying"
         ) from None
+    except (RuntimeError, NangoUnavailable) as failed:
+        # Graph may have taken the send before it answered 5xx or the line dropped: any failure
+        # of the send request itself may have gone, and a Retry would mail the sender twice.
+        raise RuntimeError(
+            f"Outlook did not confirm the send ({failed}); the mail may have gone: "
+            "check Sent before retrying"
+        ) from None
     print(f"  -> sent to {len(message['toRecipients'])} recipient(s)")
     return json.dumps({"status": "sent", "id": ident})
 

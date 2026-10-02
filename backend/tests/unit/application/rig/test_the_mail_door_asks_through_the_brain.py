@@ -508,8 +508,13 @@ async def test_a_connector_error_is_not_reported_as_asked() -> None:
     )
 
     assert to == "" and last.decision["sent"] is False
-    assert "Asked" not in last.text and "could not send" in last.text
-    assert "403 Forbidden" in last.text and "check Sent" not in last.text
+    assert (
+        "Asked" not in last.text
+        and "could not confirm" in last.text
+        and "check Sent before sending it again" in last.text
+    )
+    assert "403 Forbidden" in last.text and "check Sent before sending it again" in last.text
+    assert "can send it again" not in last.text
 
 
 async def test_a_connector_that_says_it_may_have_gone_says_to_check_sent() -> None:
@@ -525,4 +530,8 @@ async def test_a_send_with_no_id_is_not_reported_as_asked() -> None:
     to, last = await _told_after_send_it(ToolResult(text="{}"))
 
     assert to == "" and last.decision["sent"] is False
-    assert "Asked" not in last.text and "could not send" in last.text
+    assert (
+        "Asked" not in last.text
+        and "could not confirm" in last.text
+        and "check Sent before sending it again" in last.text
+    )

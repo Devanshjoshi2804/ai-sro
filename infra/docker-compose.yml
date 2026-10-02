@@ -47,6 +47,9 @@ services:
       POSTGRES_USER: sro
       POSTGRES_PASSWORD: sro
       POSTGRES_DB: sro
+      # init-db.sh creates the Nango role too; dev-only values.
+      NANGO_DB_USER: nango
+      NANGO_DB_PASSWORD: nango
     ports:
       - "5432:5432"
     volumes:

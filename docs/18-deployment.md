@@ -251,19 +251,18 @@ popup calls the server URL, so the console passes both:
 
 **Database.** A fresh Postgres volume creates the `nango` role and database
 from `infra/init-db.sh`. On the existing QA volume (the init script does not
-run on an existing one), once:
+run on an existing one), once. Export the variables in your shell and pass them
+into the running container, so Postgres is not recreated:
 
 ```bash
+set -a; . infra/.env.qa; set +a
 docker compose -f infra/docker-compose.deploy.yml --env-file infra/.env.qa \
-  exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  exec -T -e NANGO_DB_USER -e NANGO_DB_PASSWORD postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
   -v nu="$NANGO_DB_USER" -v np="$NANGO_DB_PASSWORD"' <<'SQL'
 CREATE ROLE :"nu" LOGIN PASSWORD :'np';
 CREATE DATABASE nango OWNER :"nu";
 SQL
 ```
-
-(The `postgres` container only has the new `NANGO_DB_*` variables after it is
-recreated: `up -d --no-deps postgres` first.)
 
 Then start it, and recreate Caddy to publish the new ports:
 
@@ -279,7 +278,7 @@ with the basic-auth credentials. Create the integration `microsoft`: client id
 and secret from the Azure app registration, scopes
 `offline_access Mail.Read Mail.ReadWrite Mail.Send User.Read`. Copy the
 environment secret key (Environment Settings) into `.env.qa` as
-`SRO_NANGO_SECRET_KEY`. `SRO_NANGO_URL` stays `http://nango-server:3003`.
+`SRO_NANGO_SECRET_KEY`. `SRO_NANGO_URL` stays `http://nango-server:8080`.
 
 **Upgrading Nango.** The image is pinned (`nangohq/nango-server:hosted-<version>`,
 tags on Docker Hub, versions on <https://github.com/NangoHQ/nango/releases>)

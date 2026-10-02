@@ -47,7 +47,7 @@ Code: `WAREHOUSE = "jdadelivers.com"`
 > rather than inferred: "the host with the most gestures" would silently promote
 > localhost to a warehouse on a laptop that spent a week on fixtures.
 
-## module, [line 82](../../../../backend/scripts/measure.py#L82): Note on the line above
+## module, [line 121](../../../../backend/scripts/measure.py#L121): Note on the line above
 
 Code: `MINE = "(cast(:tenant as text) is null or tenant_id = cast(:tenant as text))"`
 
@@ -63,11 +63,11 @@ Code: `MINE = "(cast(:tenant as text) is null or tenant_id = cast(:tenant as tex
 > error it raises ("could not determine data type of parameter $1") names nothing
 > about tenants.
 
-## `Line`, [line 31](../../../../backend/scripts/measure.py#L31): Docstring
+## `Line`, [line 70](../../../../backend/scripts/measure.py#L70): Docstring
 
 > One measured thing, and what it rests on.
 
-## `unmeasured`, [line 408](../../../../backend/scripts/measure.py#L408): Docstring
+## `unmeasured`, [line 479](../../../../backend/scripts/measure.py#L479): Docstring
 
 > The list this whole script exists to print.
 >
@@ -75,7 +75,7 @@ Code: `MINE = "(cast(:tenant as text) is null or tenant_id = cast(:tenant as tex
 > Written by hand and kept in the report on purpose: a gap that is only
 > visible as a missing section is a gap the next reader will not see.
 
-## `running`, [line 290](../../../../backend/scripts/measure.py#L290): Comment
+## `running`, [line 361](../../../../backend/scripts/measure.py#L361): Comment
 
 Code: `for belt in ("status", "read", "screen"):`
 
@@ -85,7 +85,7 @@ Code: `for belt in ("status", "read", "screen"):`
 > about reality, so each one is asked about by name even when the answer is
 > zero. A rung that has never run is the most useful line on this page.
 
-## `main`, [line 516](../../../../backend/scripts/measure.py#L516): Comment
+## `main`, [line 588](../../../../backend/scripts/measure.py#L588): Comment
 
 Code: `asked = (`
 
@@ -95,3 +95,11 @@ Code: `asked = (`
 > Read here rather than in the measuring, which is async: a blocking file
 > read inside an async function is the kind of thing that works until the
 > day it is called from a server.
+
+## `class_of`, [line 60](../../../../backend/scripts/measure.py#L60): Note on the function
+
+> The first matching class wins, in `_CLASS_WORDS` order. `wrong_resume` is
+> checked before `sign_in` because a resumed step's reason names the earlier
+> attempt, and that attempt may itself mention a sign-in. "other" is reviewed
+> by a person, never re-bucketed silently. `known_broken` carries only
+> digests, so it is counted per lane, not classed.

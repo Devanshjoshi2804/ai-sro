@@ -26,6 +26,45 @@ WAREHOUSE = "jdadelivers.com"
 MAIL_HOSTS = ("mail.google.com", "outlook.office.com")
 LOCAL_HOSTS = ("localhost", "127.0.0.1")
 
+CLASSES = (
+    "unconfirmed_write",
+    "sign_in",
+    "not_found",
+    "duplicate",
+    "timing",
+    "wrong_resume",
+    "other",
+)
+
+_CLASS_WORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("unconfirmed_write", ("nothing confirms it", "outcome was lost", "never confirmed")),
+    ("wrong_resume", ("earlier attempt, never settled", "operator says it was not done")),
+    ("sign_in", ("sign-in", "signed out", "sign in", "password", "still a sign-in page")),
+    ("duplicate", ("already exists", "duplicate", "already there")),
+    (
+        "not_found",
+        (
+            "control_not_found",
+            "frame_not_found",
+            "frame_ambiguous",
+            "no longer on the page",
+            "no recorded control",
+            "no field",
+            "no option",
+        ),
+    ),
+    ("timing", ("did not settle", "timed out", "timeout")),
+)
+
+
+def class_of(verdict: str, reason: str) -> str:
+    if verdict not in ("failed", "unclear"):
+        return ""
+    said = reason.lower()
+    return next(
+        (name for name, words in _CLASS_WORDS if any(word in said for word in words)), "other"
+    )
+
 
 @dataclass
 class Line:
@@ -248,6 +287,38 @@ async def mining(db: AsyncConnection, tenant: str | None) -> Section:
             standing="recorded",
         )
     )
+    return into
+
+
+async def failure_classes(db: AsyncConnection, tenant: str | None, *, days: int = 30) -> Section:
+    into = Section(
+        "3b. Failure classes",
+        f"Steps that did not hold in the last {days} days, by the class the capture spec targets."
+        " Re-derived from workflow_run_steps, never assumed.",
+    )
+    rows = await _rows(
+        db,
+        "select s.verdict, s.reason from workflow_run_steps s"
+        " join workflow_runs r on r.id = s.run_id"
+        " where r.started_at >= now() - make_interval(days => :days)"
+        f" and {MINE.replace('tenant_id', 'r.tenant_id')}",
+        tenant=tenant,
+        days=days,
+    )
+    counted: Counter[str] = Counter(
+        named for verdict, reason in rows if (named := class_of(verdict or "", reason or ""))
+    )
+    for name in CLASSES:
+        into.add(Line(f"steps in class {name}", counted[name], len(rows) or None, "recorded"))
+    broken = await _rows(
+        db,
+        "select lane, count(*) from known_broken where at >= now() - make_interval(days => :days)"
+        f" and {MINE} group by lane",
+        tenant=tenant,
+        days=days,
+    )
+    for lane, number in sorted(broken):
+        into.add(Line(f"known_broken fingerprints on lane {lane}", number, standing="recorded"))
     return into
 
 
@@ -475,6 +546,7 @@ async def _measure(tenant: str | None, asked: tuple[str, ...]) -> dict[str, obje
             await evidence(db, tenant),
             await mining(db, tenant),
             await running(db, tenant),
+            await failure_classes(db, tenant),
             await asking(db, tenant, asked),
             await spending(db, tenant),
             unmeasured(),

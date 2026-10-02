@@ -1,0 +1,76 @@
+{
+  "taken": "2026-10-03",
+  "window_days": 30,
+  "tenant": "all (QA)",
+  "sections": [
+    {
+      "title": "3b. Failure classes",
+      "why": "Steps that did not hold in the last 30 days, by the class the capture spec targets. Re-derived from workflow_run_steps, never assumed.",
+      "lines": [
+        {
+          "label": "steps in class unconfirmed_write",
+          "value": 6,
+          "of": 1207,
+          "standing": "recorded",
+          "note": ""
+        },
+        {
+          "label": "steps in class sign_in",
+          "value": 13,
+          "of": 1207,
+          "standing": "recorded",
+          "note": ""
+        },
+        {
+          "label": "steps in class not_found",
+          "value": 5,
+          "of": 1207,
+          "standing": "recorded",
+          "note": ""
+        },
+        {
+          "label": "steps in class duplicate",
+          "value": 6,
+          "of": 1207,
+          "standing": "recorded",
+          "note": ""
+        },
+        {
+          "label": "steps in class timing",
+          "value": 0,
+          "of": 1207,
+          "standing": "recorded",
+          "note": ""
+        },
+        {
+          "label": "steps in class wrong_resume",
+          "value": 0,
+          "of": 1207,
+          "standing": "recorded",
+          "note": ""
+        },
+        {
+          "label": "steps in class other",
+          "value": 121,
+          "of": 1207,
+          "standing": "recorded",
+          "note": ""
+        },
+        {
+          "label": "known_broken fingerprints on lane sight",
+          "value": 3,
+          "of": null,
+          "standing": "recorded",
+          "note": ""
+        },
+        {
+          "label": "known_broken fingerprints on lane ui",
+          "value": 2,
+          "of": null,
+          "standing": "recorded",
+          "note": ""
+        }
+      ]
+    }
+  ]
+}

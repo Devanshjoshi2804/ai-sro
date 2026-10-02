@@ -36,7 +36,10 @@ async def list_integrations(container: ContainerDep, ctx: ContextDep) -> list[In
     found = await container.list_integrations().execute(ctx)
     return [
         IntegrationModel(
-            integration=one.integration, connected=one.connected, connected_at=one.connected_at
+            integration=one.integration,
+            connected=one.connected,
+            connected_at=one.connected_at,
+            available=one.available,
         )
         for one in found
     ]
@@ -49,5 +52,8 @@ async def link_integration(
     """Lets the mail connector act for this operator once their account is connected."""
     one = await container.link_integration().execute(ctx, integration=integration)
     return IntegrationModel(
-        integration=one.integration, connected=one.connected, connected_at=one.connected_at
+        integration=one.integration,
+        connected=one.connected,
+        connected_at=one.connected_at,
+        available=one.available,
     )

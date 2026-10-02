@@ -3073,6 +3073,8 @@ export interface components {
             connected: boolean;
             /** Connected At */
             connected_at: string | null;
+            /** Available */
+            available: boolean;
         };
         /** KnowledgeEntryModel */
         KnowledgeEntryModel: {

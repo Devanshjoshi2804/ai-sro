@@ -8,7 +8,7 @@ from sro.application.context import RequestContext
 from sro.application.integrations.connect import NOT_SET_UP
 from sro.application.integrations.end_user import end_user_id
 from sro.application.integrations.listing import IntegrationStatus
-from sro.application.integrations.servers import MCP_SERVER
+from sro.application.integrations.servers import MCP_SERVER, not_set_up
 from sro.application.ports.nango import Nango, NangoUnavailable
 from sro.application.ports.vault import CredentialVault
 from sro.domain.execution.connector_bearer import sign_bearer
@@ -41,6 +41,8 @@ class LinkIntegration:
         server = MCP_SERVER.get(integration)
         if server is not None and self._key is None:
             raise NangoUnavailable(NO_KEY)
+        if integration not in await self._nango.integrations():
+            raise Conflict(not_set_up(integration))
         healthy = [
             one
             for one in await self._nango.connections(end_user_id(ctx))

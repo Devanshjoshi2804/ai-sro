@@ -125,6 +125,8 @@ class IntegrationModel(BaseModel):
     integration: str
     connected: bool
     connected_at: datetime | None
+    available: bool
+    """False when this server lists the integration but Nango has none set up."""
 
 
 class CredentialsRequest(BaseModel):

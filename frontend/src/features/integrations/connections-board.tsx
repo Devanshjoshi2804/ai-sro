@@ -92,8 +92,10 @@ export function ConnectionsBoard() {
             const name = displayName(item.integration);
             return (
               <li key={item.integration} className="flex items-center justify-between gap-4 p-4">
-                <span>
-                  {item.connected ? (
+                <span id={`note-${item.integration}`}>
+                  {!item.available ? (
+                    `${name} — not set up on this server yet`
+                  ) : item.connected ? (
                     <>
                       {name} — Connected
                       {item.connected_at && (
@@ -113,7 +115,8 @@ export function ConnectionsBoard() {
                 {!item.connected && (
                   <Button
                     type="button"
-                    disabled={busy !== null}
+                    disabled={busy !== null || !item.available}
+                    aria-describedby={item.available ? undefined : `note-${item.integration}`}
                     aria-busy={busy === item.integration}
                     onClick={() => void connect(item.integration)}
                   >

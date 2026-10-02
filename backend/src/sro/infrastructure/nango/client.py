@@ -6,7 +6,7 @@ from datetime import datetime
 
 import httpx
 
-from sro.application.ports.nango import NangoConnection, NangoUnavailable
+from sro.application.ports.nango import NangoConnection, NangoIntegrationMissing, NangoUnavailable
 
 logger = logging.getLogger(__name__)
 
@@ -62,10 +62,13 @@ class NangoClient:
         *,
         params: Mapping[str, str] | None = None,
         json: object | None = None,
+        missing: bool = False,
     ) -> httpx.Response:
         response = await self._send(method, path, params=params, json=json)
         if response.is_error:
             logger.warning("nango %s %s answered %s", method, path, response.status_code)
+            if missing and response.status_code in (400, 404):
+                raise NangoIntegrationMissing
             if response.status_code in (401, 403):
                 raise NangoUnavailable(MISCONFIGURED)
             raise NangoUnavailable(DOWN)
@@ -77,6 +80,7 @@ class NangoClient:
         response = await self._ok(
             "POST",
             "/connect/sessions",
+            missing=True,  # the live Nango answers 400 for an integration it does not have
             json={
                 "tags": {
                     "end_user_id": end_user_id,
@@ -90,6 +94,15 @@ class NangoClient:
             return str(response.json()["data"]["token"])
         except (ValueError, KeyError, TypeError):
             logger.warning("nango POST /connect/sessions answered a body we cannot read")
+            raise NangoUnavailable(DOWN) from None
+
+    async def integrations(self) -> set[str]:
+        # nango.dev/docs/reference/api/integration/list: {"data": [{"unique_key": ...}]}
+        response = await self._ok("GET", "/integrations")
+        try:
+            return {str(one["unique_key"]) for one in response.json()["data"]}
+        except (ValueError, KeyError, TypeError):
+            logger.warning("nango GET /integrations answered a body we cannot read")
             raise NangoUnavailable(DOWN) from None
 
     async def connections(self, end_user_id: str) -> list[NangoConnection]:

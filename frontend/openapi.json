@@ -27644,13 +27644,18 @@
               }
             ],
             "title": "Connected At"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available"
           }
         },
         "type": "object",
         "required": [
           "integration",
           "connected",
-          "connected_at"
+          "connected_at",
+          "available"
         ],
         "title": "IntegrationModel"
       },

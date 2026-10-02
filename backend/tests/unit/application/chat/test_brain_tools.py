@@ -301,6 +301,33 @@ async def test_lookup_answers_from_the_system_and_names_where_it_read() -> None:
     assert result.ok and "/data/WM/wm/suppliers" in str(result.data["source"])
 
 
+async def test_lookup_tells_the_brain_the_system_is_being_signed_in_to() -> None:
+    from sro.application.lookup.plan_lookups import Planned
+    from sro.application.lookup.run_lookups import Answers, Looked
+    from sro.domain.lookup.plan import Lookup as Asked
+    from sro.domain.lookup.plan import Plan
+
+    asked = Asked(system="blue_yonder", how="call", target="/data/WM/wm/suppliers")
+    plan = Plan(question="q", lookups=(asked,))
+
+    class _Read:
+        async def execute(self, *_: object, **__: object) -> Any:
+            return Answers(
+                plan=plan,
+                looked=(Looked(asked, False, detail="signing in to wms.example", signing_in=True),),
+            )
+
+    class _Plans:
+        async def execute(self, *_: object, **__: object) -> Any:
+            return Planned(plan)
+
+    result = await Lookup(LookItUp(_Plans(), _Read())).run(CTX, {"question": "q"})
+
+    assert not result.ok
+    assert "signing in to wms.example" in result.error and "again" in result.error
+    assert "could not" not in result.error
+
+
 def test_every_tool_is_described_with_its_arguments() -> None:
     tools = [FindJobs(FakeUnitOfWork(), FakeClock()), CheckMail(None)]
     one, two = described(tools)

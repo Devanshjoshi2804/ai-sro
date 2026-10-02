@@ -24,6 +24,7 @@ from sro.application.execution.stops import Stops
 from sro.application.ports.auth import Caller
 from sro.application.ports.capture import CaptureController
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.runtime.broker import SignIns
 from sro.config import Settings, get_settings
 from sro.container import Container, build_container
 from sro.domain.execution.run import Medium, Run, RunId, StepDisposition, StepOutcome
@@ -129,6 +130,7 @@ class _FakeContainer(Container):
         # password is held in this process's memory, and a container that
         # writes its own `__init__` needs its own store.
         self.one_time_secrets = OneTimeSecrets()
+        self.sign_ins = SignIns()
         self.agent_sockets = DeviceSockets()
         self.scheduler = FakeScheduler()
         self.dispatcher = FakeRunDispatcher()

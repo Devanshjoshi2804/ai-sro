@@ -145,6 +145,14 @@ def test_a_deployment_reads_each_gesture_against_nothing_by_default(
     assert container.read_gestures()._tail_size == 8
 
 
+def test_every_broker_the_process_builds_shares_its_one_set_of_sign_ins(
+    container: Container,
+) -> None:
+    """One sign-in per account in flight: a broker per use case would each start its own."""
+    assert container.session_broker().signings is container.sign_ins
+    assert container.session_broker().signings is container.session_broker().signings
+
+
 def test_a_deployment_reads_a_group_of_gestures_at_a_time(container: Container) -> None:
     """And the container has to hand the width over too.
 

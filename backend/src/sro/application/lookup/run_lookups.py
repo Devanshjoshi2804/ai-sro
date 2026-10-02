@@ -16,7 +16,7 @@ from sro.application.ports.page import PageGone
 from sro.application.ports.pool import PoolFull
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.runtime.api_lane import K_AUTH_REFUSED, needs_of, session_headers
-from sro.application.runtime.broker import SessionBroker
+from sro.application.runtime.broker import SessionBroker, SigningIn
 from sro.application.runtime.step import Held
 from sro.domain.lookup.address import Address, address_for
 from sro.domain.lookup.plan import Lookup, Plan
@@ -52,6 +52,7 @@ class Looked:
     read: Answer | None = None
 
     detail: str = ""
+    signing_in: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,6 +98,16 @@ class RunLookups:
                         detail=f"timed out after {within:.0f} s",
                     )
                 )
+            except SigningIn as signing:
+                looked.append(
+                    Looked(
+                        lookup=lookup,
+                        ok=False,
+                        url=address.url,
+                        detail=str(signing),
+                        signing_in=True,
+                    )
+                )
             except K_GAPS as gap:
                 looked.append(Looked(lookup=lookup, ok=False, url=address.url, detail=str(gap)))
         return Answers(plan=plan, looked=tuple(looked))
@@ -106,8 +117,17 @@ class RunLookups:
     ) -> Looked:
         page = address.page or address.url
         account = await self._broker.account_for(ctx, page)
+        # A cold sign-in outlasts a chat turn. It runs on the broker's own task, so this turn
+        # gives up on waiting for it (with a second left to read) and the next ask finds it done.
+        patience = (budget.when() or 0.0) - asyncio.get_running_loop().time() - K_AFTER_HEADERS_S
         held = await self._broker.acquire(
-            ctx, account, page, holder=f"lookup-{uuid4().hex}", park=False
+            ctx,
+            account,
+            page,
+            holder=f"lookup-{uuid4().hex}",
+            park=False,
+            patience_s=max(0.0, patience),
+            apart_s=K_DEADLINE_S,
         )
         try:
             if lookup.how == "call":

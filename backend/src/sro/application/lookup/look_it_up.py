@@ -60,6 +60,9 @@ def _verdicts(found: Answers) -> list[str]:
 def what_was_found(found: Answers) -> str:
     answered = [one for one in found.looked if one.ok]
     if not answered:
+        signing = next((one for one in found.looked if one.signing_in), None)
+        if signing is not None:
+            return f"I am {signing.detail}, which takes about a minute. Ask me again then."
         why = next((one.detail for one in found.looked if one.detail), "")
         if any(ran_out(one.detail) for one in found.looked):
             return "I could not read that in time. Ask again and I will try once more."

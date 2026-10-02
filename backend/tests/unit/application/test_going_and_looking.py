@@ -549,20 +549,46 @@ class _Hangs:
         raise AssertionError("an event nobody sets was set")
 
 
-async def test_a_conversation_that_runs_out_mid_sign_in_leaves_the_lease_ready() -> None:
-    """BROKEN means the pool no longer lists the context. A sign-in the
-    caller stopped waiting for says nothing about the context: the next
-    acquire finds it and probes."""
+async def test_a_conversation_that_runs_out_mid_sign_in_hears_it_is_signing_in_and_it_goes_on() -> (
+    None
+):
+    """QA 2026-10-02: a cold sign-in (24-34 s) outlasts the chat's 10 s. The turn used to
+    cancel it and leave the lease READY on the sign-in page, so no ask could ever finish.
+    The sign-in now runs on the broker's own task: this turn says so, the next finds it done."""
+    world = await lookup_world(_gesture(_call()))
+    gate = asyncio.Event()
+    execute = world.lane.execute
+
+    async def slow(step: Step, values: Mapping[str, str], ctx: Any) -> StepResult:
+        await gate.wait()
+        return await execute(step, values, ctx)
+
+    world.lane.execute = slow  # type: ignore[method-assign]
+    plan = Plan(question="q", lookups=(CALL,))
+
+    first = await world.run_lookups.execute(CTX, plan=plan, within=K_AFTER_HEADERS_S)
+
+    assert first.looked[0].signing_in and not first.looked[0].ok
+    assert first.looked[0].detail.startswith("signing in to ")
+    gate.set()
+    await world.broker.signings.settled()
+    second = await world.run_lookups.execute(CTX, plan=plan, within=K_AFTER_HEADERS_S)
+
+    assert second.looked[0].ok and world.lane.sign_ins == 1
+    assert _leases(world) == [LeaseState.READY] and world.driver.tabs == {}
+
+
+async def test_a_conversation_that_is_over_leaves_no_ready_lease_on_a_sign_in_page() -> None:
     world = await lookup_world(_gesture(_call()))
     world.broker._ui = _Hangs()
 
     answers = await world.run_lookups.execute(
-        CTX, plan=Plan(question="q", lookups=(CALL,)), within=0.05
+        CTX, plan=Plan(question="q", lookups=(CALL,)), within=K_AFTER_HEADERS_S
     )
+    await world.broker.signings.close()
 
-    assert answers.looked[0].detail.startswith("timed out after")
-    assert _leases(world) == [LeaseState.READY]
-    assert world.driver.tabs == {}
+    assert answers.looked[0].signing_in
+    assert LeaseState.READY not in _leases(world) and world.driver.tabs == {}
 
 
 async def test_a_code_prompt_is_answered_by_a_person_not_by_typing_the_password_again() -> None:

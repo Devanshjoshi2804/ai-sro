@@ -137,7 +137,7 @@ from sro.application.recording.start_recording import StartRecording
 from sro.application.runtime.answer_password import AnswerPassword
 from sro.application.runtime.answer_run import AnswerRun
 from sro.application.runtime.api_lane import ApiLane
-from sro.application.runtime.broker import SessionBroker
+from sro.application.runtime.broker import SessionBroker, SignIns
 from sro.application.runtime.executor import StepExecutor
 from sro.application.runtime.fill_field import FillField
 from sro.application.runtime.run_steps import RunSteps
@@ -252,6 +252,7 @@ class Container:
     stops: Stops = field(default_factory=Stops)
 
     one_time_secrets: OneTimeSecrets = field(default_factory=OneTimeSecrets)
+    sign_ins: SignIns = field(default_factory=SignIns)
 
     approvals: Approvals = field(default_factory=Approvals)
 
@@ -288,6 +289,7 @@ class Container:
             self.clock,
             ui=self.ui_lane(),
             once=self.one_time_secrets,
+            signings=self.sign_ins,
         )
 
     def step_executor(self) -> StepExecutor:

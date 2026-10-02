@@ -4,9 +4,10 @@ import asyncio
 import contextlib
 import logging
 from collections import Counter
-from collections.abc import Collection, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Collection, Mapping, Sequence
 from dataclasses import replace
 from datetime import datetime, timedelta
+from uuid import uuid4
 
 from sro.application.connection.refusals import CodeAsked, RefusedCredentials, fingerprint
 from sro.application.connection.sign_in import tagged_logins
@@ -37,7 +38,7 @@ from sro.domain.execution.account import (
     new_lease_id,
 )
 from sro.domain.observation.gesture import Gesture
-from sro.domain.shared.errors import InvariantViolation
+from sro.domain.shared.errors import DomainError, InvariantViolation
 from sro.domain.shared.hosts import origin_of
 from sro.domain.shared.identifiers import TenantId
 from sro.domain.skill.signing_in import (
@@ -67,6 +68,49 @@ def _needs_its_password(account: Account, why: str) -> NeedsAPerson:
     )
 
 
+class SigningIn(DomainError):
+    """The account is still being signed in, on its own task; ask again once it has."""
+
+    code = "signing_in"
+
+
+class SignIns:
+    """The sign-ins running for no caller in particular: one per account, shared by every
+    ask, and the failure each left behind for the next ask to hear (once).
+
+    One of these lives as long as the process that owns it; `close` cancels what runs."""
+
+    def __init__(self) -> None:
+        self._running: dict[str, asyncio.Task[None]] = {}
+        self._failed: dict[str, Exception] = {}
+
+    def failure(self, key: str) -> Exception | None:
+        return self._failed.pop(key, None)
+
+    def join_or_start(self, key: str, run: Callable[[], Awaitable[None]]) -> asyncio.Task[None]:
+        task = self._running.get(key)
+        if task is None:
+            task = self._running[key] = asyncio.create_task(self._keep(key, run))
+        return task
+
+    async def _keep(self, key: str, run: Callable[[], Awaitable[None]]) -> None:
+        try:
+            await run()
+        except Exception as why:  # kept, and raised to whoever asks next
+            logger.info("%s: the sign-in apart failed: %r", key, why)
+            self._failed[key] = why
+        finally:
+            del self._running[key]
+
+    async def settled(self) -> None:
+        await asyncio.gather(*self._running.values(), return_exceptions=True)
+
+    async def close(self) -> None:
+        for task in self._running.values():
+            task.cancel()
+        await self.settled()
+
+
 class SessionBroker:
     def __init__(
         self,
@@ -80,11 +124,13 @@ class SessionBroker:
         ui: StepLane,
         close_s: float = K_CLOSE_S,
         once: OneTimeSecrets | None = None,
+        signings: SignIns | None = None,
     ) -> None:
         self._uow, self._pool, self._driver = uow, pool, driver
         self._locks, self._vault, self._clock, self._ui = locks, vault, clock, ui
         self._close_s = close_s
         self._once = once or OneTimeSecrets()
+        self.signings = signings or SignIns()
 
     async def account_for(self, ctx: RequestContext, start_url: str) -> Account:
         account, _, _ = await self._recorded(ctx, start_url)
@@ -98,16 +144,54 @@ class SessionBroker:
         *,
         holder: str,
         park: bool = True,
+        patience_s: float | None = None,
+        apart_s: float = K_CLOSE_S,
     ) -> Held:
+        """A tab on the account's signed-in lease.
+
+        With `patience_s`, a sign-in this has to make runs on its own task (bounded by
+        `apart_s`, shared by every ask, kept going when this one gives up) and this waits at
+        most that long for it, then raises `SigningIn`; the next ask finds the lease ready.
+        """
+        if (failed := self.signings.failure(account.key)) is not None:
+            raise failed
+        held = await self._attached(ctx, account, start_url, holder, park)
+        if held is not None:
+            return held
+        if patience_s is None:
+            async with self._locks.hold(account):
+                return await self._ready(ctx, account, start_url, holder=holder, park=park)
+        task = self.signings.join_or_start(
+            account.key, lambda: self._sign_in_apart(ctx, account, start_url, apart_s)
+        )
+        done, _ = await asyncio.wait({task}, timeout=patience_s)
+        if not done:
+            raise SigningIn(f"signing in to {origin_of(start_url)}")
+        if (failed := self.signings.failure(account.key)) is not None:
+            raise failed
+        held = await self._attached(ctx, account, start_url, holder, park)
+        if held is None:
+            raise PageGone(f"{account.key} was signed in, and its session is gone")
+        return held
+
+    async def _attached(
+        self, ctx: RequestContext, account: Account, start_url: str, holder: str, park: bool
+    ) -> Held | None:
         async with self._uow as uow:
             lease = await uow.browser_sessions.current_lease(ctx.tenant_id, account)
         if lease is not None:
             with contextlib.suppress(PageGone):
-                held = await self._attach(ctx, lease, start_url, holder if park else None)
-                if held is not None:
-                    return held
-        async with self._locks.hold(account):
-            return await self._ready(ctx, account, start_url, holder=holder, park=park)
+                return await self._attach(ctx, lease, start_url, holder if park else None)
+        return None
+
+    async def _sign_in_apart(
+        self, ctx: RequestContext, account: Account, start_url: str, deadline_s: float
+    ) -> None:
+        async with asyncio.timeout(deadline_s), self._locks.hold(account):
+            held = await self._ready(
+                ctx, account, start_url, holder=f"sign-in-{uuid4().hex}", park=False
+            )
+            await self.release(ctx, held)
 
     async def reattach(
         self, ctx: RequestContext, lease_id: str, target_id: str, *, holder: str
@@ -234,6 +318,13 @@ class SessionBroker:
                 except NeedsAPerson as asked:
                     if park and asked.kind == "password":
                         await self._park(ctx, held.lease, "password")
+                    raise
+                except (asyncio.CancelledError, TimeoutError):
+                    # Stopped half way, the page is a sign-in page and the lease says READY.
+                    try:
+                        await self._settle(ctx, held.lease, LeaseState.BROKEN)
+                    finally:
+                        await self._close(held.lease)
                     raise
                 await self._save_state(held.lease, held.session)
                 await self._driver.forget_calls(held.session, held.target_id)
@@ -384,7 +475,7 @@ class SessionBroker:
             held = await self._signed_in(ctx, lease, start_url, park=park)
         except WaitingForAPerson:
             raise
-        except (NeedsAPerson, asyncio.CancelledError, TimeoutError):
+        except NeedsAPerson:
             kept = False
             try:
                 kept = await self._settle(ctx, lease, LeaseState.READY)

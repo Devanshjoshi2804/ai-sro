@@ -8,7 +8,6 @@ from typing import ClassVar, Protocol, runtime_checkable
 from sro.application.chat.candidates import rank_jobs, real_jobs
 from sro.application.chat.feedback import RecordFeedback
 from sro.application.chat.from_the_mail import FromTheMail
-from sro.application.chat.mailbox import SERVER
 from sro.application.chat.open_offers import OpenOffer, standing_offers
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.chat.understand import held_runs
@@ -298,7 +297,6 @@ async def _launch(
             values=values,
             live=True,
             allow_focus=True,
-            conversation=(SERVER, ""),
             offer=offer,
             undoes_run=undoes_run,
         )

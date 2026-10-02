@@ -18,12 +18,13 @@ from sro.application.chat.mailbox import (
     K_ELSEWHERE,
     K_REMEMBER,
     K_TAKEN,
-    SERVER,
+    NO_SERVERS,
     Unread,
     elsewhere_key,
     is_ours,
     mail_key,
     sent_to_others,
+    server_for,
 )
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.chat.understand import (
@@ -216,7 +217,9 @@ class FromTheMail:
         shadow_tenants: frozenset[str] = frozenset(),
         feedback: RecordFeedback | None = None,
         spawn: Spawn | None = None,
+        servers: Mapping[str, str] = NO_SERVERS,
     ) -> None:
+        self._servers = servers
         self._build = reader
         self._built: MailReader | None = None
         self._reader_tenants = reader_tenants
@@ -232,6 +235,9 @@ class FromTheMail:
         self._clock = clock
         self._ids = ids
         self._cap_usd = cap_usd
+
+    def _server(self, ctx: RequestContext) -> str:
+        return server_for(ctx.tenant_id.value, self._servers)
 
     async def execute(self, ctx: RequestContext, *, limit: int = K_LOOK) -> LookedInTheMail:
         asker = asker_or_refuse(self._asker)
@@ -565,7 +571,9 @@ class FromTheMail:
 
     async def _started_here(self, ctx: RequestContext, thread: str) -> bool:
         async with self._uow as uow:
-            return await uow.workflow_runs.started_on(ctx.tenant_id, server=SERVER, thread=thread)
+            return await uow.workflow_runs.started_on(
+                ctx.tenant_id, server=self._server(ctx), thread=thread
+            )
 
     async def _about_the_run(self, ctx: RequestContext, one: Offered) -> None:
         if self._clock is None or self._ids is None:
@@ -604,7 +612,9 @@ class FromTheMail:
         ):
             return one
         async with self._uow as uow:
-            if await uow.workflow_runs.started_on(ctx.tenant_id, server=SERVER, thread=one.thread):
+            if await uow.workflow_runs.started_on(
+                ctx.tenant_id, server=self._server(ctx), thread=one.thread
+            ):
                 logger.info(
                     "%s: %s already started a run, so this mail is only offered",
                     ctx.tenant_id.value,
@@ -626,7 +636,7 @@ class FromTheMail:
                 },
                 live=True,
                 allow_focus=False,
-                conversation=(SERVER, one.thread),
+                conversation=(self._server(ctx), one.thread),
                 offer=one.named,
                 mail=_envelope(one),
             )
@@ -682,7 +692,7 @@ class FromTheMail:
             return None
         async with self._uow as uow:
             waiting = await uow.workflow_runs.waiting_on(
-                ctx.tenant_id, server=SERVER, thread=thread
+                ctx.tenant_id, server=self._server(ctx), thread=thread
             )
         if waiting is None or not still_waiting(read_wait(waiting.awaiting), datetime.now(tz=UTC)):
             return None
@@ -744,7 +754,7 @@ class FromTheMail:
 
     async def _address_the_operator_named(self, ctx: RequestContext, message: str) -> str:
         answered = await self._tools.call(
-            ctx.tenant_id, ctx.principal_id, SERVER, "get_message", {"id": message}
+            ctx.tenant_id, ctx.principal_id, self._server(ctx), "get_message", {"id": message}
         )
         try:
             said = json.loads(answered.text)
@@ -1051,7 +1061,7 @@ class FromTheMail:
         answered = await self._tools.call(
             ctx.tenant_id,
             ctx.principal_id,
-            SERVER,
+            self._server(ctx),
             "search_threads",
             {"query": K_RECENT, "limit": str(limit), **({"page": page} if page else {})},
         )
@@ -1070,7 +1080,7 @@ class FromTheMail:
 
     async def _body(self, ctx: RequestContext, message: str) -> _Mail:
         answered = await self._tools.call(
-            ctx.tenant_id, ctx.principal_id, SERVER, "get_message", {"id": message}
+            ctx.tenant_id, ctx.principal_id, self._server(ctx), "get_message", {"id": message}
         )
         try:
             said = json.loads(answered.text)
@@ -1104,7 +1114,7 @@ class FromTheMail:
         self, ctx: RequestContext, thread: str, message: str
     ) -> tuple[str, str]:
         answered = await self._tools.call(
-            ctx.tenant_id, ctx.principal_id, SERVER, "get_thread", {"id": thread}
+            ctx.tenant_id, ctx.principal_id, self._server(ctx), "get_thread", {"id": thread}
         )
         try:
             said = None if answered.failed else json.loads(answered.text)

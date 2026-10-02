@@ -14,6 +14,7 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 import pytest
@@ -281,6 +282,7 @@ async def mail_world(
     thread: str = "",
     durable: FakeDurableExecution | None = None,
     start_cap_usd: float | None = None,
+    servers: Mapping[str, str] = MappingProxyType({}),
 ) -> _MailWorld:
     """One request mail naming the saved job, read as `sure` with `values`,
     for a tenant that runs on Steel or on the extension, whose operator has a
@@ -308,9 +310,10 @@ async def mail_world(
         steel_tenants=frozenset({f.TENANT.value}) if steel else frozenset(),
         # The wait a mail-started run keeps is read against the wall clock.
         clock=FakeClock(datetime.now(tz=UTC)),
+        servers=servers,
         **({} if start_cap_usd is None else {"cap_usd": start_cap_usd}),
     )
-    look = _look(uow, mailbox, reads, start=start)
+    look = _look(uow, mailbox, reads, start=start, servers=servers)
     return _MailWorld(uow, look, durable, start, _poll(uow, look, start), mailbox, reads)
 
 

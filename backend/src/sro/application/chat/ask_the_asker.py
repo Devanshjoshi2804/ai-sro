@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Mapping
 
 from sro.application.chat.announce import SayWhatHappened
-from sro.application.chat.mailbox import SERVER, NotSent, send_as_this_system
+from sro.application.chat.mailbox import NO_SERVERS, NotSent, send_as_this_system, server_for
 from sro.application.chat.read_threads import ReadThreads
 from sro.application.context import RequestContext
 from sro.application.ports.repositories import UnitOfWork
@@ -22,7 +23,15 @@ logger = logging.getLogger(__name__)
 
 
 class DraftForTheAsker:
-    def __init__(self, uow: UnitOfWork, tools: ToolCaller, clock: Clock, ids: IdFactory) -> None:
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        tools: ToolCaller,
+        clock: Clock,
+        ids: IdFactory,
+        servers: Mapping[str, str] = NO_SERVERS,
+    ) -> None:
+        self._servers = servers
         self._uow = uow
         self._tools = tools
         self._clock = clock
@@ -115,7 +124,11 @@ class DraftForTheAsker:
     async def _who_asked(self, ctx: RequestContext, thread: str) -> tuple[str, str, str]:
         try:
             answered = await self._tools.call(
-                ctx.tenant_id, ctx.principal_id, SERVER, "get_thread", {"id": thread}
+                ctx.tenant_id,
+                ctx.principal_id,
+                server_for(ctx.tenant_id.value, self._servers),
+                "get_thread",
+                {"id": thread},
             )
         except ToolsUnavailable as gone:
             logger.info("%s: the conversation could not be read: %s", ctx.tenant_id.value, gone)
@@ -143,7 +156,15 @@ def _address(sender: str) -> str:
 
 
 class SendTheDraft:
-    def __init__(self, uow: UnitOfWork, tools: ToolCaller, clock: Clock, ids: IdFactory) -> None:
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        tools: ToolCaller,
+        clock: Clock,
+        ids: IdFactory,
+        servers: Mapping[str, str] = NO_SERVERS,
+    ) -> None:
+        self._servers = servers
         self._uow = uow
         self._tools = tools
         self._clock = clock
@@ -198,6 +219,7 @@ class SendTheDraft:
                     "in_reply_to": str(draft.get("in_reply_to") or ""),
                 },
                 at=self._clock.now(),
+                servers=self._servers,
             )
         except (ToolsUnavailable, NotSent) as gone:
             logger.warning(

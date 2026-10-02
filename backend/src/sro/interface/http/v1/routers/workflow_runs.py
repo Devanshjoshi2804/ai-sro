@@ -37,7 +37,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, Response, status
 
-from sro.application.chat.mailbox import SERVER
 from sro.domain.execution.takeover import Took
 from sro.domain.execution.workflow_run import OfferTaken
 from sro.domain.observation.attempts import DONE, NOTHING
@@ -147,7 +146,7 @@ async def start_workflow_run(
             matched=body.matched,
             took_over=Took(**body.took_over.model_dump()) if body.took_over else None,
             device_secret=x_device_secret,
-            conversation=(SERVER, body.mail_thread),
+            conversation=(starter.mail_server(ctx), body.mail_thread),
             undoes_run=body.undoes_run,
             offer=body.offer,
         )

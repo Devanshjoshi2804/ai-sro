@@ -596,6 +596,9 @@ async def test_a_takeover_proves_the_browser_it_names_with_its_secret(
     heard: dict[str, Any] = {}
 
     class _Refusing:
+        def mail_server(self, ctx: Any) -> str:
+            return "gmail"
+
         async def execute(self, ctx: Any, **given: Any) -> WorkflowRun:
             heard.update(given)
             raise NotFound(f"device {given['device_id']} was not found")

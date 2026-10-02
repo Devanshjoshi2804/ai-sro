@@ -23,7 +23,7 @@ from typing import Any
 
 import pytest
 
-from sro.application.execution.gather import SERVER
+from sro.application.chat.mailbox import SERVER
 
 CONNECTOR = Path(__file__).resolve().parents[4] / "gmail-connector" / "server.py"
 

@@ -837,10 +837,14 @@ class Container:
         return AskAboutTheOffer(self.unit_of_work(), self.clock, self.ids, self._drafting_for)
 
     def draft_for_the_asker(self) -> DraftForTheAsker:
-        return DraftForTheAsker(self.unit_of_work(), self.tools, self.clock, self.ids)
+        return DraftForTheAsker(
+            self.unit_of_work(), self.tools, self.clock, self.ids, self.settings.mail_servers
+        )
 
     def send_the_draft(self) -> SendTheDraft:
-        return SendTheDraft(self.unit_of_work(), self.tools, self.clock, self.ids)
+        return SendTheDraft(
+            self.unit_of_work(), self.tools, self.clock, self.ids, self.settings.mail_servers
+        )
 
     def from_the_mail(self) -> FromTheMail:
         live = frozenset(self.settings.mail_brain_tenants)
@@ -854,7 +858,7 @@ class Container:
             ids=self.ids,
             cap_usd=self.settings.daily_usd_cap,
             answer=self.answer_run(),
-            gather=GatherContext(tools=self.tools, asker=self.asker)
+            gather=GatherContext(self.tools, self.asker, self.settings.mail_servers)
             if self.asker is not None
             else None,
             start=self.start_workflow_run(),
@@ -866,6 +870,7 @@ class Container:
             shadow_tenants=shadow,
             feedback=self.record_feedback(),
             spawn=self.pursuits.spawn,
+            servers=self.settings.mail_servers,
         )
 
     def look_in_the_mail_lately(self) -> LookInTheMailLately:
@@ -922,7 +927,7 @@ class Container:
             verified_writes=load_verified_writes(),
             vault=self.vault,
             retrieve=self.retrieve_knowledge(),
-            gather=GatherContext(tools=self.tools, asker=self.asker)
+            gather=GatherContext(self.tools, self.asker, self.settings.mail_servers)
             if self.asker is not None
             else None,
             ids=self.ids,
@@ -930,6 +935,7 @@ class Container:
             durable=self.durable,
             steel_tenants=frozenset(self.settings.steel_tenants),
             feedback=self.record_feedback(),
+            servers=self.settings.mail_servers,
         )
 
     def tool_lane(self) -> ToolLane:
@@ -955,10 +961,18 @@ class Container:
                 uow=self.unit_of_work(),
                 tools=self.tools,
                 asker=asker,
+                servers=self.settings.mail_servers,
             )
 
         async def send(mail: Written) -> tuple[str, str]:
-            return await send_the_mail(ctx, self.unit_of_work(), self.tools, mail, clock=self.clock)
+            return await send_the_mail(
+                ctx,
+                self.unit_of_work(),
+                self.tools,
+                mail,
+                clock=self.clock,
+                servers=self.settings.mail_servers,
+            )
 
         return MailHand(write=write, send=send)
 

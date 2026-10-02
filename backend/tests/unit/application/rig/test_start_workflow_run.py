@@ -21,6 +21,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from types import MappingProxyType
 
 import pytest
 
@@ -203,6 +204,7 @@ def _starter(
     durable: FakeDurableExecution | None = None,
     steel_tenants: frozenset[str] = frozenset(),
     clock: FakeClock | None = None,
+    servers: Mapping[str, str] = MappingProxyType({}),
 ) -> StartWorkflowRun:
     return StartWorkflowRun(
         uow,
@@ -215,6 +217,7 @@ def _starter(
         one_time_secrets=OneTimeSecrets(),
         durable=durable,
         steel_tenants=steel_tenants,
+        servers=servers,
     )
 
 

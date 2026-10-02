@@ -127,6 +127,8 @@ class Settings(BaseSettings):
     steel_urls: dict[str, tuple[tuple[str, str], ...]] = Field(default_factory=dict)
     steel_sessions_per_container: int = 20
     steel_tenants: tuple[str, ...] = ()
+    # Tenant id -> the connector its mailbox is on; a tenant not listed has gmail.
+    mail_servers: dict[str, str] = {}
 
     # Tenants the chat brain answers for, and tenants it only reads for (its
     # would-have-done is logged). Off for every tenant until switched on.

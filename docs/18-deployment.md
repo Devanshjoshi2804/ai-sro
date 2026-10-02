@@ -307,6 +307,34 @@ tags on Docker Hub, versions on <https://github.com/NangoHQ/nango/releases>)
 and so is Redis. To upgrade, edit the tag in `infra/docker-compose.deploy.yml`,
 read the release notes, and `up -d --no-deps nango-server`.
 
+## Outlook
+
+`outlook-connector` is the Gmail connector's twin: the same five tools and the
+same answers, read from Microsoft Graph through Nango's proxy. It holds no
+Microsoft token. Set `SRO_MCP_SERVERS` to include
+`outlook=http://outlook-connector:8934/mcp` (see `infra/.env.deploy.example`)
+and `SRO_CONNECTOR_SIGNING_KEY` (the connector reads the same value as
+`CONNECTOR_SIGNING_KEY`; under 32 bytes it will not start).
+
+- **Who may call:** the signed bearer the backend writes when an operator presses
+  Connect on Outlook. No grants file, no volume.
+- **Whose mailbox:** the newest healthy Nango connection tagged with that
+  operator. It is remembered for a minute; a disconnect in Nango ends access
+  within that minute and the call gets the same "no grant" answer a bad bearer
+  gets.
+- **Queries:** the Gmail query is translated. Dates, folders (`in:sent`),
+  `is:unread` and `has:attachment` become `$filter`/`$orderby`. Words, `from:`,
+  `to:`, `subject:` become `$search` (KQL), and Graph refuses `$filter` and
+  `$orderby` beside it, so a search's date window and unread state are applied to
+  the page that came back. A phrase searches as all of its words. `-in:chats` is
+  dropped; mail in Deleted Items and Junk is never returned unless `in:anywhere`.
+- **Not like Gmail:** Graph answers a send with 202 and no id, so `send_message`
+  returns `"id": ""` (the `marker` header is the handle). A reply is made to the
+  mail whose Message-Id is `in_reply_to`, else the newest of `thread_id`.
+- **Health:** the container's check is a TCP connect to 8934 (the Gmail one, 8932).
+  Before this, both inherited the image's check on the API's port 8000 and were
+  `unhealthy` from the start.
+
 ## Which mail connector a tenant is on
 
 `SRO_MAIL_SERVERS` is a JSON object from tenant id to connector name, e.g.

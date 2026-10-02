@@ -237,6 +237,41 @@ services:
     volumes:
       - gmail-grants:/app/.gmail-grants
     command: ["python", "gmail-connector/server.py", "8932"]
+    # The image's own HEALTHCHECK curls the API's port (8000), which this process
+    # does not serve: it reported `unhealthy` from its first second. The connector
+    # answers POST only, so the check is that its own port accepts a connection.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8932), 2)"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Outlook, as the same kind of connector: it answers the Gmail connector's five
+  # tools, with the same shapes, from Microsoft Graph through Nango's proxy.
+  #
+  # It holds no Microsoft token and no grants: a bearer is signed by the backend
+  # (SRO_CONNECTOR_SIGNING_KEY, the same value here), and whose mailbox it reads is
+  # the healthy Nango connection of that operator, asked for by tag. A disconnect
+  # in Nango ends access within a minute though the bearer stays in the vault.
+  # No published port, like the Gmail one.
+  # ---------------------------------------------------------------------------
+  outlook-connector:
+    image: ${BACKEND_IMAGE:?set BACKEND_IMAGE, e.g. ai-sro-backend:8b27470}
+    restart: unless-stopped
+    environment:
+      NANGO_URL: ${SRO_NANGO_URL:-http://nango-server:8080}
+      NANGO_SECRET_KEY: ${SRO_NANGO_SECRET_KEY:?set SRO_NANGO_SECRET_KEY, from the Nango dashboard}
+      CONNECTOR_SIGNING_KEY: ${SRO_CONNECTOR_SIGNING_KEY:?set SRO_CONNECTOR_SIGNING_KEY (openssl rand -hex 32)}
+      OUTLOOK_CONNECTOR_HOST: 0.0.0.0
+    command: ["python", "outlook-connector/server.py", "8934"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8934), 2)"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 10s
 
   # ---------------------------------------------------------------------------
   # Nango, self-hosted (free tier: OAuth + token refresh + proxy; no

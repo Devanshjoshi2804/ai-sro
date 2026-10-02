@@ -54,6 +54,7 @@ class StepResult:
     keyed: Mapping[str, str] = field(default_factory=dict)
     answered: Mapping[str, str] = field(default_factory=dict)
     refused: bool = False
+    sent: Mapping[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

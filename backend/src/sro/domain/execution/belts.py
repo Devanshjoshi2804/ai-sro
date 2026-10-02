@@ -110,6 +110,17 @@ def record_carrying(body: str, wanted: Mapping[str, str]) -> dict[str, object] |
     return None
 
 
+def record_count(body: str, wanted: Mapping[str, str]) -> int:
+    """How many records carry all of `wanted`."""
+    try:
+        parsed = json.loads(body)
+    except ValueError:
+        return 0
+    return sum(
+        all(one.get(slot) == value for slot, value in wanted.items()) for one in _records(parsed)
+    )
+
+
 def _records(parsed: object) -> Iterator[dict[str, object]]:
     if isinstance(parsed, dict):
         yield parsed

@@ -6,10 +6,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from uuid import uuid4
 
+from sro.application.connection.check_session import is_login
 from sro.application.context import RequestContext
 from sro.application.execution.answer import Answer, read_answer
 from sro.application.ports.browser import BrowserUnavailable
-from sro.application.ports.http import HttpCaller, HttpResponse, TargetUnreachable
+from sro.application.ports.http import HttpResponse, TargetUnreachable
 from sro.application.ports.locks import AccountBusy
 from sro.application.ports.page import PageGone
 from sro.application.ports.pool import PoolFull
@@ -62,8 +63,8 @@ class Answers:
 
 
 class RunLookups:
-    def __init__(self, uow: UnitOfWork, broker: SessionBroker, http: HttpCaller) -> None:
-        self._uow, self._broker, self._http = uow, broker, http
+    def __init__(self, uow: UnitOfWork, broker: SessionBroker) -> None:
+        self._uow, self._broker = uow, broker
 
     async def execute(
         self, ctx: RequestContext, *, plan: Plan, within: float = K_DEADLINE_S
@@ -109,8 +110,14 @@ class RunLookups:
         try:
             if lookup.how == "call":
                 got = await self._get(ctx, held, address, page, budget)
-                if got.succeeded:
-                    return _looked(lookup, address, {"status": got.status_code, "body": got.text})
+                if not got.succeeded:
+                    return Looked(
+                        lookup=lookup,
+                        ok=False,
+                        url=address.url,
+                        detail=f"the system answered {got.status_code}",
+                    )
+                return _looked(lookup, address, {"status": got.status_code, "body": got.text})
             if await self._broker.signed_out(ctx, held):
                 await self._broker.reauth(ctx, held, page, park=False)
             if await self._broker.signed_out(ctx, held):
@@ -133,9 +140,11 @@ class RunLookups:
         self, ctx: RequestContext, held: Held, address: Address, page: str, budget: asyncio.Timeout
     ) -> HttpResponse:
         got = await self._send(ctx, held, address, budget, fresh=False)
-        if got.status_code in K_AUTH_REFUSED:
+        if _sign_in_wanted(got, address.url):
             await self._broker.reauth(ctx, held, page, park=False)
             got = await self._send(ctx, held, address, budget, fresh=True)
+            if _sign_in_wanted(got, address.url):
+                raise SignedOut(f"{page} is still a sign-in page")
         return got
 
     async def _send(
@@ -163,7 +172,13 @@ class RunLookups:
         missing = [name for name in needs if name not in carried]
         if missing:
             raise MissingHeaders(f"the session has no {', '.join(missing)} for this read")
-        return await self._http.send("GET", address.url, headers=headers)
+        return await self._broker.send(ctx, held, "GET", address.url, headers=headers)
+
+
+def _sign_in_wanted(got: HttpResponse, url: str) -> bool:
+    return got.status_code in K_AUTH_REFUSED or is_login(
+        got.status_code, got.headers.get("location"), url, got.text
+    )
 
 
 def _looked(lookup: Lookup, address: Address, result: Mapping[str, object]) -> Looked:

@@ -86,7 +86,6 @@ from sro.domain.skill.tabs import MAIN
 from sro.domain.skill.workflow import Step, Workflow
 from sro.infrastructure.db.locks import PostgresAccountLocks
 from sro.infrastructure.db.repositories import SqlUnitOfWork
-from sro.infrastructure.http.httpx_caller import HttpxCaller
 from sro.infrastructure.steel.client import SteelClient
 from sro.infrastructure.steel.driver import SteelDriver
 from sro.infrastructure.steel.pool import SteelPool
@@ -398,7 +397,7 @@ async def test_a_lookup_reads_through_the_account_s_steel_session(world: World) 
     broker, held = await _a_lookup(world, {"accept": "application/json"})
     before = await pages_in(held.session)
 
-    answers = await RunLookups(world.uow, broker, HttpxCaller()).execute(
+    answers = await RunLookups(world.uow, broker).execute(
         CTX, plan=Plan(question="q", lookups=(LOOKUP,))
     )
 
@@ -415,7 +414,7 @@ async def test_a_token_the_page_never_sends_is_named_inside_the_lookup_s_budget(
 ) -> None:
     broker, _ = await _a_lookup(world, {"X-CSRF-Token": REDACTED})
 
-    answers = await RunLookups(world.uow, broker, HttpxCaller()).execute(
+    answers = await RunLookups(world.uow, broker).execute(
         CTX, plan=Plan(question="q", lookups=(LOOKUP,)), within=3.0
     )
 

@@ -239,15 +239,40 @@ async def test_an_expired_session_signs_in_again_once_and_the_read_is_tried_agai
     assert world.reauths == 1 and len(world.http.sent) == 2 and answers.any_answered
 
 
-async def test_a_call_refused_otherwise_is_read_off_the_page_it_was_seen_on() -> None:
+async def test_a_read_is_made_by_the_page_and_never_by_the_workers_own_client() -> None:
+    """Measured on QA 2026-10-02: the same GET from the worker's own client was
+    answered 302 by the site's edge, and the lookup fell through to a photograph.
+    The page itself is what the edge lets through."""
+    world = await lookup_world(_gesture(_call()))
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    assert answers.any_answered
+    ((_, method, url),) = world.driver.sent
+    assert method == "GET" and url.startswith(f"{WMS}{SUPPLIERS}")
+    assert not hasattr(world.run_lookups, "_http")
+
+
+async def test_a_call_the_edge_sends_to_sign_in_signs_in_again_once() -> None:
+    world = await lookup_world(_gesture(_call()))
+    world.http.answer(302, "", {"location": "https://idp.example/auth"})
+    world.http.answer(200, '{"data": [{"name": "a"}]}')
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    assert world.reauths == 1 and answers.looked[0].ok and answers.looked[0].read is not None
+
+
+async def test_a_call_that_is_refused_otherwise_is_a_failed_lookup_not_a_photograph() -> None:
+    """A photograph holds no records, so the question went on unanswered with
+    the lookup reported as having worked. The status is the answer."""
     world = await lookup_world(_gesture(_call(), url=SCREEN_URL))
     world.http.answer(500, "")
 
     answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
 
-    assert answers.looked[0].ok and answers.looked[0].answer["mime_type"] == "image/png"
-    assert ("open_tab", SCREEN_URL) in {(call[0], call[-1]) for call in world.driver.calls}
-    assert world.reauths == 0
+    assert not answers.looked[0].ok and "500" in answers.looked[0].detail
+    assert world.reauths == 0 and "image_base64" not in answers.looked[0].answer
 
 
 async def test_a_screen_is_put_up_in_a_steel_tab_and_nothing_on_it_is_pressed() -> None:
@@ -357,7 +382,7 @@ async def test_a_lookup_that_runs_out_of_its_budget_is_one_named_gap() -> None:
     """The caller says how long: a conversation turn may not wait as long as
     a door whose answer IS the request. The tab it took is given back."""
     world = await lookup_world(_gesture(_call()))
-    world.run_lookups._http = _Silent()
+    world.driver.http = _Silent()
 
     answers = await world.run_lookups.execute(
         CTX, plan=Plan(question="q", lookups=(CALL,)), within=0.05
@@ -476,7 +501,7 @@ class _SignedOutOnTheFirstRead(FakeHttpCaller):
 
 async def test_a_password_refused_while_a_lookup_signs_in_again_parks_nobody() -> None:
     world = await lookup_world(_gesture(_call()))
-    world.run_lookups._http = _SignedOutOnTheFirstRead(world)
+    world.driver.http = _SignedOutOnTheFirstRead(world)
 
     answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
 

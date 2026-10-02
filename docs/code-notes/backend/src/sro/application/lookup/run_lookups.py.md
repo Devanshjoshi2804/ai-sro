@@ -220,3 +220,14 @@ Code: `read=read_answer(body, url=address.url) if isinstance(body, str) else Non
 > `url` so the counting is honest: `limit=50` in the query and `50` in
 > the envelope are the same fact about what we ASKED for, and a total
 > that merely echoes our own paging is not a total.
+
+## `RunLookups._send`, line 163: why the page sends it
+
+> A lookup's GET goes out through `SessionBroker.send`, the page itself, and
+> never through the worker's own HTTP client. Measured on QA 2026-10-02: the same
+> GET with the same cookie and token from the worker's client was answered `302` by
+> the site's edge; from the page it answers the grid's JSON. The old path took the
+> `302` for "not a success" and fell through to a photograph, which holds no
+> records, so every existence question ended "could not tell". A call that is not
+> answered 2xx is now a failed lookup that names the status; a sign-in redirect
+> (`is_login`) or `401/403/419` signs in once and tries again.

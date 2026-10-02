@@ -664,6 +664,7 @@ async def lookup_world(*gestures: Gesture) -> LookupWorld:
     await vault.store(Account.of(_TENANT, IDP, "lena").vault_key("password"), "not-a-real-secret")
     await uow.gestures.add_gestures(gestures)
     driver.shows_sign_in_until_signed = True
+    driver.http = http
     lane = SigningLane(driver)
     broker = _CountingBroker(
         uow,
@@ -675,7 +676,7 @@ async def lookup_world(*gestures: Gesture) -> LookupWorld:
         ui=lane,
         close_s=0.05,
     )
-    world = LookupWorld(RunLookups(uow, broker, http), broker, uow, driver, http, lane)
+    world = LookupWorld(RunLookups(uow, broker), broker, uow, driver, http, lane)
     broker.world = world
     return world
 

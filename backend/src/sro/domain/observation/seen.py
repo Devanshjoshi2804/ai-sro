@@ -61,6 +61,10 @@ def _route(raw: object) -> str | None:
         decoded = once
     else:
         return None
+    if any(
+        (" " in one or ":" in one) and said_text(one) is None for one in re.split(r"[/#]", decoded)
+    ):
+        return None
     path, _, hashed = decoded.partition("#")
     if "=" in hashed:
         return None

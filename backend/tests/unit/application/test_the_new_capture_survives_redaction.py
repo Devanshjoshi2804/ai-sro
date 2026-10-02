@@ -112,3 +112,119 @@ def test_cookie_names_and_a_mail_thread_reach_storage_and_values_never_do() -> N
         {"name": "JSESSIONID", "expires_at": 1_790_003_600.0, "domain": None, "session": False}
     ]
     assert out["mail_thread"] == "FMfcgzQXJWDsKmbXrhvpnLtqzqZJbQqk"
+
+
+async def _ingest(events: list[dict[str, object]]) -> tuple[str, str, int, int]:
+    from datetime import UTC, datetime
+
+    from sro.application.context import RequestContext
+    from sro.application.observation.ingest import IngestObservation
+    from sro.application.observation.policy import SetObservationPolicy
+    from sro.application.observation.register import RegisterDevice
+    from sro.domain.observation.batch import CaptureMode
+    from sro.domain.shared.identifiers import BatchId, TenantId
+    from tests import factories as f
+    from tests.unit.fakes import FakeBlobStore, FakeClock, FakeIdFactory, FakeUnitOfWork
+
+    ctx = RequestContext(tenant_id=TenantId("acme"), principal_id=f.OPERATOR)
+    uow, blobs = FakeUnitOfWork(), FakeBlobStore()
+    await SetObservationPolicy(uow).execute(ctx, policy=ObservationPolicy().enabled())
+    registered = await RegisterDevice(uow, FakeClock(), FakeIdFactory()).execute(
+        ctx, label="laptop", extension_version="0.1.0"
+    )
+    stored = await IngestObservation(uow, blobs, FakeClock()).execute(
+        ctx,
+        device_id=registered.device_id,
+        secret=registered.secret,
+        batch_id=BatchId("bat_new_keys"),
+        started_at=datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
+        ended_at=datetime(2026, 3, 1, 9, 5, tzinfo=UTC),
+        mode=CaptureMode.PASSIVE,
+        events=events,
+    )
+    written = b"" if stored.stored_at is None else await blobs.read(stored.stored_at)
+    return (
+        written.decode("utf-8"),
+        repr(list(uow.gestures.rows.values())),
+        stored.accepted,
+        len(stored.rejected),
+    )
+
+
+_SECRET_ROUTES = [
+    "/y#password: hunter2xyz",
+    "/y#password:hunter2xyz",
+    "/y#!/k/token: hunter2xyz",
+    "/y#api key = hunter2xyz",
+    "/y/password%3A%20hunter2xyz",
+    "/y#secret is hunter2xyz",
+]
+
+
+import pytest  # noqa: E402
+
+
+@pytest.mark.parametrize("route", _SECRET_ROUTES)
+async def test_a_route_with_a_secret_value_stores_none_of_it(route: str) -> None:
+    gesture = _gesture()
+    gesture["gesture"]["place"] = {"route": route, "title": "T"}  # type: ignore[index]
+    effect = _effect()
+    effect["effect"]["route_after"] = route  # type: ignore[index]
+    written, kept, accepted, _ = await _ingest([gesture, effect])
+    assert accepted == 2
+    assert "hunter2xyz" not in written and "hunter2xyz" not in kept
+
+
+def test_a_decoded_route_with_spaces_and_ids_still_survives() -> None:
+    (out,) = redact_events(
+        [
+            _gesture()
+            | {
+                "gesture": _gesture()["gesture"]
+                | {"place": {"route": "/a/new%20order/123456#!/e/9"}}
+            }
+        ]  # type: ignore[operator]
+    )
+    assert out["gesture"]["place"]["route"] == "/a/new order/*#!/e/*"
+
+
+@pytest.mark.parametrize("of", ["", "x" * 65, "a@b.co", "r 1", "r/1", 5, None, "a" * 5_000_000])
+def test_an_effect_whose_gesture_ref_is_not_a_ref_is_refused(of: object) -> None:
+    assert admit([_effect() | {"of": of}], ON).accepted == ()
+
+
+def test_a_recorder_ref_is_admitted() -> None:
+    assert admit([_effect() | {"of": "r.1-A_b"}], ON).accepted != ()
+
+
+@pytest.mark.parametrize("of_at", [float("nan"), float("inf"), float("-inf")])
+def test_an_effect_with_a_non_finite_gesture_time_is_refused(of_at: float) -> None:
+    assert admit([_effect() | {"of_at": of_at}], ON).accepted == ()
+
+
+@pytest.mark.parametrize(
+    "effect", [{}, {"appeared": [{"role": "status", "text": "a@b.co"}]}, {"ended": "never"}]
+)
+def test_an_effect_that_says_nothing_after_sanitising_is_refused(effect: dict[str, object]) -> None:
+    admitted = admit([_effect() | {"effect": effect}], ON)
+    assert admitted.accepted == () and len(admitted.rejected) == 1
+
+
+def test_effect_frame_hops_are_capped_and_keep_only_their_own_keys() -> None:
+    hops = [{"index": i, "url": "https://x.example/f", "junk": "j" * 50} for i in range(100_000)]
+    (out,) = redact_events([_effect() | {"frame_path": hops}])
+    assert len(out["frame_path"]) <= 16
+    assert all(set(hop) <= {"index", "url"} for hop in out["frame_path"])
+
+
+def test_the_wire_models_sanitise_on_their_own() -> None:
+    from sro.application.capture.rig_wire import Choice, Effect, Place
+
+    place = Place.model_validate({"route": "/y#password: hunter2xyz", "title": "a@b.co"})
+    assert place.route is None and place.title is None
+    choice = Choice.model_validate({"chosen": "a@b.co", "options": ["Bulk", "tok=abcdefgh"]})
+    assert choice.chosen is None and choice.options == ["Bulk"]
+    effect = Effect.model_validate(
+        {"route_after": "/y#password: hunter2xyz", "errors": ["a@b.co"], "ended": "quiet"}
+    )
+    assert effect.route_after is None and effect.errors == [] and effect.ended == "quiet"

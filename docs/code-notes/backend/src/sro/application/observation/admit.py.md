@@ -15,7 +15,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/a
 > is found on the day it is introduced rather than in a mining run three weeks
 > later that quietly saw fewer tasks than happened.
 
-## module, [line 15](../../../../../../../backend/src/sro/application/observation/admit.py#L15): Note on the line above
+## module, [line 20](../../../../../../../backend/src/sro/application/observation/admit.py#L20): Note on the line above
 
 Code: `_SIGNALS = ("role", "name", "text", "testId", "cssPath", "xpath")`
 
@@ -24,7 +24,7 @@ Code: `_SIGNALS = ("role", "name", "text", "testId", "cssPath", "xpath")`
 > cannot be replayed, aligned or matched. Kept out here rather than discovered by
 > a miner months later.
 
-## `admit`, [line 28](../../../../../../../backend/src/sro/application/observation/admit.py#L28): Docstring
+## `admit`, [line 33](../../../../../../../backend/src/sro/application/observation/admit.py#L33): Docstring
 
 > What may be kept out of one upload, and why the rest was not.
 >
@@ -45,7 +45,7 @@ Code: `_SIGNALS = ("role", "name", "text", "testId", "cssPath", "xpath")`
 > the console would switch it back on. Watching the apparatus record is never
 > what anybody meant by watching the work.
 
-## `_is_ours`, [line 117](../../../../../../../backend/src/sro/application/observation/admit.py#L117): Docstring
+## `_is_ours`, [line 123](../../../../../../../backend/src/sro/application/observation/admit.py#L123): Docstring
 
 > Whether this url is this system talking to itself.
 >
@@ -60,14 +60,14 @@ Code: `_SIGNALS = ("role", "name", "text", "testId", "cssPath", "xpath")`
 > would make every warehouse page on it unrecordable with no grant able to
 > restore it.
 
-## `_url_refusal`, [line 113](../../../../../../../backend/src/sro/application/observation/admit.py#L113): Comment
+## `_url_refusal`, [line 119](../../../../../../../backend/src/sro/application/observation/admit.py#L119): Comment
 
 Code: `return "this page is outside what the tenant agreed to observe"`
 
 > Never the URL itself: this refusal is logged and read, and the point
 > of an exclusion is that the excluded page leaves no trace here.
 
-## `_why_not`, [line 45](../../../../../../../backend/src/sro/application/observation/admit.py#L45): Note on the effect rule
+## `_why_not`, [line 50](../../../../../../../backend/src/sro/application/observation/admit.py#L50): Note on the effect rule
 
 > An `effect` needs `of` and a numeric `of_at` (without them it cannot be
 > joined to its gesture), an `effect` object, and a URL the policy allows.

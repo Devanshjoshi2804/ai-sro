@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 
 from sro.application.capture.rig_wire import (
     EffectEvent,
+    FrameHop,
     GestureEvent,
     PageEvent,
     RequestEvent,
@@ -48,6 +49,8 @@ _EVENT_KEYS = {
         ("effect", EffectEvent),
     )
 }
+K_EFFECT_HOPS = 16
+_HOP_KEYS = tuple(FrameHop.model_fields)
 _GESTURE_KEYS = frozenset(WireGesture.model_fields)
 
 
@@ -83,7 +86,9 @@ def _event(event: Event, made: Mapping[str, Mapping[str, object]]) -> Event:
         frame_path = out.get("frame_path")
         if isinstance(frame_path, list):
             out["frame_path"] = [
-                _hop(hop) if isinstance(hop, Mapping) else hop for hop in frame_path
+                _hop({key: hop[key] for key in _HOP_KEYS if key in hop})
+                for hop in frame_path[:K_EFFECT_HOPS]
+                if isinstance(hop, Mapping)
             ]
     if "cookies" in out:
         out["cookies"] = cookies_kept(out["cookies"])

@@ -2,7 +2,7 @@
 
 Explanations for [`backend/src/sro/domain/observation/seen.py`](../../../../../../../backend/src/sro/domain/observation/seen.py), which carries none (Global Constraint 2).
 
-## `place_kept`, [line 108](../../../../../../../backend/src/sro/domain/observation/seen.py#L108): Function
+## `place_kept`, [line 112](../../../../../../../backend/src/sro/domain/observation/seen.py#L112): Function
 
 > Every new text field goes through `said_text` and is dropped, never
 > truncated, when it fails: a token cut in half is still a token. Routes go
@@ -11,7 +11,7 @@ Explanations for [`backend/src/sro/domain/observation/seen.py`](../../../../../.
 > characters) first, and a hash fragment with `=` in it is an OAuth return and
 > drops the route.
 
-## `effect_kept`, [line 123](../../../../../../../backend/src/sro/domain/observation/seen.py#L123): Function
+## `effect_kept`, [line 127](../../../../../../../backend/src/sro/domain/observation/seen.py#L127): Function
 
 > Roles, field changes and endings are closed sets; anything else is
 > dropped. A toast or dialog that repeats a typed value or a token fails
@@ -19,19 +19,19 @@ Explanations for [`backend/src/sro/domain/observation/seen.py`](../../../../../.
 > by `«url»`. Timings are capped at a minute. Nothing here ever
 > carries a field's value.
 
-## `cookies_kept`, [line 172](../../../../../../../backend/src/sro/domain/observation/seen.py#L172): Function
+## `cookies_kept`, [line 176](../../../../../../../backend/src/sro/domain/observation/seen.py#L176): Function
 
 > A cookie is its name and expiry, matched by name shape and never by value
 > (the value never reaches the server). A name that fails `said_text`, a
 > domain that is not a plain hostname, and an expiry that is not a number
 > between 0 and 2100 (compared, never converted, so a 10**400 cannot raise) are dropped.
 
-## `mail_thread_kept`, [line 205](../../../../../../../backend/src/sro/domain/observation/seen.py#L205): Function
+## `mail_thread_kept`, [line 209](../../../../../../../backend/src/sro/domain/observation/seen.py#L209): Function
 
 > Only an id is kept: 16 or more of letters, digits, `_` and `-`, and nothing
 > `redact_shapes` would change. Anything else is mail text, never kept.
 
-## `place_from`, [line 238](../../../../../../../backend/src/sro/domain/observation/seen.py#L238): Function
+## `place_from`, [line 242](../../../../../../../backend/src/sro/domain/observation/seen.py#L242): Function
 
 > The `*_from` functions build the domain shape from `*_kept`: one
 > sanitising path for the wire, the store and live page reads.

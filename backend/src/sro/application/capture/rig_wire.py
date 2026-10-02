@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Annotated, Any, Literal
@@ -24,7 +25,13 @@ from sro.domain.observation.redaction import redact_body as redact_body
 from sro.domain.observation.redaction import redact_shapes as redact_shapes
 from sro.domain.observation.redaction import redact_url as redact_url
 from sro.domain.observation.redaction import shapes_in as shapes_in
-from sro.domain.observation.seen import cookies_kept, mail_thread_kept
+from sro.domain.observation.seen import (
+    choice_kept,
+    cookies_kept,
+    effect_kept,
+    mail_thread_kept,
+    place_kept,
+)
 from sro.domain.shared.hosts import REDACTED as REDACTED
 from sro.domain.shared.hosts import headers_without_markers as headers_without_markers
 
@@ -176,6 +183,11 @@ class Place(BaseModel):
     landmarks: list[str] = Field(default_factory=list)
     version: str | None = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def said_or_dropped_here(cls, data: Any) -> Any:
+        return place_kept(data) or {} if isinstance(data, Mapping) else data
+
 
 class Seen(BaseModel):
     role: str
@@ -202,11 +214,21 @@ class Effect(BaseModel):
     errors: list[str] = Field(default_factory=list)
     shortcuts: list[str] = Field(default_factory=list)
 
+    @model_validator(mode="before")
+    @classmethod
+    def said_or_dropped_here(cls, data: Any) -> Any:
+        return effect_kept(data) or {} if isinstance(data, Mapping) else data
+
 
 class Choice(BaseModel):
     chosen: str | None = None
     index: int | None = None
     options: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def said_or_dropped_here(cls, data: Any) -> Any:
+        return choice_kept(data) or {} if isinstance(data, Mapping) else data
 
 
 class CookieSeen(BaseModel):

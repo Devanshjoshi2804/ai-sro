@@ -1,16 +1,21 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from math import isfinite
 from urllib.parse import urlsplit
 
 from sro.config import _DEFAULT_PORTS
 from sro.domain.observation.batch import RejectedEvent
 from sro.domain.observation.policy import ObservationPolicy
+from sro.domain.observation.seen import effect_kept
 
 Event = Mapping[str, object]
 
 KINDS = ("gesture", "request", "snapshot", "page", "effect")
+
+_REF = re.compile(r"[A-Za-z0-9_.-]{1,64}")
 
 _SIGNALS = ("role", "name", "text", "testId", "cssPath", "xpath")
 
@@ -83,13 +88,14 @@ def _why_not(
         return _url_refusal(event.get("url"), policy, granted, ours)
 
     if kind == "effect":
-        if not isinstance(event.get("of"), str) or not event.get("of"):
+        of = event.get("of")
+        if not isinstance(of, str) or not _REF.fullmatch(of):
             return "an effect that does not say which gesture it followed"
         of_at = event.get("of_at")
-        if isinstance(of_at, bool) or not isinstance(of_at, int | float):
+        if isinstance(of_at, bool) or not isinstance(of_at, int | float) or not isfinite(of_at):
             return "an effect with no gesture time cannot be joined to its gesture"
-        if _mapping(event.get("effect")) is None:
-            return "an effect event with no effect in it"
+        if effect_kept(event.get("effect")) is None:
+            return "an effect event with nothing in it that can be kept"
         return _url_refusal(event.get("url"), policy, granted, ours)
 
     if not event.get("page_kind"):

@@ -216,7 +216,7 @@ Code: `@dataclass(frozen=True, slots=True)`
 > ends in none of `id`/`code`/`name`/`number`/`key`. The plan already knows
 > which keys this job varies, so the row those keys found is the row to show.
 
-## `_records`, [line 124](../../../../../../../backend/src/sro/domain/execution/belts.py#L124): Docstring
+## `_records`, [line 134](../../../../../../../backend/src/sro/domain/execution/belts.py#L134): Docstring
 
 > The records an answer holds, whether it is one or a page of them.
 >
@@ -240,7 +240,7 @@ Code: `@dataclass(frozen=True, slots=True)`
 > including in two different rows and including in the row the demonstration
 > made.
 
-## `unreturned`, [line 149](../../../../../../../backend/src/sro/domain/execution/belts.py#L149): Docstring
+## `unreturned`, [line 159](../../../../../../../backend/src/sro/domain/execution/belts.py#L159): Docstring
 
 > The names this run supplied that the read did not come back carrying.
 >
@@ -267,28 +267,28 @@ Code: `@dataclass(frozen=True, slots=True)`
 >
 > Names, never values: this is read by a panel and a log.
 
-## `RunProof`, [line 161](../../../../../../../backend/src/sro/domain/execution/belts.py#L161): Docstring
+## `RunProof`, [line 171](../../../../../../../backend/src/sro/domain/execution/belts.py#L171): Docstring
 
 > One live run that held, reduced to the two sets the rule compares:
 > the steps that wrote, and the steps a state belt verified.
 
-## `proven_runs`, [line 171](../../../../../../../backend/src/sro/domain/execution/belts.py#L171): Docstring
+## `proven_runs`, [line 181](../../../../../../../backend/src/sro/domain/execution/belts.py#L181): Docstring
 
 > How many live held runs had every write verified by state -- the count
 > `earned_from` compares, served so a surface can say "2 of 3" and not only
 > yes or no.
 
-## `earned_from`, [line 175](../../../../../../../backend/src/sro/domain/execution/belts.py#L175): Docstring
+## `earned_from`, [line 185](../../../../../../../backend/src/sro/domain/execution/belts.py#L185): Docstring
 
 > Whether a job may write unasked: `K_EARNED_RUNS` live held runs, each
 > with every write verified by state (`STATE_BELTS`). Effects decided by
 > screen are never recorded, so `verified` here is state by construction.
 
-## `state_verified`, [line 179](../../../../../../../backend/src/sro/domain/execution/belts.py#L179): Docstring
+## `state_verified`, [line 189](../../../../../../../backend/src/sro/domain/execution/belts.py#L189): Docstring
 
 > The gate `record_effect` keeps: only a state belt's verdict is an effect.
 
-## `RunProof.proves`, [line 167](../../../../../../../backend/src/sro/domain/execution/belts.py#L167): Docstring
+## `RunProof.proves`, [line 177](../../../../../../../backend/src/sro/domain/execution/belts.py#L177): Docstring
 
 > A run with no write proves nothing about writing. One with a write
 > a state belt did not see proves the opposite.

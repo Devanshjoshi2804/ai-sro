@@ -380,11 +380,27 @@ def _clash(listed: HttpResponse | None, planned: Planned) -> str | None:
     can be that field; a value many hold cannot be unique."""
     if listed is None or not listed.succeeded:
         return None
-    for slot, value in planned.confirm.items():
+    # Every field the operator filled, with the value actually sent: a unique field the
+    # system echoes as a number (voiceCode 93) is not among the exact-compare `confirm`.
+    for slot, value in {**_sent_values(planned), **planned.confirm}.items():
         held_by = record_count(listed.text, {slot: value})
         if held_by == 1 and slot in planned.filled:
             return f"{planned.filled[slot]} {value}"
     return None
+
+
+def _sent_values(planned: Planned) -> dict[str, str]:
+    try:
+        body = json.loads(str(planned.payload.get("body") or ""))
+    except ValueError:
+        return {}
+    if not isinstance(body, dict):
+        return {}
+    return {
+        slot: str(body[slot])
+        for slot in planned.filled
+        if isinstance(body.get(slot), str | int | float) and not isinstance(body.get(slot), bool)
+    }
 
 
 def needs_of(recorded: Mapping[str, str]) -> list[str]:

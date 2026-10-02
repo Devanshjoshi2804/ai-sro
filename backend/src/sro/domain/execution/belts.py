@@ -117,8 +117,18 @@ def record_count(body: str, wanted: Mapping[str, str]) -> int:
     except ValueError:
         return 0
     return sum(
-        all(one.get(slot) == value for slot, value in wanted.items()) for one in _records(parsed)
+        all(_same(one.get(slot), value) for slot, value in wanted.items())
+        for one in _records(parsed)
     )
+
+
+def _same(held: object, value: str) -> bool:
+    """A listing echoes 93 for the "93" a form sent; true and null are never a typed value."""
+    if isinstance(held, bool) or held is None:
+        return False
+    if isinstance(held, int | float):
+        return str(held) == value.strip()
+    return held == value
 
 
 def _records(parsed: object) -> Iterator[dict[str, object]]:

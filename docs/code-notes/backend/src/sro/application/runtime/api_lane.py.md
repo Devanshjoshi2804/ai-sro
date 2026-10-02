@@ -92,7 +92,7 @@ Code: `if missing:`
 > string is not the record this run wrote. A write with no filled slots is
 > never confirmed by a read-back.
 
-## `_aimed`, [line 489](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L489): Comment
+## `_aimed`, [line 505](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L505): Comment
 
 > The recorded read names the recorded record. A path segment equal to a value
 > the recording saw for a filled parameter is replaced by this run's value. A
@@ -139,7 +139,7 @@ Code: `refused = (`
 > (Blue Yonder's `AITE6*!trlr_typ`) answers 404 there, which is why the
 > resourceId read and the recording's own confirming read go first.
 
-## `session_headers`, [line 400](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L400): Note on the line above
+## `session_headers`, [line 416](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L416): Note on the line above
 
 Code: `async def session_headers(`
 
@@ -149,7 +149,7 @@ Code: `async def session_headers(`
 > session did not answer itself. `wait_s` is how long the broker may wait for
 > the headers `needs` names; a caller with a budget passes what is left of it.
 
-## `needs_of`, [line 390](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L390): Note on the line above
+## `needs_of`, [line 406](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L406): Note on the line above
 
 Code: `def needs_of(recorded: Mapping[str, str]) -> list[str]:`
 
@@ -161,7 +161,7 @@ Code: `def needs_of(recorded: Mapping[str, str]) -> list[str]:`
 > read-back (so a read-back after `fresh=True` waits for its CSRF token rather
 > than answering from an empty since-mark log), and lookups.
 
-## `confirmed_keys`, [line 436](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L436): Function
+## `confirmed_keys`, [line 452](../../../../../../../backend/src/sro/application/runtime/api_lane.py#L452): Function
 
 > The learned fields this write's read-back confirmed, as `StepResult.keyed`
 > reads (`{parameter: body_key}`), so `_settle_fields` holds them and a run

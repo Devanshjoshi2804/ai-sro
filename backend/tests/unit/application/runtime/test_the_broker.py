@@ -1,16 +1,17 @@
 import asyncio
 import contextlib
+from collections.abc import Mapping
 from datetime import timedelta
 
 import pytest
 
-from sro.application.connection.refusals import CodeAsked
+from sro.application.connection.refusals import CodeAsked, RefusedCredentials
 from sro.application.context import RequestContext
 from sro.application.ports.locks import AccountBusy
 from sro.application.ports.page import PageGone, SessionRef
 from sro.application.ports.pool import PoolFull
 from sro.application.runtime.broker import K_CODE_WAIT, SessionBroker
-from sro.application.runtime.step import Held, NeedsAPerson, WaitingForAPerson
+from sro.application.runtime.step import Held, LaneContext, NeedsAPerson, WaitingForAPerson
 from sro.application.runtime.ui_lane import UiLane
 from sro.domain.execution.account import (
     K_LEASE_TTL,
@@ -19,9 +20,10 @@ from sro.domain.execution.account import (
     Lease,
     LeaseState,
 )
-from sro.domain.execution.lanes import SeenCall
+from sro.domain.execution.lanes import Lane, SeenCall, StepResult
 from sro.domain.shared.identifiers import PrincipalId, TenantId
 from sro.domain.skill.signing_in import PageSignals
+from sro.domain.skill.workflow import Step
 from sro.interface.http.schemas import NewSecretRequest
 from sro.interface.http.v1.routers.secrets import _key_for
 from tests.unit.fakes import (
@@ -108,6 +110,97 @@ async def test_a_sign_in_page_is_signed_through_with_the_vault_password() -> Non
     assert driver.tabs[held.target_id] == APP
 
 
+class _FailsAtTheSecondStep(SigningLane):
+    """The second step finds nothing to act on. `signed_by_then` says whether the
+    identity provider's own session had already signed the page in, as it does
+    when the page left while the chain was still typing."""
+
+    def __init__(self, driver: FakePageDriver, *, signed_by_then: bool) -> None:
+        super().__init__(driver)
+        self._signed_by_then = signed_by_then
+
+    async def execute(self, step: Step, values: Mapping[str, str], ctx: LaneContext) -> StepResult:
+        if step.order != 1 or ctx.held is None:
+            return await super().execute(step, values, ctx)
+        self.stepped.append(step.order)
+        if self._signed_by_then:
+            self._driver.signed.add(ctx.held.session.context_id)
+        return StepResult("failed", Lane.UI, "no strategy and no repair matched")
+
+
+async def test_a_step_with_nothing_to_act_on_after_the_page_signed_in_is_a_sign_in() -> None:
+    """QA 2026-10-02: 'stopped at Type the password: no strategy and no repair
+    matched', yet the context was signed in and the next lookup read at once. A
+    chain is the way to a signed-in page; a page that is one is where it ends."""
+    uow, driver, vault = await _signing_world()
+    lane = _FailsAtTheSecondStep(driver, signed_by_then=True)
+
+    held = await _broker(uow, driver, vault, lane).acquire(CTX, LENA, APP, holder="run_1")
+
+    assert lane.stepped == [0, 1]
+    assert held.lease.state is LeaseState.READY and driver.tabs[held.target_id] == APP
+    assert await vault.get(LENA.vault_key("state")) is not None
+    assert await RefusedCredentials(vault).standing(LENA.vault_key("password"), PASSWORD) is None
+
+
+async def test_a_step_with_nothing_to_act_on_on_a_sign_in_page_still_asks_for_a_person() -> None:
+    uow, driver, vault = await _signing_world()
+    lane = _FailsAtTheSecondStep(driver, signed_by_then=False)
+
+    with pytest.raises(NeedsAPerson, match="no strategy and no repair matched"):
+        await _broker(uow, driver, vault, lane).acquire(CTX, LENA, APP, holder="run_1")
+
+    assert await RefusedCredentials(vault).standing(LENA.vault_key("password"), PASSWORD) is None
+    assert LeaseState.READY not in [lease.state for lease in uow.browser_sessions.leases.values()]
+
+
+class _Bounces(FakePageDriver):
+    """Answers `script` -- is it a sign-in page? -- to the next `signals` reads."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.script: list[bool] = []
+
+    async def signals(self, session: SessionRef, target_id: str) -> PageSignals:
+        if self.script:
+            return PageSignals(self.tabs.get(target_id, ""), password=self.script.pop(0))
+        return await super().signals(session, target_id)
+
+
+class _FailsThenBounces(SigningLane):
+    def __init__(self, driver: _Bounces, script: list[bool]) -> None:
+        super().__init__(driver)
+        self._bounces, self._script = driver, script
+
+    async def execute(self, step: Step, values: Mapping[str, str], ctx: LaneContext) -> StepResult:
+        if step.order != 1:
+            return await super().execute(step, values, ctx)
+        self._bounces.script = list(self._script)
+        return StepResult("failed", Lane.UI, "no strategy and no repair matched")
+
+
+async def test_a_failed_step_whose_page_is_a_sign_in_page_again_by_the_end_refuses_nothing() -> (
+    None
+):
+    """Review 1 #4 and #5. The page read as signed in when the step failed, then went to the
+    sign-in form: no password was submitted, so none is refused (#4: one read, not two), and
+    a failed step is not 'signed in' until the page is read again after the goto (#5): nothing
+    is saved and the lease is not READY."""
+    uow, vault = FakeUnitOfWork(), FakeCredentialVault()
+    await with_a_recorded_sign_in(uow, lands_on=APP, username="lena")
+    await vault.store(LENA.vault_key("password"), PASSWORD)
+    driver = _Bounces()
+    driver.shows_sign_in_until_signed = True
+    lane = _FailsThenBounces(driver, [False, True])
+
+    with pytest.raises(NeedsAPerson):
+        await _broker(uow, driver, vault, lane).acquire(CTX, LENA, APP, holder="run_1")
+
+    assert await RefusedCredentials(vault).standing(LENA.vault_key("password"), PASSWORD) is None
+    assert await vault.get(LENA.vault_key("state")) is None
+    assert LeaseState.READY not in [lease.state for lease in uow.browser_sessions.leases.values()]
+
+
 async def test_a_username_mined_as_a_parameter_is_typed_as_the_account_s_username() -> None:
     """Greyorange, 2026-09-28: typed values are parameters by default, so the
     recorded sign-in's username step carried one; the broker ran the chain with
@@ -150,8 +243,8 @@ async def test_a_form_that_comes_back_latches_the_password_and_asks() -> None:
     assert await vault.get(LENA.vault_key("password") + "#refused") is not None
     assert await vault.get(LENA.vault_key("state")) is None
     (lease,) = uow.browser_sessions.leases.values()
-    assert lease.state is LeaseState.READY, "a person is needed; the context is not broken"
-    assert pool.closed == []
+    assert lease.state is LeaseState.BROKEN, "R-L2: a lease is READY only when signed in"
+    assert [context for _, context in pool.closed] == [lease.context_id]
 
 
 async def test_a_refused_password_is_never_typed_again() -> None:
@@ -161,13 +254,26 @@ async def test_a_refused_password_is_never_typed_again() -> None:
         await _broker(uow, driver, vault).acquire(CTX, LENA, APP, holder="run_1")
     lane = SigningLane(driver)
     broker = _broker(uow, driver, vault, lane)
-    held = await broker.acquire(CTX, LENA, APP, holder="run_2")
 
     with pytest.raises(NeedsAPerson) as asked:
-        await broker.reauth(CTX, held, APP)
+        await broker.acquire(CTX, LENA, APP, holder="run_2")
 
     assert asked.value.kind == "password"
     assert lane.stepped == []
+
+
+async def test_a_password_refused_on_a_re_sign_in_leaves_no_ready_lease() -> None:
+    """R-L2 for the other door: a re-sign-in that ends on the form is not a signed-in lease."""
+    uow, driver, vault = await _signing_world()
+    broker = _broker(uow, driver, vault)
+    held = await broker.acquire(CTX, LENA, APP, holder="run_1")
+    driver.expire_session()
+    driver.refuses = True
+
+    with pytest.raises(NeedsAPerson):
+        await broker.reauth(CTX, held, APP, park=False)
+
+    assert [lease.state for lease in uow.browser_sessions.leases.values()] == [LeaseState.BROKEN]
 
 
 async def _asked_for_a_code(

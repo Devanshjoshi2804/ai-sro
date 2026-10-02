@@ -3,19 +3,20 @@ from __future__ import annotations
 import asyncio
 from base64 import b64encode
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from uuid import uuid4
 
+from sro.application.connection.check_session import is_login
 from sro.application.context import RequestContext
 from sro.application.execution.answer import Answer, read_answer
 from sro.application.ports.browser import BrowserUnavailable
-from sro.application.ports.http import HttpCaller, HttpResponse, TargetUnreachable
+from sro.application.ports.http import HttpResponse, TargetUnreachable
 from sro.application.ports.locks import AccountBusy
 from sro.application.ports.page import PageGone
 from sro.application.ports.pool import PoolFull
 from sro.application.ports.repositories import UnitOfWork
 from sro.application.runtime.api_lane import K_AUTH_REFUSED, needs_of, session_headers
-from sro.application.runtime.broker import SessionBroker
+from sro.application.runtime.broker import SessionBroker, SigningIn
 from sro.application.runtime.step import Held
 from sro.domain.lookup.address import Address, address_for
 from sro.domain.lookup.plan import Lookup, Plan
@@ -39,6 +40,10 @@ K_WHILE_TALKING = 10.0
 
 K_AFTER_HEADERS_S = 1.0
 
+K_PAINT_S = 8.0
+
+K_UNANSWERED = K_AUTH_REFUSED | {0}
+
 
 @dataclass(frozen=True, slots=True)
 class Looked:
@@ -49,6 +54,7 @@ class Looked:
     read: Answer | None = None
 
     detail: str = ""
+    signing_in: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,8 +68,8 @@ class Answers:
 
 
 class RunLookups:
-    def __init__(self, uow: UnitOfWork, broker: SessionBroker, http: HttpCaller) -> None:
-        self._uow, self._broker, self._http = uow, broker, http
+    def __init__(self, uow: UnitOfWork, broker: SessionBroker) -> None:
+        self._uow, self._broker = uow, broker
 
     async def execute(
         self, ctx: RequestContext, *, plan: Plan, within: float = K_DEADLINE_S
@@ -73,6 +79,7 @@ class RunLookups:
         async with self._uow as uow:
             gestures = list(await uow.gestures.gestures_for(ctx.tenant_id))
         looked: list[Looked] = []
+        until = asyncio.get_running_loop().time() + within
         for lookup in plan.lookups:
             address = address_for(lookup, gestures)
             if address is None:
@@ -83,7 +90,9 @@ class RunLookups:
                 )
                 continue
             try:
-                async with asyncio.timeout(within) as budget:
+                if asyncio.get_running_loop().time() >= until:
+                    raise TimeoutError
+                async with asyncio.timeout_at(until) as budget:
                     looked.append(await self._one(ctx, lookup, address, budget))
             except TimeoutError:
                 looked.append(
@@ -92,6 +101,16 @@ class RunLookups:
                         ok=False,
                         url=address.url,
                         detail=f"timed out after {within:.0f} s",
+                    )
+                )
+            except SigningIn as signing:
+                looked.append(
+                    Looked(
+                        lookup=lookup,
+                        ok=False,
+                        url=address.url,
+                        detail=str(signing),
+                        signing_in=True,
                     )
                 )
             except K_GAPS as gap:
@@ -103,16 +122,34 @@ class RunLookups:
     ) -> Looked:
         page = address.page or address.url
         account = await self._broker.account_for(ctx, page)
+        # A cold sign-in outlasts a chat turn. It runs on the broker's own task, so this turn
+        # gives up on waiting for it (with a second left to read) and the next ask finds it done.
         held = await self._broker.acquire(
-            ctx, account, page, holder=f"lookup-{uuid4().hex}", park=False
+            ctx,
+            account,
+            page,
+            holder=f"lookup-{uuid4().hex}",
+            park=False,
+            patience_s=_left(budget),
+            apart_s=K_DEADLINE_S,
         )
         try:
             if lookup.how == "call":
                 got = await self._get(ctx, held, address, page, budget)
-                if got.succeeded:
-                    return _looked(lookup, address, {"status": got.status_code, "body": got.text})
+                if not got.succeeded:
+                    return Looked(
+                        lookup=lookup,
+                        ok=False,
+                        url=address.url,
+                        detail=f"the system answered {got.status_code}",
+                    )
+                return _looked(lookup, address, {"status": got.status_code, "body": got.text})
             if await self._broker.signed_out(ctx, held):
-                await self._broker.reauth(ctx, held, page, park=False)
+                await self._reauth(ctx, held, page, budget)
+            if address.reads:
+                await self._broker.load(
+                    ctx, held, address.url, address.reads, deadline_s=min(K_PAINT_S, _left(budget))
+                )
             if await self._broker.signed_out(ctx, held):
                 raise SignedOut(f"{page} is still a sign-in page")
             shot = await self._broker.screenshot(ctx, held)
@@ -129,13 +166,23 @@ class RunLookups:
         finally:
             await self._broker.release(ctx, held)
 
+    async def _reauth(
+        self, ctx: RequestContext, held: Held, page: str, budget: asyncio.Timeout
+    ) -> None:
+        await self._broker.reauth_apart(
+            ctx, held, page, patience_s=_left(budget), apart_s=K_DEADLINE_S
+        )
+        await self._broker.go_to(ctx, held, page)  # this tab was left on the signed-out page
+
     async def _get(
         self, ctx: RequestContext, held: Held, address: Address, page: str, budget: asyncio.Timeout
     ) -> HttpResponse:
         got = await self._send(ctx, held, address, budget, fresh=False)
-        if got.status_code in K_AUTH_REFUSED:
-            await self._broker.reauth(ctx, held, page, park=False)
+        if _sign_in_wanted(got, address.url):
+            await self._reauth(ctx, held, page, budget)
             got = await self._send(ctx, held, address, budget, fresh=True)
+            if _signed_out(got, address.url):
+                raise SignedOut(f"{page} is still a sign-in page")
         return got
 
     async def _send(
@@ -148,7 +195,6 @@ class RunLookups:
         fresh: bool,
     ) -> HttpResponse:
         needs = needs_of(dict.fromkeys((*address.live_headers, *address.struck), REDACTED))
-        left = (budget.when() or 0.0) - asyncio.get_running_loop().time() - K_AFTER_HEADERS_S
         headers = await session_headers(
             self._broker,
             ctx,
@@ -157,13 +203,26 @@ class RunLookups:
             address.headers,
             fresh=fresh,
             needs=needs,
-            wait_s=max(0.0, left),
+            wait_s=_left(budget),
         )
         carried = {name.lower() for name in headers}
         missing = [name for name in needs if name not in carried]
         if missing:
             raise MissingHeaders(f"the session has no {', '.join(missing)} for this read")
-        return await self._http.send("GET", address.url, headers=headers)
+        return await self._broker.send(ctx, held, "GET", address.url, headers=headers)
+
+
+def _left(budget: asyncio.Timeout) -> float:
+    left = (budget.when() or 0.0) - asyncio.get_running_loop().time() - K_AFTER_HEADERS_S
+    return max(0.0, left)
+
+
+def _signed_out(got: HttpResponse, url: str) -> bool:
+    return is_login(got.status_code, got.headers.get("location"), url, got.text)
+
+
+def _sign_in_wanted(got: HttpResponse, url: str) -> bool:
+    return got.status_code in K_UNANSWERED or _signed_out(got, url)
 
 
 def _looked(lookup: Lookup, address: Address, result: Mapping[str, object]) -> Looked:
@@ -173,5 +232,9 @@ def _looked(lookup: Lookup, address: Address, result: Mapping[str, object]) -> L
         ok=True,
         url=address.url,
         answer=result,
-        read=read_answer(body, url=address.url) if isinstance(body, str) else None,
+        read=(
+            replace(read, narrowed_by=address.narrowed)
+            if isinstance(body, str) and (read := read_answer(body, url=address.url))
+            else None
+        ),
     )

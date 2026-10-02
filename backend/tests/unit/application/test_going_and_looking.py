@@ -14,10 +14,12 @@ import json
 from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Any
+from urllib.parse import unquote
 
 import pytest
 
 from sro.application.context import RequestContext
+from sro.application.lookup.look_it_up import what_was_found
 from sro.application.lookup.run_lookups import K_AFTER_HEADERS_S, K_WHILE_TALKING
 from sro.application.ports.http import HttpResponse
 from sro.domain.execution.account import Account, LeaseState
@@ -239,15 +241,39 @@ async def test_an_expired_session_signs_in_again_once_and_the_read_is_tried_agai
     assert world.reauths == 1 and len(world.http.sent) == 2 and answers.any_answered
 
 
-async def test_a_call_refused_otherwise_is_read_off_the_page_it_was_seen_on() -> None:
+async def test_a_read_is_made_by_the_page_and_never_by_the_workers_own_client() -> None:
+    """Measured on QA 2026-10-02: the same GET from the worker's own client was
+    answered 302 by the site's edge, and the lookup fell through to a photograph.
+    The page itself is what the edge lets through."""
+    world = await lookup_world(_gesture(_call()))
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    assert answers.any_answered
+    ((_, method, url),) = world.driver.sent
+    assert method == "GET" and url.startswith(f"{WMS}{SUPPLIERS}")
+
+
+async def test_a_call_the_edge_sends_to_sign_in_signs_in_again_once() -> None:
+    world = await lookup_world(_gesture(_call()))
+    world.http.answer(302, "", {"location": "https://idp.example/auth"})
+    world.http.answer(200, '{"data": [{"name": "a"}]}')
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    assert world.reauths == 1 and answers.looked[0].ok and answers.looked[0].read is not None
+
+
+async def test_a_call_that_is_refused_otherwise_is_a_failed_lookup_not_a_photograph() -> None:
+    """A photograph holds no records, so the question went on unanswered with
+    the lookup reported as having worked. The status is the answer."""
     world = await lookup_world(_gesture(_call(), url=SCREEN_URL))
     world.http.answer(500, "")
 
     answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
 
-    assert answers.looked[0].ok and answers.looked[0].answer["mime_type"] == "image/png"
-    assert ("open_tab", SCREEN_URL) in {(call[0], call[-1]) for call in world.driver.calls}
-    assert world.reauths == 0
+    assert not answers.looked[0].ok and "500" in answers.looked[0].detail
+    assert world.reauths == 0 and "image_base64" not in answers.looked[0].answer
 
 
 async def test_a_screen_is_put_up_in_a_steel_tab_and_nothing_on_it_is_pressed() -> None:
@@ -260,6 +286,36 @@ async def test_a_screen_is_put_up_in_a_steel_tab_and_nothing_on_it_is_pressed() 
     assert world.driver.acted == [] and world.driver.pointed == []
     assert world.http.sent == []
     assert world.driver.tabs == {}
+
+
+async def test_a_screen_is_photographed_after_the_reads_it_made_when_it_was_seen() -> None:
+    """QA 2026-10-02: the photograph of the Warehouse Equipment Type page was a spinner
+    and the word "Loading" -- the shot was taken the moment the tab settled, before the
+    grid's own GET came back. The recording says which GET the page makes."""
+    world = await lookup_world(_gesture(_call(), url=SCREEN_URL))
+    events: list[str] = []
+    driver = world.driver
+    goto, wait, shoot = driver.goto, driver.wait_for_call, driver.screenshot
+
+    async def seen_goto(*args: Any, **kwargs: Any) -> Any:
+        events.append("goto")
+        return await goto(*args, **kwargs)
+
+    async def seen_wait(*args: Any, **kwargs: Any) -> Any:
+        events.append(f"wait {kwargs['method']} {kwargs['shape']}")
+        return await wait(*args, **kwargs)
+
+    async def seen_shot(*args: Any, **kwargs: Any) -> Any:
+        events.append("shot")
+        return await shoot(*args, **kwargs)
+
+    driver.goto, driver.wait_for_call, driver.screenshot = seen_goto, seen_wait, seen_shot  # type: ignore[method-assign]
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(SCREEN,)))
+
+    assert answers.looked[0].ok
+    assert events[-2:] == [f"wait GET {SUPPLIERS}", "shot"]
+    assert "goto" in events[:-2], "the reads are waited for on a load that was being listened to"
 
 
 async def test_an_endpoint_seen_only_as_a_write_is_refused_before_anything_is_sent() -> None:
@@ -357,7 +413,7 @@ async def test_a_lookup_that_runs_out_of_its_budget_is_one_named_gap() -> None:
     """The caller says how long: a conversation turn may not wait as long as
     a door whose answer IS the request. The tab it took is given back."""
     world = await lookup_world(_gesture(_call()))
-    world.run_lookups._http = _Silent()
+    world.driver.http = _Silent()
 
     answers = await world.run_lookups.execute(
         CTX, plan=Plan(question="q", lookups=(CALL,)), within=0.05
@@ -476,7 +532,7 @@ class _SignedOutOnTheFirstRead(FakeHttpCaller):
 
 async def test_a_password_refused_while_a_lookup_signs_in_again_parks_nobody() -> None:
     world = await lookup_world(_gesture(_call()))
-    world.run_lookups._http = _SignedOutOnTheFirstRead(world)
+    world.driver.http = _SignedOutOnTheFirstRead(world)
 
     answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
 
@@ -494,20 +550,46 @@ class _Hangs:
         raise AssertionError("an event nobody sets was set")
 
 
-async def test_a_conversation_that_runs_out_mid_sign_in_leaves_the_lease_ready() -> None:
-    """BROKEN means the pool no longer lists the context. A sign-in the
-    caller stopped waiting for says nothing about the context: the next
-    acquire finds it and probes."""
+async def test_a_conversation_that_runs_out_mid_sign_in_hears_it_is_signing_in_and_it_goes_on() -> (
+    None
+):
+    """QA 2026-10-02: a cold sign-in (24-34 s) outlasts the chat's 10 s. The turn used to
+    cancel it and leave the lease READY on the sign-in page, so no ask could ever finish.
+    The sign-in now runs on the broker's own task: this turn says so, the next finds it done."""
+    world = await lookup_world(_gesture(_call()))
+    gate = asyncio.Event()
+    execute = world.lane.execute
+
+    async def slow(step: Step, values: Mapping[str, str], ctx: Any) -> StepResult:
+        await gate.wait()
+        return await execute(step, values, ctx)
+
+    world.lane.execute = slow  # type: ignore[method-assign]
+    plan = Plan(question="q", lookups=(CALL,))
+
+    first = await world.run_lookups.execute(CTX, plan=plan, within=K_AFTER_HEADERS_S)
+
+    assert first.looked[0].signing_in and not first.looked[0].ok
+    assert first.looked[0].detail.startswith("signing in to ")
+    gate.set()
+    await world.broker.signings.settled()
+    second = await world.run_lookups.execute(CTX, plan=plan, within=K_AFTER_HEADERS_S)
+
+    assert second.looked[0].ok and world.lane.sign_ins == 1
+    assert _leases(world) == [LeaseState.READY] and world.driver.tabs == {}
+
+
+async def test_a_conversation_that_is_over_leaves_no_ready_lease_on_a_sign_in_page() -> None:
     world = await lookup_world(_gesture(_call()))
     world.broker._ui = _Hangs()
 
     answers = await world.run_lookups.execute(
-        CTX, plan=Plan(question="q", lookups=(CALL,)), within=0.05
+        CTX, plan=Plan(question="q", lookups=(CALL,)), within=K_AFTER_HEADERS_S
     )
+    await world.broker.signings.close()
 
-    assert answers.looked[0].detail.startswith("timed out after")
-    assert _leases(world) == [LeaseState.READY]
-    assert world.driver.tabs == {}
+    assert answers.looked[0].signing_in
+    assert LeaseState.READY not in _leases(world) and world.driver.tabs == {}
 
 
 async def test_a_code_prompt_is_answered_by_a_person_not_by_typing_the_password_again() -> None:
@@ -528,7 +610,7 @@ async def test_a_code_prompt_is_answered_by_a_person_not_by_typing_the_password_
     assert world.lane.sign_ins == 1
     assert [one.ok for one in (*first.looked, *second.looked)] == [False, False]
     assert "one-time code" in second.looked[0].detail
-    assert _leases(world) == [LeaseState.READY]
+    assert LeaseState.READY not in _leases(world), "a lease on a code prompt is not signed in"
     assert world.driver.tabs == {}
 
 
@@ -556,3 +638,212 @@ async def test_a_screen_that_is_a_sign_in_page_after_signing_back_in_is_a_gap_no
 
     assert world.reauths == 1
     assert not answers.looked[0].ok and "sign-in page" in answers.looked[0].detail
+
+
+GRID = "/data/WM/wm/equipmentTypes"
+WHOLE = json.dumps({"data": [{"code": "FORKLIFT"}, {"code": "PALLET"}]})
+SEARCHED = 'query=[{"property":"code","value":"ZWOYBN"}]'
+
+
+def _asked_for(code: str) -> Lookup:
+    return Lookup(system="blue_yonder", how="call", target=GRID, find=code, cites=(GRID,))
+
+
+def test_a_search_somebody_ran_is_not_the_read_that_gets_replayed() -> None:
+    """Review 1 / R-L1. The newest recorded GET was an operator's filtered search; replayed
+    verbatim it reads a filtered list and a lookup would say 'No' off it -- a false 'does not
+    exist' that invites a duplicate. The recorded read with nothing narrowing it wins."""
+    address = address_for(
+        _asked_for("X"),
+        [
+            _gesture(_call(path=GRID, query="query=[]", at=100.0), at=100.0),
+            _gesture(_call(path=GRID, query=SEARCHED, at=900.0), at=900.0),
+        ],
+    )
+
+    assert address is not None and address.narrowed == ()
+    assert "ZWOYBN" not in unquote(address.url)
+
+
+def test_a_read_that_only_ever_carried_a_search_is_marked_narrowed() -> None:
+    address = address_for(_asked_for("X"), [_gesture(_call(path=GRID, query=SEARCHED))])
+
+    assert address is not None and address.narrowed == ("query",)
+
+
+def test_a_filter_the_lookup_names_is_not_a_narrowing_it_did_not_ask_for() -> None:
+    lookup = Lookup(
+        system="blue_yonder", how="call", target=GRID, find="ZWOYBN", params={"code": "ZWOYBN"}
+    )
+
+    address = address_for(lookup, [_gesture(_call(path=GRID, query="code=OLD"))])
+
+    assert address is not None and address.narrowed == ()
+    assert "code=ZWOYBN" in address.url
+
+
+@pytest.mark.parametrize(
+    ("recorded", "params", "narrowed"),
+    [
+        ("status=ALL", {"status": "ACTIVE"}, ("status",)),
+        ("query=[]", {"status": "ACTIVE"}, ("status",)),
+        ("query=[]", {"status": "ZW1"}, ()),
+        ("query=[]", {"code": "zw1"}, ()),
+        ("query=[]", {"query": '[{"property":"code","value":"ZW1"}]'}, ("query",)),
+        ("query=[]", {"query": '[{"property":"site","value":"SG"}]'}, ("query",)),
+        ("query=[]", {"code": "ZW1", "status": "ACTIVE"}, ("status",)),
+    ],
+)
+def test_a_named_param_is_no_narrowing_only_when_it_carries_the_key_asked_for(
+    recorded: str, params: dict[str, str], narrowed: tuple[str, ...]
+) -> None:
+    """Review 2 #3: status=ACTIVE with find=ZW1 reads only active records; 'none is ZW1' off it
+    while an inactive ZW1 exists invites the duplicate. Only a value that holds the key is the
+    asked-for search itself."""
+    lookup = Lookup(system="blue_yonder", how="call", target=GRID, find="ZW1", params=params)
+
+    address = address_for(lookup, [_gesture(_call(path=GRID, query=recorded))])
+
+    assert address is not None and address.narrowed == narrowed
+
+
+@pytest.mark.parametrize(
+    ("find", "params", "narrowed"),
+    [
+        ("ZW1", {"query": '[{"f":"status","v":"INACTIVE"},{"f":"name","v":"ZW1"}]'}, ("query",)),
+        ("ZW1", {"query": '[{"f":"name","v":"ZW1","op":"ne"}]'}, ("query",)),
+        ("ZW1", {"query": '[{"f":"name","v":"ZW1"}]'}, ("query",)),
+        # exclude=ZW1 is, by value, the same as name=ZW1: only the planner's slot tells them apart.
+        ("ZW1", {"exclude": "ZW1"}, ()),
+        ("ZW1", {"name": "ZW10"}, ("name",)),
+        ("ZW1", {"name": "ZW1*"}, ()),
+        ("ZW1", {"name": "%ZW1%"}, ()),
+        ("ZW1", {"name": "ZW1"}, ()),
+        ("ZW1", {"name": "zw1"}, ()),
+        ("ZW1", {"name": ""}, ()),
+        ("ZW1", {"code_from": "ZW1", "code_to": "ZW9"}, ("code_to",)),
+        ("ZW1", {"code_from": "ZW0", "code_to": "ZW1"}, ("code_from",)),
+    ],
+)
+def test_a_named_param_is_exempt_only_when_it_is_the_key_and_nothing_else(
+    find: str, params: dict[str, str], narrowed: tuple[str, ...]
+) -> None:
+    """Review 3 A: containment is a proxy; a value that holds the key and still narrows (a second
+    filter, a negation, a longer code, a range end) must read as could-not-tell."""
+    lookup = Lookup(system="blue_yonder", how="call", target=GRID, find=find, params=params)
+
+    address = address_for(lookup, [_gesture(_call(path=GRID, query="query=[]"))])
+
+    assert address is not None and address.narrowed == narrowed
+
+
+async def test_a_read_filtered_by_a_param_the_planner_named_never_says_no() -> None:
+    lookup = Lookup(
+        system="blue_yonder",
+        how="call",
+        target=GRID,
+        find="ZW1",
+        params={"status": "ACTIVE"},
+        cites=(GRID,),
+    )
+    world = await lookup_world(_gesture(_call(path=GRID, query="query=[]")))
+    world.http.answer(200, WHOLE)
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(lookup,)))
+
+    said = what_was_found(answers)
+    assert not said.startswith("No") and "could not tell" in said
+
+
+async def test_a_list_read_through_a_recorded_search_never_says_no() -> None:
+    world = await lookup_world(_gesture(_call(path=GRID, query=SEARCHED)))
+    world.http.answer(200, WHOLE)
+
+    answers = await world.run_lookups.execute(
+        CTX, plan=Plan(question="q", lookups=(_asked_for("ZWOYBN"),))
+    )
+
+    said = what_was_found(answers)
+    assert not said.startswith("No") and "could not tell" in said
+
+
+async def test_a_whole_unfiltered_list_without_the_record_still_says_no() -> None:
+    world = await lookup_world(_gesture(_call(path=GRID, query="query=[]")))
+    world.http.answer(200, WHOLE)
+
+    answers = await world.run_lookups.execute(
+        CTX, plan=Plan(question="q", lookups=(_asked_for("ZWOYBN"),))
+    )
+
+    assert what_was_found(answers).startswith("No, none of the 2")
+
+
+def test_a_screen_waits_for_the_reads_any_gesture_on_its_route_made() -> None:
+    """Review 1 #3: the newest gesture on the route was a click that made no GET."""
+    address = address_for(
+        SCREEN,
+        [
+            _gesture(_call(), at=100.0, url=SCREEN_URL),
+            _gesture(at=900.0, url=SCREEN_URL),
+        ],
+    )
+
+    assert address is not None and address.reads == (SUPPLIERS,)
+
+
+async def test_the_paint_wait_is_clamped_to_what_is_left_of_the_turn() -> None:
+    """Review 1 #2: K_PAINT_S (8 s) inside the chat's 10 s; a read that never recurs
+    cost the whole lookup its photograph. It may cost no more than the budget has left."""
+    world = await lookup_world(_gesture(_call(), url=SCREEN_URL))
+    asked: list[float] = []
+    wait = world.driver.wait_for_call
+
+    async def noted(*args: Any, **kwargs: Any) -> Any:
+        asked.append(kwargs["deadline_s"])
+        return await wait(*args, **kwargs)
+
+    world.driver.wait_for_call = noted  # type: ignore[method-assign]
+
+    answers = await world.run_lookups.execute(
+        CTX, plan=Plan(question="q", lookups=(SCREEN,)), within=3.0
+    )
+
+    assert answers.looked[0].ok and asked
+    assert max(asked) <= 3.0 - K_AFTER_HEADERS_S
+
+
+async def test_several_lookups_in_one_plan_share_one_turn_budget() -> None:
+    """R-L5. The first read used up the turn; the second may not get a turn of its own."""
+    world = await lookup_world(_gesture(_call(), url=SCREEN_URL))
+    world.driver.http = _Silent()
+
+    answers = await world.run_lookups.execute(
+        CTX, plan=Plan(question="q", lookups=(CALL, SCREEN)), within=0.05
+    )
+
+    assert [one.detail.startswith("timed out") for one in answers.looked] == [True, True]
+    assert world.driver.tabs == {}
+
+
+async def test_a_refusal_after_signing_in_again_is_the_system_s_answer_not_a_sign_in_page() -> None:
+    """Review 1 #6: a 403 for want of permission is not 'still a sign-in page'."""
+    world = await lookup_world(_gesture(_call()))
+    world.http.answer(403, "")
+    world.http.answer(403, "")
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    assert world.reauths == 1 and not answers.looked[0].ok
+    assert answers.looked[0].detail == "the system answered 403"
+
+
+async def test_a_read_the_browser_could_not_complete_signs_in_again_once() -> None:
+    """Review 1 #7: an expired session redirects across origins; the page's fetch is
+    refused rather than redirected, and arrives as status 0, not as a 3xx."""
+    world = await lookup_world(_gesture(_call()))
+    world.http.answer(0, "")
+    world.http.answer(200, '{"data": [{"name": "a"}]}')
+
+    answers = await world.run_lookups.execute(CTX, plan=Plan(question="q", lookups=(CALL,)))
+
+    assert world.reauths == 1 and answers.looked[0].ok

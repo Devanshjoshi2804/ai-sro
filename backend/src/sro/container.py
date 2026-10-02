@@ -141,7 +141,7 @@ from sro.application.recording.start_recording import StartRecording
 from sro.application.runtime.answer_password import AnswerPassword
 from sro.application.runtime.answer_run import AnswerRun
 from sro.application.runtime.api_lane import ApiLane
-from sro.application.runtime.broker import SessionBroker
+from sro.application.runtime.broker import SessionBroker, SignIns
 from sro.application.runtime.executor import StepExecutor
 from sro.application.runtime.fill_field import FillField
 from sro.application.runtime.run_steps import RunSteps
@@ -257,6 +257,7 @@ class Container:
     stops: Stops = field(default_factory=Stops)
 
     one_time_secrets: OneTimeSecrets = field(default_factory=OneTimeSecrets)
+    sign_ins: SignIns = field(default_factory=SignIns)
 
     approvals: Approvals = field(default_factory=Approvals)
 
@@ -300,6 +301,8 @@ class Container:
             self.clock,
             ui=self.ui_lane(),
             once=self.one_time_secrets,
+            signings=self.sign_ins,
+            uows=self.unit_of_work,
         )
 
     def step_executor(self) -> StepExecutor:
@@ -468,7 +471,7 @@ class Container:
         )
 
     def run_lookups(self) -> RunLookups:
-        return RunLookups(self.unit_of_work(), self.session_broker(), self.http)
+        return RunLookups(self.unit_of_work(), self.session_broker())
 
     def create_trigger(self) -> CreateTrigger:
         return CreateTrigger(
@@ -1182,8 +1185,10 @@ def build_container(settings: Settings | None = None) -> Container:
         connect_args={"timeout": K_LOCK_CONNECT_TIMEOUT_S},
     )
 
+    sign_ins = SignIns()
     container = Container(
         settings=settings,
+        sign_ins=sign_ins,
         clock=clock,
         ids=UuidFactory(),
         blobs=MinioBlobStore(
@@ -1207,7 +1212,9 @@ def build_container(settings: Settings | None = None) -> Container:
         interpreter=_build_interpreter(settings, meter),
         asker=_build_asker(settings, meter),
         intent_parser=_build_intent_parser(settings, meter),
-        vault=(built_vault := ForgetsRefusalOnWrite(_build_vault(settings))),
+        vault=(
+            built_vault := ForgetsRefusalOnWrite(_build_vault(settings), on_written=sign_ins.forget)
+        ),
         http=HttpxCaller(),
         tools=McpToolCaller(_servers(settings.mcp_servers), vault=built_vault),
         ui=PlaywrightUiDriver(settings.ui_debugger_url),

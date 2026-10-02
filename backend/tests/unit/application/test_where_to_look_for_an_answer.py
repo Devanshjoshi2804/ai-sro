@@ -40,11 +40,12 @@ def _entry(
     title: str = "",
     body: dict[str, object] | None = None,
     superseded_by: str | None = None,
+    system: str = WMS,
 ) -> KnowledgeEntry:
     return KnowledgeEntry(
-        id=KnowledgeId(f"kn_{abs(hash(key + kind.value)) % 10**8}"),
+        id=KnowledgeId(f"kn_{abs(hash(key + kind.value + system)) % 10**8}"),
         tenant_id=f.TENANT,
-        system=WMS,
+        system=system,
         kind=kind,
         key=key,
         title=title or key,
@@ -297,6 +298,76 @@ async def test_a_screen_is_planned_where_no_endpoint_answers() -> None:
     assert lookup.how == "screen" and lookup.target == SUPPLIER_SCREEN
 
 
+async def test_a_screen_is_shown_with_the_endpoints_it_loads_so_a_call_can_be_chosen() -> None:
+    """QA 2026-10-02: "is there a warehouse equipment type called X" was planned as a
+    SCREEN on the Warehouse Equipment Type route -- a photograph that holds no records
+    -- though that grid is a GET on `equipmentTypes`. The screen was shown by name only
+    and the endpoint under another name, so nothing joined them for the model."""
+    grid = "/data/WM/wm/equipmentTypes"
+    route = "#wm.config/wm.config.equipment.equipment.warehouseequipmenttype////"
+    planner, asker = _planner(
+        _said(target=grid, params="{}", cites=[grid, route]),
+        [
+            _entry(
+                grid,
+                EntryKind.ENDPOINT,
+                title="equipmentTypes (collection)",
+                body={"resource": "equipmentTypes", "params": ["query"]},
+            ),
+            _entry(
+                "/data/WM/wm/codes",
+                EntryKind.ENDPOINT,
+                title="codes (collection)",
+                body={"resource": "codes"},
+            ),
+            _entry(
+                route,
+                EntryKind.SCREEN,
+                title="Warehouse Equipment Type",
+                body={"resources": ["equipmentTypes", "unseenThing"]},
+            ),
+        ],
+    )
+
+    await planner.execute(CTX, question="is there a warehouse equipment type called ZWOYBN")
+
+    shown = str(asker.asked[0]["evidence"])
+    on_the_screen = shown.split(route)[1].split("ENDPOINT")[0]
+    assert f"loads: {grid}" in on_the_screen and "/data/WM/wm/codes" not in on_the_screen
+
+
+async def test_a_screen_is_shown_only_the_endpoints_of_its_own_system() -> None:
+    """Review 1 #8: resources are joined by NAME, so another system's `codes` was listed
+    under this system's screen -- and an unhashable resource in a body crashed the join."""
+    grid = "/data/WM/wm/equipmentTypes"
+    route = "#wm.config/wm.config.equipment.equipment.warehouseequipmenttype////"
+    planner, asker = _planner(
+        _said(target=grid, params="{}", cites=[grid, route]),
+        [
+            _entry(grid, EntryKind.ENDPOINT, body={"resource": "equipmentTypes"}),
+            _entry(
+                "/api/v2/equipmentTypes",
+                EntryKind.ENDPOINT,
+                body={"resource": "equipmentTypes"},
+                system="other_system",
+            ),
+            _entry("/api/odd", EntryKind.ENDPOINT, body={"resource": ["equipmentTypes"]}),
+            _entry(
+                route,
+                EntryKind.SCREEN,
+                title="Warehouse Equipment Type",
+                body={"resources": ["equipmentTypes"]},
+            ),
+        ],
+    )
+
+    await planner.execute(CTX, question="is there a warehouse equipment type called ZWOYBN")
+
+    shown = str(asker.asked[0]["evidence"])
+    on_the_screen = shown.split(route)[1].split("ENDPOINT")[0]
+    assert f"loads: {grid}" in on_the_screen and "/api/" not in on_the_screen
+
+
 async def test_nothing_known_plans_nothing_rather_than_improvising() -> None:
     planner, asker = _planner(_said(), [])
 
@@ -350,7 +421,7 @@ async def test_a_model_that_answered_nothing_usable_is_a_refusal_not_a_plan() ->
     planned = await planner.execute(CTX, question="which suppliers are set up at SG")
 
     assert planned.plan.lookups == ()
-    assert planned.refused == "plan_lookup v3: the answer does not match its schema"
+    assert planned.refused == "plan_lookup v4: the answer does not match its schema"
 
 
 @pytest.mark.parametrize("how", ["post", "delete", "write", ""])

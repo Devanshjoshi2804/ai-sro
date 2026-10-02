@@ -109,7 +109,7 @@ Code: `labels: tuple[str, ...] = ()`
 > surrogate key first however carefully it was arranged. The ranking has to
 > survive the round trip, so it is applied once, here, and kept as text.
 
-## `merge`, [line 72](../../../../../../../backend/src/sro/application/execution/answer.py#L72): Docstring
+## `merge`, [line 74](../../../../../../../backend/src/sro/application/execution/answer.py#L74): Docstring
 
 > Several pages of one read, as one answer.
 >
@@ -118,7 +118,7 @@ Code: `labels: tuple[str, ...] = ()`
 > that came back. A collection that grew while it was being read shows more
 > records than its own total, which is true and worth seeing.
 
-## `leading_with`, [line 97](../../../../../../../backend/src/sro/application/execution/answer.py#L97): Docstring
+## `leading_with`, [line 99](../../../../../../../backend/src/sro/application/execution/answer.py#L99): Docstring
 
 > The same answer, named by the field the question used.
 >
@@ -127,7 +127,7 @@ Code: `labels: tuple[str, ...] = ()`
 > record's most identifying field cannot know which one the question named;
 > the caller can, and does.
 
-## `read_answer`, [line 110](../../../../../../../backend/src/sro/application/execution/answer.py#L110): Docstring
+## `read_answer`, [line 112](../../../../../../../backend/src/sro/application/execution/answer.py#L112): Docstring
 
 > The records in a response, or None when there are none to speak of.
 >
@@ -136,7 +136,7 @@ Code: `labels: tuple[str, ...] = ()`
 > about what we asked for, so a total that merely echoes our own paging is
 > not a total.
 
-## `_total`, [line 157](../../../../../../../backend/src/sro/application/execution/answer.py#L157): Docstring
+## `_total`, [line 159](../../../../../../../backend/src/sro/application/execution/answer.py#L159): Docstring
 
 > The size of the whole set, where the response states it.
 >
@@ -146,12 +146,12 @@ Code: `labels: tuple[str, ...] = ()`
 > number, it cannot be smaller than the page it came with, and it is not one
 > of the numbers we put in the request ourselves.
 
-## `_numbers_we_sent`, [line 168](../../../../../../../backend/src/sro/application/execution/answer.py#L168): Docstring
+## `_numbers_we_sent`, [line 170](../../../../../../../backend/src/sro/application/execution/answer.py#L170): Docstring
 
 > Whole numbers in the request's own query. `limit=50` coming back as `50`
 > says nothing except that the server heard us.
 
-## `_is_a_page`, [line 172](../../../../../../../backend/src/sro/application/execution/answer.py#L172): Docstring
+## `_is_a_page`, [line 174](../../../../../../../backend/src/sro/application/execution/answer.py#L174): Docstring
 
 > Whether this response is one page of something longer.
 >
@@ -159,7 +159,7 @@ Code: `labels: tuple[str, ...] = ()`
 > a full page is the one case where the count of what came back tells you
 > nothing about how much there is.
 
-## `_held`, [line 176](../../../../../../../backend/src/sro/application/execution/answer.py#L176): Docstring
+## `_held`, [line 178](../../../../../../../backend/src/sro/application/execution/answer.py#L178): Docstring
 
 > The values of the columns that have only a few.
 >
@@ -170,7 +170,7 @@ Code: `labels: tuple[str, ...] = ()`
 > haystack. So a column that runs past the cap is dropped rather than
 > truncated: a truncated set looks exactly like a small one.
 
-## `_columns`, [line 190](../../../../../../../backend/src/sro/application/execution/answer.py#L190): Docstring
+## `_columns`, [line 192](../../../../../../../backend/src/sro/application/execution/answer.py#L192): Docstring
 
 > The fields worth showing, decided across the whole result rather than per row.
 >
@@ -183,28 +183,28 @@ Code: `labels: tuple[str, ...] = ()`
 > So a column earns its place by having a value somewhere, and the ranking
 > orders what survives.
 
-## `_is_a_link`, [line 209](../../../../../../../backend/src/sro/application/execution/answer.py#L209): Docstring
+## `_is_a_link`, [line 211](../../../../../../../backend/src/sro/application/execution/answer.py#L211): Docstring
 
 > A self-referential URL is the address we already know, spelled out.
 
-## `_row`, [line 213](../../../../../../../backend/src/sro/application/execution/answer.py#L213): Docstring
+## `_row`, [line 215](../../../../../../../backend/src/sro/application/execution/answer.py#L215): Docstring
 
 > One record, as the columns the whole result agreed on.
 
-## `_sayable`, [line 229](../../../../../../../backend/src/sro/application/execution/answer.py#L229): Docstring
+## `_sayable`, [line 231](../../../../../../../backend/src/sro/application/execution/answer.py#L231): Docstring
 
 > Scalars only, and nothing empty. A nested object is structure, not an
 > answer, and rendering it turns a sentence into a wall.
 
-## `Answer.counted`, [line 48](../../../../../../../backend/src/sro/application/execution/answer.py#L48): Docstring
+## `Answer.counted`, [line 50](../../../../../../../backend/src/sro/application/execution/answer.py#L50): Docstring
 
 > How many there are, or None when nobody can say from this response.
 
-## `Answer.sentence`, [line 53](../../../../../../../backend/src/sro/application/execution/answer.py#L53): Docstring
+## `Answer.sentence`, [line 55](../../../../../../../backend/src/sro/application/execution/answer.py#L55): Docstring
 
 > One line, for a person who asked a question rather than a table.
 
-## `Answer.sentence`, [line 58](../../../../../../../backend/src/sro/application/execution/answer.py#L58): Comment
+## `Answer.sentence`, [line 60](../../../../../../../backend/src/sro/application/execution/answer.py#L60): Comment
 
 Code: `return (`
 
@@ -212,7 +212,7 @@ Code: `return (`
 > all of it. An operator can act on "at least 50"; they cannot
 > recover from being told 50 when there are five thousand.
 
-## `Answer.sentence`, [line 63](../../../../../../../backend/src/sro/application/execution/answer.py#L63): Comment
+## `Answer.sentence`, [line 65](../../../../../../../backend/src/sro/application/execution/answer.py#L65): Comment
 
 Code: `return f"Nothing matched — no {subject} came back."`
 
@@ -220,13 +220,13 @@ Code: `return f"Nothing matched — no {subject} came back."`
 > everywhere else in this system, and a count of nothing is the one
 > sentence where that reads as broken English.
 
-## `merge`, [line 87](../../../../../../../backend/src/sro/application/execution/answer.py#L87): Comment
+## `merge`, [line 89](../../../../../../../backend/src/sro/application/execution/answer.py#L89): Comment
 
 Code: `partial=False,`
 
 > Read to the end, so nothing is missing however it started.
 
-## `_total`, [line 165](../../../../../../../backend/src/sro/application/execution/answer.py#L165): Comment
+## `_total`, [line 167](../../../../../../../backend/src/sro/application/execution/answer.py#L167): Comment
 
 Code: `return candidates[0] if len(candidates) == 1 else None`
 
@@ -234,7 +234,7 @@ Code: `return candidates[0] if len(candidates) == 1 else None`
 > difference between them is exactly the kind of quiet wrong answer this
 > is here to prevent.
 
-## `_columns`, [line 198](../../../../../../../backend/src/sro/application/execution/answer.py#L198): Comment
+## `_columns`, [line 200](../../../../../../../backend/src/sro/application/execution/answer.py#L200): Comment
 
 Code: `kept: list[str] = []`
 

@@ -12,6 +12,7 @@ from typing import Any, Literal
 
 import httpx
 import pytest
+from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import async_playwright
 
 from sro.application.ports.page import PageGone, PageUnsettled, SessionRef
@@ -1372,3 +1373,20 @@ async def test_a_call_sent_through_the_page_is_the_page_s_own(
     got = await driver.send(one, target, "GET", rig.url("/public"), headers={"Cookie": "x=1"})
 
     assert got.status_code == 200 and "public" in got.text
+
+
+async def test_a_read_the_browser_refuses_to_make_is_status_zero_and_a_write_is_not_hidden(
+    rig: Rig,  # noqa: F811
+    one: SessionRef,  # noqa: F811
+    driver: SteelDriver,  # noqa: F811
+) -> None:
+    """An expired session redirects across origins and the page's fetch is refused, not
+    answered. A read says status 0 (the lookup signs in again on it); a write's refusal
+    stays an error, never a number a caller might read as 'nothing was sent'."""
+    target = await driver.open_tab(one, rig.url("/public"))
+
+    got = await driver.send(one, target, "GET", "http://127.0.0.1:9/never", headers={})
+
+    assert got.status_code == 0
+    with pytest.raises(PlaywrightError):
+        await driver.send(one, target, "POST", "http://127.0.0.1:9/never", headers={}, body="{}")

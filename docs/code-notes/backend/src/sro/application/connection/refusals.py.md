@@ -18,7 +18,7 @@ Why the code in [`backend/src/sro/application/connection/refusals.py`](../../../
 > whose password step reads `<tenant>/<login origin>/password`. A latch on the
 > connection would guard a path production does not take.
 
-## module, [line 10](../../../../../../../backend/src/sro/application/connection/refusals.py#L10): Note on the line above
+## module, [line 11](../../../../../../../backend/src/sro/application/connection/refusals.py#L11): Note on the line above
 
 Code: `MARK = "#refused"`
 
@@ -28,14 +28,14 @@ Code: `MARK = "#refused"`
 > the thing whose lifecycle it follows. `#` never occurs in a key
 > `secret_key_of` builds, so no real secret can be mistaken for a mark.
 
-## `fingerprint`, [line 17](../../../../../../../backend/src/sro/application/connection/refusals.py#L17): Function
+## `fingerprint`, [line 18](../../../../../../../backend/src/sro/application/connection/refusals.py#L18): Function
 
 > The first 12 hex of sha256 over the vault key and the value. It binds a
 > failed count and a refusal to the password they were about (task 10, fix
 > rounds 1 and 2), is the run's in-run mark for a handed-out value, and is
 > stored in the vault beside the password -- the same trust boundary.
 
-## `RefusedCredentials.standing`, [line 36](../../../../../../../backend/src/sro/application/connection/refusals.py#L36): Docstring
+## `RefusedCredentials.standing`, [line 37](../../../../../../../backend/src/sro/application/connection/refusals.py#L37): Docstring
 
 > The standing refusal for this key, or None. A mark that cannot be parsed
 > still counts as a refusal: the safe reading of a latch nobody can read is
@@ -45,7 +45,7 @@ Code: `MARK = "#refused"`
 > one, so the store/refuse race cannot refuse a password nobody submitted.
 > A refusal without a fingerprint (older records) stands for any value.
 
-## module, [line 11](../../../../../../../backend/src/sro/application/connection/refusals.py#L11): Constant
+## module, [line 12](../../../../../../../backend/src/sro/application/connection/refusals.py#L12): Constant
 
 Code: `FAILED = "#failed"`
 
@@ -55,7 +55,7 @@ Code: `FAILED = "#failed"`
 > record holds a decimal count and a truncated keyed-hash fingerprint of the
 > password it counted, in the same vault as the password itself.
 
-## `FailedAttempts`, [line 73](../../../../../../../backend/src/sro/application/connection/refusals.py#L73): Class
+## `FailedAttempts`, [line 74](../../../../../../../backend/src/sro/application/connection/refusals.py#L74): Class
 
 > Failed sign-in attempts for one vault key, across runs, recorded as
 > `"<count> <fingerprint>"`. The fingerprint is `fingerprint(key, value)` of
@@ -67,7 +67,7 @@ Code: `FAILED = "#failed"`
 > same password at the same moment can lose one increment, making the latch
 > one attempt late.
 
-## `ForgetsRefusalOnWrite`, [line 87](../../../../../../../backend/src/sro/application/connection/refusals.py#L87): Class
+## `ForgetsRefusalOnWrite`, [line 88](../../../../../../../backend/src/sro/application/connection/refusals.py#L88): Class
 
 > The vault, wrapped so that writing a key lifts any refusal against it and
 > clears its failed-attempt count (`#failed`, task 10). Writing or deleting a
@@ -83,7 +83,7 @@ Code: `FAILED = "#failed"`
 > refresh stores. Deleting a missing key is a no-op in the file vault and a
 > handled NotFound in Secret Manager.
 
-## `CodeAsked`, [line 53](../../../../../../../backend/src/sro/application/connection/refusals.py#L53): Note
+## `CodeAsked`, [line 54](../../../../../../../backend/src/sro/application/connection/refusals.py#L54): Note
 
 > When a system last asked this account for a one-time code: a mark beside
 > the password in the vault, `#code`, built like the `#refused` latch. `ask`

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -85,8 +86,10 @@ class FailedAttempts:
 
 
 class ForgetsRefusalOnWrite:
-    def __init__(self, vault: CredentialVault) -> None:
-        self._vault = vault
+    def __init__(
+        self, vault: CredentialVault, *, on_written: Callable[[str], None] = lambda key: None
+    ) -> None:
+        self._vault, self._on_written = vault, on_written
 
     async def store(self, key: str, value: str) -> None:
         await self._vault.store(key, value)
@@ -102,5 +105,6 @@ class ForgetsRefusalOnWrite:
     async def _forget(self, key: str) -> None:
         if key.endswith(MARKS):
             return
+        self._on_written(key)
         for mark in MARKS:
             await self._vault.delete(key + mark)

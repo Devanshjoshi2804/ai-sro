@@ -57,7 +57,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/ask_the_
 > decides that a mail should go -- it decides that this mail, which somebody
 > has read, may.
 
-## `_the_draft`, [line 301](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L301): Docstring
+## `_the_draft`, [line 328](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L328): Docstring
 
 > The drafted mail with that id, if it is still the last word on it.
 >
@@ -110,7 +110,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/ask_the_
 > all are reasons not to send, and none of them is an error worth a 500.
 
 
-## `SendTheDraft._claim`, [line 261](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L261): Docstring
+## `SendTheDraft._claim`, [line 279](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L279): Docstring
 
 > Take this draft, or say somebody already has it.
 >
@@ -127,7 +127,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/chat/ask_the_
 > and the guard would let them, which is the one thing this claim
 > exists to stop. The draft id is unique in the tenant on its own.
 
-## `SendTheDraft._say`, [line 269](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L269): Docstring
+## `SendTheDraft._say`, [line 287](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L287): Docstring
 
 > What happened, in the conversation the draft was read in.
 >
@@ -217,7 +217,7 @@ Code: `logger.warning(`
 > ladder keeps, and for a stronger reason: a duplicate mail cannot
 > be deleted afterwards.
 
-## `SendTheDraft._say`, [line 288](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L288): Comment
+## `SendTheDraft._say`, [line 306](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L306): Comment
 
 Code: `decision={`
 
@@ -227,7 +227,7 @@ Code: `decision={`
 > panel keyed only on that went on showing `Send it` under
 > a mail already in somebody's inbox.
 
-## `SendTheDraft._say`, [line 292](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L292): Comment
+## `SendTheDraft._say`, [line 310](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L310): Comment
 
 Code: `"to": to,`
 
@@ -236,7 +236,7 @@ Code: `"to": to,`
 > a panel parsing prose to find a fact the decision
 > was already carrying everything else about.
 
-## `_the_draft`, [line 306](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L306): Comment
+## `_the_draft`, [line 333](../../../../../../../backend/src/sro/application/chat/ask_the_asker.py#L333): Comment
 
 Code: `if str(getattr(message, "id", "")) == str(message_id):`
 

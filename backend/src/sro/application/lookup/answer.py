@@ -58,7 +58,7 @@ def _hits(find: str, read: Answer | None) -> list[tuple[int, str]]:
 
 
 def _whole(read: Answer) -> bool:
-    return not read.partial and read.counted == len(read.records)
+    return not read.partial and read.counted == len(read.records) and not read.narrowed_by
 
 
 def existence(find: str, subject: str, read: Answer | None) -> str:
@@ -76,6 +76,11 @@ def existence_across(find: str, reads: Sequence[tuple[str, Answer | None]]) -> s
     subject = reads[0][0]
     if any(read is None for _, read in reads):
         return f"I could not tell whether {subject} {find} exists: a read held no records."
+    if narrowed := next((read.narrowed_by for _, read in reads if read and read.narrowed_by), ()):
+        return (
+            f"I could not tell whether {subject} {find} exists: the list was read with "
+            f"{', '.join(narrowed)} set, so it may not be the whole list."
+        )
     if not all(read is not None and _whole(read) for _, read in reads):
         return f"I could not tell whether {subject} {find} exists: only part of the list was read."
     count = sum(len(read.records) for _, read in reads if read is not None)
@@ -123,6 +128,7 @@ def as_seen(
             "rows": read.rows,
             "counted": read.counted,
             "partial": read.partial,
+            "narrowed": list(read.narrowed_by),
             "subject": subject,
             "sentence": (
                 existence(find, subject, read)

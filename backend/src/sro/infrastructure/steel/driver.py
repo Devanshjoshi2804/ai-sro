@@ -61,6 +61,9 @@ _SEND = """async (c) => {
     const headers = {};
     r.headers.forEach((value, name) => { headers[name] = value; });
     return {status: r.status, headers, text: await r.text(), redirected: r.redirected, url: r.url};
+  } catch (e) {
+    if (c.method === "GET" && e instanceof TypeError) return {status: 0, headers: {}, text: ""};
+    throw e;
   } finally { clearTimeout(timer); }
 }"""
 

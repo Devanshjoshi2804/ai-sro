@@ -26,7 +26,7 @@ Code: `if not planned.plan.ready:`
 > claiming to summarise them would be this system inventing a number: the
 > table is the answer and this is its label.
 
-## `what_was_found`, [line 64](../../../../../../../backend/src/sro/application/lookup/look_it_up.py#L64): Comment
+## `what_was_found`, [line 67](../../../../../../../backend/src/sro/application/lookup/look_it_up.py#L67): Comment
 
 Code: `if any(ran_out(one.detail) for one in found.looked):`
 
@@ -35,7 +35,7 @@ Code: `if any(ran_out(one.detail) for one in found.looked):`
 > the person reading it can see their own browser and can do something
 > about it.
 
-## `what_was_found`, [line 67](../../../../../../../backend/src/sro/application/lookup/look_it_up.py#L67): Comment
+## `what_was_found`, [line 70](../../../../../../../backend/src/sro/application/lookup/look_it_up.py#L70): Comment
 
 Code: `said = [_said(one) for one in answered if one.read is not None and not one.lookup.find]`
 

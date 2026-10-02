@@ -183,7 +183,7 @@ Code: `SCOPES = [`
 > replies to holds them, and which mail that is, is a fact Gmail already
 > knows. Searching for it is guessing at something nobody has to guess at.
 
-## `Connector`, [line 475](../../../../backend/gmail-connector/server.py#L475): Docstring
+## `Connector`, [line 493](../../../../backend/gmail-connector/server.py#L493): Docstring
 
 > The MCP half: greet, hand out a session, then answer calls.
 >
@@ -256,7 +256,7 @@ Code: `within = str(arguments.get("thread_id", "")).strip()`
 > `In-Reply-To` header is what every OTHER mail client uses, and without it
 > the person who receives this sees an orphan.
 
-## `Connector.do_POST`, [line 513](../../../../backend/gmail-connector/server.py#L513): Comment
+## `Connector.do_POST`, [line 531](../../../../backend/gmail-connector/server.py#L531): Comment
 
 Code: `bearer = self.headers.get("Authorization", "").removeprefix("Bearer ").strip()`
 
@@ -265,7 +265,7 @@ Code: `bearer = self.headers.get("Authorization", "").removeprefix("Bearer ").st
 > is the first thing that would. An unknown bearer reaches no
 > grant, so it reaches no mail.
 
-## `Connector.do_POST`, [line 551](../../../../backend/gmail-connector/server.py#L551): Comment
+## `Connector.do_POST`, [line 569](../../../../backend/gmail-connector/server.py#L569): Comment
 
 Code: `print(f"  ! {refused}")`
 
@@ -273,7 +273,7 @@ Code: `print(f"  ! {refused}")`
 > treats "it refused" and "there was nothing to ask" differently,
 > and both arriving as an exception would collapse them.
 
-## module, [line 601](../../../../backend/gmail-connector/server.py#L601): Inline
+## module, [line 619](../../../../backend/gmail-connector/server.py#L619): Inline
 
 Code: `_client()`
 
@@ -315,7 +315,7 @@ Code: `"sent": "SENT" in (one.get("labelIds") or []),`
 > demonstration sent as the one SENT message of the click's thread dated near
 > the click, and reads who it went to from these.
 
-## `_send`, [line 471](../../../../backend/gmail-connector/server.py#L471): Comment
+## `_send`, [line 489](../../../../backend/gmail-connector/server.py#L489): Comment
 
 Code: `print(f"  → sent to {len(getaddresses([str(arguments.get('to', ''))]))} recipient(s)")`
 

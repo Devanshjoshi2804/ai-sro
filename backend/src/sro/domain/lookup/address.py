@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -7,7 +8,10 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from sro.domain.execution.planning import LIVE_FETCHABLE_HEADERS
 from sro.domain.lookup.plan import Lookup
 from sro.domain.observation.gesture import Gesture
+from sro.domain.observation.trim import path_shape
 from sro.domain.shared.hosts import REDACTED, headers_without_markers
+
+K_EMPTY = ("", "[]", "{}", "null")
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,6 +25,10 @@ class Address:
     seen_at: float | None = None
 
     page: str = ""
+
+    reads: tuple[str, ...] = ()
+
+    narrowed: tuple[str, ...] = ()
 
 
 def address_for(lookup: Lookup, gestures: Iterable[Gesture]) -> Address | None:
@@ -43,7 +51,10 @@ def _call_address(lookup: Lookup, gestures: list[Gesture]) -> Address | None:
     ]
     if not worked:
         return None
-    gesture, call = max(worked, key=lambda one: one[1].started_at or 0.0)
+    gesture, call = max(
+        worked,
+        key=lambda one: (-len(_narrowing(one[1].url, lookup)), one[1].started_at or 0.0),
+    )
     struck_out = [name for name, value in call.request_headers.items() if REDACTED in value]
     return Address(
         url=_with_params(call.url, lookup.params),
@@ -52,6 +63,7 @@ def _call_address(lookup: Lookup, gestures: list[Gesture]) -> Address | None:
         struck=tuple(n for n in struck_out if n.lower() not in LIVE_FETCHABLE_HEADERS),
         seen_at=call.started_at,
         page=gesture.page_url or gesture.url or "",
+        narrowed=_narrowing(call.url, lookup),
     )
 
 
@@ -67,7 +79,48 @@ def _screen_address(lookup: Lookup, gestures: list[Gesture]) -> Address | None:
     if not on_it:
         return None
     seen = max(on_it, key=lambda gesture: gesture.at)
-    return Address(url=seen.url or "", seen_at=seen.at)
+    made = Counter(
+        shape
+        for gesture in on_it
+        for shape in dict.fromkeys(
+            path_shape(call.url)
+            for call in gesture.requests
+            if call.method.upper() == "GET"
+            and call.status is not None
+            and 200 <= call.status < 300
+            and not call.failure_reason
+        )
+    )
+    return Address(
+        url=seen.url or "", seen_at=seen.at, reads=tuple(shape for shape, _ in made.most_common())
+    )
+
+
+def _narrowing(url: str, lookup: Lookup) -> tuple[str, ...]:
+    """What the replayed read filters by besides the key asked for: a param the planner named
+    is that search only when its value is the key and nothing else (status=ACTIVE reads a subset;
+    a JSON filter, a longer code or a second value could narrow, so it reads as could-not-tell)."""
+    key = lookup.find.casefold() if lookup.find else None
+    return tuple(
+        name
+        for name, value in parse_qsl(
+            urlsplit(_with_params(url, lookup.params)).query, keep_blank_values=True
+        )
+        if value.strip() not in K_EMPTY
+        and not (name in lookup.params and key and _is_the_key(value, key))
+    )
+
+
+def _is_the_key(value: str, key: str) -> bool:
+    text = value.strip().casefold()
+    return (
+        key in text
+        and text[:1] not in "[{"
+        and not any(char.isalnum() for char in text.replace(key, "", 1).translate(_WILDCARDS))
+    )
+
+
+_WILDCARDS = str.maketrans("", "", "*%?")
 
 
 def _route_name(route: str) -> str:

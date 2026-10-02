@@ -2,7 +2,7 @@
 
 Comments and docstrings moved out of [`backend/src/sro/domain/prompts/plan_lookup.py`](../../../../../../../backend/src/sro/domain/prompts/plan_lookup.py). Each note names the code it explains (function or class, then the line in the current file) and keeps the original text, which says what the code does and why.
 
-## module, [line 47](../../../../../../../backend/src/sro/domain/prompts/plan_lookup.py#L47): Comment
+## module, [line 50](../../../../../../../backend/src/sro/domain/prompts/plan_lookup.py#L50): Comment
 
 Code: `"properties": {`
 

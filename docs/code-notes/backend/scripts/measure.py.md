@@ -67,7 +67,7 @@ Code: `MINE = "(cast(:tenant as text) is null or tenant_id = cast(:tenant as tex
 
 > One measured thing, and what it rests on.
 
-## `unmeasured`, [line 405](../../../../backend/scripts/measure.py#L405): Docstring
+## `unmeasured`, [line 408](../../../../backend/scripts/measure.py#L408): Docstring
 
 > The list this whole script exists to print.
 >
@@ -85,7 +85,7 @@ Code: `for belt in ("status", "read", "screen"):`
 > about reality, so each one is asked about by name even when the answer is
 > zero. A rung that has never run is the most useful line on this page.
 
-## `main`, [line 513](../../../../backend/scripts/measure.py#L513): Comment
+## `main`, [line 516](../../../../backend/scripts/measure.py#L516): Comment
 
 Code: `asked = (`
 

@@ -14,7 +14,9 @@ from sro.domain.shared.hosts import REDACTED, headers_without_markers, origin_of
 K_EMPTY = ("", "[]", "{}", "null")
 K_STAMP_CALLS = 5
 K_STAMP_SKEW_MS = 5000
-K_SCOPE_PATHS = 2
+K_STAMP_VALUES = 3
+K_SCOPE_WRITES = 2
+K_SCOPE_READS = 5
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,7 +36,7 @@ class Address:
     narrowed: tuple[str, ...] = ()
 
 
-def address_for(lookup: Lookup, gestures: Iterable[Gesture], now: float = 0.0) -> Address | None:
+def address_for(lookup: Lookup, gestures: Iterable[Gesture], now: float) -> Address | None:
     """`now` (epoch seconds) is what a request-time stamp param is replayed with."""
     seen = list(gestures)
     if lookup.how == "call":
@@ -124,7 +126,7 @@ def _narrowing(
         )
         if value.strip() not in K_EMPTY
         and (name, value) not in scope
-        and name not in stamps
+        and (name not in stamps or name in lookup.params)
         and not (name in lookup.params and key and _is_the_key(value, key))
     )
 
@@ -133,11 +135,14 @@ def _proven_params(
     origin: str, lookup: Lookup, gestures: list[Gesture]
 ) -> tuple[frozenset[tuple[str, str]], frozenset[str]]:
     """What the recorded calls of this system prove is no filter: (scope pairs, stamp names).
-    Scope: a successful write to each of at least two endpoint paths carried the same
-    (name, value), so it is session-wide context (siteId=SG), not one write's field
-    (status=ACTIVE). A value the operator typed (or the key asked for) is record content, never
-    proof. Stamp: on every recorded call carrying the name (at least K_STAMP_CALLS) the value is
-    that call's own started_at in epoch milliseconds, give or take K_STAMP_SKEW_MS (_dc).
+    Scope: a successful write (not GET/HEAD/OPTIONS) to each of at least K_SCOPE_WRITES endpoint
+    shapes (an id in the path is one endpoint) carried the same (name, value) and so did reads
+    of at least K_SCOPE_READS other endpoint shapes: session-wide context (siteId=SG), not one
+    write's field (status=ACTIVE) or a POST search's. A value the operator
+    typed (or the key asked for) is record content, never proof. Stamp: on every recorded call
+    carrying the name (at least K_STAMP_CALLS) the value is that call's own started_at in epoch
+    milliseconds, give or take K_STAMP_SKEW_MS (_dc), and the values differ (at least
+    K_STAMP_VALUES): one constant value is a filter (since=<page load>).
     Anything else stays a filter."""
     typed = {
         gesture.action.value.casefold()
@@ -147,23 +152,34 @@ def _proven_params(
     calls = [
         call for gesture in gestures for call in gesture.requests if origin_of(call.url) == origin
     ]
+    target = path_shape(lookup.target)
     wrote: dict[tuple[str, str], set[str]] = {}
-    carried: dict[str, list[bool]] = {}
+    read: dict[tuple[str, str], set[str]] = {}
+    carried: dict[str, list[tuple[bool, str]]] = {}
     for call in calls:
+        shape = path_shape(call.url)
+        method = call.method.upper()
+        worked = call.status is not None and 200 <= call.status < 300
         for name, value in _params(call.url):
-            carried.setdefault(name, []).append(_is_its_time(value, call.started_at))
-            if (
-                call.method.upper() != "GET"
-                and call.status is not None
-                and 200 <= call.status < 300
-            ):
-                wrote.setdefault((name, value), set()).add(urlsplit(call.url).path)
+            carried.setdefault(name, []).append((_is_its_time(value, call.started_at), value))
+            if worked and method == "GET" and shape != target:
+                read.setdefault((name, value), set()).add(shape)
+            elif worked and method not in ("GET", "HEAD", "OPTIONS"):
+                wrote.setdefault((name, value), set()).add(shape)
     scope = frozenset(
         pair
-        for pair, paths in wrote.items()
-        if len(paths) >= K_SCOPE_PATHS and pair[1].casefold() not in typed
+        for pair, shapes in wrote.items()
+        if len(shapes) >= K_SCOPE_WRITES
+        and len(read.get(pair, ())) >= K_SCOPE_READS
+        and pair[1].casefold() not in typed
     )
-    stamps = frozenset(name for name, ok in carried.items() if len(ok) >= K_STAMP_CALLS and all(ok))
+    stamps = frozenset(
+        name
+        for name, seen in carried.items()
+        if len(seen) >= K_STAMP_CALLS
+        and all(ok for ok, _ in seen)
+        and len({value for _, value in seen}) >= K_STAMP_VALUES
+    )
     return scope, stamps
 
 

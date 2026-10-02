@@ -281,7 +281,7 @@ async def test_a_re_sign_in_that_dies_of_anything_leaves_no_ready_lease() -> Non
     broker._ui = _LosesTheLease(driver)
 
     with pytest.raises(PageGone):
-        await broker.reauth(CTX, held, APP, park=False)
+        await broker.reauth(CTX, held, APP)
 
     assert LeaseState.READY not in _states(uow)
 
@@ -415,3 +415,36 @@ async def test_a_re_sign_in_apart_that_fails_reports_that_not_the_tab_release(
 
     with pytest.raises(ValueError, match="the real failure"):
         await broker.reauth_apart(CTX, held, APP, patience_s=60.0, apart_s=30.0)
+
+
+@pytest.mark.parametrize("how", ["refused", "timed out", "cancelled"])
+async def test_a_lookups_re_sign_in_that_does_not_finish_leaves_the_run_its_lease_and_tab(
+    how: str,
+) -> None:
+    """Day-end D-1: the lease is shared per account. Only the holder that started a fresh
+    sign-in on its own lease may break it; a chat lookup's apart re-sign-in (park=False)
+    that fails, times out or is cancelled closes its own tab and nothing else."""
+    uow, driver, vault = await _signing_world()
+    lane = _SlowSignIn(driver)
+    lane.gate.set()
+    broker = _broker(uow, driver, vault, lane)
+    run = await broker.acquire(CTX, LENA, APP, holder="run_1")
+    driver.expire_session()
+    driver.refuses = how == "refused"
+    if how != "refused":
+        lane.gate.clear()
+    lane.started.clear()
+
+    if how == "cancelled":
+        with pytest.raises(SigningIn):
+            await broker.reauth_apart(CTX, run, APP, patience_s=0.0, apart_s=30.0)
+        await lane.started.wait()
+        await broker.signings.close()
+    else:
+        with pytest.raises((NeedsAPerson, SignInStalled)):
+            await broker.reauth_apart(CTX, run, APP, patience_s=60.0, apart_s=0.05)
+
+    assert _states(uow) == [LeaseState.READY]
+    assert run.target_id in driver.tabs
+    assert broker._pool.closed == []  # type: ignore[attr-defined]
+    assert await broker.beat(CTX, run.lease.id, holder="run_1")

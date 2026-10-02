@@ -409,11 +409,12 @@ class SessionBroker:
                 except NeedsAPerson as asked:
                     if park and asked.kind == "password":
                         await self._park(ctx, held.lease, "password")
-                    else:
+                    elif park:
                         await self._broken(ctx, held.lease)
                     raise
                 except BaseException:  # every exit that is not a finished sign-in
-                    await self._broken(ctx, held.lease)
+                    if park:
+                        await self._broken(ctx, held.lease)
                     raise
                 await self._save_state(held.lease, held.session)
                 await self._driver.forget_calls(held.session, held.target_id)

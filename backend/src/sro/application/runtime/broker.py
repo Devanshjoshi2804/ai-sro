@@ -470,6 +470,8 @@ class SessionBroker:
         for step in chain:
             result = await self._ui.execute(step, given, lane)
             if result.verdict == "failed":
+                if not a_sign_in_page(await self._driver.signals(held.session, held.target_id)):
+                    break
                 raise NeedsAPerson(
                     f"signing in to {account.origin} stopped at '{step.says}': {result.reason}",
                 )

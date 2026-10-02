@@ -366,3 +366,15 @@ Code: `holder=lease.holder,`
 > (`reattach`, `_beaten`, `_ready`, `resume`), because the row's own holder is
 > whoever beat last among the runs sharing the account's lease.
 
+
+## `SessionBroker._sign_in`, line 472: a failed step on a page that is no longer a sign-in page
+
+> QA 2026-10-02: a cold lookup stopped at "Type the password: no strategy and no
+> repair matched" after 34 s, and the very next lookup attached to the lease it
+> left and read in 2.5 s -- the context WAS signed in. The recorded chain is a
+> way to a signed-in page (here Keycloak -> B2C -> the app, where the identity
+> provider's own session can finish the sign-in while a step is still looking for
+> its control). When a step finds nothing to act on and the page now says it is
+> not a sign-in page, the chain ends there and the tail judges the page as it
+> always did. A page still asking for a password or a code keeps the old answer:
+> a person is needed, and nothing is latched as refused.

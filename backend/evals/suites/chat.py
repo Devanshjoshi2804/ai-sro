@@ -383,8 +383,8 @@ CASES = [
                 "run_zwoybn",
                 WAREHOUSE,
                 {"Warehouse Equipment Type": "ZWOYBN", "Voice Code": "7"},
-                "not created: the system refused it (the system refused it: Record already "
-                "exists. Voice Code 7 is already used)",
+                "not created: the system refused it (Record already exists. Voice Code 7 is "
+                "already used)",
             )
         ],
     ),

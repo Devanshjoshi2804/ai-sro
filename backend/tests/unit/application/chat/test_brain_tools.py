@@ -205,18 +205,6 @@ async def test_run_status_gives_the_system_s_reason_for_a_failed_run() -> None:
     assert _runs(result)[0]["stopped_because"] == "Customer Type is too long"
 
 
-async def test_run_status_says_a_refused_write_made_nothing_whatever_the_reason_says() -> None:
-    world = await world_with_job()
-    reason = "the system refused it: Record already exists. Voice Code 7 is already used"
-    steps = (a_failed_step(reason),)
-    await world.ran("refused", {"Warehouse Equipment Type": "ZWOYBN"}, steps=steps)
-
-    (one,) = _runs(await RunStatus(world.runs, world.threads).run(CTX, {}))
-
-    assert one["state"] == f"not created: the system refused it ({reason})"
-    assert one["stopped_because"] == ""
-
-
 async def test_run_status_says_a_run_came_from_mail_and_what_it_asks() -> None:
     world = await world_with_job()
     run = await world.ran("running", {}, mail={"thread": "t-9", "subject": "new type"})

@@ -39,7 +39,7 @@ from sro.domain.execution.compose import normal
 from sro.domain.execution.field_classes import FieldClass, FieldLimits, labelled
 from sro.domain.execution.mail_job import built_in, is_mail_only, sends_mail
 from sro.domain.execution.waiting import standing as parked_on
-from sro.domain.execution.workflow_run import SETTLED, OfferTaken, WorkflowRun
+from sro.domain.execution.workflow_run import SETTLED, OfferTaken, WorkflowRun, refused_by
 from sro.domain.recording.sensitivity import is_secret_field
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import PrincipalId, TenantId
@@ -156,7 +156,7 @@ class FindJobs:
 _STATE = {
     "held": "finished: its changes were read back and confirmed",
     "stopped": "stopped",
-    "refused": "not created: the system refused it",
+    "refused": "refused by the system",
     "aborted": "aborted",
     "failed": "did not finish",
 }
@@ -203,17 +203,18 @@ class RunStatus:
         return ToolResult(ok=True, data={"runs": rows})
 
     async def _row(self, ctx: RequestContext, run: WorkflowRun) -> dict[str, object]:
-        # A refused write made nothing: its reason (even "already exists", of a voice code) is
-        # said inside the state, so it cannot be read as the record being there.
-        refused, why = run.outcome == "refused", _stopped(run)
+        # A write the lane's system refused made nothing: its reason (even "already exists", of
+        # a voice code) is said inside the state, so it cannot be read as the record being there.
+        # A refusal by the rig's own limits (outcome "refused") says nothing of what landed.
+        why, refusal = _stopped(run), refused_by(run).removeprefix("the system refused it: ")
         return {
             "id": run.id,
             "job": run.pinned.title if run.pinned else run.workflow_id,
             "values": {k: v for k, v in run.values.items() if not is_secret_field(k)},
-            "state": f"{_STATE['refused']} ({why})"
-            if refused and why
+            "state": f"not created: the system refused it ({_bounded(refusal)})"
+            if refusal
             else _STATE.get(run.outcome, run.outcome),
-            "stopped_because": "" if refused else why,
+            "stopped_because": "" if refusal else why,
             "from_mail": bool(run.mail),
             "question": await self._question(ctx, run),
         }

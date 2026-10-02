@@ -299,6 +299,9 @@ def test_a_number_beyond_any_float_is_no_number_and_does_not_raise(huge: int) ->
         "/u/John%2EDoe%40acme%2Ecom",
         "/u/john%40acme.com/e",
         "/u/john%2540acme.com/e",
+        "/a#token%2525253Dx",
+        "/a#token%252525253Dx",
+        "/a#token" + "%25" * 8 + "3Dx",
         "/x/eyJhbGciOiJIUzI/1NiJ9.eyJzdWIiO/y",
     ],
 )
@@ -390,4 +393,5 @@ def test_adversarial_megabyte_text_is_sanitised_fast(make) -> None:  # type: ign
     place_kept({"route": text, "title": text, "headings": [text] * 3})
     cookies_kept([{"name": text, "domain": text}])
     mail_thread_kept(text)
+    effect_kept({"errors": [text] * 3})
     assert time.perf_counter() - started < 0.05

@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from urllib.parse import unquote
 
 from sro.domain.observation.gesture import Choice, CookieSeen, Effect, FieldChange, Place, Seen
-from sro.domain.observation.outline import said_text
+from sro.domain.observation.outline import K_SAID_INPUT, said_text
 from sro.domain.observation.trim import path_shape
 from sro.domain.recording.sensitivity import redact_shapes
 
@@ -28,6 +28,7 @@ K_COOKIES = 40
 K_COOKIE_NAME = 64
 K_MAIL_REF = 200
 K_ROUTE_INPUT = 1000
+K_DECODE_ROUNDS = 8
 K_MS_LIMIT = 10**12
 
 _URL = re.compile(r"\S+://\S+")
@@ -54,8 +55,12 @@ def _route(raw: object) -> str | None:
     if not isinstance(raw, str) or not raw.strip():
         return None
     decoded = raw[:K_ROUTE_INPUT]
-    for _ in range(3):
-        decoded = unquote(decoded)
+    for _ in range(K_DECODE_ROUNDS):
+        if (once := unquote(decoded)) == decoded:
+            break
+        decoded = once
+    else:
+        return None
     path, _, hashed = decoded.partition("#")
     if "=" in hashed:
         return None
@@ -128,7 +133,7 @@ def effect_kept(raw: object) -> dict[str, object] | None:
     errors = [
         said
         for one in _strings(raw.get("errors"))
-        if (said := said_text(redact_shapes(_URL.sub("«url»", one)))) is not None
+        if (said := said_text(redact_shapes(_URL.sub("«url»", one[:K_SAID_INPUT])))) is not None
     ][:K_ERRORS]
     shortcuts = [one for one in _strings(raw.get("shortcuts")) if _SHORTCUT.fullmatch(one)][
         :K_SHORTCUTS

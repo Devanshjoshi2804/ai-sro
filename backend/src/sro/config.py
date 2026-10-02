@@ -90,7 +90,11 @@ class _RetiredModelSettings(PydanticBaseSettingsSource):
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env", env_prefix="SRO_", env_nested_delimiter="__", extra="ignore"
+        env_file=".env",
+        env_prefix="SRO_",
+        env_nested_delimiter="__",
+        extra="ignore",
+        hide_input_in_errors=True,
     )
 
     environment: str = "local"
@@ -226,6 +230,18 @@ class Settings(BaseSettings):
                     f"SRO_MAIL_SERVERS maps a tenant id to a connector name of lowercase "
                     f"letters, digits, '_' or '-'; got {tenant!r}: {server!r}"
                 )
+        return value
+
+    @field_validator("connector_signing_key", mode="before")
+    @classmethod
+    def _a_connector_signing_key_is_unset_or_strong(cls, value: Any) -> Any:
+        raw = value.get_secret_value() if isinstance(value, SecretStr) else value
+        if not isinstance(raw, str) or not raw.strip():
+            return None  # compose passes "" for an unset variable
+        if len(raw.encode()) < 32:
+            raise ValueError(
+                "SRO_CONNECTOR_SIGNING_KEY must be at least 32 bytes (openssl rand -hex 32)"
+            )
         return value
 
     @field_validator("otlp_endpoint", mode="before")

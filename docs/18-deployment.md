@@ -260,7 +260,11 @@ them to the api container):
   exist in Nango.
 - `SRO_CONNECTOR_SIGNING_KEY` (`openssl rand -hex 32`): signs the per-operator key
   stored when an operator connects an account; the mail connector verifies it with
-  the same value. Unset, linking answers 503.
+  the same value. At least 32 bytes, or the server refuses to start. Unset or
+  blank, linking answers 503 and nothing counts as connected. Changing it makes
+  every stored key stale until each operator presses Connect again. A Nango
+  disconnect revokes the connector's access: the connector must still find a
+  healthy Nango connection, the stored key alone is not authority.
 
 **Console SDK call.** The browser loads the popup from the Connect URL and the
 popup calls the server URL, so the console passes both:

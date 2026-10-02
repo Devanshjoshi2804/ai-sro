@@ -608,7 +608,9 @@ class Container:
         )
 
     def list_integrations(self) -> ListIntegrations:
-        return ListIntegrations(self.nango, self.settings.integrations, self.vault)
+        return ListIntegrations(
+            self.nango, self.settings.integrations, self.vault, self.settings.connector_signing_key
+        )
 
     def link_integration(self) -> LinkIntegration:
         return LinkIntegration(

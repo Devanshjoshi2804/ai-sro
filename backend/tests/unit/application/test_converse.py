@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 
 from sro.application.chat.about_an_offer import AskAboutTheOffer
-from sro.application.chat.converse import K_NOT_YOURS, Converse, StartThread
+from sro.application.chat.converse import K_NOT_YOURS, Converse, StartThread, _nothing_back
 from sro.application.chat.read_chat import ReadChat
 from sro.application.chat.reading_an_answer import Read
 from sro.application.chat.understand import Understood
@@ -619,6 +619,24 @@ async def test_a_question_about_the_waiting_is_answered_about_the_waiting() -> N
     assert len(said.messages) - before == 2, [m.text for m in said.messages[before:]]
     # The question is still there to answer.
     assert pending_job(said.messages) is not None
+
+
+def _said(kind: str, **decision: Any) -> Message:
+    return Message(
+        id=MessageId(f"msg_{kind}"),
+        speaker=Speaker.SYSTEM,
+        text="",
+        said_at=FakeClock().now(),
+        decision={"kind": kind, **decision},
+    )
+
+
+def test_the_latest_send_decision_is_what_nothing_back_goes_by() -> None:
+    """A second draft that did not go must not fall back to an older mail that did."""
+    went = _said("mail_sent", to="a@example.com", sent=True)
+    held = _said("mail_not_sent", to="b@example.com")
+    assert _nothing_back([went, held]) == ""
+    assert _nothing_back([held, went]) == "Nothing back from a@example.com yet. "
 
 
 async def test_a_sentence_nothing_places_under_a_question_is_about_the_question() -> None:

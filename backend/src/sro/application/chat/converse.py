@@ -68,6 +68,8 @@ from sro.domain.execution.field_classes import field_classes
 from sro.domain.execution.mail_job import (
     DRAFT_QUESTIONS,
     LOOK_IN_THE_MAIL,
+    NOT_SENT,
+    SENT,
     built_in,
     built_ins,
 )
@@ -1803,9 +1805,9 @@ def _seen(looked: Looked, question: str = "") -> dict[str, object]:
 def _nothing_back(said: Sequence[Message]) -> str:
     for message in reversed(list(said)):
         decision = message.decision if isinstance(message.decision, dict) else None
-        if not decision or decision.get("kind") != "mail_sent":
+        if not decision or decision.get("kind") not in (SENT, NOT_SENT):
             continue
-        if not decision.get("sent"):
+        if decision.get("kind") == NOT_SENT or not decision.get("sent"):
             return ""
         to = str(decision.get("to") or "")
         return f"Nothing back from {to} yet. " if to else "Nothing back yet. "

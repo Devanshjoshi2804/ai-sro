@@ -106,3 +106,20 @@ async def test_a_mail_the_budget_left_unread_is_read_by_the_next_look() -> None:
     await brain.turn(CTX, message="check again", history=[], origin=Origin("chat"))
 
     assert after_first == 3 and len(asker.asked) == 6, "the unread mail was lost, not left"
+
+
+async def test_a_read_that_needs_two_calls_still_leaves_the_outer_turn_its_last() -> None:
+    """The read asks for a tool (call 2) and would answer with call 3, which is the outer turn's
+    last: it stops at once, so the outer turn is the one that says what was done."""
+    brain, asker = await _turn(
+        _call("check_mail"),
+        _call("run_status"),
+        _say("done"),
+        _say("never asked"),
+        max_calls=3,
+    )
+
+    reply = await brain.turn(CTX, message="check my mail", history=[], origin=Origin("chat"))
+
+    assert len(asker.asked) == 3, "the nested read took the outer turn's last call"
+    assert reply.said == "done"

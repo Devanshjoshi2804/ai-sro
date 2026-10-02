@@ -2,14 +2,14 @@
 
 Explanations for [`backend/src/sro/domain/observation/outline.py`](../../../../../../../backend/src/sro/domain/observation/outline.py), which carries none (Global Constraint 2).
 
-## `K_OUTLINE_OPTIONS`, [line 11](../../../../../../../backend/src/sro/domain/observation/outline.py#L11): Constant
+## `K_OUTLINE_OPTIONS`, [line 12](../../../../../../../backend/src/sro/domain/observation/outline.py#L12): Constant
 
 > The page's caps, repeated where the server enforces them
 > (page-code.js `OUTLINE_OPTIONS`, `OUTLINE_FIELDS`, `OUTLINE_TEXT`,
 > `OUTLINE_MESSAGES`; recorder.js `OUTLINES_PER_GESTURE`). An option list over
 > 25 is data, not vocabulary, and is dropped whole (`options: None`).
 
-## `K_OUTLINE_CHARS`, [line 16](../../../../../../../backend/src/sro/domain/observation/outline.py#L16): Constant
+## `K_OUTLINE_CHARS`, [line 17](../../../../../../../backend/src/sro/domain/observation/outline.py#L17): Constant
 
 > The page's `OUTLINE_CHARS` (16 KiB), enforced again here on whatever a
 > client sends: one outline, serialized compactly, is trimmed to fit by
@@ -17,7 +17,7 @@ Explanations for [`backend/src/sro/domain/observation/outline.py`](../../../../.
 > limit, and a hostile client cannot make one gesture's outlines the bulk of
 > a batch.
 
-## `FIELD_ROLES`, [line 18](../../../../../../../backend/src/sro/domain/observation/outline.py#L18): Constant
+## `FIELD_ROLES`, [line 19](../../../../../../../backend/src/sro/domain/observation/outline.py#L19): Constant
 
 > With `MESSAGE_ROLES` and `LANDMARK_ROLES`, the only roles an outline field,
 > message or landmark may carry. Anything
@@ -26,7 +26,7 @@ Explanations for [`backend/src/sro/domain/observation/outline.py`](../../../../.
 > not a string (`_role`): a forged `[]` or `{}` is unhashable, and testing it
 > for membership raised inside ingest (E6 review, M1).
 
-## `_said`, [line 41](../../../../../../../backend/src/sro/domain/observation/outline.py#L41): Function
+## `_said`, [line 42](../../../../../../../backend/src/sro/domain/observation/outline.py#L42): Function
 
 > One outline string, kept only if it is vocabulary: no URL, `name=value`
 > pair or token-like run (page-code.js `NOT_VOCABULARY`), and unchanged by `redact_url` and
@@ -34,7 +34,7 @@ Explanations for [`backend/src/sro/domain/observation/outline.py`](../../../../.
 > with a marker: an outline string exists to name a control, and a redacted
 > token names nothing.
 
-## `outline_kept`, [line 90](../../../../../../../backend/src/sro/domain/observation/outline.py#L90): Function
+## `outline_kept`, [line 106](../../../../../../../backend/src/sro/domain/observation/outline.py#L106): Function
 
 > The one server rule for an outline, applied in `redact_events` before the
 > blob is written and before the batch is parsed, so it holds for both
@@ -47,7 +47,7 @@ Explanations for [`backend/src/sro/domain/observation/outline.py`](../../../../.
 > copied (see page-code.js `outlineOf` for why messages keep no text). There
 > is no echo rule: a heading, label or option equal to a typed word is kept.
 
-## `_fitted`, [line 74](../../../../../../../backend/src/sro/domain/observation/outline.py#L74): Function
+## `_fitted`, [line 90](../../../../../../../backend/src/sro/domain/observation/outline.py#L90): Function
 
 > The page's `fitted`, in the same order: option lists from the last field
 > back, then headings, landmarks, messages and buttons from the end, and
@@ -55,7 +55,7 @@ Explanations for [`backend/src/sro/domain/observation/outline.py`](../../../../.
 > because a field is what a run fills by label (X10): a field missing from
 > the outline reads as a field that does not exist.
 
-## `last_outline`, [line 138](../../../../../../../backend/src/sro/domain/observation/outline.py#L138): Function
+## `last_outline`, [line 154](../../../../../../../backend/src/sro/domain/observation/outline.py#L154): Function
 
 > The screen a gesture was made on: its own last outline, else the latest
 > outline sent earlier from the same tab and frame. A gesture made on a screen
@@ -68,8 +68,10 @@ Explanations for [`backend/src/sro/domain/observation/outline.py`](../../../../.
 > M5). The query is ignored: an SPA that rewrites `?id=` stays on one
 > screen.
 
-## `said_text`, [line 52](../../../../../../../backend/src/sro/domain/observation/outline.py#L52): Function
+## `said_text`, [line 63](../../../../../../../backend/src/sro/domain/observation/outline.py#L63): Function
 
-> The public name for `_said`, so new capture text (effects, places,
-> choices) obeys the same vocabulary rule as outlines and nothing a person
-> typed gets stored.
+> `_said`'s rule plus the stricter one for new capture text (effects,
+> places, choices, cookies): control and invisible characters are removed,
+> and text with an email, a run of six digits, "password/token/secret" with
+> a value, or a base64-looking run of 20 is dropped. `_said` itself is
+> untouched, so existing outlines keep their rows.

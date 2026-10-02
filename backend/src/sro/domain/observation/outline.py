@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from collections.abc import Mapping, Sequence
 from urllib.parse import urlsplit
 
@@ -49,8 +50,23 @@ def _said(raw: object) -> str | None:
     return plain[:K_OUTLINE_TEXT]
 
 
+_NOT_PERSONAL = re.compile(
+    r"[^\s@]+@[^\s@]+\.[^\s@]+"
+    r"|\d(?:[ -]?\d){5,}"
+    r"|(?:password|passcode|secret|token)\w*\s*(?:[:=]|\bis\b)\s*\S"
+    r"|[A-Za-z0-9+]{20,}"
+    r"|\b(?:sk|pk|rk)_(?:live|test)_|\b(?:ghp|gho|ghs|xox[abp])[_-]",
+    re.ASCII | re.IGNORECASE,
+)
+
+
 def said_text(raw: object) -> str | None:
-    return _said(raw)
+    if not isinstance(raw, str):
+        return None
+    plain = _plain("".join(c for c in _plain(raw) if unicodedata.category(c)[0] != "C"))
+    if _NOT_PERSONAL.search(plain):
+        return None
+    return _said(plain)
 
 
 def _items(raw: object) -> list[Mapping[str, object]]:

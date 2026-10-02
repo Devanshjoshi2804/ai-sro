@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Mapping
 
@@ -31,8 +32,11 @@ _URL = re.compile(r"\S+://\S+")
 _SHORTCUT = re.compile(
     r"(?:(?:ctrl|alt|meta|shift)\+)+(?:[a-z0-9]|f[0-9]{1,2}|enter|escape|delete|backspace)"
 )
-_MAIL_REF = re.compile(r"[A-Za-z0-9_\-=+/.]+")
+K_COOKIE_EXPIRY = 4_102_444_800.0
+
+_MAIL_REF = re.compile(r"[A-Za-z0-9_\-]{16,}")
 _COOKIE_NAME = re.compile(r"[A-Za-z0-9_\-.]+")
+_HOST = re.compile(r"[A-Za-z0-9.\-]+")
 
 
 def _items(raw: object, cap: int) -> list[Mapping[str, object]]:
@@ -48,14 +52,21 @@ def _route(raw: object) -> str | None:
     if not isinstance(raw, str) or not raw.strip():
         return None
     path, _, hashed = raw.partition("#")
+    if "=" in hashed:
+        return None
     shaped = path_shape(path) if path else ""
     if hashed:
         shaped += "#" + path_shape(hashed)
-    return shaped or None
+    return said_text(shaped)
 
 
 def _ms(raw: object) -> int | None:
-    if isinstance(raw, bool) or not isinstance(raw, int | float) or raw < 0:
+    if (
+        isinstance(raw, bool)
+        or not isinstance(raw, int | float)
+        or not math.isfinite(raw)
+        or raw < 0
+    ):
         return None
     return min(int(raw), K_MS)
 
@@ -143,7 +154,7 @@ def choice_kept(raw: object) -> dict[str, object] | None:
     if not isinstance(raw, Mapping):
         return None
     index = raw.get("index")
-    if index is not None and _count(index) is None:
+    if index is not None and (_count(index) is None or index >= K_CHOICE_OPTIONS):
         return None
     kept: dict[str, object] = {
         "chosen": said_text(raw.get("chosen")),
@@ -161,7 +172,7 @@ def cookies_kept(raw: object) -> list[dict[str, object]]:
             not isinstance(name, str)
             or len(name) > K_COOKIE_NAME
             or not _COOKIE_NAME.fullmatch(name)
-            or redact_shapes(name) != name
+            or said_text(name) != name
         ):
             continue
         expires = one.get("expires_at")
@@ -170,9 +181,17 @@ def cookies_kept(raw: object) -> list[dict[str, object]]:
             {
                 "name": name,
                 "expires_at": float(expires)
-                if isinstance(expires, int | float) and not isinstance(expires, bool)
+                if isinstance(expires, int | float)
+                and not isinstance(expires, bool)
+                and math.isfinite(expires)
+                and 0 <= expires <= K_COOKIE_EXPIRY
                 else None,
-                "domain": domain if isinstance(domain, str) and len(domain) <= 253 else None,
+                "domain": domain
+                if isinstance(domain, str)
+                and len(domain) <= 253
+                and _HOST.fullmatch(domain)
+                and said_text(domain) == domain
+                else None,
                 "session": one.get("session") is True,
             }
         )
@@ -180,7 +199,12 @@ def cookies_kept(raw: object) -> list[dict[str, object]]:
 
 
 def mail_thread_kept(raw: object) -> str | None:
-    if not isinstance(raw, str) or len(raw) > K_MAIL_REF or not _MAIL_REF.fullmatch(raw):
+    if (
+        not isinstance(raw, str)
+        or len(raw) > K_MAIL_REF
+        or not _MAIL_REF.fullmatch(raw)
+        or redact_shapes(raw) != raw
+    ):
         return None
     return raw
 

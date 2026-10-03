@@ -46,7 +46,16 @@ FIXTURES = Path(__file__).resolve().parents[3] / "new-chrome-extension" / "fixtu
 #
 # `test_the_named_exclusions_still_exist` below stops this set outliving the
 # files it names.
-NOT_EXTENSION_OUTPUT = frozenset({"shape-identity.json", "screen-of.json", "served-shape.json"})
+NOT_EXTENSION_OUTPUT = frozenset(
+    {
+        "shape-identity.json",
+        "screen-of.json",
+        "served-shape.json",
+        # Real uploads from QA, read by the extension's offer tests; not capture output.
+        "batch-qa-customer-type-yheu.json",
+        "batch-qa-customer-type-yyds.json",
+    }
+)
 
 _REQUEST = TypeAdapter(CapturedRequest)
 _PAGE_EVENT = TypeAdapter(PageEvent)
@@ -90,12 +99,6 @@ def test_every_captured_payload_parses_into_the_domain(path: Path) -> None:
         assert payload["events"], "a batch worth uploading has events in it"
         for event in payload["events"]:
             _parse_event(event)
-        return
-
-    if path.stem.startswith("command-"):
-        assert payload["command_id"].startswith("cmd_")
-        assert isinstance(payload["ok"], bool)
-        assert ("result" in payload) is payload["ok"], "a reply carries a result or an error"
         return
 
     _parse_event(payload)

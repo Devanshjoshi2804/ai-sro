@@ -50,6 +50,21 @@ def _shape(value: Any) -> Any:
     return type(value).__name__
 
 
+def _shape_of_file(payload: Any) -> Any:
+    """`_shape`, except a batch's events are compared kind by kind.
+
+    `_shape` keeps only a list's first element, and a batch's first event is a
+    page or a request, never a gesture -- so a gesture's shape inside
+    `batch.json` would go unguarded. Group the events by kind first.
+    """
+    if isinstance(payload, dict) and isinstance(payload.get("events"), list):
+        by_kind: dict[str, Any] = {}
+        for event in payload["events"]:
+            by_kind.setdefault(event["kind"], event)
+        payload = {**payload, "events": by_kind}
+    return _shape(payload)
+
+
 @pytest.fixture(scope="module")
 def freshly_captured(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """One capture for the whole module: it drives a real browser."""
@@ -76,8 +91,8 @@ def test_a_committed_fixture_still_has_the_shape_the_extension_emits(
             "extension stopped emitting this, or the capture stopped asking for it"
         )
 
-    committed = _shape(json.loads(path.read_text(encoding="utf-8")))
-    emitted = _shape(json.loads(fresh.read_text(encoding="utf-8")))
+    committed = _shape_of_file(json.loads(path.read_text(encoding="utf-8")))
+    emitted = _shape_of_file(json.loads(fresh.read_text(encoding="utf-8")))
 
     assert committed == emitted, (
         f"{path.name} no longer looks like what the extension emits. Run `make fixtures` "

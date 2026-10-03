@@ -561,7 +561,6 @@ The extension commits golden payloads to `new-chrome-extension/fixtures/`:
 | `page-navigated.json` | one `page` event |
 | `snapshot.json` | one `snapshot` event — an accessibility tree, from the passive path |
 | `batch.json` | a complete `POST /v1/observations` body |
-| `command-ui-perform-reply.json` · `command-http-send-reply.json` | extension → server replies |
 
 Regenerated with `make fixtures`, which drives a real Chrome with the extension
 loaded and writes whatever it actually emitted. It exits non-zero naming

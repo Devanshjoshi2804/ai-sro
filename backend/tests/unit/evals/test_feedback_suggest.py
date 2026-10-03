@@ -14,10 +14,11 @@ from evals.feedback import run_feedback
 from evals.suggest import PROCESS, grouped, how_long, shape_of, suggest
 
 from sro.domain.chat.feedback import Feedback
-from tests.unit.fakes import FakeUnitOfWork
+from tests.unit.fakes import FakeClock, FakeUnitOfWork
 
 TENANT = "acme"
 NOW = datetime(2026, 10, 1, 9, 0, tzinfo=UTC)
+CLOCK = FakeClock(NOW)
 SRC = Path(__file__).resolve().parents[3] / "src"
 CI = Path(__file__).resolve().parents[3] / "evals" / "ci"
 
@@ -103,9 +104,9 @@ async def test_a_group_below_the_minimum_gets_no_file_and_one_at_it_gets_one() -
     uow = await _store(_row(1), _row(2), _row(3, kind="budget", other={"trouble": ["budget"]}))
     root = Path(mkdtemp())
 
-    none = await suggest(uow, TENANT, minimum=3, now=NOW, root=root)
+    none = await suggest(uow, TENANT, minimum=3, clock=CLOCK, root=root)
     assert not (root / "proposals").exists()
-    one = await suggest(uow, TENANT, minimum=2, now=NOW, root=root)
+    one = await suggest(uow, TENANT, minimum=2, clock=CLOCK, root=root)
 
     assert "nothing to propose" in none
     files = sorted((root / "proposals").glob("*.md"))
@@ -123,7 +124,7 @@ async def test_only_open_recent_rows_count_and_reviewed_ones_do() -> None:
     )
     root = Path(mkdtemp())
 
-    await suggest(uow, TENANT, minimum=1, now=NOW, root=root)
+    await suggest(uow, TENANT, minimum=1, clock=CLOCK, root=root)
 
     (file,) = (root / "proposals").glob("*.md")
     text = file.read_text(encoding="utf-8")
@@ -136,7 +137,7 @@ async def test_a_proposal_names_the_pattern_the_rows_the_cases_and_the_process()
     uow = await _store(_row(1), _row(2), _row(3))
     root = Path(mkdtemp())
 
-    await suggest(uow, TENANT, minimum=3, now=NOW, root=root)
+    await suggest(uow, TENANT, minimum=3, clock=CLOCK, root=root)
 
     (file,) = (root / "proposals").glob("*.md")
     text = file.read_text(encoding="utf-8")
@@ -153,7 +154,7 @@ async def test_suggesting_edits_no_prompt_and_no_ci_case_and_no_row() -> None:
     uow = await _store(_row(1), _row(2), _row(3))
     before = _tree(SRC, CI)
 
-    await suggest(uow, TENANT, minimum=3, now=NOW, root=Path(mkdtemp()))
+    await suggest(uow, TENANT, minimum=3, clock=CLOCK, root=Path(mkdtemp()))
 
     assert _tree(SRC, CI) == before and {r.status for r in uow.chat_feedback.rows} == {"new"}
 
@@ -169,7 +170,7 @@ async def test_the_command_takes_since_and_min(capsys: pytest.CaptureFixture[str
     uow = await _store(_row(1))
     args = arguments(["feedback", "--tenant", TENANT, "suggest", "--since", "3d", "--min", "1"])
 
-    code = await run_feedback(args, uow=uow, root=Path(mkdtemp()))
+    code = await run_feedback(args, uow=uow, clock=CLOCK, root=Path(mkdtemp()))
 
     assert code == 0 and (args.since, args.min) == ("3d", 1)
     assert PROCESS in capsys.readouterr().out

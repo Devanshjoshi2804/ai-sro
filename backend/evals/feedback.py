@@ -16,6 +16,7 @@ from evals.model import Case
 from evals.redact import redacted
 from evals.suggest import suggest
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.ports.system import Clock
 from sro.container import build_container
 from sro.domain.chat.feedback import (
     DISMISSED,
@@ -149,10 +150,17 @@ async def promoting(
 
 
 async def run_feedback(
-    args: argparse.Namespace, *, uow: UnitOfWork | None = None, root: Path = HERE
+    args: argparse.Namespace,
+    *,
+    uow: UnitOfWork | None = None,
+    clock: Clock | None = None,
+    root: Path = HERE,
 ) -> int:
-    """The `feedback` subcommands; `uow` is the container's own unless a test gives one."""
-    store = uow if uow is not None else build_container().unit_of_work()
+    """The `feedback` subcommands; a test gives `uow` and `clock`, else the container's."""
+    if uow is None or clock is None:
+        container = build_container()
+        uow, clock = uow or container.unit_of_work(), clock or container.clock
+    store, now = uow, clock
     tenant = args.tenant
     try:
         if args.action == "list":
@@ -162,7 +170,9 @@ async def run_feedback(
         elif args.action == "mark":
             out = await marking(store, tenant, args.id, args.status, args.note)
         elif args.action == "suggest":
-            out = await suggest(store, tenant, since=args.since, minimum=args.min, root=root)
+            out = await suggest(
+                store, tenant, since=args.since, minimum=args.min, clock=now, root=root
+            )
         else:
             out = await promoting(
                 store, tenant, args.id, expect=args.expect, args_json=args.args_json, root=root

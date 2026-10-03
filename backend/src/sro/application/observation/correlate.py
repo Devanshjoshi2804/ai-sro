@@ -1,10 +1,18 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import replace
 from datetime import datetime
 
-from sro.application.capture.rig_wire import Batch, GestureEvent, RequestEvent, SnapshotEvent
+from sro.application.capture.rig_wire import (
+    Batch,
+    EffectEvent,
+    GestureEvent,
+    RequestEvent,
+    SnapshotEvent,
+)
 from sro.application.capture.rig_wire import Body as WireBody
+from sro.application.capture.rig_wire import FrameHop as WireFrameHop
 from sro.application.capture.rig_wire import Gesture as WireGesture
 from sro.application.capture.rig_wire import PageEvent as WirePageEvent
 from sro.application.capture.rig_wire import Request as WireRequest
@@ -24,6 +32,7 @@ from sro.domain.observation.gesture import (
     Target,
     new_gesture_id,
 )
+from sro.domain.observation.seen import choice_from, cookies_from, effect_from, place_from
 from sro.domain.shared.hosts import system_of
 
 __all__ = [
@@ -33,10 +42,13 @@ __all__ = [
     "as_call",
     "as_mark",
     "correlate",
+    "correlate_with_effects",
     "system_of",
 ]
 
 ATTRIBUTION_SECONDS = 10.0
+
+logger = logging.getLogger(__name__)
 
 _Made = tuple[int | None, tuple[FrameHop, ...] | None, str]
 
@@ -45,8 +57,25 @@ def _epoch(rfc3339: str) -> float:
     return datetime.fromisoformat(rfc3339).timestamp()
 
 
+def _hops(frame_path: list[WireFrameHop] | None) -> tuple[FrameHop, ...] | None:
+    return (
+        None
+        if frame_path is None
+        else tuple(FrameHop(index=hop.index, url=hop.url) for hop in frame_path)
+    )
+
+
 def correlate(batch: Batch, tenant: str) -> tuple[list[Gesture], list[Call], list[PageMark], int]:
+    gestures, orphans, marks, snapshots, _ = correlate_with_effects(batch, tenant)
+    return gestures, orphans, marks, snapshots
+
+
+def correlate_with_effects(
+    batch: Batch, tenant: str
+) -> tuple[list[Gesture], list[Call], list[PageMark], int, list[EffectEvent]]:
     gestures: list[Gesture] = []
+    effects: list[EffectEvent] = []
+    by_moment: dict[tuple[_Made, float], list[Gesture]] = {}
     requests: list[RequestEvent] = []
     pages: list[tuple[float, WirePageEvent]] = []
     snapshots_ignored = 0
@@ -74,6 +103,9 @@ def correlate(batch: Batch, tenant: str) -> tuple[list[Gesture], list[Call], lis
             frame = (event.tab_id, gesture.action.frame_path)
             if event.gesture.ref is not None:
                 made[(*frame, event.gesture.ref)] = gesture
+                by_moment.setdefault(((*frame, event.gesture.ref), event.gesture.at), []).append(
+                    gesture
+                )
             prior = event.gesture.prior
             if prior is not None and event.gesture.prior_of is not None:
                 after = AfterState(prior.value, prior.visible, prior.enabled)
@@ -82,11 +114,27 @@ def correlate(batch: Batch, tenant: str) -> tuple[list[Gesture], list[Call], lis
             requests.append(event)
         elif isinstance(event, WirePageEvent):
             pages.append((_epoch(event.at), event))
+        elif isinstance(event, EffectEvent):
+            effects.append(event)
 
     for key, after in priors:
         before = made.get(key)
         if before is not None:
             before.action = replace(before.action, after=after)
+    left: list[EffectEvent] = []
+    for one in effects:
+        owners = by_moment.get(((one.tab_id, _hops(one.frame_path), one.of), one.of_at))
+        effect = effect_from(one.effect.model_dump())
+        if owners is None:
+            left.append(one)
+        elif len(owners) != 1 or effect is None or owners[0].action.effect is not None:
+            logger.info(
+                "%s: an effect of %s was dropped, no single gesture to take it",
+                batch.batch_id,
+                one.of,
+            )
+        else:
+            owners[0].action = replace(owners[0].action, effect=effect)
     gestures.sort(key=lambda gesture: gesture.at)
 
     orphan_requests: list[Call] = []
@@ -108,7 +156,7 @@ def correlate(batch: Batch, tenant: str) -> tuple[list[Gesture], list[Call], lis
         else:
             owner.page_events.append(mark)
 
-    return gestures, orphan_requests, orphan_pages, snapshots_ignored
+    return gestures, orphan_requests, orphan_pages, snapshots_ignored, left
 
 
 def _owner(gestures: list[Gesture], when: float, tab_id: int | None) -> Gesture | None:
@@ -174,6 +222,10 @@ def as_action(wire: WireGesture) -> Action:
             bounds=dict(target.bounds),
             attributes=dict(target.attributes),
             landmarks=tuple(Landmark(role=one.role, name=one.name) for one in target.landmarks),
+            label_text=target.labelText,
+            sibling_index=target.siblingIndex,
+            sibling_count=target.siblingCount,
+            full_name=target.fullName,
         ),
         modifiers=tuple(wire.modifiers),
         frame_path=None
@@ -199,6 +251,8 @@ def as_action(wire: WireGesture) -> Action:
             )
             for one in wire.outlines
         ),
+        place=None if wire.place is None else place_from(wire.place.model_dump()),
+        choice=None if wire.choice is None else choice_from(wire.choice.model_dump()),
     )
 
 
@@ -238,4 +292,6 @@ def as_mark(event: WirePageEvent) -> PageMark:
         detail=event.detail,
         tab_id=event.tab_id,
         opener_tab_id=event.opener_tab_id,
+        cookies=cookies_from([one.model_dump() for one in event.cookies]),
+        mail_thread=event.mail_thread,
     )

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -8,7 +9,7 @@ from datetime import UTC, datetime
 from sro.application.capture.rig_wire import Batch as WireBatch
 from sro.application.context import RequestContext
 from sro.application.observation.admit import Event, admit
-from sro.application.observation.correlate import correlate
+from sro.application.observation.correlate import correlate_with_effects
 from sro.application.observation.policy import current_policy
 from sro.application.observation.redact import redact_events
 from sro.application.observation.register import refuse_unless_itself
@@ -22,9 +23,12 @@ from sro.domain.observation.batch import (
     RejectedEvent,
     check_times,
 )
-from sro.domain.observation.gesture import GestureBatch
+from sro.domain.observation.gesture import FrameHop, GestureBatch
+from sro.domain.observation.seen import effect_from
 from sro.domain.shared.errors import DomainError
 from sro.domain.shared.identifiers import BatchId, DeviceId
+
+logger = logging.getLogger(__name__)
 
 CONTENT_TYPE = "application/x-ndjson"
 
@@ -159,7 +163,9 @@ class IngestObservation:
             )
             await uow.observations.add(batch)
             wire, unreadable = _as_wire_batch(batch, redacted)
-            gestures, orphans, marks, snapshots = correlate(wire, ctx.tenant_id.value)
+            gestures, orphans, marks, snapshots, left = correlate_with_effects(
+                wire, ctx.tenant_id.value
+            )
             await uow.gestures.add_batch(
                 GestureBatch(
                     batch_id=batch.id.value,
@@ -175,6 +181,26 @@ class IngestObservation:
             )
             if gestures:
                 await uow.gestures.add_gestures(tuple(gestures))
+            for one in left:
+                effect = effect_from(one.effect.model_dump())
+                if effect is None:
+                    continue
+                attached = await uow.gestures.attach_effect(
+                    ctx.tenant_id,
+                    stream_id=device_id.value,
+                    tab_id=one.tab_id,
+                    frame_path=None
+                    if one.frame_path is None
+                    else tuple(FrameHop(hop.index, hop.url) for hop in one.frame_path),
+                    at=one.of_at,
+                    effect=effect,
+                )
+                if not attached:
+                    logger.info(
+                        "%s: an effect of %s matched no single stored gesture",
+                        batch_id.value,
+                        one.of,
+                    )
             for orphan in orphans:
                 await uow.gestures.add_orphan_request(
                     ctx.tenant_id,

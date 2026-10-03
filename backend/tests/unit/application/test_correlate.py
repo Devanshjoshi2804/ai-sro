@@ -475,3 +475,18 @@ def test_a_screen_from_another_document_in_the_same_frame_is_not_this_one() -> N
     gestures, _, _, _ = correlate(_batch([first, second]), TENANT)
 
     assert last_outline(gestures[1], gestures[:1]) is None
+
+
+def test_a_page_event_carries_its_cookies_and_mail_thread_to_the_mark() -> None:
+    from sro.domain.observation.gesture import CookieSeen
+
+    mark = {
+        **PAGE_NAVIGATED,
+        "page_kind": "cookies_set",
+        "cookies": [{"name": "JSESSIONID", "expires_at": 1_790_003_600.0}],
+        "mail_thread": "FMfcgzQZTxyzAbcDefGh",
+    }
+    _, _, orphan_pages, _ = correlate(_batch([mark]), TENANT)
+    (page,) = orphan_pages
+    assert page.cookies == (CookieSeen("JSESSIONID", 1_790_003_600.0),)
+    assert page.mail_thread == "FMfcgzQZTxyzAbcDefGh"

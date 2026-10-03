@@ -11,7 +11,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/c
 > gesture at all is an orphan. Orphans are stored, not discarded — a background
 > poll is evidence that a background poll happened.
 
-## `correlate`, [line 48](../../../../../../../backend/src/sro/application/observation/correlate.py#L48): Docstring
+## `correlate_with_effects`, [line 73](../../../../../../../backend/src/sro/application/observation/correlate.py#L73): Docstring
 
 > Returns (gestures, orphan requests, orphan pages, snapshots ignored).
 >
@@ -20,7 +20,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/c
 > them is not the same as never having received them. The count is the
 > difference: it says a batch had snapshots even though nothing stores them.
 
-## `correlate`, [line 86](../../../../../../../backend/src/sro/application/observation/correlate.py#L86): Comment
+## `correlate_with_effects`, [line 120](../../../../../../../backend/src/sro/application/observation/correlate.py#L120): Comment
 
 Code: `for key, after in priors:`
 
@@ -49,7 +49,7 @@ Code: `for key, after in priors:`
 > and frame -- `redact._setting` needs that stored gesture's target too, to
 > judge the value.
 
-## `_owner`, [line 114](../../../../../../../backend/src/sro/application/observation/correlate.py#L114): Docstring
+## `_owner`, [line 162](../../../../../../../backend/src/sro/application/observation/correlate.py#L162): Docstring
 
 > The last gesture in the same tab, within the attribution window.
 >
@@ -58,7 +58,7 @@ Code: `for key, after in priors:`
 > evidence means "I cannot prove this belongs to that gesture", not
 > "attach it to the nearest one".
 
-## `_nearest_owner`, [line 127](../../../../../../../backend/src/sro/application/observation/correlate.py#L127): Docstring
+## `_nearest_owner`, [line 175](../../../../../../../backend/src/sro/application/observation/correlate.py#L175): Docstring
 
 > The closest gesture in time, in the same tab, within the window.
 >
@@ -68,27 +68,27 @@ Code: `for key, after in priors:`
 > acts) — so it may attach to a gesture on either side, whichever is
 > nearer in time.
 
-## `as_action`, [line 142](../../../../../../../backend/src/sro/application/observation/correlate.py#L142): Docstring
+## `as_action`, [line 190](../../../../../../../backend/src/sro/application/observation/correlate.py#L190): Docstring
 
 > The wire gesture as the domain sees it: the fields the arithmetic
 > reads, and nothing the recorder might add next week.
 
-## `as_body`, [line 205](../../../../../../../backend/src/sro/application/observation/correlate.py#L205): Docstring
+## `as_body`, [line 259](../../../../../../../backend/src/sro/application/observation/correlate.py#L259): Docstring
 
 > A wire body as the domain sees it: no encoding field, nothing the
 > belts don't read.
 
-## `as_call`, [line 217](../../../../../../../backend/src/sro/application/observation/correlate.py#L217): Docstring
+## `as_call`, [line 271](../../../../../../../backend/src/sro/application/observation/correlate.py#L271): Docstring
 
 > A wire request as the domain sees it. The tab is not on the request:
 > it is on the enclosing `RequestEvent`, so the caller passes it in — an
 > orphan call's tab is a fact worth keeping.
 
-## `as_mark`, [line 233](../../../../../../../backend/src/sro/application/observation/correlate.py#L233): Docstring
+## `as_mark`, [line 287](../../../../../../../backend/src/sro/application/observation/correlate.py#L287): Docstring
 
 > A wire page event as the domain sees it.
 
-## `as_action`, [line 162](../../../../../../../backend/src/sro/application/observation/correlate.py#L162): Comment
+## `as_action`, [line 210](../../../../../../../backend/src/sro/application/observation/correlate.py#L210): Comment
 
 Code: `required=target.required,`
 
@@ -100,3 +100,9 @@ Code: `required=target.required,`
 > the store however faithfully the recorder captured it. Measured
 > 2026-09-22 at 07:17 -- the recorder had been reading
 > `aria-required` for an hour and every stored gesture had none.
+
+## `correlate_with_effects`, [line 125](../../../../../../../backend/src/sro/application/observation/correlate.py#L125): Comment
+
+Code: `for one in effects:`
+
+> An effect joins its gesture the way `prior` does: by `ref`, on the same tab and frame path, never by position. It is also keyed on the gesture's own `at` (the recorder sends `of_at` as the exact float it stamped on the gesture), so a repeated ref cannot take another moment's effect. Exactly one gesture may match: two gestures in one millisecond (a checkbox's click and change), a second effect for a gesture that has one, or an effect that sanitises to nothing are dropped and logged, never guessed at. An effect whose gesture is not in the batch is handed back for the stored rows. `correlate` keeps its four-tuple for its existing callers.

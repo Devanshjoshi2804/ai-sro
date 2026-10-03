@@ -167,9 +167,9 @@ import pytest  # noqa: E402
 @pytest.mark.parametrize("route", _SECRET_ROUTES)
 async def test_a_route_with_a_secret_value_stores_none_of_it(route: str) -> None:
     gesture = _gesture()
-    gesture["gesture"]["place"] = {"route": route, "title": "T"}  # type: ignore[index]
+    gesture["gesture"]["place"] = {"route": route, "title": "T"}
     effect = _effect()
-    effect["effect"]["route_after"] = route  # type: ignore[index]
+    effect["effect"]["route_after"] = route
     written, kept, accepted, _ = await _ingest([gesture, effect])
     assert accepted == 2
     assert "hunter2xyz" not in written and "hunter2xyz" not in kept
@@ -183,7 +183,7 @@ def test_a_decoded_route_with_spaces_and_ids_still_survives() -> None:
                 "gesture": _gesture()["gesture"]
                 | {"place": {"route": "/a/new%20order/123456#!/e/9"}}
             }
-        ]  # type: ignore[operator]
+        ]
     )
     assert out["gesture"]["place"]["route"] == "/a/new order/*#!/e/*"
 

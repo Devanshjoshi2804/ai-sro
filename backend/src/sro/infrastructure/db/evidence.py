@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -15,6 +16,8 @@ from sro.domain.observation.driving import Uploaded
 from sro.domain.observation.gesture import (
     Action,
     Call,
+    Effect,
+    FrameHop,
     Gesture,
     GestureBatch,
     Intent,
@@ -164,6 +167,38 @@ class SqlGestureRepository(GestureRepository):
         except IntegrityError as clash:
             await self._session.rollback()
             raise Conflict("one of these gestures is already stored") from clash
+
+    async def attach_effect(
+        self,
+        tenant_id: TenantId,
+        *,
+        stream_id: str,
+        tab_id: int | None,
+        frame_path: tuple[FrameHop, ...] | None,
+        at: float,
+        effect: Effect,
+    ) -> bool:
+        rows = (
+            await self._session.scalars(
+                select(GestureRow).where(
+                    GestureRow.tenant_id == tenant_id.value,
+                    GestureRow.stream_id == stream_id,
+                    GestureRow.tab_id.is_not_distinct_from(tab_id),
+                    GestureRow.at == at,
+                )
+            )
+        ).all()
+        same = [
+            row for row in rows if _ACTION.validate_python(row.gesture).frame_path == frame_path
+        ]
+        if len(same) != 1:
+            return False
+        action = _ACTION.validate_python(same[0].gesture)
+        if action.effect is not None:
+            return False
+        same[0].gesture = dump(_ACTION, replace(action, effect=effect))
+        await self._session.flush()
+        return True
 
     async def gestures_for(
         self,

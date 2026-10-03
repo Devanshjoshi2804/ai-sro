@@ -117,7 +117,7 @@ from sro.domain.observation.batch import ObservationBatch
 from sro.domain.observation.candidate import CandidateStatus, TaskCandidate
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.driving import Driving, Uploaded
-from sro.domain.observation.gesture import Gesture, GestureBatch, Intent
+from sro.domain.observation.gesture import Effect, FrameHop, Gesture, GestureBatch, Intent
 from sro.domain.observation.identity import ShapeKey
 from sro.domain.observation.mining import MiningPass
 from sro.domain.observation.policy import ObservationPolicy
@@ -2118,6 +2118,30 @@ class FakeGestureRepository:
                 raise Conflict("one of these gestures is already stored")
             fresh[gesture.id] = gesture
         self.rows.update(fresh)
+
+    async def attach_effect(
+        self,
+        tenant_id: TenantId,
+        *,
+        stream_id: str,
+        tab_id: int | None,
+        frame_path: tuple[FrameHop, ...] | None,
+        at: float,
+        effect: Effect,
+    ) -> bool:
+        same = [
+            one
+            for one in self.rows.values()
+            if one.tenant == tenant_id.value
+            and one.stream_id == stream_id
+            and one.tab_id == tab_id
+            and one.at == at
+            and one.action.frame_path == frame_path
+        ]
+        if len(same) != 1 or same[0].action.effect is not None:
+            return False
+        same[0].action = replace(same[0].action, effect=effect)
+        return True
 
     async def gestures_for(
         self,

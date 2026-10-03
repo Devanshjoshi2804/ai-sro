@@ -23,7 +23,7 @@ from sro.domain.observation.batch import ObservationBatch
 from sro.domain.observation.candidate import CandidateStatus, TaskCandidate
 from sro.domain.observation.device import AgentDevice
 from sro.domain.observation.driving import Driving, Uploaded
-from sro.domain.observation.gesture import Gesture, GestureBatch, Intent
+from sro.domain.observation.gesture import Effect, FrameHop, Gesture, GestureBatch, Intent
 from sro.domain.observation.identity import ShapeKey
 from sro.domain.observation.mining import MiningPass
 from sro.domain.observation.policy import ObservationPolicy
@@ -374,6 +374,17 @@ class GestureRepository(Protocol):
     async def add_batch(self, batch: GestureBatch) -> None: ...
 
     async def add_gestures(self, gestures: tuple[Gesture, ...]) -> None: ...
+
+    async def attach_effect(
+        self,
+        tenant_id: TenantId,
+        *,
+        stream_id: str,
+        tab_id: int | None,
+        frame_path: tuple[FrameHop, ...] | None,
+        at: float,
+        effect: Effect,
+    ) -> bool: ...
 
     async def gestures_for(
         self,

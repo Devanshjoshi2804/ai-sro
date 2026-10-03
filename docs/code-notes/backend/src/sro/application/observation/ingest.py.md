@@ -10,7 +10,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/i
 > re-run over what arrived; what was never stored cannot be recovered, and an
 > operator's day is not repeatable the way a demonstration is.
 
-## `_as_wire_batch`, [line 32](../../../../../../../backend/src/sro/application/observation/ingest.py#L32): Docstring
+## `_as_wire_batch`, [line 36](../../../../../../../backend/src/sro/application/observation/ingest.py#L36): Docstring
 
 > The stored batch in the shape `correlate` reads, and how many events it
 > could not.
@@ -25,7 +25,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/i
 > The count comes back so the tally says a batch had events nothing could
 > read, rather than a batch that quietly had fewer.
 
-## `ObservationRefused`, [line 66](../../../../../../../backend/src/sro/application/observation/ingest.py#L66): Docstring
+## `ObservationRefused`, [line 70](../../../../../../../backend/src/sro/application/observation/ingest.py#L70): Docstring
 
 > This upload will not be stored, and the reason is not transient.
 >
@@ -33,14 +33,14 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/i
 > has paused. The extension stops rather than retries -- a queue draining into
 > a refusal is how a browser spends a day trying to send work nobody wants.
 
-## `Ingested`, [line 75](../../../../../../../backend/src/sro/application/observation/ingest.py#L75): Note on the line above
+## `Ingested`, [line 79](../../../../../../../backend/src/sro/application/observation/ingest.py#L79): Note on the line above
 
 Code: `stored_at: str | None`
 
 > Where the evidence went. ``None`` when nothing in the batch survived
 > screening, in which case no object was written and no row was made.
 
-## `Ingested`, [line 78](../../../../../../../backend/src/sro/application/observation/ingest.py#L78): Note on the line above
+## `Ingested`, [line 82](../../../../../../../backend/src/sro/application/observation/ingest.py#L82): Note on the line above
 
 Code: `snapshots_ignored: int = 0`
 
@@ -56,7 +56,7 @@ Code: `snapshots_ignored: int = 0`
 > 0 on a batch we already had: nothing re-read it, and no column records what
 > the first pass ignored.
 
-## `IngestObservation`, [line 81](../../../../../../../backend/src/sro/application/observation/ingest.py#L81): Docstring
+## `IngestObservation`, [line 85](../../../../../../../backend/src/sro/application/observation/ingest.py#L85): Docstring
 
 > Idempotent on the batch id the extension minted.
 >
@@ -64,12 +64,12 @@ Code: `snapshots_ignored: int = 0`
 > correct client. Storing it twice would double every count a miner reads, and
 > the miner's whole job is counting how often something happened.
 
-## `_key`, [line 205](../../../../../../../backend/src/sro/application/observation/ingest.py#L205): Docstring
+## `_key`, [line 231](../../../../../../../backend/src/sro/application/observation/ingest.py#L231): Docstring
 
 > Tenant first, then who, then the day. A lifecycle rule for a retention
 > window is a prefix match, and a purge for one operator is another.
 
-## `_ndjson`, [line 209](../../../../../../../backend/src/sro/application/observation/ingest.py#L209): Docstring
+## `_ndjson`, [line 235](../../../../../../../backend/src/sro/application/observation/ingest.py#L235): Docstring
 
 > One event per line, as the extension streamed it.
 >
@@ -80,7 +80,7 @@ Code: `snapshots_ignored: int = 0`
 > The same round-trip argument as `_redact_query` -- a marker a reviewer
 > cannot grep for is a hole nobody can count.
 
-## `IngestObservation.execute`, [line 108](../../../../../../../backend/src/sro/application/observation/ingest.py#L108): Comment
+## `IngestObservation.execute`, [line 112](../../../../../../../backend/src/sro/application/observation/ingest.py#L112): Comment
 
 Code: `refuse_unless_itself(device, secret, device_id)`
 
@@ -89,7 +89,7 @@ Code: `refuse_unless_itself(device, secret, device_id)`
 > file a day of their own browsing against somebody else's device,
 > and every candidate mined from it would name the wrong operator.
 
-## `IngestObservation.execute`, [line 128](../../../../../../../backend/src/sro/application/observation/ingest.py#L128): Comment
+## `IngestObservation.execute`, [line 132](../../../../../../../backend/src/sro/application/observation/ingest.py#L132): Comment
 
 Code: `admission = admit(`
 
@@ -97,7 +97,7 @@ Code: `admission = admit(`
 > what the tenant agreed to by default. Read from the device
 > already loaded above, and expired grants simply are not in it.
 
-## `IngestObservation.execute`, [line 139](../../../../../../../backend/src/sro/application/observation/ingest.py#L139): Comment
+## `IngestObservation.execute`, [line 143](../../../../../../../backend/src/sro/application/observation/ingest.py#L143): Comment
 
 Code: `check_times(started_at, ended_at, now)`
 
@@ -116,7 +116,7 @@ Code: `check_times(started_at, ended_at, now)`
 > a purge nor the retention sweep can reach an object nothing
 > names.
 
-## `IngestObservation.execute`, [line 142](../../../../../../../backend/src/sro/application/observation/ingest.py#L142): Comment (debt)
+## `IngestObservation.execute`, [line 146](../../../../../../../backend/src/sro/application/observation/ingest.py#L146): Comment (debt)
 
 Code: `uri = await self._blobs.put(`
 
@@ -124,7 +124,7 @@ Code: `uri = await self._blobs.put(`
 > Server-side would mean summing today's batches on every upload;
 > add it here when a device is seen to ignore the policy.
 
-## `IngestObservation.execute`, [line 161](../../../../../../../backend/src/sro/application/observation/ingest.py#L161): Comment
+## `IngestObservation.execute`, [line 165](../../../../../../../backend/src/sro/application/observation/ingest.py#L165): Comment
 
 Code: `wire, unreadable = _as_wire_batch(batch, redacted)`
 
@@ -155,7 +155,7 @@ Code: `wire, unreadable = _as_wire_batch(batch, redacted)`
 > way, and do not let the wire's copy become the argument for
 > deleting this one.
 
-## `IngestObservation.execute`, [line 173](../../../../../../../backend/src/sro/application/observation/ingest.py#L173): Comment
+## `IngestObservation.execute`, [line 179](../../../../../../../backend/src/sro/application/observation/ingest.py#L179): Comment
 
 Code: `rejected=len(admission.rejected) + unreadable,`
 
@@ -168,7 +168,7 @@ Code: `rejected=len(admission.rejected) + unreadable,`
 > never meant to be. Split them the day something acts on
 > the difference rather than reports it.
 
-## `IngestObservation.execute`, [line 178](../../../../../../../backend/src/sro/application/observation/ingest.py#L178): Comment
+## `IngestObservation.execute`, [line 204](../../../../../../../backend/src/sro/application/observation/ingest.py#L204): Comment
 
 Code: `for orphan in orphans:`
 
@@ -186,10 +186,16 @@ Code: `for orphan in orphans:`
 > `_calls` and `_marks` until now, which made cross-batch
 > correlation dead on this side and alive on that one.
 
-## `IngestObservation.execute`, [line 189](../../../../../../../backend/src/sro/application/observation/ingest.py#L189): Comment
+## `IngestObservation.execute`, [line 215](../../../../../../../backend/src/sro/application/observation/ingest.py#L215): Comment
 
 Code: `at=datetime.fromtimestamp(mark.at, UTC).isoformat(),`
 
 > The column is a string and the domain keeps epoch
 > seconds, so it is spelled here the way the rig spells it
 > and the way the contract test writes it: ISO, UTC.
+
+## `IngestObservation.execute`, [line 184](../../../../../../../backend/src/sro/application/observation/ingest.py#L184): Comment
+
+Code: `for one in left:`
+
+> An effect whose gesture is in an earlier batch is attached to the stored row by `attach_effect`. The ceiling: an effect that arrives before its gesture's batch (an upload retried out of order) matches nothing and is dropped and logged; one matching several stored gestures, or a gesture that already has an effect, is dropped the same way.

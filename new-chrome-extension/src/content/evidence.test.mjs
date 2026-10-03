@@ -104,3 +104,13 @@ test("the state a gesture left never holds free text", () => {
   });
   assert.equal(valueOf(select), "Second choice");
 });
+
+test("a control's position counts only siblings of its own kind", () => {
+  const parent = { children: [] };
+  const button = () => ({ nodeType: 1, tagName: "BUTTON", parentElement: parent, getAttribute: () => null });
+  const input = { nodeType: 1, tagName: "INPUT", parentElement: parent, getAttribute: () => null };
+  const [a, b] = [button(), button()];
+  parent.children.push(a, input, b);
+  const { siblingOf } = lift(["siblingOf"], { roleOf: (el) => (el.tagName === "BUTTON" ? "button" : "textbox") });
+  assert.deepEqual(siblingOf(b), { index: 1, count: 2 });
+});

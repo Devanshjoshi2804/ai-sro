@@ -29,7 +29,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/reco
 > previous target's state and resets it, it does not skip it), and after the
 > worker says it did not keep the gesture that set them (`sro:dropped`).
 
-## `emit`, [line 222](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L222): Docstring
+## `emit`, [line 242](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L242): Docstring
 
 > A control keeps changing after the gesture that touched it fires -- a
 > spinner clears, a field disables, a box stays ticked -- so there is no
@@ -45,7 +45,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/reco
 > its after-state arrives in the next batch and is not joined (see
 > correlate.py's notes).
 
-## module, [line 252](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L252): Comment
+## module, [line 273](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L273): Comment
 
 Code: `listen('sro:dropped', (e) => {`
 
@@ -99,3 +99,7 @@ Code: `listen('sro:dropped', (e) => {`
 > The observer is kept on the window and disconnected before a new one is made,
 > for the same reason the listeners are (`__sroHandlers`): installing the
 > recorder again must not leave two observers outlining one page.
+
+## `placeNow`, [line 218](x#L218): Function
+
+> Also `choiceNow`, and the `describe` keys labelText, fullName, siblingIndex, siblingCount. These keys are additions for later checks and locators. None of them is read by `targetIdentity` or `screenOf`, so a recording's identity does not move when they are present. A credential field records no label and no name. `placeNow` and `choiceNow` never throw: a page that breaks a reader loses that key, not the gesture.

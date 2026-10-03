@@ -53,6 +53,9 @@ function recorder() {
     boundsOf: () => ({ x: 0, y: 0, width: 200, height: 30 }),
     component: () => null,
     landmarksOf: () => [],
+    labelOf: () => "",
+    fullNameOf: () => null,
+    siblingOf: () => ({ index: 0, count: 1 }),
   };
   const names = ["isSecretName", "isSecretField", "describe"];
   return new Function(

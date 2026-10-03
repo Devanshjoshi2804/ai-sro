@@ -47,7 +47,7 @@
   // docs/code-notes/new-chrome-extension/src/page/page-code.js.md.
   const {
     roleOf, nameOf, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf, requiredOf, outlineOf,
-    isSecretField,
+    isSecretField, labelOf, fullNameOf, siblingOf, choiceOf, placeOf,
   } = __PAGE_READERS__;
 
   const stateOf = (el) => {
@@ -170,6 +170,7 @@
       if (attr.name === 'value' && secret) continue;
       attributes[attr.name] = String(attr.value).slice(0, 512);
     }
+    const sibling = siblingOf(el);
     return {
       tag: el.tagName.toLowerCase(),
       role: roleOf(el),
@@ -207,7 +208,26 @@
       attributes,
       component: component(el),
       landmarks: landmarksOf(el),
+      labelText: secret ? null : labelOf(el) || null,
+      fullName: secret ? null : fullNameOf(el),
+      siblingIndex: sibling.index,
+      siblingCount: sibling.count,
     };
+  };
+
+  const placeNow = () => {
+    try {
+      return placeOf(document);
+    } catch {
+      return null;
+    }
+  };
+  const choiceNow = (el) => {
+    try {
+      return choiceOf(el);
+    } catch {
+      return null;
+    }
   };
 
   const modifiers = (e) => {
@@ -237,6 +257,7 @@
           prior,
           prior_of,
           outlines: sent,
+          place: placeNow(),
           frame_path: framePathOf(window),
           at: Date.now() / 1000,
           url: location.href,
@@ -268,6 +289,7 @@
         modifiers: modifiers(e),
         detail: e.detail,
         trusted: e.isTrusted,
+        choice: choiceNow(e.target),
       },
       e.target,
     ),

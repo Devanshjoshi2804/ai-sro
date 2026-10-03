@@ -50,7 +50,7 @@
   // docs/code-notes/new-chrome-extension/src/page/page-code.js.md.
   const {
     roleOf, nameOf, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf, requiredOf, outlineOf,
-    isSecretField,
+    isSecretField, labelOf, fullNameOf, siblingOf, choiceOf, placeOf,
   } = (() => {
     const MAX_TEXT = 200;
     const SECRET_WORDS = new Set(["accesskey", "accesstoken", "apikey", "apisecret", "appsecret", "authkey", "authorization", "authtoken", "backupcode", "bearer", "clientsecret", "connectionstring", "consumerkey", "consumersecret", "cookie", "credential", "credentials", "csrf", "csrftoken", "cvv", "encryptionkey", "hotp", "htpasswd", "idrsa", "idtoken", "jsessionid", "jwt", "keystore", "machinekey", "mfa", "oauthtoken", "onetimecode", "onetimepasscode", "otp", "pass", "passcode", "passphrase", "passwd", "password", "phpsessid", "pin", "privatekey", "privkey", "pwd", "recoverycode", "refreshtoken", "relaystate", "resettoken", "rsakey", "saml", "samlrequest", "samlresponse", "secret", "secretaccesskey", "secretanswer", "secretkey", "securityanswer", "securitycode", "sessionid", "sessionkey", "sessiontoken", "sshkey", "ssn", "sso", "token", "totp", "truststore", "verificationcode", "xapikey", "xauthtoken", "xsrf", "xsrftoken"]);
@@ -303,9 +303,74 @@
         messages,
       });
     };
+    const fullNameOf = (el) => {
+      if (isSecretField(el)) return null;
+      const doc = el.ownerDocument || document;
+      const by = el.getAttribute("aria-labelledby");
+      const named = by
+        ? by.split(/\s+/).map((id) => doc.getElementById(id)).filter(Boolean)
+            .map((one) => plainOf(one.getAttribute("aria-label") || one.innerText)).join(" ").trim()
+        : "";
+      const labels = el.labels && el.labels.length ? [...el.labels].map((one) => plainOf(one.innerText)).join(" ").trim() : "";
+      const fromContent = ["button", "link", "tab", "menuitem", "option", "cell", "row", "heading"].includes(roleOf(el) || "");
+      const said =
+        named ||
+        plainOf(el.getAttribute("aria-label")) ||
+        labels ||
+        plainOf(el.getAttribute("title") || el.getAttribute("placeholder") || el.getAttribute("alt")) ||
+        (fromContent ? plainOf(el.innerText) : "");
+      return said ? said.slice(0, MAX_TEXT) : null;
+    };
+    const siblingOf = (el) => {
+      const parent = el.parentElement;
+      if (!parent) return { index: 0, count: 1 };
+      const role = roleOf(el);
+      const same = [...parent.children].filter((one) => one.tagName === el.tagName && roleOf(one) === role);
+      return { index: same.indexOf(el), count: same.length };
+    };
+    const OPTION_ROWS = "[role=option], .x-boundlist-item";
+    const choiceOf = (el) => {
+      const row = el && el.closest ? el.closest(OPTION_ROWS) : null;
+      if (!row) return null;
+      const list = row.closest("[role=listbox], .x-boundlist") || row.parentElement;
+      const rows = list ? [...list.querySelectorAll(OPTION_ROWS)] : [row];
+      return {
+        chosen: plainOf(row.innerText).slice(0, MAX_TEXT) || null,
+        index: rows.indexOf(row),
+        options: rows.slice(0, 50).map((one) => plainOf(one.innerText).slice(0, MAX_TEXT)),
+      };
+    };
+    const versionOf = (doc) => {
+      const win = doc.defaultView || window;
+      const said = win.Ext && win.Ext.getVersion ? win.Ext.getVersion() : null;
+      const built = (said && said.version) || (win.Ext && win.Ext.version);
+      if (built) return `Ext ${built}`;
+      const meta = doc.querySelector("meta[name=version], meta[name=app-version], meta[name=build]");
+      if (meta && meta.content) return plainOf(meta.content).slice(0, 60);
+      const main = [...doc.scripts].map((one) => one.src).filter(Boolean).pop();
+      return main ? main.split("/").pop().split("?")[0].slice(0, 60) : null;
+    };
+    const placeOf = (doc) => {
+      const win = doc.defaultView || window;
+      const visible = (selector) => [...doc.querySelectorAll(selector)].filter((one) => one.getClientRects().length > 0);
+      const texts = (items, cap) => [...new Set(items.map(plainOf).filter(Boolean))].slice(0, cap);
+      const grid = visible("[role=grid], [role=treegrid], .x-grid")[0];
+      const panel = grid && grid.closest(".x-panel");
+      const panelTitle = panel && panel.querySelector(".x-title-text");
+      const gridTitle = grid ? plainOf(grid.getAttribute("aria-label")) || plainOf(panelTitle ? panelTitle.innerText : "") : "";
+      return {
+        route: `${win.location.pathname}${win.location.hash}`,
+        title: plainOf(doc.title).slice(0, MAX_TEXT) || null,
+        headings: texts(visible("h1, h2, h3, [role=heading], .x-title-text").map((one) => one.innerText), 3),
+        tabs: texts(visible("[role=tab][aria-selected=true], .x-tab-active").map((one) => one.innerText || one.getAttribute("aria-label")), 10),
+        grid: gridTitle || null,
+        landmarks: texts(visible("form, dialog, [role=dialog], [role=alertdialog], [role=form], [role=region]").map(ownName), 10),
+        version: versionOf(doc),
+      };
+    };
     return {
       roleOf, ownName, nameOf, landmarkRole, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf,
-      labelOf, requiredOf, outlineOf, isSecretField,
+      labelOf, requiredOf, outlineOf, isSecretField, fullNameOf, siblingOf, choiceOf, versionOf, placeOf,
     };
   })();
 
@@ -429,6 +494,7 @@
       if (attr.name === 'value' && secret) continue;
       attributes[attr.name] = String(attr.value).slice(0, 512);
     }
+    const sibling = siblingOf(el);
     return {
       tag: el.tagName.toLowerCase(),
       role: roleOf(el),
@@ -466,7 +532,26 @@
       attributes,
       component: component(el),
       landmarks: landmarksOf(el),
+      labelText: secret ? null : labelOf(el) || null,
+      fullName: secret ? null : fullNameOf(el),
+      siblingIndex: sibling.index,
+      siblingCount: sibling.count,
     };
+  };
+
+  const placeNow = () => {
+    try {
+      return placeOf(document);
+    } catch {
+      return null;
+    }
+  };
+  const choiceNow = (el) => {
+    try {
+      return choiceOf(el);
+    } catch {
+      return null;
+    }
   };
 
   const modifiers = (e) => {
@@ -496,6 +581,7 @@
           prior,
           prior_of,
           outlines: sent,
+          place: placeNow(),
           frame_path: framePathOf(window),
           at: Date.now() / 1000,
           url: location.href,
@@ -527,6 +613,7 @@
         modifiers: modifiers(e),
         detail: e.detail,
         trusted: e.isTrusted,
+        choice: choiceNow(e.target),
       },
       e.target,
     ),

@@ -334,3 +334,80 @@ def test_text_with_a_partial_mask_is_never_kept(page: Any, said: str) -> None:
 def test_benign_text_with_one_asterisk_or_few_x_is_kept(page: Any) -> None:
     assert _told(page, "Required *") == "Required *"
     assert _told(page, "Max 5 items") == "Max 5 items"
+
+
+def test_benign_text_with_x_or_stars_that_is_not_a_mask_is_kept(page: Any) -> None:
+    for said in ("Size XXXL", "Mexxxico", "XXL size", "Box xx-12", "Max 12 xxx", "Fox xxx"):
+        assert _told(page, said) == said
+    assert _told(page, "Wildcard *** matches") == "Wildcard *** matches"
+
+
+@pytest.mark.parametrize("said", ["Total: $5xxx", "Card xxxx1234 declined", "Bad 12xxx"])
+def test_x_run_next_to_digits_is_a_mask(page: Any, said: str) -> None:
+    assert _told(page, said) is None
+
+
+def _add(page: Any, html: str) -> None:
+    page.evaluate("(h) => document.body.insertAdjacentHTML('beforeend', h)", html)
+
+
+def test_a_secret_in_a_field_the_click_unmounts_is_never_sent(page: Any) -> None:
+    _add(page, "<button id=swap>Swap</button>")
+    page.evaluate(
+        "() => { swap.onclick = () => { document.forms[0].remove();"
+        " const d = document.createElement('div'); d.setAttribute('role', 'alert');"
+        " d.innerText = 'Invalid password hunter2'; document.body.appendChild(d); }; }"
+    )
+    page.fill("#pw", "hunter2")
+    page.click("#swap")
+    sent = _effect_of(page, _last(page)["ref"])
+    assert any(one["role"] == "alert" for one in sent["effect"]["appeared"])
+    assert "hunter2" not in json.dumps(page.evaluate("window.__did"))
+
+
+def test_a_secret_whose_field_is_removed_after_a_gesture_is_never_sent_later(page: Any) -> None:
+    page.fill("#pw", "hunter2")
+    page.click("#noop")
+    page.evaluate("() => document.getElementById('pw').remove()")
+    assert _told(page, "Invalid password hunter2") is None
+
+
+def test_a_secret_checked_again_stays_known_while_older_ones_are_evicted(page: Any) -> None:
+    page.evaluate(
+        "() => { window.__fill = (n) => { const el = document.getElementById('pw');"
+        "el.value = 'kq' + String(n).padStart(4, '0') + 'z'; el.dispatchEvent(new Event('input', { bubbles: true })); }; }"
+    )
+    for n in range(300):
+        page.evaluate("(n) => window.__fill(n)", n)
+        if n % 50 == 49:
+            assert _told(page, "Bad kq0000z") is None
+    assert _told(page, "Bad kq0000z") is None
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "<div id=f contenteditable=true aria-label='Password'></div>",
+        "<input id=f type=text data-ref='pwd'>",
+        "<input id=f type=text aria-label='Login code' style='-webkit-text-security: disc'>",
+        "<input id=f type=text style='-webkit-text-security: disc'>",
+    ],
+)
+def test_a_field_that_is_secret_by_how_it_looks_or_is_named_is_never_sent(
+    page: Any, field: str
+) -> None:
+    _add(page, field)
+    page.fill("#f", "hunter2")
+    page.evaluate(
+        "() => { const el = document.getElementById('f'); if ('value' in el) el.value = ''; else el.textContent = ''; }"
+    )
+    assert _told(page, "Bad hunter2") is None
+    page.fill("#f", "hunter3")
+    assert _told(page, "Bad hunter3") is None
+
+
+@pytest.mark.parametrize("name", ["Customer type code", "Postal code", "Code"])
+def test_a_job_field_that_ends_in_code_is_still_captured(page: Any, name: str) -> None:
+    _add(page, f"<input id=f type=text aria-label='{name}'>")
+    page.fill("#f", "VIP77")
+    assert _told(page, "Saved VIP77") == "Saved VIP77"

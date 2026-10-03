@@ -34,9 +34,12 @@ def _secret_words() -> set[str]:
 
 
 def _hidden(name: str) -> bool:
+    """The recorder's `isSecretName`: a word, a run of two or three adjacent words
+    joined (a phrase such as "login code"), or the whole name joined."""
     words = _words(name)
     secrets = _secret_words()
-    return any(word in secrets for word in words) or "".join(words) in secrets
+    runs = ("".join(words[i : i + n]) for i in range(len(words)) for n in (1, 2, 3))
+    return any(run in secrets for run in runs) or "".join(words) in secrets
 
 
 @pytest.mark.parametrize(
@@ -80,3 +83,21 @@ def test_a_code_that_lives_for_a_minute_is_still_a_credential(field: str) -> Non
     induction went on to offer it as a parameter to store, display and replay.
     """
     assert _hidden(field)
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["Login code", "Enter your login code", "enter verification code", "one time code", "pwd"],
+)
+def test_a_phrase_that_names_a_short_lived_credential_is_hidden(field: str) -> None:
+    assert _hidden(field)
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["Customer type code", "Postal code", "Code", "Zip code", "Dock door code", "Status code"],
+)
+def test_a_job_field_that_ends_in_code_stays_capturable(field: str) -> None:
+    """Bare `code` is a warehouse word (138 field names end in it): only the
+    named credential phrases hide, never the word on its own."""
+    assert not _hidden(field)

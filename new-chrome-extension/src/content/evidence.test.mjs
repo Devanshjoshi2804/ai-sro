@@ -72,7 +72,7 @@ test("a frame records where it sits, from the top down", () => {
 
 test("the state a gesture left never holds free text", () => {
   const window = { getComputedStyle: () => ({ visibility: "visible", display: "block" }) };
-  const { stateOf } = lift(["isSecretName", "isSecretField", "roleOf", "settingOf", "stateOf"], {
+  const { stateOf } = lift(["isSecretName", "drawnMasked", "labelledText", "isSecretField", "roleOf", "settingOf", "stateOf"], {
     window,
     SECRET_WORDS: new Set(["password"]),
     wordsOf: (text) => String(text || "").toLowerCase().split(/[^a-z]+/).filter(Boolean),

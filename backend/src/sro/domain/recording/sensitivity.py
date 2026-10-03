@@ -118,6 +118,7 @@ SECRET_TOKENS = frozenset(
         "onetimecode",
         "onetimepasscode",
         "verificationcode",
+        "logincode",
         "cookie",
         "jwt",
         "bearer",

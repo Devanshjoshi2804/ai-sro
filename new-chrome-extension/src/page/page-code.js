@@ -9,7 +9,7 @@
 
   const readers = (() => {
     const MAX_TEXT = 200;
-    const SECRET_WORDS = new Set(["accesskey", "accesstoken", "apikey", "apisecret", "appsecret", "authkey", "authorization", "authtoken", "backupcode", "bearer", "clientsecret", "connectionstring", "consumerkey", "consumersecret", "cookie", "credential", "credentials", "csrf", "csrftoken", "cvv", "encryptionkey", "hotp", "htpasswd", "idrsa", "idtoken", "jsessionid", "jwt", "keystore", "machinekey", "mfa", "oauthtoken", "onetimecode", "onetimepasscode", "otp", "pass", "passcode", "passphrase", "passwd", "password", "phpsessid", "pin", "privatekey", "privkey", "pwd", "recoverycode", "refreshtoken", "relaystate", "resettoken", "rsakey", "saml", "samlrequest", "samlresponse", "secret", "secretaccesskey", "secretanswer", "secretkey", "securityanswer", "securitycode", "sessionid", "sessionkey", "sessiontoken", "sshkey", "ssn", "sso", "token", "totp", "truststore", "verificationcode", "xapikey", "xauthtoken", "xsrf", "xsrftoken"]);
+    const SECRET_WORDS = new Set(["accesskey", "accesstoken", "apikey", "apisecret", "appsecret", "authkey", "authorization", "authtoken", "backupcode", "bearer", "clientsecret", "connectionstring", "consumerkey", "consumersecret", "cookie", "credential", "credentials", "csrf", "csrftoken", "cvv", "encryptionkey", "hotp", "htpasswd", "idrsa", "idtoken", "jsessionid", "jwt", "keystore", "logincode", "machinekey", "mfa", "oauthtoken", "onetimecode", "onetimepasscode", "otp", "pass", "passcode", "passphrase", "passwd", "password", "phpsessid", "pin", "privatekey", "privkey", "pwd", "recoverycode", "refreshtoken", "relaystate", "resettoken", "rsakey", "saml", "samlrequest", "samlresponse", "secret", "secretaccesskey", "secretanswer", "secretkey", "securityanswer", "securitycode", "sessionid", "sessionkey", "sessiontoken", "sshkey", "ssn", "sso", "token", "totp", "truststore", "verificationcode", "xapikey", "xauthtoken", "xsrf", "xsrftoken"]);
     const wordsOf = (text) =>
       (text || "")
         .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
@@ -19,7 +19,23 @@
         .map((word) => word.toLowerCase());
     const isSecretName = (name) => {
       const words = wordsOf(name);
-      return words.some((word) => SECRET_WORDS.has(word)) || SECRET_WORDS.has(words.join(""));
+      // A word, two or three adjacent words read as one ("login code", "one time code"), or the whole name. Never a bare
+      // "code": that is a job field ("Customer type code"), and only the named credential phrases are in the list.
+      const joined = (from, to) => SECRET_WORDS.has(words.slice(from, to).join(""));
+      return words.some((word, i) => SECRET_WORDS.has(word) || joined(i, i + 2) || joined(i, i + 3)) || joined(0, words.length);
+    };
+    // A text input the page draws as dots (`-webkit-text-security`) is a password whatever it is called.
+    const drawnMasked = (el) => {
+      const tag = el.tagName;
+      if (tag !== "INPUT" && tag !== "TEXTAREA") return false;
+      const view = el.ownerDocument && el.ownerDocument.defaultView;
+      const style = view && view.getComputedStyle(el);
+      return Boolean(style) && /^(disc|circle|square)$/.test(style.webkitTextSecurity || style.getPropertyValue("-webkit-text-security"));
+    };
+    // What aria-labelledby points at, so a control named by another element is judged by that name too.
+    const labelledText = (el) => {
+      const ids = (el.getAttribute("aria-labelledby") || "").split(/\s+/);
+      return ids.map((id) => (id && el.ownerDocument ? el.ownerDocument.getElementById(id)?.textContent || "" : "")).join(" ");
     };
     const isSecretField = (el) => {
       if (!el || el.nodeType !== 1) return false;
@@ -27,10 +43,10 @@
       const autocomplete = (el.getAttribute("autocomplete") || "").toLowerCase();
       if (autocomplete.includes("password") || autocomplete === "one-time-code") return true;
       if (autocomplete === "cc-csc" || autocomplete === "cc-number") return true;
-      const named = [el.name, el.id, el.getAttribute("aria-label"), el.getAttribute("placeholder")]
+      const named = [el.name, el.id, el.getAttribute("aria-label"), el.getAttribute("placeholder"), el.getAttribute("data-ref"), labelledText(el)]
         .filter(Boolean)
         .join(" ");
-      return isSecretName(named);
+      return isSecretName(named) || drawnMasked(el);
     };
     const roleOf = (el) => {
       const written = el.getAttribute("role");
@@ -383,8 +399,15 @@
     };
     // What this page has had typed in its secret fields, kept in this page's memory only: never in a message, log or
     // storage, and cleared when the page goes. A field's value joins `known` when it is replaced (by something that is
-    // not just a longer version of it) or cleared; its current value is read from `last` at check time. So keystroke
-    // prefixes never enter `known`. Both the raw and the whitespace-collapsed form are kept, as `say` emits the latter.
+    // not just a longer version of it) or cleared, or when a watcher starts while the field still holds it (a click
+    // cannot land mid-keystroke, and the click may unmount the field). Its current value is also read live at check
+    // time. So keystroke prefixes never enter `known`. Both the raw and the whitespace-collapsed form are kept, as
+    // `say` emits the latter. `known` is a true LRU: a quote that matches refreshes its entry, a new one past
+    // KNOWN_CAP evicts the least recently matched. Ceilings, all deliberate: memory is per window, so a secret typed
+    // and cleared in a same-origin CHILD frame is unknown to the parent's watcher (and the child cannot see the
+    // parent's); a full page load (a form POST) starts empty, so text on the next page quoting the last page's password
+    // is not known; pagehide clears it and a bfcache restore (pageshow) does not bring it back; and more than
+    // KNOWN_CAP distinct secrets with none quoted since lets the oldest be forgotten.
     const KNOWN_CAP = 256;
     const KNOWN_CHARS = 512;
     const memories = new WeakMap();
@@ -410,28 +433,37 @@
         if (known.size > KNOWN_CAP) known.delete(known.keys().next().value);
       }
     };
+    const valueOf = (el) => String(typeof el.value === "string" ? el.value : el.textContent || "");
     const seeField = (memory, el) => {
       if (!isSecretField(el)) return;
-      const now = String(el.value || "");
+      const now = valueOf(el);
       const was = memory.last.get(el);
       if (was && now !== was && !now.startsWith(was)) promote(memory.known, was);
       memory.last.set(el, now);
     };
     const rememberSecrets = (win) => void memoryOf(win);
-    const MASKED = /[*\u2022]{3,}(?=[a-z0-9])|(?<=[a-z0-9])[*\u2022]{3,}|x{3,}(?=[a-wyz0-9])|(?<=[a-wyz0-9])x{3,}/i;
-    const secretsIn = (win) => {
+    // A run of * or bullets beside a letter or digit is a partial mask; a run of x only beside a digit ("xxxx1234").
+    // "Size XXXL" and "Mexxxico" are words, so a run of x beside a letter is not.
+    const MASKED = /[*\u2022]{3,}(?=[a-z0-9])|(?<=[a-z0-9])[*\u2022]{3,}|x{3,}(?=[0-9])|(?<=[0-9])x{3,}/i;
+    const secretsIn = (win, starting) => {
       const memory = memoryOf(win);
       const { docs, blind } = readableDocs(win);
-      const fields = docs.flatMap((d) => [...d.querySelectorAll("input, textarea")].filter(isSecretField));
-      for (const el of fields) seeField(memory, el);
+      const fields = docs.flatMap((d) => [...d.querySelectorAll("input, textarea, [contenteditable], [role=textbox]")].filter(isSecretField));
+      for (const el of fields) {
+        seeField(memory, el);
+        if (starting) promote(memory.known, valueOf(el));
+      }
       const ids = new Set(fields.flatMap((el) => `${el.getAttribute("aria-describedby") || ""} ${el.getAttribute("aria-errormessage") || ""}`.split(/\s+/)).filter(Boolean));
       return {
-        owns: (el) => (el.id && ids.has(el.id)) || [...el.querySelectorAll("input, textarea")].slice(0, 50).some(isSecretField),
+        owns: (el) => (el.id && ids.has(el.id)) || [...el.querySelectorAll("input, textarea, [contenteditable], [role=textbox]")].slice(0, 50).some(isSecretField),
         quotes: (text) => {
           if (!text) return false;
           if (blind || MASKED.test(text)) return true;
           const lower = text.toLowerCase();
-          return [...memory.known.keys(), ...fields.flatMap((el) => formsOf(el.value || ""))].some((one) => lower.includes(one));
+          const live = fields.flatMap((el) => formsOf(valueOf(el)));
+          const hit = [...memory.known.keys()].filter((one) => lower.includes(one));
+          for (const one of hit) promote(memory.known, one);
+          return hit.length > 0 || live.some((one) => lower.includes(one));
         },
       };
     };
@@ -472,7 +504,7 @@
       const clock = win.performance;
       const started = clock.now();
       const before = tried(() => fieldStates(doc), new Map());
-      tried(() => secretsIn(win), null);
+      tried(() => secretsIn(win, true), null);
       const routeBefore = tried(() => routeOf(win), null);
       const appeared = [];
       const vanished = [];

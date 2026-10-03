@@ -1009,6 +1009,8 @@ for (const [rule, attrs, props] of [
   ["a password by its autocomplete", { autocomplete: "current-password" }, {}],
   ["a secret-named id", {}, { id: "apiToken" }],
   ["a secret-named aria-label", { "aria-label": "Security PIN" }, {}],
+  ["a login code phrase", { "aria-label": "Enter your login code" }, {}],
+  ["an Ext data-ref pwd", { "data-ref": "pwd" }, {}],
 ]) {
   test(`resolve never reads the value of ${rule}`, () => {
     const { resolve, act } = loadSroPage();
@@ -1022,5 +1024,14 @@ for (const [rule, attrs, props] of [
     assert.equal(resolve({ target: { attributes: { name: "field" } } }).held, null);
     const acted = act({ action: "click", target: { attributes: { name: "field" } } });
     assert.equal(acted.state?.value ?? null, null);
+  });
+}
+
+for (const label of ["Customer type code", "Postal code", "Code"]) {
+  test(`resolve still reads the value of a job field called "${label}"`, () => {
+    const { resolve } = loadSroPage();
+    const field = Object.assign(elem("input", { attrs: { name: "field", "aria-label": label } }), { value: "VIP77", type: "text" });
+    page([field]);
+    assert.equal(resolve({ target: { attributes: { name: "field" } } }).held, "VIP77");
   });
 }

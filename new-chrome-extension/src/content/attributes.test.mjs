@@ -57,7 +57,7 @@ function recorder() {
     fullNameOf: () => null,
     siblingOf: () => ({ index: 0, count: 1 }),
   };
-  const names = ["isSecretName", "isSecretField", "describe"];
+  const names = ["isSecretName", "drawnMasked", "labelledText", "isSecretField", "describe"];
   return new Function(
     ...Object.keys(globals),
     `const MAX_TEXT = 200; ${names.map(body).join(";\n")}; return { describe };`,

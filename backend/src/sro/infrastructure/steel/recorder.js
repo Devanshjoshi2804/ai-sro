@@ -47,8 +47,10 @@
   // docs/code-notes/new-chrome-extension/src/page/page-code.js.md.
   const {
     roleOf, nameOf, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf, requiredOf, outlineOf,
-    isSecretField, labelOf, fullNameOf, siblingOf, choiceOf, placeOf, watchEffect,
+    isSecretField, labelOf, fullNameOf, siblingOf, choiceOf, placeOf, watchEffect, rememberSecrets,
   } = __PAGE_READERS__;
+  // From the first moment: a secret typed and cleared before any gesture is still one the recorder must never say.
+  rememberSecrets(window);
 
   const stateOf = (el) => {
     if (!el || el.nodeType !== 1 || el.isConnected === false) {

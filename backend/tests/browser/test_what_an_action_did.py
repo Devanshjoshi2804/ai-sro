@@ -26,6 +26,7 @@ PAGE = """<!doctype html><html><body>
   <button type="button" id="boom">Boom</button>
   <button type="button" id="clear">Clear</button>
   <button type="button" id="noop">Nothing</button>
+  <button type="button" id="tell">Tell</button>
 </form>
 <script>
   const say = (role, text) => { const d = document.createElement('div'); d.setAttribute('role', role); d.innerText = text; document.body.appendChild(d); };
@@ -34,6 +35,7 @@ PAGE = """<!doctype html><html><body>
   ask.onclick = () => { const d = document.createElement('div'); d.setAttribute('role', 'dialog'); d.innerHTML = '<h2>Delete?</h2><p>Delete this row?</p><button>Yes</button><button>No</button>'; document.body.appendChild(d); };
   go.onclick = () => { history.pushState({}, '', '/customers/42'); };
   clear.onclick = () => { const v = pw.value; pw.value = ''; say('alert', 'Invalid password ' + v); };
+  tell.onclick = () => say('alert', window.__tell);
   boom.onclick = () => setTimeout(() => { throw new Error('x is undefined at https://wms.example/app.js:1:2'); }, 10);
 </script>
 </body></html>"""
@@ -250,3 +252,85 @@ def test_a_shortcut_typed_in_a_secret_field_is_not_recorded(page: Any) -> None:
     page.click("#ask")
     _effect_of(page, _last(page)["ref"])
     assert "ctrl+alt+s" not in json.dumps(page.evaluate("window.__did"))
+
+
+def _told(page: Any, text: str) -> Any:
+    """What the recorder sends when the page says `text` in an alert after a click."""
+    page.evaluate("(t) => { window.__tell = t; }", text)
+    page.click("#tell")
+    sent = _effect_of(page, _last(page)["ref"])
+    return sent["effect"]["appeared"][0]["text"]
+
+
+def _typed_then_gone(page: Any, secret: str, *then: str) -> None:
+    page.fill("#pw", secret)
+    for value in then:
+        page.fill("#pw", value)
+
+
+def test_a_secret_cleared_and_replaced_before_the_click_is_still_never_sent(page: Any) -> None:
+    _typed_then_gone(page, "hunter2", "", "other99")
+    assert _told(page, "Invalid password hunter2") is None
+
+
+def test_a_secret_cleared_by_one_click_is_still_never_sent_by_the_next(page: Any) -> None:
+    page.fill("#pw", "hunter2")
+    page.click("#clear")
+    _effect_of(page, _last(page)["ref"])
+    assert _told(page, "Bad password hunter2") is None
+
+
+@pytest.mark.parametrize(
+    ("secret", "said"),
+    [
+        ("my  pass  word", "Bad my pass word"),
+        ("hunter2 ", "Bad hunter2"),
+        ("hun\tter2", "Bad hun ter2"),
+        ("HunTer2", "Bad hunter2"),
+    ],
+)
+def test_whitespace_and_case_variants_of_a_gone_secret_are_never_sent(
+    page: Any, secret: str, said: str
+) -> None:
+    _typed_then_gone(page, secret, "", "x1")
+    assert _told(page, said) is None
+
+
+def test_typing_a_secret_does_not_poison_every_text_with_its_letters(page: Any) -> None:
+    page.click("#pw")
+    page.keyboard.type("hunter2")
+    assert _told(page, "Saved changes here") == "Saved changes here"
+
+
+def test_two_hundred_thousand_inputs_keep_the_page_quick_and_the_latest_secret_known(
+    page: Any,
+) -> None:
+    took = page.evaluate(
+        "() => { const t = performance.now(); const el = document.getElementById('pw');"
+        "for (let i = 0; i < 200000; i++) { el.value = 's' + ((i * 7919) % 1000003) + 'q';"
+        "el.dispatchEvent(new Event('input', { bubbles: true })); }"
+        "el.value = ''; el.dispatchEvent(new Event('input', { bubbles: true }));"
+        "return performance.now() - t; }"
+    )
+    assert took < 5000
+    last = f"s{(199999 * 7919) % 1000003}q"
+    assert _told(page, f"Bad {last}") is None
+    assert _told(page, "Saved changes here") == "Saved changes here"
+
+
+@pytest.mark.parametrize(
+    "said",
+    [
+        "Card ****1234 declined",
+        "Bad hun***r2",
+        "Card xxxx1234 declined",
+        "Bad \u2022\u2022\u2022\u2022er2",
+    ],
+)
+def test_text_with_a_partial_mask_is_never_kept(page: Any, said: str) -> None:
+    assert _told(page, said) is None
+
+
+def test_benign_text_with_one_asterisk_or_few_x_is_kept(page: Any) -> None:
+    assert _told(page, "Required *") == "Required *"
+    assert _told(page, "Max 5 items") == "Max 5 items"

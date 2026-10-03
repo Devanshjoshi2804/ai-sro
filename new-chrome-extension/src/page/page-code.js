@@ -381,15 +381,58 @@
       walk(root, 0);
       return { docs: [...docs], blind };
     };
-    // `known` outlives the fields: it holds every secret value seen since the watcher started, in page memory only.
-    const secretsIn = (win, known) => {
+    // What this page has had typed in its secret fields, kept in this page's memory only: never in a message, log or
+    // storage, and cleared when the page goes. A field's value joins `known` when it is replaced (by something that is
+    // not just a longer version of it) or cleared; its current value is read from `last` at check time. So keystroke
+    // prefixes never enter `known`. Both the raw and the whitespace-collapsed form are kept, as `say` emits the latter.
+    const KNOWN_CAP = 256;
+    const KNOWN_CHARS = 512;
+    const memories = new WeakMap();
+    const memoryOf = (win) => {
+      let memory = memories.get(win);
+      if (!memory) {
+        memory = { known: new Map(), last: new WeakMap() };
+        memories.set(win, memory);
+        const doc = win.document;
+        doc.addEventListener("input", (e) => tried(() => seeField(memory, e.target), null), true);
+        win.addEventListener("pagehide", () => memory.known.clear());
+      }
+      return memory;
+    };
+    const formsOf = (value) => {
+      const raw = String(value).slice(0, KNOWN_CHARS).toLowerCase();
+      return [raw, plainOf(raw)].filter(Boolean);
+    };
+    const promote = (known, value) => {
+      for (const one of formsOf(value)) {
+        known.delete(one);
+        known.set(one, true);
+        if (known.size > KNOWN_CAP) known.delete(known.keys().next().value);
+      }
+    };
+    const seeField = (memory, el) => {
+      if (!isSecretField(el)) return;
+      const now = String(el.value || "");
+      const was = memory.last.get(el);
+      if (was && now !== was && !now.startsWith(was)) promote(memory.known, was);
+      memory.last.set(el, now);
+    };
+    const rememberSecrets = (win) => void memoryOf(win);
+    const MASKED = /[*\u2022]{3,}(?=[a-z0-9])|(?<=[a-z0-9])[*\u2022]{3,}|x{3,}(?=[a-wyz0-9])|(?<=[a-wyz0-9])x{3,}/i;
+    const secretsIn = (win) => {
+      const memory = memoryOf(win);
       const { docs, blind } = readableDocs(win);
       const fields = docs.flatMap((d) => [...d.querySelectorAll("input, textarea")].filter(isSecretField));
-      for (const el of fields) if (el.value) known.add(String(el.value).toLowerCase());
+      for (const el of fields) seeField(memory, el);
       const ids = new Set(fields.flatMap((el) => `${el.getAttribute("aria-describedby") || ""} ${el.getAttribute("aria-errormessage") || ""}`.split(/\s+/)).filter(Boolean));
       return {
         owns: (el) => (el.id && ids.has(el.id)) || [...el.querySelectorAll("input, textarea")].slice(0, 50).some(isSecretField),
-        quotes: (text) => Boolean(text) && (blind || [...known].some((one) => text.toLowerCase().includes(one))),
+        quotes: (text) => {
+          if (!text) return false;
+          if (blind || MASKED.test(text)) return true;
+          const lower = text.toLowerCase();
+          return [...memory.known.keys(), ...fields.flatMap((el) => formsOf(el.value || ""))].some((one) => lower.includes(one));
+        },
       };
     };
     const seenOf = (el, secrets) => {
@@ -426,11 +469,10 @@
     const routeOf = (win) => `${win.location.pathname}${win.location.hash}`;
     const watchEffect = (win, onDone) => {
       const doc = win.document;
-      const known = new Set();
       const clock = win.performance;
       const started = clock.now();
       const before = tried(() => fieldStates(doc), new Map());
-      tried(() => secretsIn(win, known), null);
+      tried(() => secretsIn(win), null);
       const routeBefore = tried(() => routeOf(win), null);
       const appeared = [];
       const vanished = [];
@@ -459,7 +501,7 @@
         tried(() => {
           // The page-wide reads below run only once something worth reading has appeared.
           let secrets = null;
-          const secretsNow = () => (secrets = secrets || secretsIn(win, known));
+          const secretsNow = () => (secrets = secrets || secretsIn(win));
           let busyMoved = false;
           for (const change of changes) {
             note(appeared, change.addedNodes, secretsNow);
@@ -478,14 +520,10 @@
         }, null);
       });
       observer.observe(doc, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-invalid", "disabled", "aria-disabled", "class", "style"] });
-      const onInput = (e) => {
-        if (isSecretField(e.target) && e.target.value) known.add(String(e.target.value).toLowerCase());
-      };
-      doc.addEventListener("input", onInput, true);
       const heard = (said) => {
         if (done || errors.length >= 10) return;
         const one = tried(() => say(String(said || "").replace(/\S+:\/\/\S+/g, "\u00abmasked\u00bb")), null);
-        if (one && !tried(() => secretsIn(win, known).quotes(one), true)) errors.push(one);
+        if (one && !tried(() => secretsIn(win).quotes(one), true)) errors.push(one);
       };
       const onError = (e) => heard(e.message || (e.reason && e.reason.message) || e.reason);
       const quietly = win.console.error;
@@ -500,7 +538,6 @@
         if (done) return null;
         done = true;
         observer.disconnect();
-        doc.removeEventListener("input", onInput, true);
         if (timer !== null) win.clearInterval(timer);
         win.removeEventListener("error", onError, true);
         win.removeEventListener("unhandledrejection", onError, true);
@@ -558,12 +595,12 @@
     };
     return {
       roleOf, ownName, nameOf, landmarkRole, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf,
-      labelOf, requiredOf, outlineOf, isSecretField, fullNameOf, siblingOf, choiceOf, versionOf, placeOf, watchEffect,
+      labelOf, requiredOf, outlineOf, isSecretField, fullNameOf, siblingOf, choiceOf, versionOf, placeOf, watchEffect, rememberSecrets,
     };
   })();
   const {
     roleOf, ownName, nameOf, landmarkRole, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf,
-    labelOf, requiredOf, outlineOf, isSecretField, fullNameOf, siblingOf, choiceOf, versionOf, placeOf, watchEffect,
+    labelOf, requiredOf, outlineOf, isSecretField, fullNameOf, siblingOf, choiceOf, versionOf, placeOf, watchEffect, rememberSecrets,
   } = readers;
 
   const shown = (el) => {

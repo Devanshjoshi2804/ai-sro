@@ -15,4 +15,7 @@
   window.__sroRecord = (json) => {
     window.dispatchEvent(new CustomEvent("sro:gesture", { detail: json }));
   };
+  window.__sroEffect = (json) => {
+    window.dispatchEvent(new CustomEvent("sro:effect", { detail: json }));
+  };
 })();

@@ -207,6 +207,25 @@ test("a gesture too large to relay tells the recorder it was dropped", () => {
   assert.deepEqual(dropped, [null]);
 });
 
+const effect = (world, detail) => world.window.dispatchEvent({ type: "sro:effect", detail });
+
+test("an effect is relayed once, as an effect", () => {
+  const world = aWorld();
+  run(world);
+  world.sent.length = 0;
+  effect(world, JSON.stringify({ of: "r.1", of_at: 1.5, effect: { appeared: [] } }));
+  assert.equal(world.sent.filter((one) => one.kind === "effect").length, 1);
+});
+
+test("an effect that names no gesture is not relayed", () => {
+  const world = aWorld();
+  run(world);
+  world.sent.length = 0;
+  effect(world, JSON.stringify({ effect: {} }));
+  effect(world, "not json");
+  assert.equal(world.sent.filter((one) => one.kind === "effect").length, 0);
+});
+
 for (const [name, fn] of tests) {
   try {
     await fn();

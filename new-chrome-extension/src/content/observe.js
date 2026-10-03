@@ -93,5 +93,18 @@
     });
   });
 
+  window.addEventListener("sro:effect", (event) => {
+    const json = event.detail;
+    if (typeof json !== "string" || json.length > MAX_GESTURE_CHARS) return;
+    let effect;
+    try {
+      effect = JSON.parse(json);
+    } catch {
+      return;
+    }
+    if (!effect || typeof effect.of !== "string" || typeof effect.of_at !== "number" || typeof effect.effect !== "object") return;
+    tell({ kind: "effect", effect, frameUrl: location.href });
+  });
+
   tell({ kind: "content-ready", url: location.href });
 })();

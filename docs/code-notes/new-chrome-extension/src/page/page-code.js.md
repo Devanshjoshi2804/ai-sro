@@ -154,7 +154,7 @@ Comments and docstrings moved out of [`new-chrome-extension/src/page/page-code.j
 > Keeping `innerText` for the common case leaves every existing locator's
 > name unchanged.
 
-## `ext`, [line 382](../../../../../new-chrome-extension/src/page/page-code.js#L382): Function
+## `ext`, [line 554](../../../../../new-chrome-extension/src/page/page-code.js#L554): Function
 
 > The DOM behind every visible component a query matches, through `partOf`:
 > for a click, a combobox's trigger arrow when it has one, otherwise its
@@ -221,7 +221,7 @@ Comments and docstrings moved out of [`new-chrome-extension/src/page/page-code.j
 > `aria-label` or `aria-labelledby`), since an unnamed dialog is not a scope
 > a runner could name back to a person.
 
-## `STRATEGIES`, [line 423](../../../../../new-chrome-extension/src/page/page-code.js#L423): Constant
+## `STRATEGIES`, [line 595](../../../../../new-chrome-extension/src/page/page-code.js#L595): Constant
 
 > The one order, spec §6.4, with `learned` prepended. `learned` is not one
 > of the eight: it is a locator a VERIFIED run already proved finds this
@@ -243,7 +243,7 @@ Comments and docstrings moved out of [`new-chrome-extension/src/page/page-code.j
 > recorded is tried last because it is the most literal, and the most
 > literal is what render-order ids like ExtJS's break first (`css_path`).
 
-## `score`, [line 452](../../../../../new-chrome-extension/src/page/page-code.js#L452): Function
+## `score`, [line 624](../../../../../new-chrome-extension/src/page/page-code.js#L624): Function
 
 > Only what `repair` has not already required: 3 for an exact accessible
 > name and 1 for a partial one (the live name contains the whole recorded
@@ -253,7 +253,7 @@ Comments and docstrings moved out of [`new-chrome-extension/src/page/page-code.j
 > landmarks are gates in `repair`, not points; `type` is not scored because
 > the role gate already says it.
 
-## `repair`, [line 465](../../../../../new-chrome-extension/src/page/page-code.js#L465): Function
+## `repair`, [line 637](../../../../../new-chrome-extension/src/page/page-code.js#L637): Function
 
 > Snapshot repair. Candidates must have exactly the recorded role and
 > exactly the recorded landmark path, a missing role means no repair, and
@@ -280,7 +280,7 @@ Comments and docstrings moved out of [`new-chrome-extension/src/page/page-code.j
 > uses, so the action alone cannot tell a safe click from one that writes.
 > These roles are refused regardless of action.
 
-## `find`, [line 477](../../../../../new-chrome-extension/src/page/page-code.js#L477): Function
+## `find`, [line 649](../../../../../new-chrome-extension/src/page/page-code.js#L649): Function
 
 > The ladder, then repair only when the payload says `write: false`, the
 > action is one of `REPAIRABLE_ACTIONS`, and the target's role is not one
@@ -290,7 +290,7 @@ Comments and docstrings moved out of [`new-chrome-extension/src/page/page-code.j
 > write whose every strategy missed answers `control_not_found` and the
 > lane drops to sight.
 
-## `actOn`, [line 511](../../../../../new-chrome-extension/src/page/page-code.js#L511): Function
+## `actOn`, [line 683](../../../../../new-chrome-extension/src/page/page-code.js#L683): Function
 
 > `perform`'s own acting half, moved out to module scope: the same click,
 > type, select, press, hover, scroll and upload-refusal, on whatever
@@ -307,7 +307,7 @@ Comments and docstrings moved out of [`new-chrome-extension/src/page/page-code.j
 > been inner closures of `perform` rather than functions in their own
 > right.
 
-## module, [line 1210](../../../../../new-chrome-extension/src/page/page-code.js#L1210): Comment
+## module, [line 1382](../../../../../new-chrome-extension/src/page/page-code.js#L1382): Comment
 
 Code: `globalThis.sroPage = sroPage;`
 
@@ -345,7 +345,7 @@ Code: `globalThis.sroPage = sroPage;`
 > the way the run expected, not by trusting whatever answered `sroPage`'s
 > name.
 
-## `perform`, [line 611](../../../../../new-chrome-extension/src/page/page-code.js#L611): Docstring
+## `perform`, [line 783](../../../../../new-chrome-extension/src/page/page-code.js#L783): Docstring
 
 > Find a control by the first locator that resolves, act on it, and say which
 > one worked.
@@ -354,7 +354,7 @@ Code: `globalThis.sroPage = sroPage;`
 > same skill, replayed on the server or in the operator's own browser, has to
 > find the same control or the two mediums are not interchangeable.
 
-## `perform`, [line 611](../../../../../new-chrome-extension/src/page/page-code.js#L611): Comment
+## `perform`, [line 783](../../../../../new-chrome-extension/src/page/page-code.js#L783): Comment
 
 > The rung's own scope first, then the command's.
 >
@@ -534,7 +534,7 @@ Code: `globalThis.sroPage = sroPage;`
 > settles that question from verified runs that agree more than once,
 > and never from one page's guess. (`nearby`, in the error)
 
-## `performAt`, [line 785](../../../../../new-chrome-extension/src/page/page-code.js#L785): Docstring
+## `performAt`, [line 957](../../../../../new-chrome-extension/src/page/page-code.js#L957): Docstring
 
 > Act at a point, because the gesture came from pixels rather than from a
 > control the demonstration identified. Coordinates are CSS pixels in the
@@ -544,7 +544,7 @@ Code: `globalThis.sroPage = sroPage;`
 > What the field would not take. See `landed` in `perform`: the same
 > rule, and the same reason it can only be known here. (`shortAt`)
 
-## `performAt`, [line 785](../../../../../new-chrome-extension/src/page/page-code.js#L785): Comment
+## `performAt`, [line 957](../../../../../new-chrome-extension/src/page/page-code.js#L957): Comment
 
 > A point inside a frame lands on the `<iframe>` itself from this document:
 > the events below would fire on the frame element and reach nothing, and
@@ -593,7 +593,7 @@ Code: `globalThis.sroPage = sroPage;`
 > a model looked at a picture to find it -- and naming it is what lets
 > the next run find it with a locator instead. (`control`, in the reply)
 
-## `screenSize`, [line 926](../../../../../new-chrome-extension/src/page/page-code.js#L926): Docstring
+## `screenSize`, [line 1098](../../../../../new-chrome-extension/src/page/page-code.js#L1098): Docstring
 
 > How big the screen is and where it is, and nothing else.
 >
@@ -602,7 +602,7 @@ Code: `globalThis.sroPage = sroPage;`
 > that looks actually needs -- the digest beside it is a help, and a help that
 > costs the command its deadline is not one.
 
-## `viewport`, [line 935](../../../../../new-chrome-extension/src/page/page-code.js#L935): Docstring
+## `viewport`, [line 1107](../../../../../new-chrome-extension/src/page/page-code.js#L1107): Docstring
 
 > The visible controls and where they are, plus the size of the space those
 > coordinates are in.
@@ -613,7 +613,7 @@ Code: `globalThis.sroPage = sroPage;`
 > are out by the display's scale factor, which on any retina screen is a click
 > halfway up the page.
 
-## `viewport`, [line 935](../../../../../new-chrome-extension/src/page/page-code.js#L935): Comment
+## `viewport`, [line 1107](../../../../../new-chrome-extension/src/page/page-code.js#L1107): Comment
 
 > Bounded, because this used to walk the whole document and the document is
 > a warehouse grid.
@@ -699,7 +699,7 @@ Code: `globalThis.sroPage = sroPage;`
 > was being described at `y: 4300` in a space that ends at 1000. Wrong as
 > well as slow. (the `rect.bottom < 0 || ...` guard)
 
-## `csrfToken`, [line 1011](../../../../../new-chrome-extension/src/page/page-code.js#L1011): Docstring
+## `csrfToken`, [line 1183](../../../../../new-chrome-extension/src/page/page-code.js#L1183): Docstring
 
 > The one header this extension knows how to read live: Blue Yonder keeps
 > its write token in a page-level JS global, never in a cookie, so a
@@ -708,7 +708,7 @@ Code: `globalThis.sroPage = sroPage;`
 > reachable from the isolated world `send` runs in -- and answers
 > `null`, never throws, when the page has no such global to read.
 
-## `requestedWith`, [line 1015](../../../../../new-chrome-extension/src/page/page-code.js#L1015): Docstring
+## `requestedWith`, [line 1187](../../../../../new-chrome-extension/src/page/page-code.js#L1187): Docstring
 
 > What this page marks its own XHRs with.
 >
@@ -726,7 +726,7 @@ Code: `globalThis.sroPage = sroPage;`
 > routed. Nothing is carried from the backend either way: the name is asked
 > for, the value is found here.
 
-## `send`, [line 1021](../../../../../new-chrome-extension/src/page/page-code.js#L1021): Docstring
+## `send`, [line 1193](../../../../../new-chrome-extension/src/page/page-code.js#L1193): Docstring
 
 > Send a request from a tab that is already on that origin, so the operator's
 > own session applies -- which is why a skill can be replayed against a system
@@ -736,7 +736,7 @@ Code: `globalThis.sroPage = sroPage;`
 > patched `fetch` is not the one called here: a replayed request must not
 > arrive in the evidence plane looking like something the operator did.
 
-## `send`, [line 1021](../../../../../new-chrome-extension/src/page/page-code.js#L1021): Comment
+## `send`, [line 1193](../../../../../new-chrome-extension/src/page/page-code.js#L1193): Comment
 
 > Bounded, and it says how long it took either way.
 >
@@ -790,7 +790,7 @@ Code: `globalThis.sroPage = sroPage;`
 > all: the two facts that tell a refusal from a stall, and neither of
 > them costs anything to collect. (the final `unreachable` detail)
 
-## `hitTest`, [line 1140](../../../../../new-chrome-extension/src/page/page-code.js#L1140): Function
+## `hitTest`, [line 1312](../../../../../new-chrome-extension/src/page/page-code.js#L1312): Function
 
 > Sight's other half: `viewport` tells the model where things are, and a
 > model's answer is a point, which is only useful to a future run if it
@@ -816,7 +816,7 @@ Code: `globalThis.sroPage = sroPage;`
 > and gains one entry per sight point; clear it per step if a page ever
 > lives through enough sight steps for that to matter.
 
-## `act`, [line 1105](../../../../../new-chrome-extension/src/page/page-code.js#L1105): Function
+## `act`, [line 1277](../../../../../new-chrome-extension/src/page/page-code.js#L1277): Function
 
 > Resolve, act through `actOn`, and pin what was touched: `pin` is a random
 > token and `globalThis.__sroActed` holds the element under it, so `holds`
@@ -855,7 +855,7 @@ Code: `globalThis.sroPage = sroPage;`
 > and failed. `undefined` means "not a state control"; `null` means a select
 > with nothing chosen.
 
-## `stateOf`, [line 492](../../../../../new-chrome-extension/src/page/page-code.js#L492): Function
+## `stateOf`, [line 664](../../../../../new-chrome-extension/src/page/page-code.js#L664): Function
 
 > The state `act` answers and `holds` compares. A state control reads through
 > `settingOf`, in the recorder's words; any other control reads its live
@@ -865,7 +865,7 @@ Code: `globalThis.sroPage = sroPage;`
 > `{value: null, visible: false, enabled: null}`, so a recorded "gone once
 > done" holds and a recorded "still shown" does not.
 
-## `holds`, [line 1122](../../../../../new-chrome-extension/src/page/page-code.js#L1122): Function
+## `holds`, [line 1294](../../../../../new-chrome-extension/src/page/page-code.js#L1294): Function
 
 > Whether the element `act` pinned (`payload.pin`) matches
 > `payload.expect`, read through `stateOf` -- the recorder's vocabulary, so an
@@ -889,7 +889,7 @@ Code: `globalThis.sroPage = sroPage;`
 > into the wrong field, or a click on any element that is merely visible
 > and enabled, never holds.
 
-## `signals`, [line 1193](../../../../../new-chrome-extension/src/page/page-code.js#L1193): Function
+## `signals`, [line 1365](../../../../../new-chrome-extension/src/page/page-code.js#L1365): Function
 
 > S6: what the page's own inputs say about it, never what was typed into
 > them. Only inputs `shown` passes count -- the one visibility rule this file
@@ -904,7 +904,7 @@ Code: `globalThis.sroPage = sroPage;`
 > the sign-in capture rule (E7 security ruling, spec §5.6) that a sign-in
 > page's evidence never carries what was typed into it.
 
-## `sroPage`, [line 1102](../../../../../new-chrome-extension/src/page/page-code.js#L1102): Function
+## `sroPage`, [line 1274](../../../../../new-chrome-extension/src/page/page-code.js#L1274): Function
 
 Code: `const held = f.el && !isSecretField(f.el) && typeof f.el.value === "string" ? f.el.value : null;`
 
@@ -1072,7 +1072,7 @@ Code: `const held = f.el && !isSecretField(f.el) && typeof f.el.value === "strin
 > with `sroPage.outline()` -- one text, spliced into the recorder with the
 > other readers.
 
-## `outline`, [line 1205](../../../../../new-chrome-extension/src/page/page-code.js#L1205): Function
+## `outline`, [line 1377](../../../../../new-chrome-extension/src/page/page-code.js#L1377): Function
 
 > `outlineOf(document)` for Steel (X10): the screen as the recorder would
 > send it, read on demand from the live page.
@@ -1096,3 +1096,11 @@ Code: `const held = f.el && !isSecretField(f.el) && typeof f.el.value === "strin
 ## `placeOf`, [line 314](../../../../../new-chrome-extension/src/page/page-code.js#L314): Function
 
 > Where the person was: route, title, the first visible headings, the active tabs, the grid's title, the labelled dialogs and forms, and the build. Read-only, capped, text only.
+
+## `secretsIn`, [line 359](../../../../../new-chrome-extension/src/page/page-code.js#L359): Function
+
+> What a secret field leaves in the page: its current value and the ids its aria-describedby/aria-errormessage point at. A noticed element that is one of those ids, or holds a secret field, is dropped; any text quoting a secret's value is dropped. The value is only compared, never returned.
+
+## `watchEffect`, [line 400](../../../../../new-chrome-extension/src/page/page-code.js#L400): Function
+
+> What changed on the page after one gesture. Ends on 500 ms of quiet, 3 s at most, or the next gesture (`finish("next")`), and always disconnects its MutationObserver and restores `console.error` (only if nobody wrapped it after us). Request timing comes from Resource Timing, so the app's network is never patched. Fields are read as states only (enabled, shown, invalid), never values; every text goes through `say`. Each reader is wrapped so a failure loses only its key. Shortcuts ride on the open watcher rather than becoming gestures.

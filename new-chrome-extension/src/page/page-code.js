@@ -337,14 +337,186 @@
         version: versionOf(doc),
       };
     };
+    const EFFECT_QUIET_MS = 500;
+    const EFFECT_MAX_MS = 3000;
+    const EFFECT_ITEMS = 20;
+    const NOTICED = "dialog, [role=dialog], [role=alertdialog], [role=alert], [role=status], [role=row], .x-mask, .x-toast, .x-window, [role=progressbar], .x-form-error-msg";
+    const BUSY = ".x-mask, [role=progressbar], [aria-busy=true]";
+    const tried = (read, otherwise) => {
+      try {
+        return read();
+      } catch {
+        return otherwise;
+      }
+    };
+    const roleSeen = (el) => {
+      if (el.matches(".x-mask, [role=progressbar]")) return "mask";
+      if (el.matches(".x-toast")) return "toast";
+      if (el.matches(".x-form-error-msg")) return "invalid";
+      if (el.matches(".x-window") || el.tagName === "DIALOG") return "dialog";
+      return el.getAttribute("role");
+    };
+    const secretsIn = (doc) => {
+      const fields = [...doc.querySelectorAll("input, textarea")].slice(0, 200).filter(isSecretField);
+      const values = fields.map((el) => String(el.value || "").toLowerCase()).filter(Boolean);
+      const ids = new Set(fields.flatMap((el) => `${el.getAttribute("aria-describedby") || ""} ${el.getAttribute("aria-errormessage") || ""}`.split(/\s+/)).filter(Boolean));
+      return {
+        owns: (el) => (el.id && ids.has(el.id)) || [...el.querySelectorAll("input, textarea")].slice(0, 50).some(isSecretField),
+        quotes: (text) => Boolean(text) && values.some((one) => text.toLowerCase().includes(one)),
+      };
+    };
+    const seenOf = (el, secrets) => {
+      const role = roleSeen(el);
+      const dialog = role === "dialog" || role === "alertdialog";
+      const heading = dialog ? el.querySelector(".x-title-text, [role=heading], h1, h2, h3") : null;
+      const said = (text) => {
+        const one = say(text);
+        return one && !secrets.quotes(one) ? one : null;
+      };
+      return {
+        role,
+        text: said(el.innerText),
+        title: heading ? said(heading.innerText) : dialog ? said(ownName(el)) : null,
+        buttons: dialog
+          ? [...el.querySelectorAll("button, [role=button], .x-btn")].slice(0, 16).map((one) => said(one.innerText)).filter(Boolean).slice(0, 8)
+          : [],
+      };
+    };
+    const fieldStates = (doc) =>
+      new Map(
+        [...doc.querySelectorAll("input, select, textarea, [role=combobox], [role=textbox]")]
+          .slice(0, 400)
+          .filter((el) => !isSecretField(el))
+          .map((el) => [
+            el,
+            {
+              enabled: !(el.disabled === true || el.getAttribute("aria-disabled") === "true"),
+              shown: el.getClientRects().length > 0,
+              invalid: el.getAttribute("aria-invalid") === "true" || Boolean(el.closest(".x-form-invalid, .x-field-invalid")),
+            },
+          ]),
+      );
+    const routeOf = (win) => `${win.location.pathname}${win.location.hash}`;
+    const watchEffect = (win, onDone) => {
+      const doc = win.document;
+      const clock = win.performance;
+      const started = clock.now();
+      const before = tried(() => fieldStates(doc), new Map());
+      const routeBefore = tried(() => routeOf(win), null);
+      const appeared = [];
+      const vanished = [];
+      const errors = [];
+      const shortcuts = [];
+      let lastChange = started;
+      let busySince = tried(() => doc.querySelector(BUSY), null) ? started : null;
+      let busyMs = 0;
+      let done = false;
+      let timer = null;
+      const noticedIn = (node) =>
+        node.nodeType === 1 ? [node.matches(NOTICED) ? node : null, ...[...node.querySelectorAll(NOTICED)].slice(0, EFFECT_ITEMS)].filter(Boolean) : [];
+      const note = (into, nodes, secrets) => {
+        for (const node of nodes) {
+          if (into.length >= EFFECT_ITEMS) return;
+          for (const el of noticedIn(node)) {
+            if (into.length >= EFFECT_ITEMS) return;
+            if (!secrets.owns(el)) into.push(seenOf(el, secrets));
+          }
+        }
+      };
+      const observer = new win.MutationObserver((changes) => {
+        lastChange = clock.now();
+        tried(() => {
+          const secrets = secretsIn(doc);
+          for (const change of changes) {
+            note(appeared, change.addedNodes, secrets);
+            note(vanished, change.removedNodes, secrets);
+          }
+          const busy = [...doc.querySelectorAll(BUSY)].slice(0, 20).some((el) => el.getClientRects().length > 0);
+          if (busy && busySince === null) busySince = clock.now();
+          if (!busy && busySince !== null) {
+            busyMs += clock.now() - busySince;
+            busySince = null;
+          }
+        }, null);
+      });
+      observer.observe(doc, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-invalid", "disabled", "aria-disabled", "class", "style"] });
+      const heard = (said) => {
+        if (errors.length >= 10) return;
+        const one = tried(() => say(String(said || "").replace(/\S+:\/\/\S+/g, "\u00abmasked\u00bb")), null);
+        if (one && !tried(() => secretsIn(doc).quotes(one), true)) errors.push(one);
+      };
+      const onError = (e) => heard(e.message || (e.reason && e.reason.message) || e.reason);
+      const quietly = win.console.error;
+      const loudly = function (...args) {
+        tried(() => heard(args.map(String).join(" ")), null);
+        return quietly.apply(this, args);
+      };
+      win.console.error = loudly;
+      win.addEventListener("error", onError, true);
+      win.addEventListener("unhandledrejection", onError, true);
+      const finish = (ended) => {
+        if (done) return null;
+        done = true;
+        observer.disconnect();
+        if (timer !== null) win.clearInterval(timer);
+        win.removeEventListener("error", onError, true);
+        win.removeEventListener("unhandledrejection", onError, true);
+        if (win.console.error === loudly) win.console.error = quietly;
+        const now = clock.now();
+        if (busySince !== null) busyMs += now - busySince;
+        const fields = tried(() => {
+          const after = fieldStates(doc);
+          const found = [];
+          for (const [el, was] of before) {
+            const is = after.get(el);
+            const label = is ? say(labelOf(el)) : null;
+            if (!label) continue;
+            if (was.enabled !== is.enabled) found.push({ label, change: is.enabled ? "enabled" : "disabled" });
+            if (was.shown !== is.shown) found.push({ label, change: is.shown ? "shown" : "hidden" });
+            if (was.invalid !== is.invalid) found.push({ label, change: is.invalid ? "invalid" : "valid" });
+          }
+          return found.slice(0, 40);
+        }, []);
+        const loaded = tried(
+          () => clock.getEntriesByType("resource").filter((one) => one.startTime >= started && (one.initiatorType === "fetch" || one.initiatorType === "xmlhttprequest")).slice(0, 200),
+          [],
+        );
+        const effect = {
+          appeared,
+          vanished,
+          route_before: routeBefore,
+          route_after: tried(() => routeOf(win), null),
+          fields,
+          requests_ms: loaded.length ? Math.round(Math.max(...loaded.map((one) => one.responseEnd)) - started) : null,
+          mask_ms: busyMs ? Math.round(busyMs) : null,
+          quiet_ms: Math.round(lastChange - started),
+          ended,
+          errors,
+          shortcuts,
+        };
+        if (onDone) tried(() => onDone(effect), null);
+        return effect;
+      };
+      timer = win.setInterval(() => {
+        const now = clock.now();
+        if (now - started >= EFFECT_MAX_MS) finish("max");
+        else if (now - lastChange >= EFFECT_QUIET_MS) finish("quiet");
+      }, 100);
+      return {
+        finish,
+        shortcut: (keys) => {
+          if (!done && shortcuts.length < 10) shortcuts.push(keys);
+        },
+      };
+    };
     return {
       roleOf, ownName, nameOf, landmarkRole, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf,
-      labelOf, requiredOf, outlineOf, isSecretField, fullNameOf, siblingOf, choiceOf, versionOf, placeOf,
+      labelOf, requiredOf, outlineOf, isSecretField, fullNameOf, siblingOf, choiceOf, versionOf, placeOf, watchEffect,
     };
   })();
   const {
     roleOf, ownName, nameOf, landmarkRole, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf,
-    labelOf, requiredOf, outlineOf, isSecretField, fullNameOf, siblingOf, choiceOf, versionOf, placeOf,
+    labelOf, requiredOf, outlineOf, isSecretField, fullNameOf, siblingOf, choiceOf, versionOf, placeOf, watchEffect,
   } = readers;
 
   const shown = (el) => {

@@ -1443,6 +1443,7 @@ async function handle(message, sender) {
       return { ok: true };
     }
     case "gesture":
+    case "effect":
     case "request": {
       // Every captured event is judged here, at the one point they all pass
       // through, rather than by whether a content script happens to be
@@ -1490,6 +1491,16 @@ async function handle(message, sender) {
       // page's own `location.href` and every event carries the frame it
       // happened in, and either can be the callback URL with the token in it.
 
+      if (message.kind === "effect") {
+        await queue.enqueue({
+          ...message.effect,
+          kind: "effect",
+          url: redactUrl(message.effect?.url),
+          tab_id,
+          frame_url: redactUrl(frameUrl),
+        });
+        return { ok: true };
+      }
       if (message.kind === "gesture") {
         // Taken before the row is written so the picture and the gesture are
         // one row: nothing to key together afterwards, and nothing left

@@ -29,7 +29,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/reco
 > previous target's state and resets it, it does not skip it), and after the
 > worker says it did not keep the gesture that set them (`sro:dropped`).
 
-## `emit`, [line 250](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L250): Docstring
+## `emit`, [line 258](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L258): Docstring
 
 > A control keeps changing after the gesture that touched it fires -- a
 > spinner clears, a field disables, a box stays ticked -- so there is no
@@ -45,7 +45,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/reco
 > its after-state arrives in the next batch and is not joined (see
 > correlate.py's notes).
 
-## module, [line 281](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L281): Comment
+## module, [line 296](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L296): Comment
 
 Code: `listen('sro:dropped', (e) => {`
 
@@ -68,7 +68,7 @@ Code: `listen('sro:dropped', (e) => {`
 > either. Outlines are capped well under that limit (page-code.js
 > `OUTLINE_CHARS`), so it should not happen.
 
-## `OUTLINES_PER_GESTURE`, [line 71](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L71): Constant
+## `OUTLINES_PER_GESTURE`, [line 79](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L79): Constant
 
 > At most three screens ride on one gesture record: the ones seen since this
 > frame's previous gesture, oldest dropped first. A screen equal to the last
@@ -76,13 +76,13 @@ Code: `listen('sro:dropped', (e) => {`
 > unchanged page is not resent. A message keeps only its role, so a status
 > whose text ticks does not produce a new screen per tick.
 
-## `takeOutline`, [line 75](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L75): Function
+## `takeOutline`, [line 83](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L83): Function
 
 > Reads `outlineOf(document)` and keeps it when the screen changed. A throw is
 > swallowed: an outline the page cannot give must not cost the gesture it
 > would have ridden on.
 
-## `appeared`, [line 86](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L86): Function
+## `appeared`, [line 94](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L94): Function
 
 > When a screen is outlined between gestures. `emit` always reads one; this
 > adds the screens that come and go before anyone acts: a dialog or form
@@ -94,12 +94,16 @@ Code: `listen('sro:dropped', (e) => {`
 > screen that gesture produced (a confirmation, an error) is not sent until
 > the operator acts again.
 
-## `WATCHING`, [line 93](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L93): Constant
+## `WATCHING`, [line 101](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L101): Constant
 
 > The observer is kept on the window and disconnected before a new one is made,
 > for the same reason the listeners are (`__sroHandlers`): installing the
 > recorder again must not leave two observers outlining one page.
 
-## `placeNow`, [line 226](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L226): Function
+## `placeNow`, [line 234](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L234): Function
 
 > Also `choiceNow`, and the `describe` keys labelText, fullName, siblingIndex, siblingCount. These keys are additions for later checks and locators. None of them is read by `targetIdentity` or `screenOf`, so a recording's identity does not move when they are present. A credential field records no label and no name. `placeNow`, `choiceNow` and each of those describe keys never throw: a page that breaks a reader loses that key, not the gesture.
+
+## `sendEffect`, [line 71](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L71): Function
+
+> Sends one effect keyed to its gesture (`of` is the gesture's ref, `of_at` its `at`), through `window.__sroEffect`. `emit` first finishes the open watcher with `"next"`, so an effect never outlives the gesture after it. A shortcut (ctrl/meta/alt plus a character) is added to the open watcher and is not a gesture: a new gesture kind would change shape keys.

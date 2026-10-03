@@ -47,7 +47,7 @@
   // docs/code-notes/new-chrome-extension/src/page/page-code.js.md.
   const {
     roleOf, nameOf, landmarksOf, cmpOf, chainOf, xpathOf, boundsOf, framePathOf, settingOf, requiredOf, outlineOf,
-    isSecretField, labelOf, fullNameOf, siblingOf, choiceOf, placeOf,
+    isSecretField, labelOf, fullNameOf, siblingOf, choiceOf, placeOf, watchEffect,
   } = __PAGE_READERS__;
 
   const stateOf = (el) => {
@@ -67,6 +67,14 @@
   let count = 0;
   let last = null;
   let lastRef = null;
+  let watching = null;
+  const sendEffect = (of, of_at) => (effect) => {
+    try {
+      window.__sroEffect(
+        JSON.stringify({ of, of_at, effect, frame_path: framePathOf(window), url: location.href }),
+      );
+    } catch {}
+  };
 
   const OUTLINES_PER_GESTURE = 3;
   const OUTLINED = 'form, dialog, [role=dialog], [role=alertdialog], [role=form], [role=alert], [role=status]';
@@ -248,6 +256,8 @@
   };
 
   const emit = (record, el = null) => {
+    if (watching) watching.finish('next');
+    const at = Date.now() / 1000;
     count += 1;
     const ref = `${REALM}.${count}`;
     const prior = last ? stateOf(last) : null;
@@ -267,7 +277,7 @@
           outlines: sent,
           place: placeNow(),
           frame_path: framePathOf(window),
-          at: Date.now() / 1000,
+          at,
           url: location.href,
         }),
       );
@@ -275,6 +285,11 @@
       seenOutline = null;
       // The binding is not installed yet, or the frame is being torn down.
       // Losing a gesture is preferable to breaking the page the operator is using.
+    }
+    try {
+      watching = watchEffect(window, sendEffect(ref, at));
+    } catch {
+      watching = null;
     }
   };
 
@@ -335,6 +350,9 @@
   });
 
   listen('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey || e.altKey) && e.key.length === 1 && watching) {
+      watching.shortcut([...modifiers(e), e.key.toLowerCase()].join('+'));
+    }
     // Only keys that commit or cancel. Every other keystroke arrives as the
     // `change` value above.
     if (!['Enter', 'Escape', 'Tab'].includes(e.key)) return;

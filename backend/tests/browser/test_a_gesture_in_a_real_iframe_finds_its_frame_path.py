@@ -19,7 +19,6 @@ below would be captured by nobody and prove nothing.
 from __future__ import annotations
 
 import json
-import queue
 import threading
 import time
 from http.server import ThreadingHTTPServer
@@ -161,7 +160,6 @@ def _flush_until_two_clicks_arrive(
 @pytest.fixture
 def frames() -> Any:
     _Stub.batches = []
-    _Stub.channels = queue.Queue()
     server = ThreadingHTTPServer(("127.0.0.1", 0), _Frames)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()

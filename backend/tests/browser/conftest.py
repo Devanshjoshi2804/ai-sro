@@ -18,7 +18,6 @@ verbatim. `tests/contract/` already proves those bytes parse into the domain.
 from __future__ import annotations
 
 import json
-import queue
 import threading
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
@@ -28,8 +27,6 @@ from typing import Any, ClassVar
 from urllib.parse import urlsplit
 
 import pytest
-
-from tests.browser.ws import Channel, accept_key, decode
 
 EXTENSION = Path(__file__).resolve().parents[3] / "new-chrome-extension"
 
@@ -240,7 +237,7 @@ class _Stub(BaseHTTPRequestHandler):
     batches: ClassVar[list[dict[str, Any]]] = []
     artifacts: ClassVar[list[dict[str, Any]]] = []
     fumble_artifacts: ClassVar[int] = 0
-    channels: ClassVar[queue.Queue[Channel]] = queue.Queue()
+    stops: ClassVar[list[str]] = []
     purges: ClassVar[list[str]] = []
     shape_queries: ClassVar[list[str]] = []
     rig_presses: ClassVar[list[dict[str, Any]]] = []
@@ -323,8 +320,6 @@ class _Stub(BaseHTTPRequestHandler):
         self._send(204, b"")
 
     def do_GET(self) -> None:
-        if "websocket" in self.headers.get("Upgrade", "").lower():
-            return self._upgrade()
         if not self._proved_it_is_itself():
             return None
         if self.path.startswith("/v1/agents/") and self.path.endswith("/watches"):
@@ -427,44 +422,6 @@ class _Stub(BaseHTTPRequestHandler):
             return
         self._send(200, PAGE.encode(), "text/html; charset=utf-8")
 
-    def _upgrade(self) -> None:
-        """The command channel, on the same port everything else is on.
-
-        The credential rides in the subprotocol, and one has to be echoed or
-        Chrome fails the connection -- which would look exactly like an
-        extension that never dialled.
-        """
-        offered = [p.strip() for p in self.headers.get("Sec-WebSocket-Protocol", "").split(",")]
-        # `bearer`, the tenant credential, and the device's own secret. A
-        # browser cannot set a header on a WebSocket, so the secret rides here
-        # beside the credential -- and a socket that opened without it would be
-        # the one device-scoped path this suite left unproved.
-        if len(offered) < 3 or offered[2] != DEVICE_SECRET:
-            self.send_response(403)
-            self.end_headers()
-            return
-        self.send_response(101)
-        self.send_header("Upgrade", "websocket")
-        self.send_header("Connection", "Upgrade")
-        self.send_header("Sec-WebSocket-Accept", accept_key(self.headers["Sec-WebSocket-Key"]))
-        if offered:
-            self.send_header("Sec-WebSocket-Protocol", offered[0])
-        self.end_headers()
-        self.wfile.flush()
-
-        channel = Channel(self.wfile)
-        _Stub.channels.put(channel)
-        while True:
-            opcode, payload = decode(self.rfile)
-            if opcode == 8:
-                return
-            if opcode != 1:
-                continue
-            try:
-                channel.messages.put(json.loads(payload))
-            except json.JSONDecodeError:
-                continue
-
     def do_DELETE(self) -> None:
         _Stub.purges.append(self.path)
         self._send(200, json.dumps({"batches": 2, "events": 34, "artifacts": 5}).encode())
@@ -511,6 +468,10 @@ class _Stub(BaseHTTPRequestHandler):
             }
             _Stub.rig_runs["run_pressed"] = run
             self._send(201, json.dumps(run).encode())
+            return
+        if route.startswith("/v1/runs/") and route.endswith("/stop"):
+            _Stub.stops.append(route)
+            self._send(200, b"{}")
             return
         if self.path == "/v1/agents/register":
             self._send(
@@ -707,7 +668,7 @@ def stub() -> Iterator[tuple[str, list[dict[str, Any]]]]:
     _Stub.batches = []
     _Stub.artifacts = []
     _Stub.fumble_artifacts = 0
-    _Stub.channels = queue.Queue()
+    _Stub.stops = []
     _Stub.purges = []
     _Stub.shape_queries = []
     _Stub.rig_presses = []
@@ -718,8 +679,8 @@ def stub() -> Iterator[tuple[str, list[dict[str, Any]]]]:
     _Stub.run_previews = []
     _Stub.run_wrongs = []
     _Stub.runs = {}
-    # Threading, because the command channel holds its connection open for the
-    # length of the test: on a single-threaded server that one socket is the
+    # Threading, because the panel's event stream holds its connection open for
+    # the length of the test: on a single-threaded server that one socket is the
     # whole server, and every upload behind it waits forever.
     server = ThreadingHTTPServer(("127.0.0.1", 0), _Stub)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -840,17 +801,9 @@ def fumble_artifacts(stub: tuple[str, list[dict[str, Any]]]) -> Callable[[int], 
 
 
 @pytest.fixture
-def channel(stub: tuple[str, list[dict[str, Any]]]) -> Callable[[], Channel]:
-    """The socket the extension dialled, once it has. Waits for it rather than
-    assuming: the extension opens it a moment after registration lands."""
-
-    def dialled(timeout: float = 20.0) -> Channel:
-        try:
-            return _Stub.channels.get(timeout=timeout)
-        except queue.Empty:
-            raise AssertionError("the extension never opened a command channel") from None
-
-    return dialled
+def stops(stub: tuple[str, list[dict[str, Any]]]) -> list[str]:
+    """The `POST /v1/runs/{id}/stop` calls the extension made, as sent."""
+    return _Stub.stops
 
 
 @pytest.fixture

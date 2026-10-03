@@ -28,7 +28,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/observation/redact
 > `tests/unit/domain/rig/test_trim.py` is what says the two copies of the
 > extension's rule still agree with the extension.
 
-## `shapes_in`, [line 143](../../../../../../../backend/src/sro/domain/observation/redaction.py#L143): Docstring
+## `shapes_in`, [line 70](../../../../../../../backend/src/sro/domain/observation/redaction.py#L70): Docstring
 
 > Which credential shapes appear in this text, in the order first seen.
 >
@@ -38,7 +38,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/observation/redact
 > apart -- while the marker left behind is the same either way, so nothing
 > downstream has to learn a second convention.
 
-## `redact_shapes`, [line 154](../../../../../../../backend/src/sro/domain/observation/redaction.py#L154): Docstring
+## `redact_shapes`, [line 81](../../../../../../../backend/src/sro/domain/observation/redaction.py#L81): Docstring
 
 > The same text with every credential-shaped run replaced.
 >
@@ -48,20 +48,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/observation/redact
 > arrived. Text with no credential in it comes back identical, which is what
 > lets this run over a URL that must not be re-encoded.
 
-## `_words_of`, [line 160](../../../../../../../backend/src/sro/domain/observation/redaction.py#L160): Docstring
-
-> camelCase, snake_case and "Shipping Date" alike, split into words.
->
-> The acronym rule is `([A-Z]{2,})([A-Z][a-z])` and deliberately not
-> `([A-Z]+)([A-Z][a-z])`: the wider one splits the lone `N` off
-> `pickNPassAutoDropLocation` and leaves `Pass` bare, blanking a real
-> warehouse field ("Pick N Pass"). Two-or-more needs three capitals in a row
-> before it cuts, so `SAMLResponse` splits into saml/response -- which is what
-> makes the word `saml` worth having -- and `NPass` stays whole. Measured over
-> 3,270 distinct field, header and query-parameter names from the real acme
-> store plus knowledge-base/http/exchanges: it changes none of them.
-
-## `is_secret_name`, [line 166](../../../../../../../backend/src/sro/domain/observation/redaction.py#L166): Docstring
+## `is_secret_name`, [line 8](../../../../../../../backend/src/sro/domain/observation/redaction.py#L8): Docstring
 
 > Whether a field called this holds a credential.
 >
@@ -70,7 +57,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/observation/redact
 > "Shipping Date Escalation". The joined form is checked too, so `apiKey`
 > and `api_key` both match `apikey`.
 
-## `_redact_query`, [line 186](../../../../../../../backend/src/sro/domain/observation/redaction.py#L186): Docstring
+## `_redact_query`, [line 102](../../../../../../../backend/src/sro/domain/observation/redaction.py#L102): Docstring
 
 > An `a=b&c=d` string with every credential-named value replaced.
 >
@@ -83,7 +70,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/observation/redact
 > it. A pair with no `=` is given one, as the extension does: the name alone
 > is what matched.
 
-## `redact_url`, [line 199](../../../../../../../backend/src/sro/domain/observation/redaction.py#L199): Docstring
+## `redact_url`, [line 115](../../../../../../../backend/src/sro/domain/observation/redaction.py#L115): Docstring
 
 > A URL with credential-named query and fragment values replaced.
 >
@@ -105,19 +92,19 @@ Comments and docstrings moved out of [`backend/src/sro/domain/observation/redact
 >
 > An unparseable URL is still left alone rather than guessed at.
 
-## `redact_data`, [line 226](../../../../../../../backend/src/sro/domain/observation/redaction.py#L226): Docstring
+## `redact_data`, [line 142](../../../../../../../backend/src/sro/domain/observation/redaction.py#L142): Docstring
 
 > The same rule at every depth, through dicts and lists alike.
 >
 > The flat version of this guarded the top level of a JSON object and
 > nothing else, so `{"auth": {"password": ...}}` walked straight past it.
 
-## `_redact_multipart`, [line 271](../../../../../../../backend/src/sro/domain/observation/redaction.py#L271): Docstring
+## `_redact_multipart`, [line 187](../../../../../../../backend/src/sro/domain/observation/redaction.py#L187): Docstring
 
 > A part names its field on one line and carries the value on another, so
 > the pair scanner never sees the two together and cannot act on the name.
 
-## `_redact_named`, [line 289](../../../../../../../backend/src/sro/domain/observation/redaction.py#L289): Docstring
+## `_redact_named`, [line 205](../../../../../../../backend/src/sro/domain/observation/redaction.py#L205): Docstring
 
 > One body, whatever shape it is, with every credential-named value gone.
 >
@@ -131,7 +118,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/observation/redact
 > replaced wholesale. An unparsed body that might hold a credential is the
 > failure; a body replaced entirely is legible and safe.
 
-## `redact_body`, [line 305](../../../../../../../backend/src/sro/domain/observation/redaction.py#L305): Docstring
+## `redact_body`, [line 221](../../../../../../../backend/src/sro/domain/observation/redaction.py#L221): Docstring
 
 > The name rule above, then the shape rule over whatever it produced.
 >
@@ -140,7 +127,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/observation/redact
 > judge -- including through a body no parser fitted and through one replaced
 > by UNINSPECTABLE, where the name rule gave up entirely.
 
-## module, [line 7](../../../../../../../backend/src/sro/domain/observation/redaction.py#L7): Comment
+## module, [line 10](../../../../../../../backend/src/sro/domain/observation/redaction.py#L10): Comment
 
 Code: `SECRET_HEADERS = frozenset(`
 
@@ -155,23 +142,14 @@ Code: `SECRET_HEADERS = frozenset(`
 > and `body_keys` below needs the same vocabulary: one copy, imported the one
 > direction the layering allows.
 
-## module, [line 39](../../../../../../../backend/src/sro/domain/observation/redaction.py#L39): Comment
-
-Code: `SECRET_WORDS = frozenset(`
-
-> Mirrors SECRET_WORDS and isSecretName in the same extension module. Here for
-> the reason the header rule above is: the wire models apply it to everything
-> that reaches the store and `body_keys` applies it again to everything that
-> reaches a prompt, and only one of those two may import the other.
-
-## module, [line 115](../../../../../../../backend/src/sro/domain/observation/redaction.py#L115): Comment
+## module, [line 42](../../../../../../../backend/src/sro/domain/observation/redaction.py#L42): Comment
 
 Code: `UNINSPECTABLE = "«whole body: could not be parsed to redact»"`
 
 > Stored in place of a body this process could not parse to redact. The
 > extension writes the same sentence in redacted_fields for the same reason.
 
-## module, [line 117](../../../../../../../backend/src/sro/domain/observation/redaction.py#L117): Comment
+## module, [line 44](../../../../../../../backend/src/sro/domain/observation/redaction.py#L44): Comment
 
 Code: `SECRET_SHAPES: tuple[tuple[str, str], ...] = (`
 
@@ -196,7 +174,7 @@ Code: `SECRET_SHAPES: tuple[tuple[str, str], ...] = (`
 > values, 4.0 blanks 14,419, 3.5 blanks 21,250 -- and 5.0 blanks nothing at
 > all. There is no threshold between useless and destructive.
 
-## module, [line 118](../../../../../../../backend/src/sro/domain/observation/redaction.py#L118): Comment
+## module, [line 45](../../../../../../../backend/src/sro/domain/observation/redaction.py#L45): Comment
 
 Code: `("jwt", r"eyJ[A-Za-z0-9_-]{10,}(?:\.[A-Za-z0-9_-]*){2,4}"),`
 
@@ -208,7 +186,7 @@ Code: `("jwt", r"eyJ[A-Za-z0-9_-]{10,}(?:\.[A-Za-z0-9_-]*){2,4}"),`
 > saying the token was gone -- worse than no match, because that marker is
 > what a reader greps for to call the store clean.
 
-## module, [line 124](../../../../../../../backend/src/sro/domain/observation/redaction.py#L124): Comment
+## module, [line 51](../../../../../../../backend/src/sro/domain/observation/redaction.py#L51): Comment
 
 Code: `(`
 
@@ -217,7 +195,7 @@ Code: `(`
 > had been removed. The END clause is optional so a truncated capture still
 > loses its opening line.
 
-## module, [line 133](../../../../../../../backend/src/sro/domain/observation/redaction.py#L133): Comment
+## module, [line 60](../../../../../../../backend/src/sro/domain/observation/redaction.py#L60): Comment
 
 Code: `("bearer", r"\bbearer\s+[A-Za-z0-9._~+/-]{20,}"),`
 
@@ -226,7 +204,7 @@ Code: `("bearer", r"\bbearer\s+[A-Za-z0-9._~+/-]{20,}"),`
 > blind match would widen over the lowercase identifiers this corpus is
 > full of.
 
-## module, [line 171](../../../../../../../backend/src/sro/domain/observation/redaction.py#L171): Comment
+## module, [line 87](../../../../../../../backend/src/sro/domain/observation/redaction.py#L87): Comment
 
 Code: `OAUTH_COMPANIONS = frozenset(`
 
@@ -242,7 +220,7 @@ Code: `OAUTH_COMPANIONS = frozenset(`
 > (areaCode, operationCode, barCodeTemplateId) are untouched by an exact match.
 > This costs no live evidence and closes the last row of the audit's table.
 
-## `redact_url`, [line 214](../../../../../../../backend/src/sro/domain/observation/redaction.py#L214): Comment
+## `redact_url`, [line 130](../../../../../../../backend/src/sro/domain/observation/redaction.py#L130): Comment
 
 Code: `return redact_shapes(head if hash_at == -1 else f"{head}#{fragment}")`
 
@@ -252,7 +230,7 @@ Code: `return redact_shapes(head if hash_at == -1 else f"{head}#{fragment}")`
 > credential comes back byte-identical -- the property the hand-splicing
 > above exists to keep.
 
-## module, [line 219](../../../../../../../backend/src/sro/domain/observation/redaction.py#L219): Comment
+## module, [line 135](../../../../../../../backend/src/sro/domain/observation/redaction.py#L135): Comment
 
 Code: `_PAIR = re.compile(r"([A-Za-z_][\w.-]*)(\s*[=:]\s*)([^\s&;,]*)")`
 
@@ -261,21 +239,21 @@ Code: `_PAIR = re.compile(r"([A-Za-z_][\w.-]*)(\s*[=:]\s*)([^\s&;,]*)")`
 > this wants only a field name next to a field value, which is all a
 > name-based rule needs to act -- and is what catches a graphql mutation.
 
-## `_redact_json`, [line 248](../../../../../../../backend/src/sro/domain/observation/redaction.py#L248): Comment
+## `_redact_json`, [line 164](../../../../../../../backend/src/sro/domain/observation/redaction.py#L164): Comment
 
 Code: `return UNINSPECTABLE`
 
 > Not the document it claimed to be: truncated, or never JSON at all.
 > Replaced whole rather than stored unexamined -- see redact_body.
 
-## `_redact_json`, [line 250](../../../../../../../backend/src/sro/domain/observation/redaction.py#L250): Comment
+## `_redact_json`, [line 166](../../../../../../../backend/src/sro/domain/observation/redaction.py#L166): Comment
 
 Code: `return json.dumps(_redact_pairs(document), ensure_ascii=False)`
 
 > A bare JSON string is a document too, and `"password=hunter2"` is
 > what one looks like when it carries a credential.
 
-## `_redact_json`, [line 252](../../../../../../../backend/src/sro/domain/observation/redaction.py#L252): Comment
+## `_redact_json`, [line 168](../../../../../../../backend/src/sro/domain/observation/redaction.py#L168): Comment
 
 Code: `return text if cleaned == document else json.dumps(cleaned, ensure_ascii=False)`
 

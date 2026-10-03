@@ -411,3 +411,35 @@ def test_a_job_field_that_ends_in_code_is_still_captured(page: Any, name: str) -
     _add(page, f"<input id=f type=text aria-label='{name}'>")
     page.fill("#f", "VIP77")
     assert _told(page, "Saved VIP77") == "Saved VIP77"
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "<input id=f type=text aria-label='Pick session id'>",
+        "<input id=f type=text aria-label='Login code type'>",
+        "<input id=f type=text aria-label='Dock access key'>",
+        "<input id=f type=text name=pickSession>",
+        "<input id=f type=text name=pickSession aria-label='id override'>",
+        "<h3 id=h>Password policy</h3><input id=f type=text aria-labelledby=h>",
+        "<h3 id=h>Password</h3><h3 id=g>Policy</h3><input id=f type=text aria-labelledby='h g'>",
+    ],
+)
+def test_a_job_field_is_judged_by_each_attribute_alone_and_stays_captured(
+    page: Any, field: str
+) -> None:
+    _add(page, field)
+    page.fill("#f", "VIP77")
+    assert _told(page, "Saved VIP77") == "Saved VIP77"
+
+
+def test_a_field_labelled_by_one_short_label_that_names_a_secret_is_hidden(page: Any) -> None:
+    _add(page, "<span id=l>Login code</span><input id=f type=text aria-labelledby=l>")
+    page.fill("#f", "hunter2")
+    assert _told(page, "Bad hunter2") is None
+
+
+def test_a_secret_shorter_than_four_characters_is_not_remembered(page: Any) -> None:
+    page.fill("#pw", "7")
+    page.click("#noop")
+    assert _told(page, "Saved 7 items") == "Saved 7 items"

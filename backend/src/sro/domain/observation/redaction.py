@@ -2,7 +2,10 @@ import json
 import re
 from urllib.parse import unquote_plus, urlparse
 
+from sro.domain.recording.sensitivity import is_secret_field
 from sro.domain.shared.hosts import REDACTED
+
+is_secret_name = is_secret_field
 
 SECRET_HEADERS = frozenset(
     {
@@ -36,82 +39,6 @@ SECRET_HEADER_HINTS = (
     "xsrf",
 )
 
-SECRET_WORDS = frozenset(
-    {
-        "accesskey",
-        "accesstoken",
-        "apikey",
-        "apisecret",
-        "appsecret",
-        "authkey",
-        "authorization",
-        "authtoken",
-        "backupcode",
-        "bearer",
-        "clientsecret",
-        "connectionstring",
-        "consumerkey",
-        "consumersecret",
-        "cookie",
-        "credential",
-        "credentials",
-        "csrf",
-        "csrftoken",
-        "cvv",
-        "encryptionkey",
-        "hotp",
-        "htpasswd",
-        "idrsa",
-        "idtoken",
-        "jsessionid",
-        "jwt",
-        "keystore",
-        "machinekey",
-        "mfa",
-        "oauthtoken",
-        "onetimecode",
-        "onetimepasscode",
-        "otp",
-        "pass",
-        "passcode",
-        "passphrase",
-        "passwd",
-        "password",
-        "phpsessid",
-        "pin",
-        "privatekey",
-        "privkey",
-        "pwd",
-        "recoverycode",
-        "refreshtoken",
-        "relaystate",
-        "resettoken",
-        "rsakey",
-        "saml",
-        "samlrequest",
-        "samlresponse",
-        "secret",
-        "secretaccesskey",
-        "secretanswer",
-        "secretkey",
-        "securityanswer",
-        "securitycode",
-        "sessionid",
-        "sessionkey",
-        "sessiontoken",
-        "sshkey",
-        "ssn",
-        "sso",
-        "token",
-        "totp",
-        "truststore",
-        "verificationcode",
-        "xapikey",
-        "xauthtoken",
-        "xsrf",
-        "xsrftoken",
-    }
-)
 UNINSPECTABLE = "«whole body: could not be parsed to redact»"
 
 SECRET_SHAPES: tuple[tuple[str, str], ...] = (
@@ -155,17 +82,6 @@ def redact_shapes(text: str) -> str:
     if not text:
         return text
     return _SHAPE_ANY_CASE.sub(REDACTED, _SHAPE.sub(REDACTED, text))
-
-
-def _words_of(text: str) -> list[str]:
-    spaced = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", text or "")
-    spaced = re.sub(r"([A-Z]{2,})([A-Z][a-z])", r"\1 \2", spaced)
-    return [word.lower() for word in re.split(r"[^A-Za-z]+", spaced) if word]
-
-
-def is_secret_name(name: str) -> bool:
-    words = _words_of(name)
-    return any(word in SECRET_WORDS for word in words) or "".join(words) in SECRET_WORDS
 
 
 OAUTH_COMPANIONS = frozenset(

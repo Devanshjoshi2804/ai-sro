@@ -9,7 +9,16 @@
 
   const readers = (() => {
     const MAX_TEXT = 200;
+    // BEGIN generated secret-name rule
     const SECRET_WORDS = new Set(["accesskey", "accesstoken", "apikey", "apisecret", "appsecret", "authkey", "authorization", "authtoken", "backupcode", "bearer", "clientsecret", "connectionstring", "consumerkey", "consumersecret", "cookie", "credential", "credentials", "csrf", "csrftoken", "cvv", "encryptionkey", "hotp", "htpasswd", "idrsa", "idtoken", "jsessionid", "jwt", "keystore", "logincode", "machinekey", "mfa", "oauthtoken", "onetimecode", "onetimepasscode", "otp", "pass", "passcode", "passphrase", "passwd", "password", "phpsessid", "pin", "privatekey", "privkey", "pwd", "recoverycode", "refreshtoken", "relaystate", "resettoken", "rsakey", "saml", "samlrequest", "samlresponse", "secret", "secretaccesskey", "secretanswer", "secretkey", "securityanswer", "securitycode", "sessionid", "sessionkey", "sessiontoken", "sshkey", "ssn", "sso", "token", "totp", "truststore", "verificationcode", "xapikey", "xauthtoken", "xsrf", "xsrftoken"]);
+    // Multi-word credentials, read as the LAST words of one name, never across attributes.
+    const SECRET_PHRASES = [["login", "code"], ["one", "time", "code"], ["verification", "code"], ["security", "code"], ["access", "token"], ["api", "key"], ["secret", "key"]];
+
+    // `([A-Z]{2,})([A-Z][a-z])` and not `([A-Z]+)(...)`: the wider rule splits the
+    // lone N off `pickNPassAutoDropLocation` and leaves `Pass` bare, blanking a real
+    // warehouse field. Two-or-more needs three capitals in a row before it cuts, so
+    // `SAMLResponse` splits into saml/response and `NPass` stays whole. Measured
+    // over 3,270 real field, header and query names: it changes none of them.
     const wordsOf = (text) =>
       (text || "")
         .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
@@ -17,13 +26,18 @@
         .split(/[^A-Za-z]+/)
         .filter(Boolean)
         .map((word) => word.toLowerCase());
+
     const isSecretName = (name) => {
       const words = wordsOf(name);
-      // A word, two or three adjacent words read as one ("login code", "one time code"), or the whole name. Never a bare
-      // "code": that is a job field ("Customer type code"), and only the named credential phrases are in the list.
-      const joined = (from, to) => SECRET_WORDS.has(words.slice(from, to).join(""));
-      return words.some((word, i) => SECRET_WORDS.has(word) || joined(i, i + 2) || joined(i, i + 3)) || joined(0, words.length);
+      return (
+        words.some((word) => SECRET_WORDS.has(word)) ||
+        SECRET_WORDS.has(words.join("")) ||
+        SECRET_PHRASES.some((phrase) =>
+          phrase.every((word, i) => words[words.length - phrase.length + i] === word),
+        )
+      );
     };
+    // END generated secret-name rule
     // A text input the page draws as dots (`-webkit-text-security`) is a password whatever it is called.
     const drawnMasked = (el) => {
       const tag = el.tagName;
@@ -32,21 +46,26 @@
       const style = view && view.getComputedStyle(el);
       return Boolean(style) && /^(disc|circle|square)$/.test(style.webkitTextSecurity || style.getPropertyValue("-webkit-text-security"));
     };
-    // What aria-labelledby points at, so a control named by another element is judged by that name too.
+    // What aria-labelledby names, only when it points at ONE short label (<= 40 chars) that is not a heading, legend,
+    // group or section title: such a title names a whole block of fields, not this one.
+    const GROUP_TAGS = /^(h[1-6]|legend|fieldset|section|header|summary|caption|th)$/i;
+    const GROUP_ROLES = /^(heading|group|radiogroup|region|tablist|tabpanel|toolbar|rowgroup|columnheader)$/;
     const labelledText = (el) => {
-      const ids = (el.getAttribute("aria-labelledby") || "").split(/\s+/);
-      return ids.map((id) => (id && el.ownerDocument ? el.ownerDocument.getElementById(id)?.textContent || "" : "")).join(" ");
+      const ids = (el.getAttribute("aria-labelledby") || "").split(/\s+/).filter(Boolean);
+      const target = ids.length === 1 && el.ownerDocument ? el.ownerDocument.getElementById(ids[0]) : null;
+      if (!target || GROUP_TAGS.test(target.tagName) || GROUP_ROLES.test(target.getAttribute("role") || "")) return "";
+      const text = (target.textContent || "").trim();
+      return text.length <= 40 ? text : "";
     };
+    // Each attribute is judged alone: words never join across name, id, label, placeholder, data-ref or labelledby.
     const isSecretField = (el) => {
       if (!el || el.nodeType !== 1) return false;
       if ((el.type || "").toLowerCase() === "password") return true;
       const autocomplete = (el.getAttribute("autocomplete") || "").toLowerCase();
       if (autocomplete.includes("password") || autocomplete === "one-time-code") return true;
       if (autocomplete === "cc-csc" || autocomplete === "cc-number") return true;
-      const named = [el.name, el.id, el.getAttribute("aria-label"), el.getAttribute("placeholder"), el.getAttribute("data-ref"), labelledText(el)]
-        .filter(Boolean)
-        .join(" ");
-      return isSecretName(named) || drawnMasked(el);
+      const named = [el.name, el.id, el.getAttribute("aria-label"), el.getAttribute("placeholder"), el.getAttribute("data-ref"), labelledText(el)];
+      return named.some((one) => one && isSecretName(String(one))) || drawnMasked(el);
     };
     const roleOf = (el) => {
       const written = el.getAttribute("role");
@@ -422,9 +441,12 @@
       }
       return memory;
     };
+    // A secret shorter than MIN_KNOWN characters ("7") is not remembered or matched: it would blank that digit out of
+    // every later effect text. Ceiling: a 1-3 character secret (a short PIN) can reappear in an effect.
+    const MIN_KNOWN = 4;
     const formsOf = (value) => {
       const raw = String(value).slice(0, KNOWN_CHARS).toLowerCase();
-      return [raw, plainOf(raw)].filter(Boolean);
+      return [raw, plainOf(raw)].filter((one) => one.length >= MIN_KNOWN);
     };
     const promote = (known, value) => {
       for (const one of formsOf(value)) {

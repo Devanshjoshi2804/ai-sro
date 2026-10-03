@@ -14,14 +14,8 @@
 // onto the isolated world's window instead of exporting.
 (() => {
   const SECRET_WORDS = new Set(["accesskey", "accesstoken", "apikey", "apisecret", "appsecret", "authkey", "authorization", "authtoken", "backupcode", "bearer", "clientsecret", "connectionstring", "consumerkey", "consumersecret", "cookie", "credential", "credentials", "csrf", "csrftoken", "cvv", "encryptionkey", "hotp", "htpasswd", "idrsa", "idtoken", "jsessionid", "jwt", "keystore", "logincode", "machinekey", "mfa", "oauthtoken", "onetimecode", "onetimepasscode", "otp", "pass", "passcode", "passphrase", "passwd", "password", "phpsessid", "pin", "privatekey", "privkey", "pwd", "recoverycode", "refreshtoken", "relaystate", "resettoken", "rsakey", "saml", "samlrequest", "samlresponse", "secret", "secretaccesskey", "secretanswer", "secretkey", "securityanswer", "securitycode", "sessionid", "sessionkey", "sessiontoken", "sshkey", "ssn", "sso", "token", "totp", "truststore", "verificationcode", "xapikey", "xauthtoken", "xsrf", "xsrftoken"]);
-  const SECRET_HEADERS = new Set(["api-key", "authentication", "authorization", "csrf-token", "proxy-authorization", "x-access-token", "x-api-key", "x-auth-token", "x-csrf-token", "x-csrftoken", "x-infor-token", "x-moca-session", "x-requested-with", "x-session-key", "x-xsrf-token"]);
-  const SECRET_HEADER_HINTS = ["auth", "cookie", "csrf", "jwt", "login", "sess", "sid", "sso", "token", "xsrf"];
-  // An OAuth authorization code is a credential; a warehouse `code` is not, and
-  // this tenant's traffic carries 138 field names ending in one. So `code` is
-  // matched exactly, and only beside another OAuth parameter -- which is what
-  // tells a callback hop from an ordinary call.
-  const OAUTH_COMPANIONS = new Set(["client_id", "code_challenge", "code_verifier", "grant_type", "id_token", "nonce", "redirect_uri", "response_type", "state"]);
-  const REDACTED = '«redacted»';
+  // Multi-word credentials, read as the LAST words of one name, never across attributes.
+  const SECRET_PHRASES = [["login", "code"], ["one", "time", "code"], ["verification", "code"], ["security", "code"], ["access", "token"], ["api", "key"], ["secret", "key"]];
 
   // `([A-Z]{2,})([A-Z][a-z])` and not `([A-Z]+)(...)`: the wider rule splits the
   // lone N off `pickNPassAutoDropLocation` and leaves `Pass` bare, blanking a real
@@ -38,8 +32,23 @@
 
   const isSecretName = (name) => {
     const words = wordsOf(name);
-    return words.some((word) => SECRET_WORDS.has(word)) || SECRET_WORDS.has(words.join(''));
+    return (
+      words.some((word) => SECRET_WORDS.has(word)) ||
+      SECRET_WORDS.has(words.join('')) ||
+      SECRET_PHRASES.some((phrase) =>
+        phrase.every((word, i) => words[words.length - phrase.length + i] === word),
+      )
+    );
   };
+
+  const SECRET_HEADERS = new Set(["api-key", "authentication", "authorization", "csrf-token", "proxy-authorization", "x-access-token", "x-api-key", "x-auth-token", "x-csrf-token", "x-csrftoken", "x-infor-token", "x-moca-session", "x-requested-with", "x-session-key", "x-xsrf-token"]);
+  const SECRET_HEADER_HINTS = ["auth", "cookie", "csrf", "jwt", "login", "sess", "sid", "sso", "token", "xsrf"];
+  // An OAuth authorization code is a credential; a warehouse `code` is not, and
+  // this tenant's traffic carries 138 field names ending in one. So `code` is
+  // matched exactly, and only beside another OAuth parameter -- which is what
+  // tells a callback hop from an ordinary call.
+  const OAUTH_COMPANIONS = new Set(["client_id", "code_challenge", "code_verifier", "grant_type", "id_token", "nonce", "redirect_uri", "response_type", "state"]);
+  const REDACTED = '«redacted»';
 
   // What a credential LOOKS like, whatever it is called. The words above are the
   // secondary signal and have to be: a field name is whoever wrote the vendor's

@@ -37,8 +37,10 @@ function body(name) {
  * its own suite. */
 function recorder() {
   const words = RECORDER.match(/const SECRET_WORDS = new Set\((\[.*?\])\);/);
+  const phrases = RECORDER.match(/const SECRET_PHRASES = (\[.*?\]);/);
   const globals = {
     SECRET_WORDS: new Set(JSON.parse(words[1])),
+    SECRET_PHRASES: JSON.parse(phrases[1]),
     wordsOf: (text) =>
       String(text || "")
         .replace(/([a-z0-9])([A-Z])/g, "$1 $2")

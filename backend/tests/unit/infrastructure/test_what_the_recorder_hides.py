@@ -10,36 +10,15 @@ of the parameters the skill could have offered.
 
 from __future__ import annotations
 
-import json
-import re
-
 import pytest
 
+from sro.domain.recording.sensitivity import is_secret_field
 from sro.infrastructure.steel.capture import _recorder_script
 
 
-def _words(text: str) -> list[str]:
-    """The same split the recorder does, so this tests the rule rather than JS."""
-    spaced = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", text)
-    return [word.lower() for word in re.split(r"[^A-Za-z]+", spaced) if word]
-
-
-def _secret_words() -> set[str]:
-    """Read out of the script as it is actually injected, list and all: the JS
-    used to carry its own copy of these words, and the copies drifted."""
-    source = _recorder_script()
-    start = source.index("SECRET_WORDS = new Set(")
-    listing = source[source.index("[", start) : source.index("]", start) + 1]
-    return set(json.loads(listing))
-
-
 def _hidden(name: str) -> bool:
-    """The recorder's `isSecretName`: a word, a run of two or three adjacent words
-    joined (a phrase such as "login code"), or the whole name joined."""
-    words = _words(name)
-    secrets = _secret_words()
-    runs = ("".join(words[i : i + n]) for i in range(len(words)) for n in (1, 2, 3))
-    return any(run in secrets for run in runs) or "".join(words) in secrets
+    """The one rule, from sensitivity.py -- the recorder's copy is generated from it."""
+    return is_secret_field(name)
 
 
 @pytest.mark.parametrize(

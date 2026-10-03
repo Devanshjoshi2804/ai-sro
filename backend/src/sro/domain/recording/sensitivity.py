@@ -171,8 +171,17 @@ SECRET_TOKENS = frozenset(
     }
 )
 
-_SECRET_TOKENS = SECRET_TOKENS
-
+# Multi-word credentials, read as the LAST words of one name ("Enter your login code"), never a
+# free run of words or across attributes: "Login code type", "Dock access key" are job fields.
+SECRET_PHRASES = (
+    ("login", "code"),
+    ("one", "time", "code"),
+    ("verification", "code"),
+    ("security", "code"),
+    ("access", "token"),
+    ("api", "key"),
+    ("secret", "key"),
+)
 
 REDACTED = "«redacted»"
 
@@ -243,7 +252,7 @@ _ACRONYM_BOUNDARY = (
 _NOT_LETTERS = re.compile(r"[^A-Za-z]+")
 
 
-def _words(name: str) -> list[str]:
+def secret_words(name: str) -> list[str]:
     spaced = name or ""
     for pattern, replacement in _ACRONYM_BOUNDARY:
         spaced = pattern.sub(replacement, spaced)
@@ -251,10 +260,14 @@ def _words(name: str) -> list[str]:
 
 
 def is_secret_field(name: str) -> bool:
-    words = _words(name)
-    if any(word in _SECRET_TOKENS for word in words):
-        return True
-    return "".join(words) in _SECRET_TOKENS
+    """THE secret-name rule; `make gen-recorder` writes it into the extension."""
+    words = secret_words(name)
+    return (
+        any(word in SECRET_TOKENS for word in words)
+        # Compounds that only read as credentials when joined: apiKey, api_key.
+        or "".join(words) in SECRET_TOKENS
+        or any(tuple(words[-len(p) :]) == p for p in SECRET_PHRASES)
+    )
 
 
 OAUTH_COMPANIONS = frozenset(

@@ -18,7 +18,6 @@ from sro.domain.observation.redaction import SECRET_HEADER_HINTS as SECRET_HEADE
 from sro.domain.observation.redaction import SECRET_HEADERS as SECRET_HEADERS
 from sro.domain.observation.redaction import SECRET_SHAPES as SECRET_SHAPES
 from sro.domain.observation.redaction import SECRET_SHAPES_ANY_CASE as SECRET_SHAPES_ANY_CASE
-from sro.domain.observation.redaction import SECRET_WORDS as SECRET_WORDS
 from sro.domain.observation.redaction import UNINSPECTABLE as UNINSPECTABLE
 from sro.domain.observation.redaction import is_secret_name as is_secret_name
 from sro.domain.observation.redaction import redact_body as redact_body

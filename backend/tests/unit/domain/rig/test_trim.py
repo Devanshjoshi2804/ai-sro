@@ -20,8 +20,6 @@ from sro.domain.observation.redaction import (
     SECRET_HEADERS,
     SECRET_SHAPES,
     SECRET_SHAPES_ANY_CASE,
-    SECRET_WORDS,
-    _words_of,
     is_secret_name,
 )
 from sro.domain.observation.trim import (
@@ -34,6 +32,8 @@ from sro.domain.observation.trim import (
     thin,
     trim,
 )
+from sro.domain.recording.sensitivity import SECRET_TOKENS as SECRET_WORDS
+from sro.domain.recording.sensitivity import secret_words as _words_of
 from sro.domain.shared.hosts import REDACTED
 from tests.unit.domain.rig.conftest import gestures as _gestures
 

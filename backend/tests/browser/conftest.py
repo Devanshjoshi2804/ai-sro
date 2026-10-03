@@ -30,6 +30,21 @@ import pytest
 
 EXTENSION = Path(__file__).resolve().parents[3] / "new-chrome-extension"
 
+
+def chrome_args(proxy: str = "http://127.0.0.1:9") -> list[str]:
+    """How every browser test launches Chrome, with the extension loaded.
+
+    The proxy is the point: Chrome never sends loopback through one, so the
+    stub still answers, and anything else -- the QA box the extension defaults
+    to -- goes to a port nothing listens on and fails closed.
+    """
+    return [
+        f"--disable-extensions-except={EXTENSION}",
+        f"--load-extension={EXTENSION}",
+        f"--proxy-server={proxy}",
+    ]
+
+
 PAGE = """<!doctype html>
 <html><body>
   <h1>Depot</h1>
@@ -822,10 +837,7 @@ def browser(tmp_path: Path) -> Iterator[Any]:
                 str(tmp_path / "profile"),
                 headless=True,
                 channel="chromium",
-                args=[
-                    f"--disable-extensions-except={EXTENSION}",
-                    f"--load-extension={EXTENSION}",
-                ],
+                args=chrome_args(),
             )
         except Exception as why:  # pragma: no cover - environment, not logic
             pytest.skip(f"no chromium able to load an extension here: {why}")

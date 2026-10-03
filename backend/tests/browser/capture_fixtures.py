@@ -22,7 +22,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-from tests.browser.conftest import EXTENSION, _Stub
+from tests.browser.conftest import EXTENSION, _Stub, chrome_args
 
 FIXTURES = EXTENSION / "fixtures"
 
@@ -297,10 +297,7 @@ def main(into: Path = FIXTURES) -> int:
                 str(Path(tempfile.mkdtemp(prefix="sro-fixtures-")) / "profile"),
                 headless=True,
                 channel="chromium",
-                args=[
-                    f"--disable-extensions-except={EXTENSION}",
-                    f"--load-extension={EXTENSION}",
-                ],
+                args=chrome_args(),
             )
             try:
                 events = _capture(context, api_url, _Stub.batches)

@@ -65,6 +65,7 @@ globalThis.fetch = async (url, options = {}) => {
 const queue = await import("./queue.js");
 const { state } = await import("./state.js");
 const { flush } = await import("./upload.js");
+const { api } = await import("./api.js");
 
 function ready() {
   asked = [];
@@ -184,4 +185,36 @@ test("a 401 for a credential since replaced does not take the new one with it", 
   }
   assert.equal(held.get("sro.token"), "tok-pasted-just-now", "a stale 401 signed the operator out");
   held.set("sro.token", "tok-upload-4b12");
+});
+
+test("a 401 for a backend since replaced does not take the credential with it", async () => {
+  // Sign-in changes the API URL and the token together; a call made to the old
+  // URL with a token that happens to be the same is about the old backend.
+  ready();
+  const before = globalThis.fetch;
+  globalThis.fetch = async () => {
+    held.set("sro.apiUrl", "http://other.test");
+    return json({ detail: "no" }, 401);
+  };
+  try {
+    await assert.rejects(() => api.myRuns(5), /not accepted/);
+  } finally {
+    globalThis.fetch = before;
+    held.set("sro.apiUrl", BACKEND);
+  }
+  assert.equal(held.get("sro.token"), "tok-upload-4b12", "a stale 401 signed the operator out");
+});
+
+test("a browser nobody has signed in on calls nobody", async () => {
+  // The beat and the worker's start both look at the mail runs; with no
+  // credential every one of those was a request to the default deployment that
+  // could only come back 401.
+  ready();
+  held.set("sro.token", "");
+  try {
+    await assert.rejects(() => api.myRuns(5), /not accepted/);
+  } finally {
+    held.set("sro.token", "tok-upload-4b12");
+  }
+  assert.deepEqual(asked, [], "a worker with no credential still called the backend");
 });

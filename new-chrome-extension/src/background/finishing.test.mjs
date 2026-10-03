@@ -421,6 +421,8 @@ async function theCardGetsWhatItDraws() {
  * them this far. So a card built to name the record named nothing, and looked
  * exactly like a card that had not been changed. */
 async function theStoredRunCarriesWhatItWrote() {
+  // Signed in: a browser with no credential calls nobody.
+  await state.setToken("tok-run-5d19");
   await state.setActiveRun({ runId: "run_w", at: Date.now(), source: "rig" });
   answer = async () =>
     new Response(

@@ -56,7 +56,7 @@ Code: `snapshots_ignored: int = 0`
 > 0 on a batch we already had: nothing re-read it, and no column records what
 > the first pass ignored.
 
-## `IngestObservation`, [line 85](../../../../../../../backend/src/sro/application/observation/ingest.py#L85): Docstring
+## `IngestObservation`, [line 86](../../../../../../../backend/src/sro/application/observation/ingest.py#L86): Docstring
 
 > Idempotent on the batch id the extension minted.
 >
@@ -64,12 +64,12 @@ Code: `snapshots_ignored: int = 0`
 > correct client. Storing it twice would double every count a miner reads, and
 > the miner's whole job is counting how often something happened.
 
-## `_key`, [line 231](../../../../../../../backend/src/sro/application/observation/ingest.py#L231): Docstring
+## `_key`, [line 236](../../../../../../../backend/src/sro/application/observation/ingest.py#L236): Docstring
 
 > Tenant first, then who, then the day. A lifecycle rule for a retention
 > window is a prefix match, and a purge for one operator is another.
 
-## `_ndjson`, [line 235](../../../../../../../backend/src/sro/application/observation/ingest.py#L235): Docstring
+## `_ndjson`, [line 240](../../../../../../../backend/src/sro/application/observation/ingest.py#L240): Docstring
 
 > One event per line, as the extension streamed it.
 >
@@ -80,7 +80,7 @@ Code: `snapshots_ignored: int = 0`
 > The same round-trip argument as `_redact_query` -- a marker a reviewer
 > cannot grep for is a hole nobody can count.
 
-## `IngestObservation.execute`, [line 112](../../../../../../../backend/src/sro/application/observation/ingest.py#L112): Comment
+## `IngestObservation.execute`, [line 113](../../../../../../../backend/src/sro/application/observation/ingest.py#L113): Comment
 
 Code: `refuse_unless_itself(device, secret, device_id)`
 
@@ -89,7 +89,7 @@ Code: `refuse_unless_itself(device, secret, device_id)`
 > file a day of their own browsing against somebody else's device,
 > and every candidate mined from it would name the wrong operator.
 
-## `IngestObservation.execute`, [line 132](../../../../../../../backend/src/sro/application/observation/ingest.py#L132): Comment
+## `IngestObservation.execute`, [line 133](../../../../../../../backend/src/sro/application/observation/ingest.py#L133): Comment
 
 Code: `admission = admit(`
 
@@ -97,7 +97,7 @@ Code: `admission = admit(`
 > what the tenant agreed to by default. Read from the device
 > already loaded above, and expired grants simply are not in it.
 
-## `IngestObservation.execute`, [line 143](../../../../../../../backend/src/sro/application/observation/ingest.py#L143): Comment
+## `IngestObservation.execute`, [line 144](../../../../../../../backend/src/sro/application/observation/ingest.py#L144): Comment
 
 Code: `check_times(started_at, ended_at, now)`
 
@@ -116,7 +116,7 @@ Code: `check_times(started_at, ended_at, now)`
 > a purge nor the retention sweep can reach an object nothing
 > names.
 
-## `IngestObservation.execute`, [line 146](../../../../../../../backend/src/sro/application/observation/ingest.py#L146): Comment (debt)
+## `IngestObservation.execute`, [line 147](../../../../../../../backend/src/sro/application/observation/ingest.py#L147): Comment (debt)
 
 Code: `uri = await self._blobs.put(`
 
@@ -124,7 +124,7 @@ Code: `uri = await self._blobs.put(`
 > Server-side would mean summing today's batches on every upload;
 > add it here when a device is seen to ignore the policy.
 
-## `IngestObservation.execute`, [line 165](../../../../../../../backend/src/sro/application/observation/ingest.py#L165): Comment
+## `IngestObservation.execute`, [line 166](../../../../../../../backend/src/sro/application/observation/ingest.py#L166): Comment
 
 Code: `wire, unreadable = _as_wire_batch(batch, redacted)`
 
@@ -155,7 +155,7 @@ Code: `wire, unreadable = _as_wire_batch(batch, redacted)`
 > way, and do not let the wire's copy become the argument for
 > deleting this one.
 
-## `IngestObservation.execute`, [line 179](../../../../../../../backend/src/sro/application/observation/ingest.py#L179): Comment
+## `IngestObservation.execute`, [line 180](../../../../../../../backend/src/sro/application/observation/ingest.py#L180): Comment
 
 Code: `rejected=len(admission.rejected) + unreadable,`
 
@@ -168,7 +168,7 @@ Code: `rejected=len(admission.rejected) + unreadable,`
 > never meant to be. Split them the day something acts on
 > the difference rather than reports it.
 
-## `IngestObservation.execute`, [line 204](../../../../../../../backend/src/sro/application/observation/ingest.py#L204): Comment
+## `IngestObservation.execute`, [line 208](../../../../../../../backend/src/sro/application/observation/ingest.py#L208): Comment
 
 Code: `for orphan in orphans:`
 
@@ -186,7 +186,7 @@ Code: `for orphan in orphans:`
 > `_calls` and `_marks` until now, which made cross-batch
 > correlation dead on this side and alive on that one.
 
-## `IngestObservation.execute`, [line 215](../../../../../../../backend/src/sro/application/observation/ingest.py#L215): Comment
+## `IngestObservation.execute`, [line 219](../../../../../../../backend/src/sro/application/observation/ingest.py#L219): Comment
 
 Code: `at=datetime.fromtimestamp(mark.at, UTC).isoformat(),`
 
@@ -194,8 +194,8 @@ Code: `at=datetime.fromtimestamp(mark.at, UTC).isoformat(),`
 > seconds, so it is spelled here the way the rig spells it
 > and the way the contract test writes it: ISO, UTC.
 
-## `IngestObservation.execute`, [line 184](../../../../../../../backend/src/sro/application/observation/ingest.py#L184): Comment
+## `IngestObservation.execute`, [line 185](../../../../../../../backend/src/sro/application/observation/ingest.py#L185): Comment
 
 Code: `for one in left:`
 
-> An effect whose gesture is in an earlier batch is attached to the stored row by `attach_effect`. The ceiling: an effect that arrives before its gesture's batch (an upload retried out of order) matches nothing and is dropped and logged; one matching several stored gestures, or a gesture that already has an effect, is dropped the same way.
+> An effect whose gesture is in an earlier batch is attached to the stored row by `attach_effect`. The ceiling: an effect that arrives before its gesture's batch (an upload retried out of order) matches nothing and is dropped and logged; one matching several stored gestures, one naming a ref that is not the stored gesture's (or a stored gesture with no ref), or a gesture that already has an effect, is dropped the same way. Every drop, in the batch or on the stored rows, is counted in `Ingested.effects_dropped` and in the 202 body.

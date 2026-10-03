@@ -16,7 +16,7 @@ Code: `if len(body.events) > container.settings.observation_batch_events:`
 > before anything looks at them is a body-size middleware, which neither
 > this system nor the rig has.
 
-## `store_artifact`, [line 96](../../../../../../../../../backend/src/sro/interface/http/v1/routers/observations.py#L96): Comment
+## `store_artifact`, [line 97](../../../../../../../../../backend/src/sro/interface/http/v1/routers/observations.py#L97): Comment
 
 Code: `data = await file.read(container.settings.observation_artifact_bytes + 1)`
 

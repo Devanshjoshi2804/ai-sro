@@ -2127,6 +2127,7 @@ class FakeGestureRepository:
         tab_id: int | None,
         frame_path: tuple[FrameHop, ...] | None,
         at: float,
+        of: str,
         effect: Effect,
     ) -> bool:
         same = [
@@ -2137,6 +2138,7 @@ class FakeGestureRepository:
             and one.tab_id == tab_id
             and one.at == at
             and one.action.frame_path == frame_path
+            and one.action.ref == of
         ]
         if len(same) != 1 or same[0].action.effect is not None:
             return False

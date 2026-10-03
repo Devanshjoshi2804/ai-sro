@@ -20,7 +20,7 @@ Comments and docstrings moved out of [`backend/src/sro/application/observation/c
 > them is not the same as never having received them. The count is the
 > difference: it says a batch had snapshots even though nothing stores them.
 
-## `correlate_with_effects`, [line 120](../../../../../../../backend/src/sro/application/observation/correlate.py#L120): Comment
+## `correlate_with_effects`, [line 122](../../../../../../../backend/src/sro/application/observation/correlate.py#L122): Comment
 
 Code: `for key, after in priors:`
 
@@ -49,7 +49,7 @@ Code: `for key, after in priors:`
 > and frame -- `redact._setting` needs that stored gesture's target too, to
 > judge the value.
 
-## `_owner`, [line 162](../../../../../../../backend/src/sro/application/observation/correlate.py#L162): Docstring
+## `_owner`, [line 172](../../../../../../../backend/src/sro/application/observation/correlate.py#L172): Docstring
 
 > The last gesture in the same tab, within the attribution window.
 >
@@ -58,7 +58,7 @@ Code: `for key, after in priors:`
 > evidence means "I cannot prove this belongs to that gesture", not
 > "attach it to the nearest one".
 
-## `_nearest_owner`, [line 175](../../../../../../../backend/src/sro/application/observation/correlate.py#L175): Docstring
+## `_nearest_owner`, [line 185](../../../../../../../backend/src/sro/application/observation/correlate.py#L185): Docstring
 
 > The closest gesture in time, in the same tab, within the window.
 >
@@ -68,27 +68,27 @@ Code: `for key, after in priors:`
 > acts) — so it may attach to a gesture on either side, whichever is
 > nearer in time.
 
-## `as_action`, [line 190](../../../../../../../backend/src/sro/application/observation/correlate.py#L190): Docstring
+## `as_action`, [line 200](../../../../../../../backend/src/sro/application/observation/correlate.py#L200): Docstring
 
 > The wire gesture as the domain sees it: the fields the arithmetic
 > reads, and nothing the recorder might add next week.
 
-## `as_body`, [line 259](../../../../../../../backend/src/sro/application/observation/correlate.py#L259): Docstring
+## `as_body`, [line 270](../../../../../../../backend/src/sro/application/observation/correlate.py#L270): Docstring
 
 > A wire body as the domain sees it: no encoding field, nothing the
 > belts don't read.
 
-## `as_call`, [line 271](../../../../../../../backend/src/sro/application/observation/correlate.py#L271): Docstring
+## `as_call`, [line 282](../../../../../../../backend/src/sro/application/observation/correlate.py#L282): Docstring
 
 > A wire request as the domain sees it. The tab is not on the request:
 > it is on the enclosing `RequestEvent`, so the caller passes it in — an
 > orphan call's tab is a fact worth keeping.
 
-## `as_mark`, [line 287](../../../../../../../backend/src/sro/application/observation/correlate.py#L287): Docstring
+## `as_mark`, [line 298](../../../../../../../backend/src/sro/application/observation/correlate.py#L298): Docstring
 
 > A wire page event as the domain sees it.
 
-## `as_action`, [line 210](../../../../../../../backend/src/sro/application/observation/correlate.py#L210): Comment
+## `as_action`, [line 220](../../../../../../../backend/src/sro/application/observation/correlate.py#L220): Comment
 
 Code: `required=target.required,`
 
@@ -101,8 +101,8 @@ Code: `required=target.required,`
 > 2026-09-22 at 07:17 -- the recorder had been reading
 > `aria-required` for an hour and every stored gesture had none.
 
-## `correlate_with_effects`, [line 125](../../../../../../../backend/src/sro/application/observation/correlate.py#L125): Comment
+## `correlate_with_effects`, [line 128](../../../../../../../backend/src/sro/application/observation/correlate.py#L128): Comment
 
 Code: `for one in effects:`
 
-> An effect joins its gesture the way `prior` does: by `ref`, on the same tab and frame path, never by position. It is also keyed on the gesture's own `at` (the recorder sends `of_at` as the exact float it stamped on the gesture), so a repeated ref cannot take another moment's effect. Exactly one gesture may match: two gestures in one millisecond (a checkbox's click and change), a second effect for a gesture that has one, or an effect that sanitises to nothing are dropped and logged, never guessed at. An effect whose gesture is not in the batch is handed back for the stored rows. `correlate` keeps its four-tuple for its existing callers.
+> An effect joins its gesture the way `prior` does: by `ref`, on the same tab and frame path, never by position. It is also keyed on the gesture's own `at` (the recorder sends `of_at` as the exact float it stamped on the gesture), so a repeated ref cannot take another moment's effect. Exactly one gesture may match: two gestures in one millisecond (a checkbox's click and change), a second effect for a gesture that has one, or an effect that sanitises to nothing are dropped and logged, never guessed at. An effect whose gesture is not in the batch is handed back for the stored rows, unless a gesture of another ref sits at the same tab, frame and time: then it is dropped, because the stored join would be asked for a gesture that is plainly not that one. The sixth element counts drops. `correlate` keeps its four-tuple for its existing callers.

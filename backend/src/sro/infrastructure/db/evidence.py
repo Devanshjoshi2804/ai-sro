@@ -176,20 +176,26 @@ class SqlGestureRepository(GestureRepository):
         tab_id: int | None,
         frame_path: tuple[FrameHop, ...] | None,
         at: float,
+        of: str,
         effect: Effect,
     ) -> bool:
         rows = (
             await self._session.scalars(
-                select(GestureRow).where(
+                select(GestureRow)
+                .where(
                     GestureRow.tenant_id == tenant_id.value,
                     GestureRow.stream_id == stream_id,
                     GestureRow.tab_id.is_not_distinct_from(tab_id),
                     GestureRow.at == at,
                 )
+                .with_for_update()
             )
         ).all()
         same = [
-            row for row in rows if _ACTION.validate_python(row.gesture).frame_path == frame_path
+            row
+            for row in rows
+            if (one := _ACTION.validate_python(row.gesture)).frame_path == frame_path
+            and one.ref == of
         ]
         if len(same) != 1:
             return False

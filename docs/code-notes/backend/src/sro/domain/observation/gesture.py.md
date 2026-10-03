@@ -88,12 +88,12 @@ Code: `modifiers: tuple[str, ...] = ()`
 > captured and this used to drop. A run replaying the gesture needs them to
 > reproduce a modified click or keypress rather than a bare one (§4.1).
 
-## `Call`, [line 174](../../../../../../../backend/src/sro/domain/observation/gesture.py#L174): Docstring
+## `Call`, [line 175](../../../../../../../backend/src/sro/domain/observation/gesture.py#L175): Docstring
 
 > A recorded exchange, the part of it the belts read: never a response
 > body's text beyond what `confirming_read` compares.
 
-## `GestureBatch`, [line 218](../../../../../../../backend/src/sro/domain/observation/gesture.py#L218): Docstring
+## `GestureBatch`, [line 219](../../../../../../../backend/src/sro/domain/observation/gesture.py#L219): Docstring
 
 > What one upload said about itself.
 >
@@ -108,7 +108,7 @@ Code: `modifiers: tuple[str, ...] = ()`
 > separate tables. Both may describe one upload; neither is derived from the
 > other.
 
-## `passed_through`, [line 256](../../../../../../../backend/src/sro/domain/observation/gesture.py#L256): Docstring
+## `passed_through`, [line 257](../../../../../../../backend/src/sro/domain/observation/gesture.py#L257): Docstring
 
 > Whether this gesture ended on a different system from the one it
 > happened on -- the browser moved the operator, the operator did not.
@@ -118,7 +118,7 @@ Code: `modifiers: tuple[str, ...] = ()`
 > `values.worked_in_both` reads it for the same distinction: a browser
 > bouncing through an identity provider is not somebody using two tabs.
 
-## `Call`, [line 177](../../../../../../../backend/src/sro/domain/observation/gesture.py#L177): Comment
+## `Call`, [line 178](../../../../../../../backend/src/sro/domain/observation/gesture.py#L178): Comment
 
 Code: `request_id: str = ""`
 

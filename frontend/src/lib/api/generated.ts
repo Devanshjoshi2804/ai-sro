@@ -3524,6 +3524,11 @@ export interface components {
              * @default 0
              */
             snapshots_ignored: number;
+            /**
+             * Effects Dropped
+             * @default 0
+             */
+            effects_dropped: number;
         };
         /** ObservationArtifactResponse */
         ObservationArtifactResponse: {

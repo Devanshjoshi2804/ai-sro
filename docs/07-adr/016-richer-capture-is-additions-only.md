@@ -40,7 +40,12 @@ holds what the person did, not what the page did back.
 - Recognition and offers are untouched; only jobs recorded after the extension update carry the new
   data, so the owner's main QA jobs are recorded again once.
 - Two new effect paths at ingest (in-batch join, cross-batch update of the stored row's JSONB); an
-  effect that matches no or several stored gestures is dropped and logged, never guessed.
+  effect that matches no or several stored gestures is dropped, logged and counted
+  (`effects_dropped` in the 202), never guessed. The gesture's `ref` is stored on the action (additive,
+  default none) so the stored join checks the effect names that very gesture; rows stored before it
+  never match. Ceiling: the several-rows check reads committed rows only, so a sibling of the same ref
+  and the same millisecond that another upload is still committing is not seen; the effect then takes
+  the first of two indistinguishable gestures, and nothing is overwritten.
 - The `cookies` permission is optional and requested at runtime, so updating the extension shows no
   new warning.
 

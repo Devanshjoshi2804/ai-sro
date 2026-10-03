@@ -28626,6 +28626,11 @@
             "type": "integer",
             "title": "Snapshots Ignored",
             "default": 0
+          },
+          "effects_dropped": {
+            "type": "integer",
+            "title": "Effects Dropped",
+            "default": 0
           }
         },
         "type": "object",

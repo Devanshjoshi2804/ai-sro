@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import replace
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -13,7 +14,12 @@ AT = 1_790_000_000.25
 SAID = Effect(appeared=(Seen("status", "Saved"),), ended="quiet")
 
 
-def _gesture(gesture_id: str, at: float = AT, frame: tuple[FrameHop, ...] | None = None) -> Gesture:
+def _gesture(
+    gesture_id: str,
+    at: float = AT,
+    frame: tuple[FrameHop, ...] | None = None,
+    ref: str | None = "r.1",
+) -> Gesture:
     return Gesture(
         id=gesture_id,
         tenant=TENANT.value,
@@ -31,14 +37,17 @@ def _gesture(gesture_id: str, at: float = AT, frame: tuple[FrameHop, ...] | None
             at=at,
             url="https://wms.example/a",
             frame_path=frame,
+            ref=ref,
         ),
     )
 
 
-async def _attach(session_factory: async_sessionmaker[AsyncSession], effect: Effect = SAID) -> bool:
+async def _attach(
+    session_factory: async_sessionmaker[AsyncSession], effect: Effect = SAID, of: str = "r.1"
+) -> bool:
     async with SqlUnitOfWork(session_factory) as uow:
         ok = await uow.gestures.attach_effect(
-            TENANT, stream_id="dev-1", tab_id=1, frame_path=None, at=AT, effect=effect
+            TENANT, stream_id="dev-1", tab_id=1, frame_path=None, at=AT, of=of, effect=effect
         )
         await uow.commit()
     return ok
@@ -85,7 +94,7 @@ async def test_an_effect_lands_once_and_never_overwrites(
 async def test_two_gestures_in_one_millisecond_take_no_effect(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
-    await _store(session_factory, _gesture("ges_1"), _gesture("ges_2"))
+    await _store(session_factory, _gesture("ges_1"), _gesture("ges_2", ref="r.1"))
     assert await _attach(session_factory) is False
     assert all(one.action.effect is None for one in await _stored(session_factory))
 
@@ -108,7 +117,52 @@ async def test_another_tenant_tab_or_stream_does_not_match(
             (TENANT, "dev-1", 2),
         ):
             assert not await uow.gestures.attach_effect(
-                tenant, stream_id=stream, tab_id=tab, frame_path=None, at=AT, effect=SAID
+                tenant, stream_id=stream, tab_id=tab, frame_path=None, at=AT, of="r.1", effect=SAID
             )
     (stored,) = await _stored(session_factory)
     assert stored.action.effect is None
+
+
+async def test_an_effect_of_another_ref_never_lands(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    await _store(session_factory, _gesture("ges_1"))
+    assert await _attach(session_factory, of="r.2") is False
+    (stored,) = await _stored(session_factory)
+    assert stored.action.effect is None
+
+
+async def test_a_gesture_stored_without_a_ref_never_takes_an_effect(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    await _store(session_factory, _gesture("ges_1", ref=None))
+    assert await _attach(session_factory) is False
+    (stored,) = await _stored(session_factory)
+    assert stored.action.effect is None
+
+
+async def test_two_effects_at_once_attach_exactly_one(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    await _store(session_factory, _gesture("ges_1"))
+
+    async def attach(text: str) -> bool:
+        async with SqlUnitOfWork(session_factory) as uow:
+            ok = await uow.gestures.attach_effect(
+                TENANT,
+                stream_id="dev-1",
+                tab_id=1,
+                frame_path=None,
+                at=AT,
+                of="r.1",
+                effect=Effect(appeared=(Seen("status", text),), ended="quiet"),
+            )
+            await asyncio.sleep(0.2)
+            await uow.commit()
+        return ok
+
+    won = await asyncio.gather(attach("first"), attach("second"))
+    assert sorted(won) == [False, True]
+    (stored,) = await _stored(session_factory)
+    assert stored.action.effect is not None
+    assert stored.action.effect.appeared[0].text in {"first", "second"}

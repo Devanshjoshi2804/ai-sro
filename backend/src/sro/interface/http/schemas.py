@@ -1952,6 +1952,7 @@ class ObservationAcceptedResponse(BaseModel):
     key (`new_agent_arch/src/rig/api.py:534`) and for the same reason the
     rejections are here: a browser shipping evidence nothing reads should learn
     it from the answer."""
+    effects_dropped: int = 0
 
 
 class ObservationArtifactResponse(BaseModel):

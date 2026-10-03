@@ -80,6 +80,7 @@ class Ingested:
 
     already_had_it: bool = False
     snapshots_ignored: int = 0
+    effects_dropped: int = 0
 
 
 class IngestObservation:
@@ -163,7 +164,7 @@ class IngestObservation:
             )
             await uow.observations.add(batch)
             wire, unreadable = _as_wire_batch(batch, redacted)
-            gestures, orphans, marks, snapshots, left = correlate_with_effects(
+            gestures, orphans, marks, snapshots, left, effects_dropped = correlate_with_effects(
                 wire, ctx.tenant_id.value
             )
             await uow.gestures.add_batch(
@@ -184,6 +185,7 @@ class IngestObservation:
             for one in left:
                 effect = effect_from(one.effect.model_dump())
                 if effect is None:
+                    effects_dropped += 1
                     continue
                 attached = await uow.gestures.attach_effect(
                     ctx.tenant_id,
@@ -193,6 +195,7 @@ class IngestObservation:
                     if one.frame_path is None
                     else tuple(FrameHop(hop.index, hop.url) for hop in one.frame_path),
                     at=one.of_at,
+                    of=one.of,
                     effect=effect,
                 )
                 if not attached:
@@ -201,6 +204,7 @@ class IngestObservation:
                         batch_id.value,
                         one.of,
                     )
+                    effects_dropped += 1
             for orphan in orphans:
                 await uow.gestures.add_orphan_request(
                     ctx.tenant_id,
@@ -225,6 +229,7 @@ class IngestObservation:
             rejected=batch.rejected,
             stored_at=batch.uri,
             snapshots_ignored=snapshots,
+            effects_dropped=effects_dropped,
         )
 
 

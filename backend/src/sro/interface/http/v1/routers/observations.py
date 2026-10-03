@@ -75,6 +75,7 @@ async def ingest_observations(
         stored_at=ingested.stored_at,
         already_had_it=ingested.already_had_it,
         snapshots_ignored=ingested.snapshots_ignored,
+        effects_dropped=ingested.effects_dropped,
     )
 
 

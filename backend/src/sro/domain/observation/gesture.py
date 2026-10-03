@@ -159,6 +159,7 @@ class Action:
     place: Place | None = None
     effect: Effect | None = None
     choice: Choice | None = None
+    ref: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

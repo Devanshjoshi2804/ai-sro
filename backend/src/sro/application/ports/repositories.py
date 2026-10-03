@@ -383,6 +383,7 @@ class GestureRepository(Protocol):
         tab_id: int | None,
         frame_path: tuple[FrameHop, ...] | None,
         at: float,
+        of: str,
         effect: Effect,
     ) -> bool: ...
 

@@ -66,16 +66,17 @@ def _hops(frame_path: list[WireFrameHop] | None) -> tuple[FrameHop, ...] | None:
 
 
 def correlate(batch: Batch, tenant: str) -> tuple[list[Gesture], list[Call], list[PageMark], int]:
-    gestures, orphans, marks, snapshots, _ = correlate_with_effects(batch, tenant)
+    gestures, orphans, marks, snapshots, _, _ = correlate_with_effects(batch, tenant)
     return gestures, orphans, marks, snapshots
 
 
 def correlate_with_effects(
     batch: Batch, tenant: str
-) -> tuple[list[Gesture], list[Call], list[PageMark], int, list[EffectEvent]]:
+) -> tuple[list[Gesture], list[Call], list[PageMark], int, list[EffectEvent], int]:
     gestures: list[Gesture] = []
     effects: list[EffectEvent] = []
     by_moment: dict[tuple[_Made, float], list[Gesture]] = {}
+    placed: set[tuple[int | None, tuple[FrameHop, ...] | None, float]] = set()
     requests: list[RequestEvent] = []
     pages: list[tuple[float, WirePageEvent]] = []
     snapshots_ignored = 0
@@ -101,6 +102,7 @@ def correlate_with_effects(
             )
             gestures.append(gesture)
             frame = (event.tab_id, gesture.action.frame_path)
+            placed.add((*frame, gesture.at))
             if event.gesture.ref is not None:
                 made[(*frame, event.gesture.ref)] = gesture
                 by_moment.setdefault(((*frame, event.gesture.ref), event.gesture.at), []).append(
@@ -122,17 +124,25 @@ def correlate_with_effects(
         if before is not None:
             before.action = replace(before.action, after=after)
     left: list[EffectEvent] = []
+    dropped = 0
     for one in effects:
-        owners = by_moment.get(((one.tab_id, _hops(one.frame_path), one.of), one.of_at))
+        place = (one.tab_id, _hops(one.frame_path))
+        owners = by_moment.get(((*place, one.of), one.of_at))
         effect = effect_from(one.effect.model_dump())
-        if owners is None:
+        if owners is None and (*place, one.of_at) not in placed:
             left.append(one)
-        elif len(owners) != 1 or effect is None or owners[0].action.effect is not None:
+        elif (
+            owners is None
+            or len(owners) != 1
+            or effect is None
+            or owners[0].action.effect is not None
+        ):
             logger.info(
                 "%s: an effect of %s was dropped, no single gesture to take it",
                 batch.batch_id,
                 one.of,
             )
+            dropped += 1
         else:
             owners[0].action = replace(owners[0].action, effect=effect)
     gestures.sort(key=lambda gesture: gesture.at)
@@ -156,7 +166,7 @@ def correlate_with_effects(
         else:
             owner.page_events.append(mark)
 
-    return gestures, orphan_requests, orphan_pages, snapshots_ignored, left
+    return gestures, orphan_requests, orphan_pages, snapshots_ignored, left, dropped
 
 
 def _owner(gestures: list[Gesture], when: float, tab_id: int | None) -> Gesture | None:
@@ -253,6 +263,7 @@ def as_action(wire: WireGesture) -> Action:
         ),
         place=None if wire.place is None else place_from(wire.place.model_dump()),
         choice=None if wire.choice is None else choice_from(wire.choice.model_dump()),
+        ref=wire.ref,
     )
 
 

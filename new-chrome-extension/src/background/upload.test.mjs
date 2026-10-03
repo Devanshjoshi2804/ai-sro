@@ -165,3 +165,23 @@ test("a browser that cannot prove who it is sends nothing and keeps everything",
 
   held.set("sro.deviceSecret", "secret-upload-77e9");
 });
+
+test("a 401 for a credential since replaced does not take the new one with it", async () => {
+  // A call already in flight when somebody signs in was made with the old
+  // credential; its refusal is about that one.
+  ready();
+  await queue.clear();
+  await queue.enqueue(gesture(9));
+  const before = globalThis.fetch;
+  globalThis.fetch = async () => {
+    held.set("sro.token", "tok-pasted-just-now");
+    return json({ detail: "no" }, 401);
+  };
+  try {
+    await assert.rejects(() => flush(DEVICE), /not accepted/);
+  } finally {
+    globalThis.fetch = before;
+  }
+  assert.equal(held.get("sro.token"), "tok-pasted-just-now", "a stale 401 signed the operator out");
+  held.set("sro.token", "tok-upload-4b12");
+});

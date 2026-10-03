@@ -62,8 +62,10 @@ async function call(
   if (response.status === 401) {
     // The same rule the console follows: a credential that is not accepted is
     // dropped, so the operator lands back on the paste screen instead of every
-    // later call failing quietly.
-    await state.setToken("");
+    // later call failing quietly. Only the credential that call carried: a
+    // call already in flight when somebody signs in was made with the previous
+    // one (or none), and its 401 must not wipe the one just pasted.
+    if ((await state.token()) === token) await state.setToken("");
     throw new ApiError(401, { detail: "that credential was not accepted" });
   }
   if (!response.ok) {

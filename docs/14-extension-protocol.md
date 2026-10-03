@@ -559,9 +559,7 @@ The extension commits golden payloads to `new-chrome-extension/fixtures/`:
 | `request-with-body.json` | an XHR carrying a body each way — the other transport |
 | `request-uninspectable-body.json` | a response nothing read: an event stream has no "the body" to wait for |
 | `page-navigated.json` | one `page` event |
-| `snapshot.json` | one `snapshot` event — an accessibility tree, from the passive path |
 | `batch.json` | a complete `POST /v1/observations` body |
-| `command-ui-perform-reply.json` · `command-http-send-reply.json` | extension → server replies |
 
 Regenerated with `make fixtures`, which drives a real Chrome with the extension
 loaded and writes whatever it actually emitted. It exits non-zero naming

@@ -29,6 +29,9 @@ async function call(
     state.token(),
     state.deviceSecret(),
   ]);
+  // Nobody is signed in: the answer is the 401 the backend would give, and
+  // the request would only go to whichever deployment this build defaults to.
+  if (!token) throw new ApiError(401, { detail: "that credential was not accepted" });
   // A multipart body names its own content type, boundary and all, and a
   // Content-Type set here would replace it with one the boundary is missing
   // from -- which every parser reads as a body with no parts in it.
@@ -62,8 +65,12 @@ async function call(
   if (response.status === 401) {
     // The same rule the console follows: a credential that is not accepted is
     // dropped, so the operator lands back on the paste screen instead of every
-    // later call failing quietly.
-    await state.setToken("");
+    // later call failing quietly. Only the credential that call carried: a
+    // call already in flight when somebody signs in was made with the previous
+    // one (or none), and its 401 must not wipe the one just pasted. Nor may a
+    // call made to the backend sign-in has since replaced.
+    if ((await state.token()) === token && (await state.apiUrl()) === base)
+      await state.setToken("");
     throw new ApiError(401, { detail: "that credential was not accepted" });
   }
   if (!response.ok) {

@@ -22,8 +22,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
-from tests.browser.conftest import EXTENSION, _Stub
-from tests.browser.ws import Channel
+from tests.browser.conftest import EXTENSION, _Stub, chrome_args
 
 FIXTURES = EXTENSION / "fixtures"
 
@@ -98,8 +97,6 @@ class _Fixtures(_Stub):
     """The browser-test stub, serving a page with one of everything on it."""
 
     def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler's spelling
-        if "websocket" in self.headers.get("Upgrade", "").lower():
-            return self._upgrade()
         if self.path == "/api/stream":
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
@@ -280,47 +277,6 @@ def _flush_until_everything_wanted_has_arrived(
         flushing.wait_for_timeout(250)
 
 
-def _replies(context: Any, api_url: str, into: Path) -> None:
-    """The other direction: what this extension answers a command with."""
-    channel: Channel = _Stub.channels.get(timeout=20)
-    page = context.new_page()
-    page.goto(api_url)
-    page.reload()
-
-    channel.command(
-        "cmd_fixture_perform",
-        "ui.perform",
-        {
-            "action": "type",
-            "value": CLIENT_CODE,
-            "origin": api_url,
-            "locators": [
-                {
-                    "strategy": "component",
-                    "query": "panel#clients textfield#clientCode",
-                    "within": None,
-                    "visible_only": True,
-                }
-            ],
-        },
-    )
-    _write("command-ui-perform-reply", channel.answer("cmd_fixture_perform"), into)
-
-    channel.command(
-        "cmd_fixture_http",
-        "http.send",
-        {
-            "method": "POST",
-            "url": f"{api_url}/api/orders",
-            "headers": {"content-type": "application/json"},
-            "body": '{"clientCode":"ACME-4471"}',
-            "origin": api_url,
-        },
-    )
-    _write("command-http-send-reply", channel.answer("cmd_fixture_http"), into)
-    page.close()
-
-
 def main(into: Path = FIXTURES) -> int:
     """Capture into `into`, which the drift test points at a temporary directory
     so it can compare what the extension emits now against what is committed."""
@@ -330,9 +286,6 @@ def main(into: Path = FIXTURES) -> int:
     _Stub.artifacts = []
     _Stub.purges = []
     _Stub.fumble_artifacts = 0
-    import queue as _queue
-
-    _Stub.channels = _queue.Queue()
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), _Fixtures)
     threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -344,14 +297,10 @@ def main(into: Path = FIXTURES) -> int:
                 str(Path(tempfile.mkdtemp(prefix="sro-fixtures-")) / "profile"),
                 headless=True,
                 channel="chromium",
-                args=[
-                    f"--disable-extensions-except={EXTENSION}",
-                    f"--load-extension={EXTENSION}",
-                ],
+                args=chrome_args(),
             )
             try:
                 events = _capture(context, api_url, _Stub.batches)
-                _replies(context, api_url, into)
             finally:
                 context.close()
     finally:

@@ -350,7 +350,7 @@
   });
 
   listen('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey || e.altKey) && e.key.length === 1 && watching) {
+    if ((e.ctrlKey || e.metaKey || e.altKey) && e.key.length === 1 && watching && !isSecretField(e.target)) {
       watching.shortcut([...modifiers(e), e.key.toLowerCase()].join('+'));
     }
     // Only keys that commit or cancel. Every other keystroke arrives as the

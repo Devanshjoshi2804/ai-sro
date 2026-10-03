@@ -46,6 +46,9 @@ holds what the person did, not what the page did back.
   never match. Ceiling: the several-rows check reads committed rows only, so a sibling of the same ref
   and the same millisecond that another upload is still committing is not seen; the effect then takes
   the first of two indistinguishable gestures, and nothing is overwritten.
+- A shortcut is recorded on the gesture's open effect, so one pressed after that effect ended (more than
+  500 ms after the last change on the page) is lost with no effect to carry it; a click that changes
+  nothing sends no effect at all.
 - The `cookies` permission is optional and requested at runtime, so updating the extension shows no
   new warning.
 

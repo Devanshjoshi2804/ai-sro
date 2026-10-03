@@ -400,13 +400,40 @@
       if (el.matches(".x-window") || el.tagName === "DIALOG") return "dialog";
       return el.getAttribute("role");
     };
-    const secretsIn = (doc) => {
-      const fields = [...doc.querySelectorAll("input, textarea")].slice(0, 200).filter(isSecretField);
-      const values = fields.map((el) => String(el.value || "").toLowerCase()).filter(Boolean);
+    // Every document this frame may read, top down. `blind` is true when the top is another origin's:
+    // then a password typed up there cannot be seen from here, so nothing said here is safe to send.
+    const readableDocs = (win) => {
+      const docs = new Set();
+      let blind = false;
+      let root = win;
+      try {
+        void win.top.document.body;
+        root = win.top;
+      } catch {
+        blind = true;
+      }
+      const walk = (w, depth) => {
+        docs.add(w.document);
+        for (let i = 0; i < Math.min(w.frames.length, 50) && depth < 5; i++) {
+          try {
+            walk(w.frames[i], depth + 1);
+          } catch {
+            /* another origin's frame: its own recorder watches it */
+          }
+        }
+      };
+      walk(root, 0);
+      return { docs: [...docs], blind };
+    };
+    // `known` outlives the fields: it holds every secret value seen since the watcher started, in page memory only.
+    const secretsIn = (win, known) => {
+      const { docs, blind } = readableDocs(win);
+      const fields = docs.flatMap((d) => [...d.querySelectorAll("input, textarea")].filter(isSecretField));
+      for (const el of fields) if (el.value) known.add(String(el.value).toLowerCase());
       const ids = new Set(fields.flatMap((el) => `${el.getAttribute("aria-describedby") || ""} ${el.getAttribute("aria-errormessage") || ""}`.split(/\s+/)).filter(Boolean));
       return {
         owns: (el) => (el.id && ids.has(el.id)) || [...el.querySelectorAll("input, textarea")].slice(0, 50).some(isSecretField),
-        quotes: (text) => Boolean(text) && values.some((one) => text.toLowerCase().includes(one)),
+        quotes: (text) => Boolean(text) && (blind || [...known].some((one) => text.toLowerCase().includes(one))),
       };
     };
     const seenOf = (el, secrets) => {
@@ -443,9 +470,11 @@
     const routeOf = (win) => `${win.location.pathname}${win.location.hash}`;
     const watchEffect = (win, onDone) => {
       const doc = win.document;
+      const known = new Set();
       const clock = win.performance;
       const started = clock.now();
       const before = tried(() => fieldStates(doc), new Map());
+      tried(() => secretsIn(win, known), null);
       const routeBefore = tried(() => routeOf(win), null);
       const appeared = [];
       const vanished = [];
@@ -458,11 +487,13 @@
       let timer = null;
       const noticedIn = (node) =>
         node.nodeType === 1 ? [node.matches(NOTICED) ? node : null, ...[...node.querySelectorAll(NOTICED)].slice(0, EFFECT_ITEMS)].filter(Boolean) : [];
-      const note = (into, nodes, secrets) => {
+      const touchesBusy = (node) => node.nodeType === 1 && (node.matches(BUSY) || node.querySelector(BUSY) !== null);
+      const note = (into, nodes, secretsNow) => {
         for (const node of nodes) {
           if (into.length >= EFFECT_ITEMS) return;
           for (const el of noticedIn(node)) {
             if (into.length >= EFFECT_ITEMS) return;
+            const secrets = secretsNow();
             if (!secrets.owns(el)) into.push(seenOf(el, secrets));
           }
         }
@@ -470,11 +501,18 @@
       const observer = new win.MutationObserver((changes) => {
         lastChange = clock.now();
         tried(() => {
-          const secrets = secretsIn(doc);
+          // The page-wide reads below run only once something worth reading has appeared.
+          let secrets = null;
+          const secretsNow = () => (secrets = secrets || secretsIn(win, known));
+          let busyMoved = false;
           for (const change of changes) {
-            note(appeared, change.addedNodes, secrets);
-            note(vanished, change.removedNodes, secrets);
+            note(appeared, change.addedNodes, secretsNow);
+            note(vanished, change.removedNodes, secretsNow);
+            busyMoved =
+              busyMoved ||
+              (change.type === "attributes" ? touchesBusy(change.target) : [...change.addedNodes, ...change.removedNodes].some(touchesBusy));
           }
+          if (!busyMoved) return;
           const busy = [...doc.querySelectorAll(BUSY)].slice(0, 20).some((el) => el.getClientRects().length > 0);
           if (busy && busySince === null) busySince = clock.now();
           if (!busy && busySince !== null) {
@@ -484,10 +522,14 @@
         }, null);
       });
       observer.observe(doc, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-invalid", "disabled", "aria-disabled", "class", "style"] });
+      const onInput = (e) => {
+        if (isSecretField(e.target) && e.target.value) known.add(String(e.target.value).toLowerCase());
+      };
+      doc.addEventListener("input", onInput, true);
       const heard = (said) => {
-        if (errors.length >= 10) return;
+        if (done || errors.length >= 10) return;
         const one = tried(() => say(String(said || "").replace(/\S+:\/\/\S+/g, "\u00abmasked\u00bb")), null);
-        if (one && !tried(() => secretsIn(doc).quotes(one), true)) errors.push(one);
+        if (one && !tried(() => secretsIn(win, known).quotes(one), true)) errors.push(one);
       };
       const onError = (e) => heard(e.message || (e.reason && e.reason.message) || e.reason);
       const quietly = win.console.error;
@@ -502,6 +544,7 @@
         if (done) return null;
         done = true;
         observer.disconnect();
+        doc.removeEventListener("input", onInput, true);
         if (timer !== null) win.clearInterval(timer);
         win.removeEventListener("error", onError, true);
         win.removeEventListener("unhandledrejection", onError, true);
@@ -538,6 +581,10 @@
           errors,
           shortcuts,
         };
+        const nothing =
+          !appeared.length && !vanished.length && !fields.length && !errors.length && !shortcuts.length &&
+          effect.route_before === effect.route_after && effect.requests_ms === null && effect.mask_ms === null;
+        if (nothing) return null;
         if (onDone) tried(() => onDone(effect), null);
         return effect;
       };
@@ -859,7 +906,7 @@
   });
 
   listen('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey || e.altKey) && e.key.length === 1 && watching) {
+    if ((e.ctrlKey || e.metaKey || e.altKey) && e.key.length === 1 && watching && !isSecretField(e.target)) {
       watching.shortcut([...modifiers(e), e.key.toLowerCase()].join('+'));
     }
     // Only keys that commit or cancel. Every other keystroke arrives as the

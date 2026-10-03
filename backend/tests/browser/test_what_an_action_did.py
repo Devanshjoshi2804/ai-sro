@@ -24,6 +24,8 @@ PAGE = """<!doctype html><html><body>
   <button type="button" id="ask">Delete</button>
   <button type="button" id="go">Go</button>
   <button type="button" id="boom">Boom</button>
+  <button type="button" id="clear">Clear</button>
+  <button type="button" id="noop">Nothing</button>
 </form>
 <script>
   const say = (role, text) => { const d = document.createElement('div'); d.setAttribute('role', role); d.innerText = text; document.body.appendChild(d); };
@@ -31,6 +33,7 @@ PAGE = """<!doctype html><html><body>
   incomplete.onclick = () => { code.setAttribute('aria-invalid', 'true'); desc.disabled = false; say('alert', 'Code is required'); };
   ask.onclick = () => { const d = document.createElement('div'); d.setAttribute('role', 'dialog'); d.innerHTML = '<h2>Delete?</h2><p>Delete this row?</p><button>Yes</button><button>No</button>'; document.body.appendChild(d); };
   go.onclick = () => { history.pushState({}, '', '/customers/42'); };
+  clear.onclick = () => { const v = pw.value; pw.value = ''; say('alert', 'Invalid password ' + v); };
   boom.onclick = () => setTimeout(() => { throw new Error('x is undefined at https://wms.example/app.js:1:2'); }, 10);
 </script>
 </body></html>"""
@@ -152,15 +155,98 @@ def test_a_secret_field_s_validation_text_is_never_captured(page: Any) -> None:
     assert not any(one["label"] == "Password" for one in sent["effect"]["fields"])
 
 
-def test_the_observer_is_gone_once_the_effect_is_sent(page: Any) -> None:
+# The recorder keeps one observer of its own for the outline; a leaking watcher shows as more.
+def _count_observers(page: Any) -> None:
     page.evaluate(
         "() => { window.__live = 0; const O = window.MutationObserver;"
         "window.MutationObserver = class extends O { constructor(f) { super(f); window.__live++; }"
         " disconnect() { window.__live--; super.disconnect(); } }; }"
     )
-    page.click("#code")
-    _effect_of(page, _last(page)["ref"])
-    settled = page.evaluate("window.__live")
+
+
+def test_the_observer_is_gone_once_the_effect_is_sent(page: Any) -> None:
+    _count_observers(page)
     page.click("#ask")
     _effect_of(page, _last(page)["ref"])
+    settled = page.evaluate("window.__live")
+    page.click("#go")
+    _effect_of(page, _last(page)["ref"])
     assert page.evaluate("window.__live") == settled
+
+
+def test_a_password_cleared_before_the_message_still_never_leaves_the_page(page: Any) -> None:
+    page.fill("#pw", "hunter2")
+    page.click("#clear")
+    sent = _effect_of(page, _last(page)["ref"])
+    assert any(one["role"] == "alert" for one in sent["effect"]["appeared"])
+    assert "hunter2" not in json.dumps(page.evaluate("window.__did"))
+
+
+def test_an_iframe_alert_quoting_the_parents_password_never_leaves_the_page(page: Any) -> None:
+    page.evaluate(
+        "() => { const f = document.createElement('iframe'); f.id = 'f';"
+        "f.srcdoc = '<button id=b>Try</button><script>b.onclick = () => { const d = document.createElement(\\'div\\');"
+        " d.setAttribute(\\'role\\', \\'alert\\'); d.innerText = \\'Bad password hunter2 for user\\'; document.body.appendChild(d); };"
+        "<' + '/script>'; document.body.appendChild(f); }"
+    )
+    page.fill("#pw", "hunter2")
+    page.frame_locator("#f").locator("#b").click()
+    child = next(one for one in page.frames if one != page.main_frame)
+    child.wait_for_function("(window.__did || []).length > 0", timeout=5000)
+    assert "hunter2" not in json.dumps(child.evaluate("window.__did"))
+
+
+def test_a_cross_origin_frame_cannot_see_the_parents_secrets_so_its_text_is_dropped(
+    page: Any,
+) -> None:
+    page.context.route(
+        "http://other.test/**",
+        lambda route: route.fulfill(
+            content_type="text/html",
+            body="<button id=b onclick=\"const d=document.createElement('div');d.setAttribute('role','alert');"
+            "d.innerText='Bad password hunter2';document.body.appendChild(d)\">Try</button>",
+        ),
+    )
+    page.evaluate(
+        "() => { const f = document.createElement('iframe'); f.id = 'f'; f.src = 'http://other.test/x'; document.body.appendChild(f); }"
+    )
+    page.fill("#pw", "hunter2")
+    page.frame_locator("#f").locator("#b").click()
+    child = next(one for one in page.frames if one != page.main_frame)
+    child.wait_for_function("(window.__did || []).length > 0", timeout=5000)
+    sent = json.loads(child.evaluate("window.__did")[0])
+    assert "hunter2" not in json.dumps(sent)
+    assert all(one["text"] is None for one in sent["effect"]["appeared"])
+
+
+def test_a_click_that_changes_nothing_sends_no_effect(page: Any) -> None:
+    _count_observers(page)
+    page.evaluate(
+        "() => { for (let i = 0; i < 200; i++) document.getElementById('noop').click(); }"
+    )
+    assert len(page.evaluate("window.__got")) == 200
+    page.wait_for_function("window.__live <= 1", timeout=8000)
+    assert (page.evaluate("window.__did") or []) == []
+
+
+def test_the_watcher_costs_little_on_a_big_busy_page(page: Any) -> None:
+    page.evaluate(
+        "() => { const h = document.createElement('div'); for (let i = 0; i < 3000; i++) { const x = document.createElement('input'); x.id = 'i' + i; h.appendChild(x); }"
+        "document.body.appendChild(h);"
+        "window.__ms = 0; const O = window.MutationObserver;"
+        "window.MutationObserver = class extends O { constructor(f) { super((...a) => { const t = performance.now(); try { return f(...a); } finally { window.__ms += performance.now() - t; } }); } };"
+        "window.__live = 0; const D = window.MutationObserver; window.MutationObserver = class extends D { constructor(f) { super(f); window.__live++; } disconnect() { window.__live--; super.disconnect(); } };"
+        "setInterval(() => { const d = document.createElement('div'); d.className = 'tick'; document.body.appendChild(d); if (document.body.children.length > 50) document.body.lastChild.remove(); }, 5); }"
+    )
+    page.click("#noop")
+    page.wait_for_function("window.__live <= 1", timeout=8000)
+    spent = page.evaluate("window.__ms")
+    assert spent < 100  # was 850 ms before the callback stopped scanning the page
+
+
+def test_a_shortcut_typed_in_a_secret_field_is_not_recorded(page: Any) -> None:
+    page.click("#pw")
+    page.keyboard.press("Control+Alt+s")
+    page.click("#ask")
+    _effect_of(page, _last(page)["ref"])
+    assert "ctrl+alt+s" not in json.dumps(page.evaluate("window.__did"))

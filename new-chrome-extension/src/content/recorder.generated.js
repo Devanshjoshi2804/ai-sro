@@ -253,16 +253,17 @@
       }
       return outline;
     };
+    const say = (text) => {
+      const plain = plainOf(text);
+      if (!plain || NOT_VOCABULARY.test(plain)) return null;
+      return plain.slice(0, OUTLINE_TEXT);
+    };
     const outlineOf = (doc) => {
-      const say = (text) => {
-        const plain = plainOf(text);
-        if (!plain || NOT_VOCABULARY.test(plain)) return null;
-        return plain.slice(0, OUTLINE_TEXT);
-      };
       const shownIn = (selector) =>
         [...doc.querySelectorAll(selector)].filter((el) => el.getClientRects().length > 0 && !insideEditor(el));
       const unique = (texts, cap) => [...new Set(texts.map(say).filter(Boolean))].slice(0, cap);
       const optionsOf = (el) => {
+        if (isSecretField(el)) return null;
         const owned = el.getAttribute("aria-controls") || el.getAttribute("aria-owns");
         const list =
           el.tagName === "SELECT"
@@ -333,11 +334,15 @@
       const row = el && el.closest ? el.closest(OPTION_ROWS) : null;
       if (!row) return null;
       const list = row.closest("[role=listbox], .x-boundlist") || row.parentElement;
-      const rows = list ? [...list.querySelectorAll(OPTION_ROWS)] : [row];
+      const id = list && list.id;
+      const owner = id && row.ownerDocument.querySelector(`[aria-controls~="${CSS.escape(id)}"], [aria-owns~="${CSS.escape(id)}"]`);
+      if (owner && isSecretField(owner)) return null;
+      const rows = (list ? [...list.querySelectorAll(OPTION_ROWS)] : [row]).slice(0, 50);
+      const at = rows.indexOf(row);
       return {
-        chosen: plainOf(row.innerText).slice(0, MAX_TEXT) || null,
-        index: rows.indexOf(row),
-        options: rows.slice(0, 50).map((one) => plainOf(one.innerText).slice(0, MAX_TEXT)),
+        chosen: say(row.innerText),
+        index: at < 0 ? null : at,
+        options: rows.map((one) => say(one.innerText)),
       };
     };
     const versionOf = (doc) => {
@@ -353,18 +358,26 @@
     const placeOf = (doc) => {
       const win = doc.defaultView || window;
       const visible = (selector) => [...doc.querySelectorAll(selector)].filter((one) => one.getClientRects().length > 0);
-      const texts = (items, cap) => [...new Set(items.map(plainOf).filter(Boolean))].slice(0, cap);
+      const texts = (items, cap, read = (one) => one.innerText) => {
+        const found = new Set();
+        for (const one of items) {
+          const said = say(read(one));
+          if (said) found.add(said);
+          if (found.size >= cap) break;
+        }
+        return [...found];
+      };
       const grid = visible("[role=grid], [role=treegrid], .x-grid")[0];
       const panel = grid && grid.closest(".x-panel");
       const panelTitle = panel && panel.querySelector(".x-title-text");
-      const gridTitle = grid ? plainOf(grid.getAttribute("aria-label")) || plainOf(panelTitle ? panelTitle.innerText : "") : "";
+      const gridTitle = grid ? say(grid.getAttribute("aria-label")) || say(panelTitle ? panelTitle.innerText : "") : "";
       return {
         route: `${win.location.pathname}${win.location.hash}`,
-        title: plainOf(doc.title).slice(0, MAX_TEXT) || null,
-        headings: texts(visible("h1, h2, h3, [role=heading], .x-title-text").map((one) => one.innerText), 3),
-        tabs: texts(visible("[role=tab][aria-selected=true], .x-tab-active").map((one) => one.innerText || one.getAttribute("aria-label")), 10),
+        title: say(doc.title),
+        headings: texts(visible("h1, h2, h3, [role=heading], .x-title-text"), 3),
+        tabs: texts(visible("[role=tab][aria-selected=true], .x-tab-active"), 10, (one) => one.innerText || one.getAttribute("aria-label")),
         grid: gridTitle || null,
-        landmarks: texts(visible("form, dialog, [role=dialog], [role=alertdialog], [role=form], [role=region]").map(ownName), 10),
+        landmarks: texts(visible("form, dialog, [role=dialog], [role=alertdialog], [role=form], [role=region]"), 10, ownName),
         version: versionOf(doc),
       };
     };
@@ -494,7 +507,15 @@
       if (attr.name === 'value' && secret) continue;
       attributes[attr.name] = String(attr.value).slice(0, 512);
     }
-    const sibling = siblingOf(el);
+    // Each new reader is guarded alone: a page that breaks one loses that key.
+    const tried = (read, otherwise) => {
+      try {
+        return read();
+      } catch {
+        return otherwise;
+      }
+    };
+    const sibling = tried(() => siblingOf(el), { index: null, count: null });
     return {
       tag: el.tagName.toLowerCase(),
       role: roleOf(el),
@@ -532,8 +553,8 @@
       attributes,
       component: component(el),
       landmarks: landmarksOf(el),
-      labelText: secret ? null : labelOf(el) || null,
-      fullName: secret ? null : fullNameOf(el),
+      labelText: secret ? null : tried(() => labelOf(el) || null, null),
+      fullName: secret ? null : tried(() => fullNameOf(el), null),
       siblingIndex: sibling.index,
       siblingCount: sibling.count,
     };

@@ -26,6 +26,13 @@ PAGE = """<!doctype html><html><head><title>Customer Types</title>
 </form>
 <ul role="listbox"><li role="option">Bulk</li><li role="option">Pallet</li>
 <li role="option" id="retail">Retail</li></ul>
+<h2>Token a=b</h2>
+<input id="pin" role="combobox" aria-label="PIN code" aria-controls="lb">
+<ul id="lb" role="listbox"><li role="option" id="pin1">1234</li><li role="option">5678</li></ul>
+<input id="pin2" role="combobox" aria-label="PIN code" aria-owns="lb2">
+<ul id="lb2" class="x-boundlist"><li class="x-boundlist-item" id="pin3">4321</li></ul>
+<input id="pw2" type="password" aria-labelledby="pwl"><span id="pwl">Account password</span>
+<ul id="long" role="listbox"></ul>
 </body></html>"""
 
 
@@ -100,3 +107,44 @@ def test_a_click_on_an_option_records_the_list_and_the_choice(page: Any) -> None
 def test_a_click_that_is_not_an_option_records_no_choice(page: Any) -> None:
     page.click("#b")
     assert _all(page)[-1]["choice"] is None
+
+
+def test_a_secret_combos_options_and_choice_are_never_recorded(page: Any) -> None:
+    page.click("#pin1")
+    assert _all(page)[-1]["choice"] is None
+    page.click("#pin3")
+    last = _all(page)[-1]
+    assert last["choice"] is None
+    assert "1234" not in json.dumps(_all(page)) and "4321" not in json.dumps(_all(page))
+
+
+def test_a_place_carries_no_field_value(page: Any) -> None:
+    page.fill("#code", "VALUE-9941")
+    page.click("#b")
+    assert "VALUE-9941" not in json.dumps([one["place"] for one in _all(page)])
+
+
+def test_a_secret_field_named_by_aria_labelledby_records_no_name(page: Any) -> None:
+    page.fill("#pw2", "hunter2")
+    page.click("#a")
+    typed = next(one for one in _all(page) if one["kind"] == "type" and one["target"]["secret"])
+    assert typed["target"]["fullName"] is None and typed["target"]["labelText"] is None
+    secrets = [one["target"] for one in _all(page) if one["target"]["secret"]]
+    assert "Account password" not in json.dumps(secrets)
+
+
+def test_page_text_that_is_not_vocabulary_stays_in_the_page(page: Any) -> None:
+    page.click("#b")
+    assert "a=b" not in json.dumps(_all(page)[-1]["place"])
+
+
+def test_an_option_past_the_cut_list_has_no_index(page: Any) -> None:
+    page.evaluate(
+        "document.getElementById('long').innerHTML = Array.from({length: 60}, (_, i) =>"
+        " `<li role=option id=o${i}>Row ${i}</li>`).join('')"
+    )
+    page.click("#o59")
+    choice = _all(page)[-1]["choice"]
+    assert choice["chosen"] == "Row 59" and choice["index"] is None and len(choice["options"]) == 50
+    page.click("#o3")
+    assert _all(page)[-1]["choice"]["index"] == 3

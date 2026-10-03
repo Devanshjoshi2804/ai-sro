@@ -170,7 +170,15 @@
       if (attr.name === 'value' && secret) continue;
       attributes[attr.name] = String(attr.value).slice(0, 512);
     }
-    const sibling = siblingOf(el);
+    // Each new reader is guarded alone: a page that breaks one loses that key.
+    const tried = (read, otherwise) => {
+      try {
+        return read();
+      } catch {
+        return otherwise;
+      }
+    };
+    const sibling = tried(() => siblingOf(el), { index: null, count: null });
     return {
       tag: el.tagName.toLowerCase(),
       role: roleOf(el),
@@ -208,8 +216,8 @@
       attributes,
       component: component(el),
       landmarks: landmarksOf(el),
-      labelText: secret ? null : labelOf(el) || null,
-      fullName: secret ? null : fullNameOf(el),
+      labelText: secret ? null : tried(() => labelOf(el) || null, null),
+      fullName: secret ? null : tried(() => fullNameOf(el), null),
       siblingIndex: sibling.index,
       siblingCount: sibling.count,
     };

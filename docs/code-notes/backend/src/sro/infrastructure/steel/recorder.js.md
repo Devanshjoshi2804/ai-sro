@@ -29,7 +29,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/reco
 > previous target's state and resets it, it does not skip it), and after the
 > worker says it did not keep the gesture that set them (`sro:dropped`).
 
-## `emit`, [line 242](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L242): Docstring
+## `emit`, [line 250](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L250): Docstring
 
 > A control keeps changing after the gesture that touched it fires -- a
 > spinner clears, a field disables, a box stays ticked -- so there is no
@@ -45,7 +45,7 @@ Comments and docstrings moved out of [`backend/src/sro/infrastructure/steel/reco
 > its after-state arrives in the next batch and is not joined (see
 > correlate.py's notes).
 
-## module, [line 273](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L273): Comment
+## module, [line 281](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L281): Comment
 
 Code: `listen('sro:dropped', (e) => {`
 
@@ -100,6 +100,6 @@ Code: `listen('sro:dropped', (e) => {`
 > for the same reason the listeners are (`__sroHandlers`): installing the
 > recorder again must not leave two observers outlining one page.
 
-## `placeNow`, [line 218](x#L218): Function
+## `placeNow`, [line 226](../../../../../../../backend/src/sro/infrastructure/steel/recorder.js#L226): Function
 
-> Also `choiceNow`, and the `describe` keys labelText, fullName, siblingIndex, siblingCount. These keys are additions for later checks and locators. None of them is read by `targetIdentity` or `screenOf`, so a recording's identity does not move when they are present. A credential field records no label and no name. `placeNow` and `choiceNow` never throw: a page that breaks a reader loses that key, not the gesture.
+> Also `choiceNow`, and the `describe` keys labelText, fullName, siblingIndex, siblingCount. These keys are additions for later checks and locators. None of them is read by `targetIdentity` or `screenOf`, so a recording's identity does not move when they are present. A credential field records no label and no name. `placeNow`, `choiceNow` and each of those describe keys never throw: a page that breaks a reader loses that key, not the gesture.

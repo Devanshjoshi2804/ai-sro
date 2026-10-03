@@ -14,11 +14,12 @@ import hashlib
 import re
 from collections import defaultdict
 from collections.abc import Sequence
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import cast
 
 from sro.application.ports.repositories import UnitOfWork
+from sro.application.ports.system import Clock
 from sro.domain.chat.feedback import (
     BUDGET,
     DISAGREEMENT,
@@ -152,10 +153,10 @@ async def suggest(
     *,
     since: str = "14d",
     minimum: int = 3,
-    now: datetime | None = None,
+    clock: Clock,
     root: Path = HERE,
 ) -> str:
-    at = now or datetime.now(UTC)
+    at = clock.now()
     async with uow as work:
         rows = await work.chat_feedback.newest(
             TenantId(tenant),

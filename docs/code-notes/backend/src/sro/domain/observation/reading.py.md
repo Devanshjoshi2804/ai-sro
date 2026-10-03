@@ -19,7 +19,7 @@ Comments and docstrings moved out of [`backend/src/sro/domain/observation/readin
 > and every field is still read back defensively, so a field of the wrong type
 > is treated as unusable rather than coerced into a plausible-looking one.
 
-## module, [line 13](../../../../../../../backend/src/sro/domain/observation/reading.py#L13): Note on the line above
+## module, [line 14](../../../../../../../backend/src/sro/domain/observation/reading.py#L14): Note on the line above
 
 Code: `TAIL = 8`
 
@@ -31,14 +31,14 @@ Code: `TAIL = 8`
 > longest job fits inside; every reading pays for them in prompt tokens, once per
 > gesture, thousands of times a day.
 
-## `_string_field`, [line 25](../../../../../../../backend/src/sro/domain/observation/reading.py#L25): Docstring
+## `_string_field`, [line 26](../../../../../../../backend/src/sro/domain/observation/reading.py#L26): Docstring
 
 > The schema is advisory, not enforced. A model can return `"act": [...]`
 > and nothing here validates it before it reaches `Intent`. Treating a
 > wrong-typed field as unusable is what stops that field poisoning `one_line`
 > the next time this intent is pulled into somebody else's tail context.
 
-## `intent_from`, [line 30](../../../../../../../backend/src/sro/domain/observation/reading.py#L30): Docstring
+## `intent_from`, [line 31](../../../../../../../backend/src/sro/domain/observation/reading.py#L31): Docstring
 
 > One reading, as it will be stored -- whatever came back in it.
 >
@@ -48,7 +48,7 @@ Code: `TAIL = 8`
 > but not the name it was run up against -- which is the one thing a reader of
 > a $0.00 row needs.
 
-## `_values_seen`, [line 56](../../../../../../../backend/src/sro/domain/observation/reading.py#L56): Docstring
+## `_values_seen`, [line 57](../../../../../../../backend/src/sro/domain/observation/reading.py#L57): Docstring
 
 > What the model reported the operator entering, with credentials blanked.
 >
@@ -60,7 +60,7 @@ Code: `TAIL = 8`
 > typed a password is worth reading, what they typed is not. This is the
 > single point every stored values_seen passes through.
 
-## `is_write`, [line 71](../../../../../../../backend/src/sro/domain/observation/reading.py#L71): Docstring
+## `is_write`, [line 72](../../../../../../../backend/src/sro/domain/observation/reading.py#L72): Docstring
 
 > Whether this gesture's own calls actually wrote something.
 >
@@ -68,7 +68,7 @@ Code: `TAIL = 8`
 > what it typed -- and it typed nothing: the click itself carries no value,
 > only the calls it caused prove a write happened at all.
 
-## `field_of`, [line 80](../../../../../../../backend/src/sro/domain/observation/reading.py#L80): Docstring
+## `field_of`, [line 81](../../../../../../../backend/src/sro/domain/observation/reading.py#L81): Docstring
 
 > What to call the box this value was typed into.
 >
@@ -79,7 +79,7 @@ Code: `TAIL = 8`
 > is the typed value itself, so a fold built on it would name every field
 > after its own contents.
 
-## `_typed_before`, [line 92](../../../../../../../backend/src/sro/domain/observation/reading.py#L92): Docstring
+## `_typed_before`, [line 93](../../../../../../../backend/src/sro/domain/observation/reading.py#L93): Docstring
 
 > (field, value) for every value RECORDED as typed just before this one.
 >
@@ -91,7 +91,7 @@ Code: `TAIL = 8`
 > lives, and a secret gesture contributes nothing rather than contributing a
 > blanked value that would then be matched against a request body.
 
-## `_carried_any`, [line 104](../../../../../../../backend/src/sro/domain/observation/reading.py#L104): Docstring
+## `_carried_any`, [line 108](../../../../../../../backend/src/sro/domain/observation/reading.py#L108): Docstring
 
 > Whether this gesture's writes actually sent something just typed.
 >
@@ -104,7 +104,7 @@ Code: `TAIL = 8`
 > so matching on one would hand the fold back to the telemetry post this
 > guard exists to refuse.
 
-## `with_recent_values`, [line 119](../../../../../../../backend/src/sro/domain/observation/reading.py#L119): Docstring
+## `with_recent_values`, [line 123](../../../../../../../backend/src/sro/domain/observation/reading.py#L123): Docstring
 
 > A write's reading folds in what was typed just before it.
 >
@@ -155,7 +155,7 @@ Code: `TAIL = 8`
 > holds the reading it just built, and a `with_` that quietly rewrites its
 > argument is the kind of surprise that costs an afternoon.
 
-## module, [line 15](../../../../../../../backend/src/sro/domain/observation/reading.py#L15): Note on the line above
+## module, [line 16](../../../../../../../backend/src/sro/domain/observation/reading.py#L16): Note on the line above
 
 Code: `CONFIDENCE = ["high", "medium", "low"]`
 
@@ -163,7 +163,7 @@ Code: `CONFIDENCE = ["high", "medium", "low"]`
 > enum is this list. `ask` refuses a word outside the enum, so a second copy
 > that drifted would refuse every answer carrying a word the schema offers.
 
-## `_values_seen`, [line 57](../../../../../../../backend/src/sro/domain/observation/reading.py#L57): Comment
+## `_values_seen`, [line 58](../../../../../../../backend/src/sro/domain/observation/reading.py#L58): Comment
 
 Code: `seen = cast(list[dict[str, str]], data.get("values_seen", []))`
 

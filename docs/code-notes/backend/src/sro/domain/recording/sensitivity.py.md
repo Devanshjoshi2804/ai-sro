@@ -170,7 +170,7 @@ Code: `SEMANTIC = "semantic"`
 > An all-caps acronym stuck to a word counts as two words, so ``SAMLResponse``
 > matches ``saml``. See ``_words`` for the measurement that says this is free.
 
-## `_redact_query`, [line 288](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L288): Docstring
+## `_redact_query`, [line 314](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L314): Docstring
 
 > An ``a=b&c=d`` run with every credential-named value replaced.
 >
@@ -187,7 +187,7 @@ Code: `SEMANTIC = "semantic"`
 > A pair with no ``=`` is given one, as the JavaScript does: the name alone is
 > what matched, and there is no value to leave in place.
 
-## `redact_url`, [line 301](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L301): Docstring
+## `redact_url`, [line 327](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L327): Docstring
 
 > A URL with credential-named query and fragment values replaced.
 >
@@ -218,11 +218,11 @@ Code: `SEMANTIC = "semantic"`
 > guard: every one of the 611 distinct URLs in its captured knowledge base is
 > relative, so a guard meant to be careful excluded 100% of real evidence.
 
-## `is_secret`, [line 322](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L322): Docstring
+## `is_secret`, [line 348](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L348): Docstring
 
 > Whether the *value* must be held by reference outside the evidence plane.
 
-## `is_replayable`, [line 326](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L326): Docstring
+## `is_replayable`, [line 352](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L352): Docstring
 
 > Whether the captured value can be sent again verbatim.
 >
@@ -385,7 +385,7 @@ Code: `or "".join(words) in SECRET_TOKENS`
 
 > Compounds that only read as credentials when joined: apiKey, api_key.
 
-## module, [line 273](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L273): Comment
+## module, [line 299](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L299): Comment
 
 Code: `OAUTH_COMPANIONS = frozenset(`
 
@@ -404,7 +404,7 @@ Code: `OAUTH_COMPANIONS = frozenset(`
 > store was caught only because Okta happens to emit a JWE; an opaque
 > authorization code, which is the common case, had no rule on this side at all.
 
-## `_redact_query`, [line 296](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L296): Comment
+## `_redact_query`, [line 322](../../../../../../../backend/src/sro/domain/recording/sensitivity.py#L322): Comment
 
 Code: `if is_secret_field(unquote_plus(key)) or (oauth and names[index] == "code"):`
 

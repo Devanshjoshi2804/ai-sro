@@ -36,18 +36,8 @@ function body(name) {
  * also calls stubbed: they are not what is under test, and each is covered by
  * its own suite. */
 function recorder() {
-  const words = RECORDER.match(/const SECRET_WORDS = new Set\((\[.*?\])\);/);
-  const phrases = RECORDER.match(/const SECRET_PHRASES = (\[.*?\]);/);
   const globals = {
-    SECRET_WORDS: new Set(JSON.parse(words[1])),
-    SECRET_PHRASES: JSON.parse(phrases[1]),
-    wordsOf: (text) =>
-      String(text || "")
-        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-        .split(/[^A-Za-z]+/)
-        .filter(Boolean)
-        .map((word) => word.toLowerCase()),
-    roleOf: () => null,
+    OPTION_ROWS: "[role=option], .x-boundlist-item",
     label: () => null,
     requiredOf: () => null,
     cssPath: () => "form > input",
@@ -59,10 +49,13 @@ function recorder() {
     fullNameOf: () => null,
     siblingOf: () => ({ index: 0, count: 1 }),
   };
-  const names = ["isSecretName", "drawnMasked", "labelledText", "isSecretField", "describe"];
+  // The generated secret-name rule itself (words, phrases, wordsOf, isSecretName, isTextEntry), not a copy.
+  const start = RECORDER.indexOf("// BEGIN generated secret-name rule");
+  const rule = RECORDER.slice(start, RECORDER.indexOf("// END generated secret-name rule", start));
+  const names = ["drawnMasked", "labelledText", "ownedBySecret", "isSecretField", "roleOf", "describe"];
   return new Function(
     ...Object.keys(globals),
-    `const MAX_TEXT = 200; ${names.map(body).join(";\n")}; return { describe };`,
+    `const MAX_TEXT = 200; ${rule}\n${names.map(body).join(";\n")}; return { describe };`,
   )(...Object.values(globals));
 }
 
@@ -170,4 +163,16 @@ test("a credential field keeps its attributes and never its value", () => {
     autocomplete: "current-password",
   });
   assert.equal(JSON.stringify(world.sent).includes("hunter2"), false);
+});
+
+test("a setting named like a credential is captured, a text box named like one is not", () => {
+  const { describe } = recorder();
+  const secret = (tag, attrs) => describe(element(tag, attrs)).secret;
+
+  assert.equal(secret("input", { type: "checkbox", "aria-label": "OTP enabled" }), false);
+  assert.equal(secret("select", { name: "Password policy" }), false);
+  assert.equal(secret("button", { role: "switch", "aria-label": "Require password" }), false);
+  assert.equal(secret("input", { type: "text", "aria-label": "OTP" }), true);
+  assert.equal(secret("input", { type: "text", name: "Password policy override code" }), true);
+  assert.equal(secret("div", { contenteditable: "true", "aria-label": "Password" }), true);
 });

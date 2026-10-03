@@ -31,7 +31,9 @@ def _gesture(*, kind: str = "click", requests: list[Call] | None = None) -> Gest
     )
 
 
-def _typed(field: str, value: str, *, at: float = 10.0, secret: bool = False) -> Gesture:
+def _typed(
+    field: str, value: str, *, at: float = 10.0, secret: bool = False, role: str | None = None
+) -> Gesture:
     """One gesture the recorder captured somebody typing into a named box."""
     return Gesture(
         id=f"ges_typed_{field}_{at}",
@@ -48,7 +50,7 @@ def _typed(field: str, value: str, *, at: float = 10.0, secret: bool = False) ->
             at=at,
             value=value,
             secret=secret,
-            target=Target(tag="input", name=field, secret=secret),
+            target=Target(tag="input", role=role, name=field, secret=secret),
         ),
         requests=[],
     )
@@ -305,3 +307,14 @@ def test_a_value_too_short_to_mean_anything_does_not_earn_the_fold() -> None:
     result = with_recent_values(Intent(gesture_id="g", tenant="acme"), gesture, _typed_before("0"))
 
     assert result.values_seen == []
+
+
+def test_a_text_box_named_password_hides_its_value_but_a_setting_does_not() -> None:
+    """D-OTP, server side: the name judges a text entry only."""
+    text = _typed("Password policy override code", "DSS0001")
+    setting = _typed("Password policy", "DSS0002", role="checkbox")
+    gesture = _gesture(requests=[_body_call('{"a":"DSS0001","b":"DSS0002"}')])
+
+    result = with_recent_values(Intent(gesture_id="g", tenant="acme"), gesture, [text, setting])
+
+    assert [seen.field for seen in result.values_seen] == ["Password policy"]

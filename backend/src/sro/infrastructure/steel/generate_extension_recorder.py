@@ -14,6 +14,9 @@ from sro.domain.recording.sensitivity import (
     SECRET_SHAPES,
     SECRET_SHAPES_ANY_CASE,
     SECRET_TOKENS,
+    SETTING_ROLES,
+    TEXT_ROLES,
+    TEXT_TAGS,
 )
 from sro.infrastructure.steel.capture import _recorder_script
 
@@ -85,6 +88,24 @@ const isSecretName = (name) => {{
       phrase.every((word, i) => words[words.length - phrase.length + i] === word),
     )
   );
+}};
+"""
+
+
+def _entry_rule() -> str:
+    """The control-kind rule in JavaScript, from sensitivity.py (page code only)."""
+    roles = [json.dumps(sorted(r)) for r in (SETTING_ROLES, TEXT_ROLES, TEXT_TAGS)]
+    return f"""// A name judges only a control a person types text into; a checkbox, switch, select
+// or combobox named "OTP enabled" holds a setting.
+const SETTING_ROLES = new Set({roles[0]});
+const TEXT_ROLES = new Set({roles[1]});
+const TEXT_TAGS = new Set({roles[2]});
+const isTextEntry = (role, tag, editable) => {{
+  const typed = TEXT_TAGS.has((tag || '').toLowerCase());
+  if (role === 'combobox' && typed) return true; // an <input role=combobox> is typed into
+  if (SETTING_ROLES.has(role)) return false;
+  if (TEXT_ROLES.has(role)) return true;
+  return Boolean(editable) || (typed && role !== 'button');
 }};
 """
 
@@ -356,7 +377,7 @@ export function screenOf(url) {
 
 def page_code_source() -> str:
     source = PAGE_CODE_OUT.read_text(encoding="utf-8")
-    rule = _indent(_indent(_name_rule())).replace("'", '"')
+    rule = _indent(_indent(_name_rule() + _entry_rule())).replace("'", '"')
     region = (
         f"    // BEGIN generated secret-name rule\n{rule}    // END generated secret-name rule\n"
     )

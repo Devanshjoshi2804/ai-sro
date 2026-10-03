@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import unicodedata
 from collections.abc import Mapping, Sequence
+from typing import cast
 
 from sro.application.capture.rig_wire import (
     EffectEvent,
@@ -54,7 +56,30 @@ _HOP_KEYS = tuple(FrameHop.model_fields)
 _GESTURE_KEYS = frozenset(WireGesture.model_fields)
 
 
+def _plain(node: object) -> object:
+    """Text as jsonb can hold it: control and format characters gone (a NUL rejects the whole
+    batch), tab, newline and carriage return kept. One walk: every field of every event passes."""
+    if isinstance(node, str):
+        return "".join(
+            c for c in node if c in "\t\n\r" or unicodedata.category(c) not in ("Cc", "Cf")
+        )
+    if isinstance(node, Mapping):
+        return {_plain(key): _plain(value) for key, value in node.items()}
+    if isinstance(node, list):
+        return [_plain(item) for item in node]
+    return node
+
+
+def _hops(frame_path: list[object]) -> list[dict[str, object]]:
+    return [
+        _hop({key: hop[key] for key in _HOP_KEYS if key in hop})
+        for hop in frame_path[:K_EFFECT_HOPS]
+        if isinstance(hop, Mapping)
+    ]
+
+
 def redact_events(events: Sequence[Event]) -> tuple[Event, ...]:
+    events = tuple(cast(Event, _plain(event)) for event in events)
     made: dict[str, Mapping[str, object]] = {}
     for event in events:
         gesture = event.get("gesture")
@@ -85,11 +110,7 @@ def _event(event: Event, made: Mapping[str, Mapping[str, object]]) -> Event:
         out["effect"] = effect_kept(out.get("effect")) or {}
         frame_path = out.get("frame_path")
         if isinstance(frame_path, list):
-            out["frame_path"] = [
-                _hop({key: hop[key] for key in _HOP_KEYS if key in hop})
-                for hop in frame_path[:K_EFFECT_HOPS]
-                if isinstance(hop, Mapping)
-            ]
+            out["frame_path"] = _hops(frame_path)
     if "cookies" in out:
         out["cookies"] = cookies_kept(out["cookies"])
     if "mail_thread" in out:
@@ -127,7 +148,7 @@ def _gesture(
         out["choice"] = choice_kept(out["choice"])
     frame_path = out.get("frame_path")
     if isinstance(frame_path, list):
-        out["frame_path"] = [_hop(hop) if isinstance(hop, Mapping) else hop for hop in frame_path]
+        out["frame_path"] = _hops(frame_path)
     if "prior" in out:
         out["prior"] = _state(out["prior"], before)
     target = out.get("target")

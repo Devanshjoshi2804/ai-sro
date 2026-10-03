@@ -10,7 +10,7 @@ import subprocess
 import pytest
 
 from sro.domain.observation.redaction import is_secret_name
-from sro.domain.recording.sensitivity import is_secret_field
+from sro.domain.recording.sensitivity import is_secret_field, is_text_entry
 from sro.infrastructure.steel.generate_extension_recorder import (
     PAGE_CODE_OUT,
     sensitivity_module_source,
@@ -29,7 +29,17 @@ CAPTURABLE = [
     "passenger_count", "clientId", "",
 ]  # fmt: skip
 CORPUS = HIDDEN + CAPTURABLE
-RETURN = "return isSecretName;"
+# (role, tag, editable): D-OTP, a name judges only a control a person types text into.
+CONTROLS = [
+    ("textbox", "input", False), ("textbox", "textarea", False), (None, "input", False),
+    (None, "textarea", False), (None, "div", True), ("textbox", "div", False),
+    ("searchbox", "div", False), ("checkbox", "input", False), ("radio", "input", False),
+    ("switch", "button", False), ("combobox", "select", False), (None, "select", False),
+    ("combobox", "input", False), ("listbox", "div", False), ("button", "input", False),
+    ("slider", "input", False), (None, "div", False), ("checkbox", "div", True),
+]  # fmt: skip
+ENTRY = [True] * 7 + [False] * 5 + [True] + [False] * 5  # a typed-into combobox is text
+RETURN = "\nreturn { isSecretName, isTextEntry };"
 
 NODE = shutil.which("node") or "node"
 pytestmark = pytest.mark.skipif(NODE == "node", reason="node is not installed")
@@ -69,10 +79,27 @@ def test_the_page_codes_generated_region_answers_as_python_does() -> None:
     )
     assert region, "page-code.js lost its generated secret-name region"
     program = (
-        f"const isSecretName = new Function({json.dumps(region.group(0) + chr(10) + RETURN)})();"
+        f"const {{ isSecretName }} = new Function({json.dumps(region.group(0) + RETURN)})();"
         + f"console.log(JSON.stringify({json.dumps(CORPUS)}.map(isSecretName)));"
     )
     assert _node(program) == [is_secret_field(n) for n in CORPUS]
+
+
+def test_only_a_text_entry_control_is_judged_by_its_name() -> None:
+    assert [is_text_entry(*c) for c in CONTROLS] == ENTRY
+
+
+def test_the_page_codes_control_kind_answers_as_python_does() -> None:
+    source = PAGE_CODE_OUT.read_text(encoding="utf-8")
+    region = re.search(
+        r"// BEGIN generated secret-name rule.*?// END generated secret-name rule", source, re.S
+    )
+    assert region
+    program = (
+        f"const {{ isTextEntry }} = new Function({json.dumps(region.group(0) + RETURN)})();"
+        + f"console.log(JSON.stringify({json.dumps(CONTROLS)}.map((c) => isTextEntry(...c))));"
+    )
+    assert _node(program) == ENTRY
 
 
 def test_page_code_keeps_one_word_list() -> None:

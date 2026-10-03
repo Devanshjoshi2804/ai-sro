@@ -37,6 +37,18 @@
         )
       );
     };
+    // A name judges only a control a person types text into; a checkbox, switch, select
+    // or combobox named "OTP enabled" holds a setting.
+    const SETTING_ROLES = new Set(["checkbox", "combobox", "listbox", "menuitemcheckbox", "menuitemradio", "option", "radio", "slider", "switch"]);
+    const TEXT_ROLES = new Set(["searchbox", "textbox"]);
+    const TEXT_TAGS = new Set(["input", "textarea"]);
+    const isTextEntry = (role, tag, editable) => {
+      const typed = TEXT_TAGS.has((tag || "").toLowerCase());
+      if (role === "combobox" && typed) return true; // an <input role=combobox> is typed into
+      if (SETTING_ROLES.has(role)) return false;
+      if (TEXT_ROLES.has(role)) return true;
+      return Boolean(editable) || (typed && role !== "button");
+    };
     // END generated secret-name rule
     // A text input the page draws as dots (`-webkit-text-security`) is a password whatever it is called.
     const drawnMasked = (el) => {
@@ -58,8 +70,19 @@
       return text.length <= 40 ? text : "";
     };
     // Each attribute is judged alone: words never join across name, id, label, placeholder, data-ref or labelledby.
+    // Only a control a person types text into is judged: "OTP enabled" (checkbox) or "Password policy" (select) is a setting.
+    // An option of a secret combobox's list is as secret as the box: what it says is what was picked.
+    const ownedBySecret = (el) => {
+      const row = el.closest ? el.closest(OPTION_ROWS) : null;
+      const list = row && (row.closest("[role=listbox], .x-boundlist") || row.parentElement);
+      const id = list && list.id;
+      const owner = id && row.ownerDocument.querySelector(`[aria-controls~="${CSS.escape(id)}"], [aria-owns~="${CSS.escape(id)}"]`);
+      return Boolean(owner) && owner !== el && isSecretField(owner);
+    };
     const isSecretField = (el) => {
       if (!el || el.nodeType !== 1) return false;
+      const editable = el.getAttribute("contenteditable");
+      if (!isTextEntry(roleOf(el), el.tagName.toLowerCase(), editable !== null && editable !== "false")) return ownedBySecret(el);
       if ((el.type || "").toLowerCase() === "password") return true;
       const autocomplete = (el.getAttribute("autocomplete") || "").toLowerCase();
       if (autocomplete.includes("password") || autocomplete === "one-time-code") return true;
@@ -325,9 +348,7 @@
       const row = el && el.closest ? el.closest(OPTION_ROWS) : null;
       if (!row) return null;
       const list = row.closest("[role=listbox], .x-boundlist") || row.parentElement;
-      const id = list && list.id;
-      const owner = id && row.ownerDocument.querySelector(`[aria-controls~="${CSS.escape(id)}"], [aria-owns~="${CSS.escape(id)}"]`);
-      if (owner && isSecretField(owner)) return null;
+      if (isSecretField(row)) return null;
       const rows = (list ? [...list.querySelectorAll(OPTION_ROWS)] : [row]).slice(0, 50);
       const at = rows.indexOf(row);
       return {

@@ -20,8 +20,14 @@ function body(name) {
   throw new Error(`${name} never closes`);
 }
 
+// The generated secret-name and control-kind rule, never a copy: every lifted reader may call it.
+const RULE = source.slice(
+  source.indexOf("// BEGIN generated secret-name rule"),
+  source.indexOf("// END generated secret-name rule"),
+);
+
 export function lift(names, globals = {}) {
-  const text = names.map(body).join(";\n");
+  const text = RULE + "\n" + names.map(body).join(";\n");
   return new Function(
     ...Object.keys(globals),
     `const MAX_TEXT = 200; const MAX_VALUE = 4096; ${text}; return { ${names.join(", ")} };`,
@@ -72,10 +78,9 @@ test("a frame records where it sits, from the top down", () => {
 
 test("the state a gesture left never holds free text", () => {
   const window = { getComputedStyle: () => ({ visibility: "visible", display: "block" }) };
-  const { stateOf } = lift(["isSecretName", "drawnMasked", "labelledText", "isSecretField", "roleOf", "settingOf", "stateOf"], {
+  const { stateOf } = lift(["drawnMasked", "labelledText", "ownedBySecret", "isSecretField", "roleOf", "settingOf", "stateOf"], {
     window,
-    SECRET_WORDS: new Set(["password"]),
-    wordsOf: (text) => String(text || "").toLowerCase().split(/[^a-z]+/).filter(Boolean),
+    OPTION_ROWS: "[role=option], .x-boundlist-item",
   });
   const box = () => ({ width: 10, height: 10 });
   const control = (tag, attrs, props = {}) => ({

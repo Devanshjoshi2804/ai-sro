@@ -33,6 +33,8 @@ PAGE = """<!doctype html><html><head><title>Customer Types</title>
 <ul id="lb2" class="x-boundlist"><li class="x-boundlist-item" id="pin3">4321</li></ul>
 <input id="pw2" type="password" aria-labelledby="pwl"><span id="pwl">Account password</span>
 <ul id="long" role="listbox"></ul>
+<input id="otpon" type="checkbox" aria-label="OTP enabled">
+<input id="otpbox" type="text" aria-label="OTP">
 </body></html>"""
 
 
@@ -148,3 +150,13 @@ def test_an_option_past_the_cut_list_has_no_index(page: Any) -> None:
     assert choice["chosen"] == "Row 59" and choice["index"] is None and len(choice["options"]) == 50
     page.click("#o3")
     assert _all(page)[-1]["choice"]["index"] == 3
+
+
+def test_a_setting_named_otp_is_captured_and_a_text_box_named_otp_is_not(page: Any) -> None:
+    page.click("#otpon")
+    assert _all(page)[-1]["target"]["secret"] is False
+    assert _all(page)[-1]["target"]["name"] == "OTP enabled"
+    page.fill("#otpbox", "482913")
+    page.click("#b")
+    typed = next(one for one in _all(page) if one["kind"] == "type" and one["target"]["secret"])
+    assert typed["target"]["name"] is None and "482913" not in json.dumps(_all(page))

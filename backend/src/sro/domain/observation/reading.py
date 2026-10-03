@@ -8,6 +8,7 @@ from sro.domain.observation.gesture import Gesture, Intent, ValueSeen
 from sro.domain.observation.redaction import is_secret_name
 from sro.domain.observation.trim import is_secret
 from sro.domain.observation.values import K_MIN_VALUE_LEN
+from sro.domain.recording.sensitivity import is_text_entry
 from sro.domain.shared.prices import Answer
 
 TAIL = 8
@@ -96,7 +97,10 @@ def _typed_before(recent: Sequence[Gesture]) -> list[tuple[str, str]]:
             continue
         value = (prior.action.value or "").strip()
         field = field_of(prior)
-        if value and field and not is_secret_name(field):
+        target = prior.action.target
+        # A "type" gesture is typing, so only a setting control (role) is not text entry.
+        typed_text = target is None or is_text_entry(target.role, target.tag, editable=True)
+        if value and field and not (typed_text and is_secret_name(field)):
             found.append((field, value))
     return found
 

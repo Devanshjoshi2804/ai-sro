@@ -270,6 +270,32 @@ def is_secret_field(name: str) -> bool:
     )
 
 
+# A name judges only a control a person types text into. A checkbox, switch, select or combobox
+# named "OTP enabled" or "Password policy" holds a setting, which stays capturable.
+SETTING_ROLES = frozenset(
+    {
+        "checkbox", "radio", "switch", "combobox", "listbox", "option", "slider",
+        "menuitemcheckbox", "menuitemradio",
+    }
+)  # fmt: skip
+TEXT_ROLES = frozenset({"textbox", "searchbox"})
+TEXT_TAGS = frozenset({"input", "textarea"})
+
+
+def is_text_entry(role: str | None, tag: str | None, editable: bool = False) -> bool:
+    """THE control-kind rule: text and password inputs (and any input type not a setting or a
+    button), textarea, contenteditable and role=textbox. An unknown input type counts as text."""
+    if role == "combobox" and (tag or "").lower() in TEXT_TAGS:
+        return (
+            True  # an <input role=combobox> is typed into; a select or a div combobox is a setting
+        )
+    if role in SETTING_ROLES:
+        return False
+    if role in TEXT_ROLES:
+        return True
+    return editable or ((tag or "").lower() in TEXT_TAGS and role != "button")
+
+
 OAUTH_COMPANIONS = frozenset(
     {
         "client_id",
